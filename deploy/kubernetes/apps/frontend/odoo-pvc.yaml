@@ -1,0 +1,15 @@
+# =============================================================================
+# Section: G – Odoo PersistentVolumeClaim.
+# ReadWriteMany is required for 3 Odoo replicas sharing the same filestore.
+# =============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: odoo-data
+  namespace: frontend
+spec:
+  accessModes: [ReadWriteMany]
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: longhorn

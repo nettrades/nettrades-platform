@@ -1,0 +1,7 @@
+# =============================================================================
+# Section: G – Kustomize overlay for the private registry.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - registry-deployment.yaml

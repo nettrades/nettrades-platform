@@ -1,0 +1,13 @@
+<!-- Section F.9 – Include the PWA manifest in the website -->
+<odoo>
+    <template id="pwa_manifest" inherit_id="website.layout">
+        <xpath expr="//head" position="inside">
+            <link rel="manifest" href="/nettrades_pwa/static/src/manifest.json"/>
+            <script>
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('/nettrades_pwa/static/src/sw.js');
+                }
+            </script>
+        </xpath>
+    </template>
+</odoo>

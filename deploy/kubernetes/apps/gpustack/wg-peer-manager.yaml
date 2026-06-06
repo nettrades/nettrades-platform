@@ -1,0 +1,37 @@
+# =============================================================================
+# Section: H – WireGuard peer manager DaemonSet.
+# Runs on the controller node, uses wgctrl-go to programmatically add/remove
+# WireGuard peers based on Odoo's gpu.node table.
+# hostNetwork is required to manage the host's wg0 interface.
+# =============================================================================
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: wg-peer-manager
+  namespace: gpustack
+spec:
+  selector: { matchLabels: { app: wg-peer-manager } }
+  template:
+    metadata: { labels: { app: wg-peer-manager } }
+    spec:
+      hostNetwork: true   # Must manage the host WireGuard interface
+      containers:
+        - name: wg-peer-manager
+          image: registry.registry.svc.cluster.local:5000/wg-peer-manager:latest
+          env:
+            - name: ODOO_URL
+              value: http://odoo.frontend.svc.cluster.local:8069
+            - name: ODOO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-secret
+                  key: api-key
+          securityContext:
+            privileged: true   # Required for netlink access to configure WireGuard
+# apps/gpustack/wg-peer-manager.yaml
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 30

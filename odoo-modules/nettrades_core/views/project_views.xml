@@ -1,0 +1,19 @@
+<odoo>
+    <record id="view_project_form_inherit" model="ir.ui.view">
+        <field name="name">project.project.form.inherit</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="project.edit_project"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_create_forgejo_repo" string="Create Forgejo Repo" type="object" class="btn-secondary"/>
+                <button name="action_leave_review" string="Leave Review" type="object" class="btn-secondary"/>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <group string="Forgejo Integration">
+                    <field name="forgejo_repo_url" widget="url"/>
+                    <field name="forgejo_clone_url" widget="url"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

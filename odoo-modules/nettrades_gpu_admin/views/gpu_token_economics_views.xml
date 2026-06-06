@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_gpu_token_economics_form" model="ir.ui.view">
+        <field name="name">gpu.token.economics.form</field>
+        <field name="model">gpu.token.economics</field>
+        <field name="arch" type="xml">
+            <form string="Token Economics">
+                <sheet>
+                    <group>
+                        <field name="earn_rate_per_1k_tokens"/>
+                        <field name="minimum_payout_amount"/>
+                        <field name="payout_schedule"/>
+                        <field name="platform_markup_pct"/>
+                        <field name="free_tokens_per_user"/>
+                        <field name="token_cost_per_1k_chars"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

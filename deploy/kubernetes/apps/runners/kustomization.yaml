@@ -1,0 +1,12 @@
+# =============================================================================
+# Section: G – Placeholder for Forgejo runners. 
+# Placeholder for Forgejo runners.
+# =============================================================================
+# Add runner deployment manifests when CI/CD pipelines are activated.
+# Forgejo runners can be registered via the Forgejo instance UI or custom
+# Kubernetes Deployments.  See https://forgejo.org/docs/next/admin/actions/
+# for documentation.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# resources: []   # Add runner manifests when ready

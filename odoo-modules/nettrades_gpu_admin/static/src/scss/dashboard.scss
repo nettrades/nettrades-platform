@@ -1,0 +1,33 @@
+.o_gpu_dashboard {
+    padding: 20px;
+
+    &_header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+
+        h2 {
+            margin: 0;
+        }
+    }
+
+    .o_gpu_status_cards {
+        margin-bottom: 20px;
+
+        .card {
+            color: white;
+            text-align: center;
+            padding: 10px;
+
+            &.bg-success { background-color: #28a745; }
+            &.bg-warning { background-color: #ffc107; color: #333; }
+            &.bg-danger { background-color: #dc3545; }
+            &.bg-info { background-color: #17a2b8; }
+        }
+    }
+
+    table {
+        margin-bottom: 30px;
+    }
+}

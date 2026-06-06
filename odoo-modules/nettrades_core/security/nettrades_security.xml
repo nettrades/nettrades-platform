@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Section: A-F
+    Purpose: Define user groups for the NETTRADES platform.
+    - Job Seeker: basic access to job search and CV management
+    - Freelancer: can sell services and participate in Ask Someone
+    - Partner/Researcher: collaborative project access
+-->
+<odoo>
+    <record id="group_job_seeker" model="res.groups">
+        <field name="name">Job Seeker</field>
+        <field name="category_id" ref="base.module_category_human_resources"/>
+    </record>
+    <record id="group_freelancer" model="res.groups">
+        <field name="name">Freelancer</field>
+    </record>
+    <record id="group_partner" model="res.groups">
+        <field name="name">Partner / Researcher</field>
+    </record>
+</odoo>

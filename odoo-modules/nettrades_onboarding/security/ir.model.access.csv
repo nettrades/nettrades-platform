@@ -1,0 +1,1 @@
+# All models inherit access from res.partner; no additional access needed.

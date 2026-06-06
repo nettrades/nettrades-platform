@@ -1,0 +1,16 @@
+<!-- Add onboarding fields to partner form -->
+<odoo>
+    <record id="view_partner_form_inherit_onboarding" model="ir.ui.view">
+        <field name="name">res.partner.form.inherit.onboarding</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="nettrades_core.view_partner_form_inherit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='professional']" position="inside">
+                <group string="Onboarding">
+                    <field name="onboarding_step"/>
+                    <field name="profile_completeness" widget="progressbar"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

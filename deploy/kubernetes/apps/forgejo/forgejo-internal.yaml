@@ -1,0 +1,42 @@
+# =============================================================================
+# Section: G – Forgejo internal instance (developer code repository).
+# Uses CNPG as the database backend.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-internal
+  namespace: forgejo-internal
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: forgejo-internal } }
+  template:
+    metadata: { labels: { app: forgejo-internal } }
+    spec:
+      containers:
+        - name: forgejo
+          image: codeberg.org/forgejo/forgejo:15.0
+          env:
+            - name: FORGEJO__database__DB_TYPE
+              value: postgres
+            - name: FORGEJO__database__HOST
+              value: odoo-db-rw.backend.svc.cluster.local
+            - name: FORGEJO__database__NAME
+              value: forgejo_internal
+            - name: FORGEJO__database__USER
+              value: forgejo_internal
+            - name: FORGEJO__database__PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-internal-secret
+                  key: password
+          ports: [{ containerPort: 3000 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: forgejo-internal
+  namespace: forgejo-internal
+spec:
+  selector: { app: forgejo-internal }
+  ports: [{ port: 3000, targetPort: 3000 }]

@@ -1,0 +1,71 @@
+# =============================================================================
+# Section: G – Namespace definitions with Pod Security labels.
+# Pod Security labels are applied to restrict container capabilities.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontend
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backend
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gpustack
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgejo-internal
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgejo-client
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: registry
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: runners
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnpg-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metallb-system

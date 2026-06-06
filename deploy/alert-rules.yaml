@@ -1,0 +1,52 @@
+# =============================================================================
+# Section: C – Prometheus alerting rules
+# Purpose:  Define platform-specific alerts for critical conditions.
+#           These rules are loaded by the Prometheus container.
+# =============================================================================
+groups:
+  - name: platform_alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on Odoo host (instance {{ $labels.instance }})"
+          description: "Memory usage is over 90% for more than 5 minutes."
+
+      - alert: ContainerDown
+        expr: up{job="docker"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.container }} is down"
+          description: "The Docker container {{ $labels.container }} has been down for more than 1 minute."
+
+      - alert: PostgresHighConnections
+        expr: pg_stat_database_numbackends > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL connections high"
+          description: "PostgreSQL has over 100 active connections (database {{ $labels.datname }})."
+
+      - alert: GPUStackUnreachable
+        expr: up{job="gpustack"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPUStack server unreachable"
+          description: "The GPUStack monitoring target has been down for more than 2 minutes."
+
+      - alert: LangGraphHighErrorRate
+        expr: rate(langgraph_errors_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LangGraph agent high error rate"
+          description: "LangGraph error rate is above 5% over the last 5 minutes."

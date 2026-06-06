@@ -1,0 +1,67 @@
+# =============================================================================
+# Axolotl FSDP2 + QLoRA config for Vision-Language Models (VLM)
+# =============================================================================
+# This config is used when the administrator enables multi-modal fine-tuning
+# for a professional field and selects Axolotl as the backend.
+# The multimodal fine tuning feature is off by default and controlled through 
+# the administration screen (Multi-Modal & Edge Settings).
+# The dataset must be in JSONL format with "prompt", "completion", and
+# "images" (array of base64-encoded JPEGs) fields.
+#
+# Supported VLMs: Qwen2-VL, LLaVA-1.6, InternVL 3.5, Pixtral, SmolVLM 2,
+# Llama 3.2 Vision, Gemma 3.
+#
+# REQUIRED FLAGS for multimodal:
+#   processor_type: AutoProcessor     ← loads the vision processor
+#   skip_prepare_dataset: true        ← dataset is pre-processed
+#   remove_unused_columns: false      ← keep image columns
+#   sample_packing: false             ← VLMs cannot pack samples
+# =============================================================================
+
+base_model: Qwen/Qwen2-VL-7B-Instruct     # change to your VLM
+
+# ---- Model & Tokenizer ----
+model_type: AutoModelForVision2Seq        # vision-to-text architecture
+processor_type: AutoProcessor             # loads both tokenizer + image processor
+trust_remote_code: true
+
+# ---- FSDP2 Strategy ----
+fsdp_version: 2
+fsdp_config:
+  reshard_after_forward: true
+  cpu_ram_efficient_loading: true
+  state_dict_type: FULL_STATE_DICT
+  offload_params: false
+
+# ---- QLoRA Adapter ----
+adapter: qlora
+lora_r: 16
+lora_alpha: 32
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+# ---- Dataset ----
+dataset:
+  path: json
+  data_files: /path/to/field_vlm_data.jsonl    # replaced at runtime
+  type: completion
+
+# ---- Multimodal Flags (CRITICAL for VLM training) ----
+skip_prepare_dataset: true       # dataset is already pre-processed by NETTRADES
+remove_unused_columns: false     # must keep "images" column
+sample_packing: false            # VLMs cannot pack multiple samples
+
+# ---- Sequence & Training ----
+sequence_len: 2048
+micro_batch_size: 1              # VLMs are memory-hungry; reduce batch size
+gradient_accumulation_steps: 8   # compensate for small batch
+num_epochs: 3
+learning_rate: 2e-4
+bf16: true
+output_dir: ./field_vlm_trained

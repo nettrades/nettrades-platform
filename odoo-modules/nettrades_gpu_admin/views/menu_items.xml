@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NETTRADES GPU Admin – Menu Structure
+    ====================================
+    Adds a "GPU Manager" top-level menu with sub-menus for the Dashboard,
+    Clusters, Nodes, Sharing Schedule, and Token Economics.
+    Access is restricted to the GPU Administrator and Operator groups.
+-->
+<odoo>
+    <!-- Top-level menu -->
+    <menuitem id="menu_gpu_root"
+              name="GPU Manager"
+              web_icon="nettrades_gpu_admin,static/description/icon.png"
+              sequence="90"
+              groups="group_gpu_administrator,group_gpu_operator"/>
+
+    <!-- Dashboard (client action) -->
+    <menuitem id="menu_gpu_dashboard"
+              name="Dashboard"
+              parent="menu_gpu_root"
+              action="action_gpu_dashboard"
+              sequence="10"/>
+
+    <!-- Cluster management -->
+    <menuitem id="menu_gpu_cluster"
+              name="Clusters"
+              parent="menu_gpu_root"
+              action="action_gpu_cluster"
+              sequence="20"/>
+
+    <!-- Node management -->
+    <menuitem id="menu_gpu_nodes"
+              name="Nodes"
+              parent="menu_gpu_root"
+              action="action_gpu_nodes"
+              sequence="30"/>
+
+    <!-- Sharing schedule -->
+    <menuitem id="menu_gpu_schedule"
+              name="Sharing Schedule"
+              parent="menu_gpu_root"
+              action="action_gpu_schedule"
+              sequence="40"/>
+
+    <!-- Token economics -->
+    <menuitem id="menu_gpu_token_economics"
+              name="Token Economics"
+              parent="menu_gpu_root"
+              action="action_gpu_token_economics"
+              sequence="50"/>
+
+    <!-- Window actions -->
+    <act_window id="action_gpu_cluster"
+                name="GPU Clusters"
+                res_model="gpu.cluster"
+                view_mode="tree,form"
+                domain="[('company_id','=',user.company_id.id)]"/>
+
+    <act_window id="action_gpu_nodes"
+                name="GPU Nodes"
+                res_model="gpu.node"
+                view_mode="tree,form"
+                domain="[('cluster_id.company_id','=',user.company_id.id)]"/>
+
+    <act_window id="action_gpu_schedule"
+                name="Sharing Schedule"
+                res_model="gpu.sharing.schedule"
+                view_mode="tree"
+                domain="[('cluster_id.company_id','=',user.company_id.id)]"/>
+
+    <act_window id="action_gpu_token_economics"
+                name="Token Economics"
+                res_model="gpu.token.economics"
+                view_mode="form"/>
+</odoo>

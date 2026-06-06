@@ -1,0 +1,17 @@
+<odoo>
+    <record id="view_expert_session_tree" model="ir.ui.view">
+        <field name="name">expert.session.tree</field>
+        <field name="model">expert.session</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="session_id"/>
+                <field name="requester_id"/>
+                <field name="expert_id"/>
+                <field name="status"/>
+                <field name="started_at"/>
+            </tree>
+        </field>
+    </record>
+    <act_window id="action_expert_session" name="Expert Sessions" res_model="expert.session" view_mode="tree,form"/>
+    <menuitem id="menu_expert_session" name="Expert Sessions" parent="base.menu_administration" action="action_expert_session"/>
+</odoo>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_gpu_schedule_tree" model="ir.ui.view">
+        <field name="name">gpu.sharing.schedule.tree</field>
+        <field name="model">gpu.sharing.schedule</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="day_of_week"/>
+                <field name="start_time"/>
+                <field name="end_time"/>
+                <field name="is_enabled"/>
+                <field name="min_vram_free_gb"/>
+            </tree>
+        </field>
+    </record>
+</odoo>

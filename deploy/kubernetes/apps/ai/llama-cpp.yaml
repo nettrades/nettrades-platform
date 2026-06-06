@@ -1,0 +1,91 @@
+# =============================================================================
+# Section: G – llama.cpp CPU inference (fallback).
+# The LangGraph agent auto-detects the inference backend.  If GPUStack
+# or vLLM are available, they take priority.  Set LLM_BASE_URL to this
+# service only when no other backend is configured.
+# =============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-cpp-models
+  namespace: ai
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-cpp
+  namespace: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-cpp
+  template:
+    metadata:
+      labels:
+        app: llama-cpp
+    spec:
+      initContainers:
+        - name: download-model
+          image: curlimages/curl:latest
+          command: [sh, -c]
+          args:
+            - |
+              MODEL=/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+              if [ -f "$MODEL" ]; then echo "Model exists, skipping."; exit 0; fi
+              echo "Downloading model..."
+              curl -L --retry 3 --retry-delay 5 \
+                -o "$MODEL.tmp" \
+                https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+              mv "$MODEL.tmp" "$MODEL"
+              echo "Download complete"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      containers:
+        - name: llama-cpp
+          image: ghcr.io/ggml-org/llama.cpp:server-cpu
+          args:
+            - -m
+            - /models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8080"
+            - --threads
+            - "6"
+            - --ctx-size
+            - "4096"
+            - --parallel
+            - "2"
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          resources:
+            limits:
+              memory: 28Gi
+            requests:
+              memory: 12Gi
+#     volumes:
+#         - name: models
+#         persistentVolumeClaim:
+#           claimName: llama-cpp-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-cpp
+  namespace: ai
+spec:
+  selector:
+    app: llama-cpp
+  ports:
+    - port: 8080
+      targetPort: 8080

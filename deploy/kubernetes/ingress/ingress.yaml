@@ -1,0 +1,105 @@
+# =============================================================================
+# Section: G – Traefik Ingress resources.
+# TLS certificates are automatically provisioned by cert-manager via Let's Encrypt.
+# Sticky sessions for Odoo ensure the same user reaches the same backend pod.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: odoo
+  namespace: frontend
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/affinity: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: nettrades.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo
+                port:
+                  number: 8069
+  tls:
+    - hosts:
+        - nettrades.ai
+      secretName: odoo-tls
+---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: n8n
+#   namespace: frontend
+#   annotations:
+#     cert-manager.io/cluster-issuer: letsencrypt-prod
+# spec:
+#   ingressClassName: traefik
+#   rules:
+#     - host: n8n.nettrades.ai
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: n8n
+#                 port:
+#                   number: 5678
+#   tls:
+#     - hosts:
+#         - n8n.nettrades.ai
+#       secretName: n8n-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: monitoring
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: grafana.nettrades.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus-grafana
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - grafana.nettrades.ai
+      secretName: grafana-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: forgejo-client
+  namespace: forgejo-client
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: git.nettrades.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: git
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+        - git.nettrades.ai
+      secretName: forgejo-client-tls

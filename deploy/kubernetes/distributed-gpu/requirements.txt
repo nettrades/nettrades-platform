@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+langgraph>=1.2.0
+langgraph-checkpoint-postgres>=3.0.3
+langchain-openai>=0.1.0
+python-dotenv>=1.0.0
+httpx
+psycopg2-binary
+psutil
+pyyaml
+netifaces
+wgconfig  # optional helper

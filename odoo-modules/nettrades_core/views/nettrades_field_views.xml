@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NETTRADES Core – Professional Field Views
+    ==========================================
+    This view lets the NETTRADES administrator define professional fields
+    (e.g. "Cardiology", "Python Development") and control qualification rules,
+    training permissions, voting weights, and data-quality pipelines.
+    Every setting includes help text that explains what it does and when to use it.
+-->
+<odoo>
+    <!-- Form view -->
+    <record id="view_nettrades_field_form" model="ir.ui.view">
+        <field name="name">nettrades.field.form</field>
+        <field name="model">nettrades.field</field>
+        <field name="arch" type="xml">
+            <form string="Professional Field">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="e.g. Cardiology"/></h1>
+                    </div>
+                    <notebook>
+                        <!-- ========== General ========== -->
+                        <page string="General">
+                            <group>
+                                <field name="description"
+                                       help="A short description of this field, visible to users."/>
+                            </group>
+                        </page>
+
+                        <!-- ========== Qualification &amp; Karma ========== -->
+                        <page string="Qualification &amp; Karma">
+                            <group string="Verification Rules">
+                                <field name="only_qualified" nolabel="1"
+                                       help="If checked, only manually verified professionals can answer questions in this field."/>
+                                <field name="auto_karma_qualify"
+                                       attrs="{'invisible': [('only_qualified', '=', False)]}"
+                                       nolabel="1"
+                                       help="Automatically grant Qualified Professional status when the Karma threshold is reached. Disable for regulated fields (medical, legal) where credentials must be checked."/>
+                                <div class="text-muted" colspan="2">
+                                    <p><b>Require Manual Verification</b> – when enabled, only professionals
+                                    who have been manually approved (or automatically qualified via Karma,
+                                    if the option below is also enabled) will appear in the "Ask Someone"
+                                    matching list.</p>
+                                    <p><b>Auto-Qualify by Karma</b> – this setting is only available when
+                                    manual verification is required.  If checked, the system will
+                                    automatically add a user to the Qualified Professionals list once
+                                    they reach the reputation threshold.  <b>Do not enable this for fields
+                                    where credentials must be physically inspected</b> (e.g. medical,
+                                    legal, engineering).</p>
+                                </div>
+                            </group>
+                            <group string="Karma Thresholds">
+                                <field name="reputation_threshold_for_charging"
+                                       help="Number of reputation points a user must accumulate in this field before they can charge for their answers (Ask Someone)."/>
+                                <field name="base_points_per_vote"
+                                       help="Points awarded when an unqualified user clicks 'Good Answer'."/>
+                                <field name="qualified_points_per_vote"
+                                       help="Points awarded when a qualified professional clicks 'Good Answer'."/>
+                            </group>
+                            <group string="Voting Insights">
+                                <field name="qualified_professional_count"
+                                       help="Number of active qualified professionals in this field."/>
+                                <field name="total_voter_count"
+                                       help="Total distinct users who have cast a Good Answer vote in this field."/>
+                                <field name="suggested_qualified_weight"
+                                       help="Recommended qualified_points_per_vote based on the ratio of qualified to total voters."/>
+                                <field name="auto_adjust_weights"
+                                       help="When enabled, the system automatically adjusts qualified_points_per_vote to match the suggested weight."/>
+                            </group>
+                        </page>
+
+                        <!-- ========== Training &amp; AI Learning ========== -->
+                        <page string="Training &amp; AI Learning">
+                            <group string="Expert Answer Usage">
+                                <field name="expert_answers_trainable"
+                                       attrs="{'invisible': [('only_qualified', '=', False)]}"
+                                       nolabel="1"
+                                       help="When enabled, the system learns from expert answers without storing patient data — only the general medical knowledge is captured."/>
+                                <div class="text-muted" colspan="2">
+                                    <p><b>Use Expert Answers for Training</b> – when checked, answers
+                                    provided by verified professionals in Ask Someone sessions may be
+                                    used to fine-tune the AI.  The patient's original question is
+                                    <b>never</b> stored – only the expert's response is captured.
+                                    This setting is only available for fields with manual verification.</p>
+                                    <p><b>Important:</b> Enable this only for fields where patient
+                                    questions do not routinely contain Protected Health Information,
+                                    or where a de-identification process is in place.  For fields
+                                    like dermatology or general practice, this may be appropriate;
+                                    for psychiatry or HIV medicine, exercise extreme caution.</p>
+                                </div>
+                            </group>
+                            <group string="Indirect Reputation">
+                                <field name="indirect_reputation_points"
+                                       help="When a future AI answer that was improved by fine-tuning on expert answers from this field receives a 'Good Answer' vote, each contributing professional receives this many reputation points."/>
+                                <div class="text-muted" colspan="2">
+                                    <p><b>How indirect reputation works:</b> Professionals whose
+                                    expert answers are used for fine-tuning become contributors to
+                                    the AI model.  Later, when the AI generates a good answer and
+                                    someone clicks "Good Answer", those original professionals
+                                    automatically receive a small reputation bonus.  This rewards
+                                    them for helping to train the AI, even if they did not answer
+                                    the current question directly.</p>
+                                </div>
+                            </group>
+                        </page>
+
+                        <!-- ========== Data-Juicer Quality Pipeline ========== -->
+                        <page string="Data-Juicer Quality">
+                            <group string="Quality Filter Configuration">
+                                <field name="enable_data_juicer"
+                                       help="Enable automated data quality filtering using Alibaba's Data-Juicer (Apache-2.0).  Every fine-tuning dataset for this field will be filtered through LLM-based quality scoring, deduplication, and optional PII redaction."/>
+                                <field name="data_juicer_status" widget="badge"
+                                       attrs="{'invisible': [('enable_data_juicer', '=', False)]}"/>
+                            </group>
+                            <group string="Endpoint &amp; Thresholds" attrs="{'invisible': [('enable_data_juicer', '=', False)]}">
+                                <field name="data_juicer_endpoint_type"/>
+                                <field name="data_juicer_min_quality_score"/>
+                                <field name="data_juicer_max_rejection_rate"/>
+                            </group>
+                            <group string="Additional Filters" attrs="{'invisible': [('enable_data_juicer', '=', False)]}">
+                                <field name="data_juicer_enable_dedup"/>
+                                <field name="data_juicer_enable_pii"/>
+                            </group>
+                            <group string="Auto-Disable" attrs="{'invisible': [('enable_data_juicer', '=', False)]}">
+                                <field name="data_juicer_auto_disable"/>
+                                <field name="data_juicer_last_run" readonly="1"/>
+                                <field name="data_juicer_last_stats" widget="json" readonly="1"/>
+                            </group>
+                            <div class="text-muted" colspan="2"
+                                 attrs="{'invisible': [('enable_data_juicer', '=', False)]}">
+                                <p><b>How Data-Juicer works:</b> When a fine-tuning dataset is exported
+                                for this field, Data-Juicer runs the <code>llm_quality_score_filter</code>
+                                operator using the selected inference endpoint.  Each (question, answer)
+                                pair is scored for quality.  Pairs scoring below the minimum threshold
+                                are rejected.  If more than the Maximum Rejection Rate of samples are
+                                rejected, Data-Juicer is automatically disabled to prevent starving the
+                                training pipeline.</p>
+                                <p><b>Auto-disable safety net:</b> If you enable Auto-Disable on Poor
+                                Results and the rejection rate exceeds the threshold, Data-Juicer is
+                                automatically disabled and an Odoo activity is created for the
+                                administrator.  This prevents a misconfigured threshold from blocking
+                                all fine-tuning.</p>
+                                <p><b>Dependencies:</b> Data-Juicer must be installed in the Python environment
+                                (<code>pip install 'py-data-juicer[generic,nlp]'</code>).  If it is not available,
+                                the quality pipeline will be skipped and the unfiltered dataset will be used.</p>
+                            </div>
+                        </page>
+
+                        <!-- ========== LLM-as-Judge (DEITA) ========== -->
+                        <page string="LLM-as-Judge (DEITA)">
+                            <group string="LLM-as-Judge Configuration">
+                                <field name="enable_deita_scoring"
+                                       help="Enable DEITA-based LLM-as-Judge scoring (Apache-2.0, Argilla).  An LLM judge evaluates every training example on complexity, quality, and diversity."/>
+                                <field name="deita_status" widget="badge"
+                                       attrs="{'invisible': [('enable_deita_scoring', '=', False)]}"/>
+                            </group>
+                            <group string="Endpoint &amp; Thresholds" attrs="{'invisible': [('enable_deita_scoring', '=', False)]}">
+                                <field name="deita_endpoint_type"/>
+                                <field name="deita_min_complexity"/>
+                                <field name="deita_min_quality"/>
+                            </group>
+                            <group string="Auto-Disable" attrs="{'invisible': [('enable_deita_scoring', '=', False)]}">
+                                <field name="deita_auto_disable"/>
+                                <field name="deita_last_run" readonly="1"/>
+                                <field name="deita_last_stats" widget="json" readonly="1"/>
+                            </group>
+                            <div class="text-muted" colspan="2"
+                                 attrs="{'invisible': [('enable_deita_scoring', '=', False)]}">
+                                <p><b>How LLM-as-Judge works:</b> After Data-Juicer filtering (if enabled),
+                                each surviving (question, answer) pair is scored by an LLM judge on
+                                complexity and quality.  Pairs that fail to meet the minimum thresholds
+                                are rejected before training.</p>
+                                <p><b>DEITA research backing:</b> "DEITA introduces a way to measure data
+                                quality across three critical dimensions: complexity, quality and diversity."
+                                Models fine-tuned on a small amount of carefully selected high-quality data
+                                outperform models trained on 10× the data selected randomly.</p>
+                                <p><b>Dependencies:</b> <code>distilabel[vllm]</code> must be installed.  If missing,
+                                the DEITA step will be skipped silently.</p>
+                            </div>
+                        </page>
+
+                        <!-- ========== Advanced Training ========== -->
+                        <page string="Advanced Training">
+                            <group string="A/B Testing">
+                                <field name="enable_ab_testing"
+                                       help="After fine-tuning, deploy the new model as a shadow endpoint and compare its Good Answer rate against the production model."/>
+                                <field name="ab_testing_traffic_split"
+                                       attrs="{'invisible': [('enable_ab_testing', '=', False)]}"/>
+                                <field name="ab_testing_min_samples"
+                                       attrs="{'invisible': [('enable_ab_testing', '=', False)]}"/>
+                                <field name="auto_promote_threshold"
+                                       attrs="{'invisible': [('enable_ab_testing', '=', False)]}"/>
+                            </group>
+                            <group string="Reinforcement Learning">
+                                <field name="enable_grpo_training"
+                                       help="Use Good Answer votes as positive rewards and Ask Someone expert answers as negative preferences to optimise the model via GRPO."/>
+                            </group>
+                            <group string="Data Collection Thresholds">
+                                <field name="min_votes_for_training"
+                                       help="A (question, answer) pair must receive at least this many Good Answer votes before inclusion in the dataset."/>
+                                <field name="min_unique_voters"
+                                       help="A pair must be voted on by at least this many different users before inclusion.  Prevents Sybil attacks."/>
+                            </group>
+                            <group string="Benchmark Evaluation">
+                                <field name="enable_benchmark_evaluation"
+                                       help="Run the fine-tuned model against a held-out benchmark dataset.  If benchmark scores drop, the model is rejected."/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree view -->
+    <record id="view_nettrades_field_tree" model="ir.ui.view">
+        <field name="name">nettrades.field.tree</field>
+        <field name="model">nettrades.field</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="only_qualified"/>
+                <field name="auto_karma_qualify"/>
+                <field name="expert_answers_trainable"/>
+                <field name="indirect_reputation_points"/>
+                <field name="reputation_threshold_for_charging"/>
+            </tree>
+        </field>
+    </record>
+</odoo>

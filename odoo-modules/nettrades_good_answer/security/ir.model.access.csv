@@ -1,0 +1,7 @@
+access_good_answer_vote,good.answer.vote,model_good_answer_vote,base.group_user,1,1,1,1
+access_user_field_reputation,user.field.reputation,model_user_field_reputation,base.group_user,1,1,1,1
+access_qualified_professional,qualified.professional,model_qualified_professional,base.group_user,1,1,1,1
+access_llm_feedback,llm.feedback,model_llm_feedback,base.group_user,1,1,1,1
+access_ft_dataset,ft.dataset,model_ft_dataset,base.group_user,1,1,1,1
+access_ft_training_job,ft.training.job,model_ft_training_job,base.group_user,1,1,1,1
+access_ft_training_job_user,ft.training.job.user,model_ft_training_job,base.group_user,1,1,1,1

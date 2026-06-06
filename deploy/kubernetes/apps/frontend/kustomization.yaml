@@ -1,0 +1,8 @@
+# =============================================================================
+# Frontend namespace overlay 
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - odoo-pvc.yaml
+  - odoo-deployment.yaml

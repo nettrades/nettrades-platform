@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Client action for the GPU Dashboard -->
+    <record id="action_gpu_dashboard" model="ir.actions.client">
+        <field name="name">GPU Manager Dashboard</field>
+        <field name="tag">gpu_dashboard</field>
+    </record>
+
+    <!-- Dashboard QWeb template rendered by Owl -->
+    <template id="gpu_dashboard_template" name="GPU Manager Dashboard">
+        <t t-name="gpu_admin_panel.GPUDashboard">
+            <div class="o_gpu_dashboard">
+                <!-- Cluster overview -->
+                <div class="o_gpu_dashboard_header">
+                    <h2>GPU Cluster Manager</h2>
+                    <button class="btn btn-primary" t-on-click="scanNetwork">
+                        <i class="fa fa-search"/> Scan Network
+                    </button>
+                    <button class="btn btn-secondary" t-on-click="addNodeManually">
+                        <i class="fa fa-plus"/> Add Node
+                    </button>
+                </div>
+
+                <!-- Status cards -->
+                <div class="row o_gpu_status_cards">
+                    <div class="col-3" t-foreach="['online','degraded','offline','maintenance']"
+                         t-as="status" t-key="status">
+                        <div class="card" t-att-class="'card bg-' + statusColor(status)">
+                            <div class="card-body">
+                                <h5 class="card-title" t-esc="nodeCountByStatus(status)"/>
+                                <p class="card-text" t-esc="status"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Node table (Pool A: Internal) -->
+                <h3>Pool A – Internal (Trusted Multi-GPU)</h3>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Hostname</th>
+                            <th>IP Address</th>
+                            <th>GPUs</th>
+                            <th>VRAM</th>
+                            <th>Status</th>
+                            <th>Uptime</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="nodes.filter(n => n.pool === 'internal')" t-as="node"
+                            t-key="node.id">
+                            <td t-esc="node.hostname"/>
+                            <td t-esc="node.ip_address"/>
+                            <td t-esc="node.gpu_count"/>
+                            <td t-esc="node.total_vram_gb.toFixed(1)"/> GB
+                            <td>
+                                <span class="badge" t-att-class="'badge-' + statusColor(node.status)"
+                                      t-esc="node.status"/>
+                            </td>
+                            <td t-esc="node.uptime_hours.toFixed(0)"/>h
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        t-on-click="removeNode(node.id)">
+                                    Remove
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        t-on-click="reassignNode(node.id)">
+                                    Reassign
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Node table (Pool B: Public) -->
+                <h3>Pool B – Public Sharing</h3>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Hostname</th>
+                            <th>GPUs</th>
+                            <th>VRAM</th>
+                            <th>Tokens Served</th>
+                            <th>Earnings</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="nodes.filter(n => n.pool === 'public')" t-as="node"
+                            t-key="node.id">
+                            <td t-esc="node.hostname"/>
+                            <td t-esc="node.gpu_count"/>
+                            <td t-esc="node.total_vram_gb.toFixed(1)"/> GB
+                            <td t-esc="node.tokens_served"/>
+                            <td t-esc="'$' + node.token_earnings.toFixed(2)"/>
+                            <td>
+                                <span class="badge" t-att-class="'badge-' + statusColor(node.status)"
+                                      t-esc="node.status"/>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        t-on-click="removeNode(node.id)">
+                                    Remove
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Sharing schedule -->
+                <h3>Public Sharing Schedule</h3>
+                <div t-foreach="schedule" t-as="sched" t-key="sched.id">
+                    <div class="row">
+                        <div class="col-3" t-esc="sched.day_of_week"/>
+                        <div class="col-2" t-esc="sched.start_time"/>
+                        <div class="col-2" t-esc="sched.end_time"/>
+                        <div class="col-1">
+                            <input type="checkbox" t-att-checked="sched.is_enabled"
+                                   t-on-change="toggleSchedule(sched.id)"/>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WireGuard peer list -->
+                <h3>WireGuard Peers</h3>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Node</th>
+                            <th>Public Key</th>
+                            <th>Allowed IPs</th>
+                            <th>Last Handshake</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="wireguard_peers" t-as="peer" t-key="peer.public_key">
+                            <td t-esc="peer.node_name"/>
+                            <td><code t-esc="peer.public_key.substring(0,16) + '...'"/></td>
+                            <td t-esc="peer.allowed_ips"/>
+                            <td t-esc="peer.last_handshake"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </t>
+    </template>
+</odoo>

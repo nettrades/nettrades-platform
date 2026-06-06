@@ -1,0 +1,50 @@
+# =============================================================================
+# Section: G – Forgejo client instance (tenant-facing Git repositories).
+# Uses its own database in the CNPG cluster.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-client
+  namespace: forgejo-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: forgejo-client
+  template:
+    metadata:
+      labels:
+        app: forgejo-client
+    spec:
+      containers:
+        - name: forgejo
+          image: codeberg.org/forgejo/forgejo:15.0
+          env:
+            - name: FORGEJO__database__DB_TYPE
+              value: postgres
+            - name: FORGEJO__database__HOST
+              value: odoo-db-rw.backend.svc.cluster.local
+            - name: FORGEJO__database__NAME
+              value: forgejo_client
+            - name: FORGEJO__database__USER
+              value: forgejo_client
+            - name: FORGEJO__database__PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-client-secret
+                  key: password
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: forgejo-client
+  namespace: forgejo-client
+spec:
+  selector:
+    app: forgejo-client
+  ports:
+    - port: 3000
+      targetPort: 3000

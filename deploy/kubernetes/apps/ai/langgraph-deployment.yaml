@@ -1,0 +1,40 @@
+# =============================================================================
+# Section: G – LangGraph FastAPI microservice.
+# The agent routes inference requests to GPUStack or external providers.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langgraph
+  namespace: ai
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: langgraph } }
+  template:
+    metadata: { labels: { app: langgraph } }
+    spec:
+      imagePullSecrets: [{ name: regcred }]
+      containers:
+        - name: langgraph
+          image: registry.registry.svc.cluster.local:5000/langgraph-agent:latest
+          env:
+            - name: LLM_BASE_URL
+              value: http://gpustack.gpustack.svc.cluster.local/v1-openai
+            - name: LANGGRAPH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: langgraph-secret
+                  key: api-key
+          ports: [{ containerPort: 8000 }]
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: langgraph
+  namespace: ai
+spec:
+  selector: { app: langgraph }
+  ports: [{ port: 8000, targetPort: 8000 }]

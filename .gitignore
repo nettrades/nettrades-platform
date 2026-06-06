@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Odoo
+odoo/session/
+odoo/filestore/
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets
+.env
+*.key
+*.pem
+
+# Data directories
+postgres-data/
+odoo-data/
+forgejo-data/
+llama-cpp-data/
+gpustack-data/
+valkey-data/
+traefik-data/
+prometheus-data/
+grafana-data/
+backups/
+
+# Logs
+*.log

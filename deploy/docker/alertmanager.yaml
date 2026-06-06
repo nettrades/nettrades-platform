@@ -1,0 +1,16 @@
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'email'
+
+receivers:
+  - name: 'email'
+    email_configs:
+      - to: '${ADMIN_EMAIL}'
+        from: 'alertmanager@${DOMAIN}'
+        smarthost: 'smtp.your-email-provider.com:587'
+        auth_username: 'alertmanager@${DOMAIN}'
+        auth_password: 'your-smtp-password'
+        require_tls: true

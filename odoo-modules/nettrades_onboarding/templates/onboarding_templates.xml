@@ -1,0 +1,11 @@
+<!-- Section F.2 – Portal template for the onboarding flow -->
+<odoo>
+    <template id="onboarding_page" name="Onboarding wizard">
+        <t t-call="website.layout">
+            <div class="container">
+                <h1>Welcome! Let's set up your profile.</h1>
+                <!-- dynamic wizard content -->
+            </div>
+        </t>
+    </template>
+</odoo>

@@ -1,0 +1,14 @@
+<!-- Tree view for project milestones -->
+<odoo>
+    <record id="view_project_milestone_tree" model="ir.ui.view">
+        <field name="name">project.milestone.tree</field>
+        <field name="model">project.milestone</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="name"/>
+                <field name="amount"/>
+                <field name="status"/>
+            </tree>
+        </field>
+    </record>
+</odoo>

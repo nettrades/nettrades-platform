@@ -1,0 +1,10 @@
+# =============================================================================
+# NETTRADES.AI – Data-Quality Dependencies
+# =============================================================================
+# Data-Juicer – Apache-2.0, Alibaba.
+# LLM-based quality scoring, deduplication, PII redaction.
+py-data-juicer[generic,nlp]>=1.4.1
+
+# distilabel – Apache-2.0, Argilla.
+# DEITA complexity + quality scoring (LLM-as-Judge).
+distilabel[vllm]>=1.0.0

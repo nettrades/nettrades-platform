@@ -1,0 +1,63 @@
+# =============================================================================
+# Section: H – GPUStack server for company internal deployments.
+# Uses the same image as the central server but exposed only on the internal
+# WireGuard mesh (ClusterIP, no external ingress).
+# =============================================================================
+# This server is only accessible on the internal WireGuard mesh.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpustack-company
+  namespace: gpustack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpustack-company
+  template:
+    metadata:
+      labels:
+        app: gpustack-company
+    spec:
+      containers:
+        - name: gpustack
+          image: gpustack/gpustack:v2.2.0   # latest stable
+          ports:
+            - containerPort: 80
+          env:
+            - name: GPUSTACK_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gpustack-company-secret
+                  key: jwt-secret
+          volumeMounts:
+            - name: gpustack-data
+              mountPath: /var/lib/gpustack
+      volumes:
+        - name: gpustack-data
+          persistentVolumeClaim:
+            claimName: gpustack-company-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gpustack-company-pvc
+  namespace: gpustack
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpustack-company
+  namespace: gpustack
+spec:
+  selector:
+    app: gpustack-company
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

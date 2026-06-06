@@ -1,0 +1,23 @@
+# =============================================================================
+# Section: G – Grafana configuration overrides for the kube-prometheus-stack
+# Helm chart.  Used with `helm install --values grafana-values.yaml`.
+# =============================================================================
+grafana:
+  adminPassword: changeme               # Override in production
+  ingress:
+    enabled: true
+    hosts:
+      - grafana.nettrades.ai
+  persistence:
+    enabled: true
+    size: 10Gi
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi

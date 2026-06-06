@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NETTRADES Chatbot – Extend the Apexive LLM chat message with
+    "Ask Someone" and "Good Answer" buttons.
+    These buttons appear on every AI-generated message.
+    For fields where expert answers are used for training, the
+    "Good Answer" button also appears on published expert answers.
+-->
+<odoo>
+    <template id="add_buttons_to_ai_message"
+              inherit_id="llm.ChatMessage"
+              name="NETTRADES: AI message action buttons">
+        <xpath expr="//div[hasclass('o_llm_message_body')]" position="after">
+            <div t-if="message.is_ai" class="o_nettrades_message_actions mt-2">
+                <button class="btn btn-sm btn-outline-primary ask-someone-btn"
+                        t-att-data-message-id="message.id"
+                        t-att-data-message-text="message.body"
+                        title="Ask a human expert to review this answer">
+                    <i class="fa fa-user-md"/> Ask Someone
+                </button>
+                <button class="btn btn-sm btn-outline-success good-answer-btn"
+                        t-att-data-message-id="message.id"
+                        t-att-data-answerer-id="message.author_id"
+                        t-att-data-field-id="message.field_id or 0"
+                        t-att-data-question="message.thread_id and message.thread_id.name or ''"
+                        title="Upvote this answer – helps train the AI">
+                    <i class="fa fa-thumbs-up"/> Good Answer
+                </button>
+            </div>
+        </xpath>
+    </template>
+</odoo>

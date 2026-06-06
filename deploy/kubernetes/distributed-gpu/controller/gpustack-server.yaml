@@ -1,0 +1,64 @@
+# =============================================================================
+# GPUStack server – local deployment reference (central server)
+# =============================================================================
+# Identical to apps/gpustack/gpustack-server.yaml.  Built-in observability
+# is disabled via GPUSTACK_GRAFANA_URL.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpustack
+  namespace: gpustack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpustack
+  template:
+    metadata:
+      labels:
+        app: gpustack
+    spec:
+      containers:
+        - name: gpustack
+          image: gpustack/gpustack:v2.1.2
+          ports:
+            - containerPort: 80
+          env:
+            - name: GPUSTACK_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gpustack-secret
+                  key: jwt-secret
+            - name: GPUSTACK_GRAFANA_URL
+              value: "https://grafana.nettrades.ai"
+          volumeMounts:
+            - name: gpustack-data
+              mountPath: /var/lib/gpustack
+      volumes:
+        - name: gpustack-data
+          persistentVolumeClaim:
+            claimName: gpustack-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gpustack-pvc
+  namespace: gpustack
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpustack
+  namespace: gpustack
+spec:
+  selector:
+    app: gpustack
+  ports:
+    - port: 80
+      targetPort: 80

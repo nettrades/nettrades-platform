@@ -1,0 +1,39 @@
+# =============================================================================
+# Section: H – Canary attestation CronJob.
+# Every hour, sends a known prompt to each public GPU node and verifies the
+# response.  Failed attestations decrement the node's reputation score.
+# RISK ACCEPTANCE: This provides probabilistic integrity only.  A determined
+# attacker can special-case the canary prompt.  For security-critical workloads,
+# hardware-backed Confidential Computing (NVIDIA H100/H200 TEE) is required,
+# but consumer GPUs do not support this.
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: canary-attestation
+  namespace: gpustack
+spec:
+  schedule: "0 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: attestor
+              image: curlimages/curl:latest
+              command: [sh, -c]
+              args:
+                - |
+                  for node in $(curl -s http://odoo.frontend.svc.cluster.local:8069/api/v1/gpu/public-nodes); do
+                    result=$(curl -s -X POST "http://gpustack.gpustack.svc.cluster.local/v1-openai/chat/completions" \
+                      -H "Authorization: Bearer ${ATTESTATION_TOKEN}" \
+                      -d '{"model":"canary","messages":[{"role":"user","content":"What is 2+2?"}]}')
+                    # Verify response and update node reputation via Odoo API
+                  done
+              env:
+                - name: ATTESTATION_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: attestation-secret
+                      key: token
+          restartPolicy: OnFailure

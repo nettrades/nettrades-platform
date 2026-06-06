@@ -1,0 +1,23 @@
+# =============================================================================
+# Section H – gVisor RuntimeClass for Kubernetes
+# =============================================================================
+# Pods that require syscall-level isolation reference this class.
+# gVisor uses a userspace kernel (Sentry) rather than a hardware VM,
+# avoiding memory hoarding and KVM requirements.
+#
+# Installation prerequisites:
+#   1. Install runsc on every GPU worker node:
+#      curl -fsSL https://gvisor.dev/archive/runsc > /usr/local/bin/runsc
+#      chmod +x /usr/local/bin/runsc
+#      runsc install
+#   2. Configure containerd to use runsc as a runtime option.
+#   3. Apply this RuntimeClass.
+#
+# GPU support: add --nvproxy flag to runsc command.
+# Supported NVIDIA drivers: 570.124.06 through 580.105.08.
+# =============================================================================
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+handler: runsc

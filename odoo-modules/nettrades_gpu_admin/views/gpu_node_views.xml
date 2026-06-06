@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NETTRADES GPU Admin – GPU Node Detail View
+    ==========================================
+    Shows every property of a single GPU-equipped machine.
+    The administrator can assign the node to Pool A (internal) or Pool B
+    (public sharing), change the container runtime, view hardware-security
+    capabilities (TEE), check edge-device capabilities, and review earnings
+    and reputation.
+
+    FUTURE ENHANCEMENT: Add a “Remote Restart” button that sends a command
+    to the agent via the WireGuard tunnel.
+-->
+<odoo>
+    <record id="view_gpu_node_form" model="ir.ui.view">
+        <field name="name">gpu.node.form</field>
+        <field name="model">gpu.node</field>
+        <field name="arch" type="xml">
+            <form string="GPU Node Detail">
+                <header>
+                    <button name="action_remove_node" string="Remove Node" type="object"
+                            class="btn-danger"
+                            confirm="Permanently remove this node? WireGuard peer will be revoked."
+                            help="Deletes the node record, revokes WireGuard access and deregisters the GPUStack worker."/>
+                    <button name="action_enable_maintenance" string="Maintenance Mode"
+                            type="object"
+                            attrs="{'invisible': [('status', '=', 'maintenance')]}"
+                            help="Put the node into maintenance.  No new inference requests will be sent to it."/>
+                    <button name="action_disable_maintenance" string="Exit Maintenance"
+                            type="object"
+                            attrs="{'invisible': [('status', '!=', 'maintenance')]}"
+                            help="Return the node to active duty."/>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="hostname"/></h1>
+                    </div>
+                    <notebook>
+                        <!-- ========== Hardware ========== -->
+                        <page string="Hardware">
+                            <group>
+                                <field name="ip_address"/>
+                                <field name="os" readonly="1"
+                                       help="Detected automatically during agent registration."/>
+                                <field name="total_vram_gb"/>
+                                <field name="gpu_count"/>
+                                <field name="gpus" widget="json"/>
+                            </group>
+                        </page>
+
+                        <!-- ========== Pool & Isolation ========== -->
+                        <page string="Pool &amp; Isolation">
+                            <group string="Pool Assignment">
+                                <field name="pool"
+                                       help="Internal: used only by company employees, free, multi-GPU. Public: shared with NETTRADES marketplace, earns tokens."/>
+                                <field name="container_runtime"
+                                       help="gVisor is recommended for all pools – it provides syscall-level isolation without memory hoarding. Docker is for trusted internal pools only."/>
+                                <field name="scheduled_share"
+                                       help="When checked, this node follows the company's public sharing schedule."/>
+                            </group>
+                            <div class="text-muted">
+                                <p><b>Runtime guidance:</b></p>
+                                <p><b>gVisor (recommended):</b> Works on any Linux host, including WSL2.
+                                No KVM required. Memory returns to the host immediately when freed.
+                                GPU support via nvproxy. Install: download runsc binary from
+                                https://gvisor.dev.</p>
+                                <p><b>Docker (fallback):</b> Standard containers. Only for trusted
+                                internal pools behind the company firewall.</p>
+                                <p><b>Pool change behaviour:</b> Changing from Internal to Public
+                                automatically reconfigures WireGuard to hub-and-spoke mode (/32).
+                                Changing back to Internal restores full mesh connectivity.</p>
+                            </div>
+                            <div class="text-muted" attrs="{'invisible': [('os', '!=', 'darwin')]}">
+                                <p><b>macOS Detected:</b> Public GPU sharing is not available on this machine.
+                                Apple Silicon GPUs cannot be isolated with gVisor or Kata Containers.
+                                This node can only be assigned to Pool A (Internal).</p>
+                            </div>
+                        </page>
+
+                        <!-- ========== Hardware Security (TEE) ========== -->
+                        <page string="Hardware Security">
+                            <group string="Confidential Computing (TEE) Capabilities">
+                                <field name="tee_capabilities" widget="json"
+                                       help="Hardware-backed security features detected on this node. Consumer GPUs will show all False – this is normal."/>
+                            </group>
+                            <div class="text-muted">
+                                <p><b>What this means:</b></p>
+                                <p>Nodes that support NVIDIA CC, Intel SGX, or AMD SEV-SNP can
+                                run the most sensitive workloads with hardware-guaranteed isolation.
+                                Consumer GPUs (RTX 4090, etc.) do not have these features – this
+                                is expected.</p>
+                                <p><b>Routing sensitive workloads:</b> When you configure inference
+                                policies, you may prefer to route high-sensitivity requests to
+                                nodes with hardware-backed Confidential Computing.</p>
+                            </div>
+                        </page>
+
+                        <!-- ========== Edge Device Info ========== -->
+                        <page string="Edge Device">
+                            <group string="Edge-Device Detection">
+                                <field name="edge_device_info" widget="json"
+                                       help="Auto-detected edge device capabilities (Jetson, Raspberry Pi, Coral TPU).  These fields are populated automatically by the agent."/>
+                            </group>
+                            <div class="text-muted">
+                                <p><b>What this means:</b> Edge devices like NVIDIA Jetson, Raspberry Pi
+                                and Google Coral TPU can run quantized AI models on-device.  If this node
+                                is an edge device, the platform can automatically deploy the appropriate
+                                model size and quantization.</p>
+                                <p><b>Enable edge support globally:</b> Go to <em>GPU Manager → Multi-Modal
+                                &amp; Edge Settings</em> and enable “Edge Device Support”.  Then select the
+                                default quantization level.</p>
+                            </div>
+                        </page>
+
+                        <!-- ========== Network (WireGuard) ========== -->
+                        <page string="Network (WireGuard)">
+                            <group>
+                                <field name="wireguard_public_key" readonly="1"/>
+                                <field name="wireguard_assigned_ip" readonly="1"/>
+                            </group>
+                        </page>
+
+                        <!-- ========== Earnings & Reputation ========== -->
+                        <page string="Earnings &amp; Reputation">
+                            <group>
+                                <field name="tokens_served"/>
+                                <field name="token_earnings" widget="monetary"/>
+                                <field name="reputation_score"
+                                       help="100 = perfect. Drops if attestation fails or the node misbehaves."/>
+                                <field name="attestation_passed"/>
+                                <field name="attestation_last_check"/>
+                            </group>
+                        </page>
+
+                        <!-- ========== Administrator Checklist ========== -->
+                        <page string="Checklist">
+                            <div class="text-muted">
+                                <p><b>To get this node fully operational, ensure:</b></p>
+                                <ul>
+                                    <li>The <b>NETTRADES GPU Agent</b> is installed and running on the node.</li>
+                                    <li><b>WireGuard</b> is active (public key and assigned IP are visible in the “Network” tab).</li>
+                                    <li><b>GPUStack worker</b> is registered (GPUStack Worker ID is not empty).</li>
+                                    <li><b>Container runtime</b> is set to <b>gVisor</b> (recommended) or Docker (trusted internal only).</li>
+                                    <li>If you see <b>TEE capabilities</b> all False, that is normal for consumer hardware.</li>
+                                    <li>If the node is an <b>edge device</b>, enable “Edge Device Support” in Multi-Modal &amp; Edge Settings.</li>
+                                </ul>
+                            </div>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

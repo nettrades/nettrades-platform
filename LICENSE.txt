@@ -1,0 +1,32 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
+
+Copyright (C) 2026  NETTRADES AI (PVT) LIMITED
+
+Everyone is permitted to copy and distribute verbatim copies of this
+license document, but changing it is not allowed.
+
+                            Preamble
+...
+
+[Full AGPL-3.0 text from https://www.gnu.org/licenses/agpl-3.0.txt]
+
+===========================
+Commercial License Addendum
+===========================
+
+For enterprises or individuals who desire to use the NETTRADES Core
+without the copyleft obligations of AGPL-3.0, a separate commercial
+license is available from NETTRADES AI (PVT) LIMITED.  This commercial
+license explicitly permits:
+
+  • Closed-source, proprietary extensions and plugins developed by
+    freelancers, third-party developers, and partners.
+  • Distribution and commercial monetisation of those extensions through
+    the NETTRADES Marketplace.
+  • Use of the NETTRADES Core as part of a proprietary SaaS offering
+    without releasing modifications under AGPL-3.0.
+  • Enterprise indemnification, support SLAs, and access to the
+    NETTRADES Cloud managed-hosting platform.
+
+Please contact licensing@nettrades.ai for terms and pricing.

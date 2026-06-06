@@ -1,0 +1,33 @@
+# =============================================================================
+# Section: G – Kubernetes deployment (GitOps)
+# Purpose:  Root kustomization that Argo CD watches.
+#           Every sub-folder is a separate Kustomize overlay.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - apps/namespaces.yaml
+  - apps/frontend
+  - apps/backend
+  - apps/ai
+  - apps/forgejo
+  - apps/gpustack
+  - apps/monitoring
+  - apps/registry
+  - apps/runners
+  - ingress/ingress.yaml
+  - argocd/application.yaml
+
+# Images whose tags are updated by the CI pipeline (see Section G22).
+# When Forgejo Actions pushes a new Odoo image, the tag here changes,
+# and Argo CD auto-syncs the update.
+images:
+  - name: registry.nettrades.ai/odoo-custom
+    newTag: latest
+  - name: registry.nettrades.ai/langgraph-agent
+    newTag: latest
+  - name: registry.nettrades.ai/mcp-odoo-server
+    newTag: latest
+  - name: registry.nettrades.ai/wg-peer-manager
+    newTag: latest

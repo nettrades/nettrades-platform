@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NETTRADES GPU Admin – Autonomous Cron Jobs
+    ==========================================
+    GPU Health Watchdog: runs every hour, creates an Odoo activity for any
+    node that has been offline for more than 1 day.
+    High GPU Utilisation Alert: runs every 3 hours, alerts when all internal
+    pool GPUs are above 90% utilisation.
+-->
+<odoo>
+    <data>
+        <!-- GPU Health Watchdog -->
+        <record id="cron_gpu_health_watchdog" model="ir.cron">
+            <field name="name">GPU Health Watchdog</field>
+            <field name="model_id" ref="nettrades_gpu_admin.model_gpu_node"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_health_watchdog()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+        </record>
+
+        <!-- High GPU Utilisation Alert -->
+        <record id="cron_high_utilisation_alert" model="ir.cron">
+            <field name="name">High GPU Utilisation Alert</field>
+            <field name="model_id" ref="nettrades_gpu_admin.model_gpu_cluster"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_high_utilisation_alert()</field>
+            <field name="interval_number">3</field>
+            <field name="interval_type">hours</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,11 @@
+# =============================================================================
+# Section: G – Monitoring layer
+# -----------------------------------------------------------------------------
+# The kube-prometheus-stack (Prometheus, Grafana, Alertmanager) is installed
+# via a Helm release in deploy-k8s-base.sh.  This kustomization is a placeholder
+# for future GitOps-managed monitoring resources such as ServiceMonitors,
+# PrometheusRules, or additional Grafana dashboards.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# resources: []   # Add ServiceMonitor manifests here when ready.

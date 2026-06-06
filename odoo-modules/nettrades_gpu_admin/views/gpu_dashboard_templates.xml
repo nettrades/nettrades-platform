@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    GPU Manager Dashboard – Owl template used by the JavaScript component.
+    Shows a real-time summary of all GPU nodes, sharing schedules, and
+    WireGuard peers.  The "Fine-Tuning" panel appears only for trusted clusters.
+    FUTURE IMPROVEMENT: add a live graph of GPU utilisation.
+-->
+<odoo>
+    <template id="gpu_dashboard_template" name="GPU Manager Dashboard">
+        <t t-name="gpu_admin_panel.GPUDashboard">
+            <div class="o_gpu_dashboard">
+                <div class="o_gpu_dashboard_header">
+                    <h2>GPU Cluster Manager</h2>
+                    <button class="btn btn-primary" t-on-click="scanNetwork">
+                        <i class="fa fa-search"/> Scan Network
+                    </button>
+                    <button class="btn btn-secondary" t-on-click="addNodeManually">
+                        <i class="fa fa-plus"/> Add Node
+                    </button>
+                </div>
+
+                <!-- Status cards -->
+                <div class="row o_gpu_status_cards" t-if="state.nodes.length">
+                    <div class="col-3" t-foreach="['online','degraded','offline','maintenance']" t-as="status" t-key="status">
+                        <div class="card" t-att-class="'card bg-' + statusColor(status)">
+                            <div class="card-body">
+                                <h5 class="card-title" t-esc="nodeCountByStatus(status)"/>
+                                <p class="card-text" t-esc="status"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pool A: Internal -->
+                <h3>Pool A – Internal (Trusted Multi-GPU)</h3>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Hostname</th>
+                            <th>GPUs</th>
+                            <th>VRAM (GB)</th>
+                            <th>Status</th>
+                            <th>Uptime</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="state.nodes.filter(n => n.pool === 'internal')" t-as="node" t-key="node.id">
+                            <td t-esc="node.hostname"/>
+                            <td t-esc="node.gpu_count"/>
+                            <td t-esc="node.total_vram_gb?.toFixed(1)"/> GB
+                            <td><span class="badge" t-att-class="'badge-' + statusColor(node.status)" t-esc="node.status"/></td>
+                            <td t-esc="node.uptime_hours?.toFixed(0)"/>h
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" t-on-click="removeNode(node.id)">Remove</button>
+                                <button class="btn btn-sm btn-outline-secondary" t-on-click="reassignNode(node.id)">Reassign</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Pool B: Public -->
+                <h3>Pool B – Public Sharing</h3>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Hostname</th>
+                            <th>GPUs</th>
+                            <th>Tokens Served</th>
+                            <th>Earnings</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="state.nodes.filter(n => n.pool === 'public')" t-as="node" t-key="node.id">
+                            <td t-esc="node.hostname"/>
+                            <td t-esc="node.gpu_count"/>
+                            <td t-esc="node.tokens_served"/>
+                            <td t-esc="'$' + (node.token_earnings || 0).toFixed(2)"/>
+                            <td><span class="badge" t-att-class="'badge-' + statusColor(node.status)" t-esc="node.status"/></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" t-on-click="removeNode(node.id)">Remove</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Sharing schedule -->
+                <h3>Public Sharing Schedule</h3>
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>Days</th><th>From</th><th>To</th><th>Enabled</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="state.schedule" t-as="sched" t-key="sched.id">
+                            <td t-esc="sched.day_of_week"/>
+                            <td t-esc="sched.start_time"/>
+                            <td t-esc="sched.end_time"/>
+                            <td><input type="checkbox" t-att-checked="sched.is_enabled" t-on-change="toggleSchedule(sched.id)"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- WireGuard peers -->
+                <h3>WireGuard Peers</h3>
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>Node</th><th>Public Key</th><th>Allowed IPs</th><th>Last Handshake</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="state.wireguard_peers" t-as="peer" t-key="peer.public_key">
+                            <td t-esc="peer.node_name"/>
+                            <td><code t-esc="peer.public_key.substring(0,16) + '...'"/></td>
+                            <td t-esc="peer.allowed_ips"/>
+                            <td t-esc="peer.last_handshake"/>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Fine-Tuning panel (only for trusted clusters) -->
+                <div t-if="state.clusters[0]?.trust_mode and state.clusters[0].trust_mode.indexOf('company') === 0">
+                    <h3>Fine-Tuning</h3>
+                    <div class="row">
+                        <div class="col-6">
+                            <label>Dataset</label>
+                            <select t-model="state.selectedDatasetId" class="form-control">
+                                <option t-foreach="state.datasets" t-as="ds" t-att-value="ds.id" t-esc="ds.name"/>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label>Base Model</label>
+                            <input t-model="state.baseModel" class="form-control" placeholder="deepseek-ai/..."/>
+                        </div>
+                    </div>
+                    <div class="row mt8">
+                        <div class="col-6">
+                            <label>Mode</label>
+                            <select t-model="state.mode" class="form-control">
+                                <option value="multi">Multi-GPU (Axolotl)</option>
+                                <option value="single">Single-GPU (Unsloth)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label>GPUs</label>
+                            <select t-model="state.selectedGpuIds" multiple="true" class="form-control">
+                                <option t-foreach="state.internalNodes" t-as="n" t-att-value="n.id" t-esc="n.hostname"/>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary mt8" t-on-click="startFineTuning">Start Fine-Tuning</button>
+                    <div t-if="state.finetuneJobId" class="mt8">
+                        <p>Job ID: <t t-esc="state.finetuneJobId"/> — Status: <t t-esc="state.finetuneStatus"/></p>
+                        <button t-if="state.finetuneStatus === 'completed'" class="btn btn-success" t-on-click="deployModel">Deploy Model</button>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>

@@ -1,0 +1,14 @@
+# =============================================================================
+# Section: G – Daily CNPG backup (gap #23 fix).
+# Runs at 2 AM UTC, retains backups according to the cluster retention policy.
+# =============================================================================
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: odoo-db-daily
+  namespace: backend
+spec:
+  schedule: "0 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: odoo-db

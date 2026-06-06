@@ -1,0 +1,57 @@
+# =============================================================================
+# Valkey StatefulSet – BSD-licensed in-memory store
+# =============================================================================
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey
+  namespace: backend
+spec:
+  serviceName: valkey
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+    spec:
+      containers:
+        - name: valkey
+          image: valkey/valkey:8-alpine
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: valkey-data
+              mountPath: /data
+          args:
+            - valkey-server
+            - --appendonly
+            - yes
+            - --save
+            - "900"
+            - "1"
+            - --save
+            - "300"
+            - "10"
+  volumeClaimTemplates:
+    - metadata:
+        name: valkey-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey
+  namespace: backend
+spec:
+  selector:
+    app: valkey
+  ports:
+    - port: 6379
+      targetPort: 6379

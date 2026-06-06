@@ -1,0 +1,26 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: odoo-db-restored
+  namespace: backend
+spec:
+  instances: 3
+  storage:
+    size: 100Gi
+  bootstrap:
+    recovery:
+      backup:
+        name: odoo-db-daily-20260513020000
+      recoveryTarget:
+        targetTime: "2026-05-13T02:00:00Z"
+  externalClusters:
+    - name: original-cluster
+      barmanObjectStore:
+        destinationPath: s3://your-bucket/           # same as original
+        s3Credentials:
+          accessKeyId:
+            name: s3-creds
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: s3-creds
+            key: ACCESS_SECRET

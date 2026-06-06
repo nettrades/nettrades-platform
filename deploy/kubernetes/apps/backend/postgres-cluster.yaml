@@ -1,0 +1,34 @@
+# =============================================================================
+# Section: G – PostgreSQL HA cluster via CloudNativePG.
+# Three instances for high availability, pgvector enabled for RAG embeddings.
+# =============================================================================
+# CNPG PostgreSQL cluster with pgvector
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: odoo-db
+  namespace: backend
+spec:
+  instances: 3
+  storage:
+    size: 100Gi
+  postgresql:
+    parameters:
+      shared_preload_libraries: "pgvector"   # Required by the LLM vector store
+  bootstrap:
+    initdb:
+      database: odoo
+      owner: odoo
+      secret:
+        name: postgres-secret
+---
+# Secret is created here for convenience; in production use Sealed Secrets.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: backend
+type: kubernetes.io/basic-auth
+stringData:
+  username: odoo
+  password: ${POSTGRES_PASSWORD}   # Substituted by deploy script

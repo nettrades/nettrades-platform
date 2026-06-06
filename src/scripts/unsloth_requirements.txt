@@ -1,0 +1,7 @@
+unsloth==2026.5.2
+torch==2.9.0+cu12.8
+transformers==4.44.2
+datasets==2.20.0
+peft==0.11.1
+bitsandbytes==0.43.1
+accelerate==0.33.0

@@ -1,0 +1,19 @@
+<odoo>
+    <!-- We attach fine-tuning settings to the nettrades.field form -->
+    <record id="view_nettrades_field_form_inherit" model="ir.ui.view">
+        <field name="name">nettrades.field.form.inherit.goodanswer</field>
+        <field name="model">nettrades.field</field>
+        <field name="inherit_id" ref="nettrades_core.view_nettrades_field_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet" position="inside">
+                <group string="Fine-Tuning Configuration">
+                    <field name="finetune_provider"/>
+                    <field name="base_model"/>
+                    <field name="hyperparameters"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+    <act_window id="action_good_answer_config" name="Good Answer Settings" res_model="good.answer.config" view_mode="form" target="inline"/>
+    <menuitem id="menu_good_answer_config" name="Good Answer Settings" parent="base.menu_administration" action="action_good_answer_config"/>
+</odoo>

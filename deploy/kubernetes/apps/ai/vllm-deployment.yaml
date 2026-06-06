@@ -1,0 +1,91 @@
+# =============================================================================
+# Section: G (optional) - vLLM GPU Inference Deployment (optional, commented out by default)
+# =============================================================================
+# REASON FOR BEING COMMENTED OUT:
+#   This is a safety default so that the platform starts without requiring
+#   a GPU.  Applying it unconditionally would cause the vLLM pod to stay
+#   in "Pending" forever on clusters without GPU nodes, generating error
+#   events and confusion.
+#
+# AUTO-DETECTION:
+#   The LangGraph agent already auto-detects the best inference backend
+#   at runtime (priority: GPUStack → vLLM → llama.cpp).  You do NOT need
+#   to enable vLLM for the platform to work.  GPUStack or llama.cpp will
+#   be used automatically if available.
+#
+# WHEN TO ENABLE:
+#   1. You have at least one Kubernetes worker node with a supported
+#      NVIDIA GPU.
+#   2. You have installed the NVIDIA GPU Operator (v26.3.1+).
+#   3. You have labelled the GPU node(s):
+#        kubectl label node <gpu-node-name> nvidia.com/gpu.present=true
+#   4. You have created the vLLM API-key secret (optional):
+#        kubectl create secret generic vllm-secret --namespace ai \
+#          --from-literal=api-key=$(openssl rand -base64 32)
+#
+# HOW TO ENABLE:
+#   1. Remove the leading "# " from every line in this file (uncomment).
+#   2. In apps/ai/kustomization.yaml, uncomment the line:
+#        # - vllm-deployment.yaml
+#   3. (Optional) To use vLLM directly instead of GPUStack, set the
+#      environment variable in the LangGraph deployment:
+#        - name: VLLM_BASE_URL
+#          value: http://vllm.ai.svc.cluster.local:8000/v1
+#      and remove or clear GPUSTACK_SERVER_URL.
+#   4. Apply:  kubectl apply -k apps/ai/
+#
+# AFTER ENABLING:
+#   The LangGraph agent will auto-detect VLLM_BASE_URL and route
+#   inference requests to this vLLM service.
+# =============================================================================
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: vllm
+#   namespace: ai
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: vllm
+#   template:
+#     metadata:
+#       labels:
+#         app: vllm
+#     spec:
+#       nodeSelector:
+#         nvidia.com/gpu.present: "true"
+#       containers:
+#         - name: vllm
+#           image: vllm/vllm-openai:v0.6.3.post1
+#           args:
+#             - --model
+#             - deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+#             - --api-key
+#             - $(VLLM_API_KEY)
+#             - --tensor-parallel-size
+#             - "1"
+#           ports:
+#             - containerPort: 8000
+#           env:
+#             - name: VLLM_API_KEY
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: vllm-secret
+#                   key: api-key
+#           resources:
+#             limits:
+#               nvidia.com/gpu: "1"
+#               memory: "16Gi"
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: vllm
+#   namespace: ai
+# spec:
+#   selector:
+#     app: vllm
+#   ports:
+#     - port: 8000
+#       targetPort: 8000

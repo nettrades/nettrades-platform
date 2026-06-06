@@ -1,0 +1,32 @@
+# Axolotl config: Multi-node FSDP2 + QLoRA
+base_model: deepseek-ai/DeepSeek-R1-Distill-Qwen-14B
+model_type: AutoModelForCausalLM
+tokenizer_type: AutoTokenizer
+
+# -- FSDP2 strategy --
+fsdp_version: 2
+fsdp_config:
+  reshard_after_forward: true
+  cpu_ram_efficient_loading: true
+  state_dict_type: FULL_STATE_DICT
+  offload_params: false
+
+# -- QLoRA adapter --
+adapter: qlora
+lora_r: 16
+lora_alpha: 32
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+
+# -- Dataset & Training --
+dataset: field_training_data
+sequence_len: 2048
+micro_batch_size: 2
+gradient_accumulation_steps: 4
+num_epochs: 3
+learning_rate: 2e-4
+bf16: true
+output_dir: ./field_trained

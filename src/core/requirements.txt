@@ -1,0 +1,34 @@
+# =============================================================================
+# NETTRADES Core – LangGraph Orchestrator Dependencies
+# =============================================================================
+# Each package is listed with its role in the NETTRADES architecture.
+# All packages are open-source and compatible with the AGPL-3.0 license.
+#
+# Install with:   pip install -r src/core/requirements.txt
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Core framework – web server and AI orchestration
+# ---------------------------------------------------------------------------
+fastapi                     # ASGI web framework for the /invoke and /health endpoints
+uvicorn                     # Lightning-fast ASGI server (runs FastAPI)
+langgraph>=1.2.0            # Multi-agent state machine (CVE-2026-28277 patched)
+langgraph-checkpoint-postgres>=3.0.3  # Durable checkpoint storage in PostgreSQL
+langchain-openai>=0.1.0     # OpenAI-compatible LLM client (used by all sub-agents)
+python-dotenv>=1.0.0        # Load environment variables from .env files
+httpx                       # Async HTTP client for Odoo and GPUStack tool calls
+
+# ---------------------------------------------------------------------------
+# Observability
+# ---------------------------------------------------------------------------
+prometheus-client>=0.20.0   # Export Prometheus metrics on /metrics (request count, latency)
+psycopg2-binary             # PostgreSQL driver (used by LangGraph PostgresSaver)
+
+# ---------------------------------------------------------------------------
+# Optional – multi-modal inferencing, robotics, and IoT
+# ---------------------------------------------------------------------------
+# These packages are only required if the administrator enables the
+# corresponding features in GPU Admin → Multi-Modal & Edge Settings.
+# They are safe to install even if the features remain off.
+pillow>=10.0.0              # Image processing for Vision-Language Models (VLMs)
+paho-mqtt>=2.0.0            # MQTT client for IoT sensor data integration

@@ -1,0 +1,21 @@
+<odoo>
+    <record id="view_hr_job_form_inherit" model="ir.ui.view">
+        <field name="name">hr.job.form.inherit</field>
+        <field name="model">hr.job</field>
+        <field name="inherit_id" ref="hr_recruitment.hr_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_match_candidates" string="AI Match Candidates" type="object" class="btn-primary"/>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <group string="AI Matching">
+                    <field name="required_skills"/>
+                    <field name="min_years_experience"/>
+                    <field name="is_freelance_project"/>
+                    <field name="budget" invisible="not is_freelance_project"/>
+                    <field name="forgejo_repo_url" readonly="1"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

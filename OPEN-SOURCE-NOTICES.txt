@@ -1,0 +1,40 @@
+This distribution includes or depends upon the following independent,
+unmodified third-party open-source components.  These components are
+NOT governed by the AGPL-3.0 license that covers the /nettrades-core
+directory, but are subject to their respective upstream software
+licenses as listed below.
+
+Component               | License       | Source
+─────────────────────────┼───────────────┼──────────────────────────────
+Odoo 19 Community Edition│ LGPL-3.0      │ https://github.com/odoo/odoo
+ERPGAP Website Sale      │ LGPL-3.0      │ https://github.com/erpgap/website_sale_marketplace
+Apexive Odoo LLM         │ LGPL-3.0      │ https://github.com/apexive/odoo-llm
+Grafana                  │ AGPL-3.0      │ https://github.com/grafana/grafana
+Forgejo                  │ GPL-3.0+      │ https://codeberg.org/forgejo/forgejo
+Valkey                   │ BSD-3-Clause  │ https://github.com/valkey-io/valkey
+GPUStack                 │ Apache-2.0    │ https://github.com/gpustack/gpustack
+LangGraph                │ MIT           │ https://github.com/langchain-ai/langgraph
+WireGuard                │ GPL-2.0       │ Linux kernel module
+gVisor                   │ Apache-2.0    │ https://github.com/google/gvisor
+Axolotl                  │ Apache-2.0    │ https://github.com/OpenAccess-AI-Collective/axolotl
+Unsloth (core)           │ Apache-2.0    │ https://github.com/unslothai/unsloth
+OCA queue_job            │ LGPL-3.0      │ https://github.com/OCA/queue
+OCA payment_stripe       │ LGPL-3.0      │ https://github.com/OCA/OCB
+Traefik                  │ MIT           │ https://github.com/traefik/traefik
+PostgreSQL               │ PostgreSQL    │ https://www.postgresql.org/
+pgvector                 │ PostgreSQL    │ https://github.com/pgvector/pgvector
+Prometheus               │ Apache-2.0    │ https://github.com/prometheus/prometheus
+Talos Linux              │ MPL-2.0       │ https://github.com/siderolabs/talos
+Cilium                   │ Apache-2.0    │ https://github.com/cilium/cilium
+Longhorn                 │ Apache-2.0    │ https://github.com/longhorn/longhorn
+CloudNativePG            │ Apache-2.0    │ https://github.com/cloudnative-pg/cloudnative-pg
+cert-manager             │ Apache-2.0    │ https://github.com/cert-manager/cert-manager
+MetalLB                  │ Apache-2.0    │ https://github.com/metallb/metallb
+Argo CD                  │ Apache-2.0    │ https://github.com/argoproj/argo-cd
+KubeRay                  │ Apache-2.0    │ https://github.com/ray-project/kuberay
+NVIDIA GPU Operator      │ Apache-2.0    │ https://github.com/NVIDIA/gpu-operator
+MCP-Odoo bridge          │ MIT           │ https://github.com/bmya/claude-odoo-api
+Python 3.12              │ PSF (BSD-like)│ https://www.python.org/
+
+The source code for all GPL, LGPL, and AGPL-licensed components is
+available upon request as required by their respective licenses.

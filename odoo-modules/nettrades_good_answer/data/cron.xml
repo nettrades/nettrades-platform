@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NETTRADES Good Answer – Autonomous Cron Jobs
+    ============================================
+    Process Feedback: runs hourly, collects unprocessed Good Answer feedback
+    and exports it into fine-tuning datasets.
+    Reputation Decay: runs daily, reduces reputation points by 1% for
+    experts inactive for 30 days.
+    Auto-Qualify by Karma: runs hourly, promotes users who meet the Karma
+    threshold to Qualified Professional status for enabled fields.
+-->
+<odoo>
+    <data>
+        <!-- Process Good Answer Feedback -->
+        <record id="cron_process_feedback" model="ir.cron">
+            <field name="name">Process Good Answer Feedback</field>
+            <field name="model_id" ref="nettrades_good_answer.model_llm_feedback"/>
+            <field name="state">code</field>
+            <field name="code">model.process_feedback()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+        </record>
+
+        <!-- Reputation Decay -->
+        <record id="cron_reputation_decay" model="ir.cron">
+            <field name="name">Reputation Decay</field>
+            <field name="model_id" ref="nettrades_good_answer.model_user_field_reputation"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_decay_reputation()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+        </record>
+
+        <!-- Auto-Qualify by Karma -->
+        <record id="cron_auto_karma_qualify" model="ir.cron">
+            <field name="name">Auto-Qualify by Karma</field>
+            <field name="model_id" ref="nettrades_good_answer.model_user_field_reputation"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_auto_qualify_by_karma()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+        </record>
+        <!-- Trigger Fine-Tuning on Dataset Threshold - Dont know if this could be removed, Unsloth/Axolotl now handle fine tuning -->
+        <record id="cron_trigger_finetune" model="ir.cron">
+            <field name="name">Trigger Fine-Tuning on Dataset Threshold</field>
+            <field name="model_id" ref="model_ft_dataset"/>
+            <field name="state">code</field>
+            <field name="code">model.action_trigger_finetune()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+        </record>
+    </data>
+</odoo>

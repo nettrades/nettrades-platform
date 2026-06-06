@@ -1,0 +1,48 @@
+<odoo>
+    <record id="view_nettrades_review_tree" model="ir.ui.view">
+        <field name="name">nettrades.review.tree</field>
+        <field name="model">nettrades.review</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="reviewer_id"/>
+                <field name="reviewed_partner_id"/>
+                <field name="rating"/>
+                <field name="comment"/>
+                <field name="create_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_nettrades_review_form" model="ir.ui.view">
+        <field name="name">nettrades.review.form</field>
+        <field name="model">nettrades.review</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="reviewer_id"/>
+                        <field name="reviewed_partner_id"/>
+                        <field name="rating"/>
+                        <field name="comment"/>
+                        <field name="project_id"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_nettrades_review_search" model="ir.ui.view">
+        <field name="name">nettrades.review.search</field>
+        <field name="model">nettrades.review</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="reviewer_id"/>
+                <field name="reviewed_partner_id"/>
+                <filter string="My Reviews" name="my_reviews" domain="[('reviewer_id','=',uid)]"/>
+            </search>
+        </field>
+    </record>
+
+    <act_window id="action_nettrades_review" name="Reviews" res_model="nettrades.review" view_mode="tree,form"/>
+    <menuitem id="menu_nettrades_review" name="Reviews" parent="base.menu_administration" action="action_nettrades_review"/>
+</odoo>

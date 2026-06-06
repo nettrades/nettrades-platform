@@ -1,0 +1,24 @@
+# =============================================================================
+# Section: G – Argo CD Application that watches this repository.
+# When the config repo changes, Argo CD automatically syncs the cluster state.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nettrades-platform
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://git.nettrades.ai/infra/nettrades-platform
+    targetRevision: HEAD
+    path: .
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: frontend
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_gpu_cluster_admin,gpu.cluster.admin,model_gpu_cluster,group_gpu_administrator,1,1,1,1
+access_gpu_cluster_operator,gpu.cluster.operator,model_gpu_cluster,group_gpu_operator,1,0,0,0
+access_gpu_node_admin,gpu.node.admin,model_gpu_node,group_gpu_administrator,1,1,1,1
+access_gpu_node_operator,gpu.node.operator,model_gpu_node,group_gpu_operator,1,1,0,0
+access_gpu_schedule_admin,gpu.schedule.admin,model_gpu_sharing_schedule,group_gpu_administrator,1,1,1,1
+access_gpu_token_economics_admin,gpu.token.economics.admin,model_gpu_token_economics,group_gpu_administrator,1,1,1,1
+access_gpu_cluster_subnet_admin,gpu.cluster.subnet.admin,model_gpu_cluster_subnet,group_gpu_administrator,1,1,1,1
+access_gpu_dashboard_user,gpu.dashboard.user,model_gpu_cluster,base.group_user,1,0,0,0
+access_gpu_node_dashboard_user,gpu.node.dashboard.user,model_gpu_node,base.group_user,1,0,0,0

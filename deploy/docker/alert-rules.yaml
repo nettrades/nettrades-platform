@@ -1,0 +1,315 @@
+# =============================================================================
+# NETTRADES.AI – Single-VM Docker Compose deployment (Valkey edition)
+# =============================================================================
+# All services are production-ready, with pinned versions for stability.
+# Forgejo 15.0 LTS is supported until July 2027.
+# GPUStack v2.1.2 is the current stable release.
+# Valkey 8 (BSD-3-Clause) replaces Redis for session storage,
+# ORM cache, and bus notifications.
+#
+# GPUStack’s built-in Prometheus and Grafana are DISABLED on the central
+# deployment.  Metrics are scraped by the external Prometheus (port 10161)
+# and visualised in the external Grafana.  The GPUSTACK_GRAFANA_URL
+# environment variable tells GPUStack to point its UI links to the external
+# Grafana instead of starting its own embedded stack.
+#
+# Client companies running their own GPUStack server (Trusted Mode) retain
+# the built-in Grafana at http://<controller>:80/grafana for anonymous
+# Viewer access to GPU-level dashboards.
+# =============================================================================
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Traefik reverse proxy – automatic Let's Encrypt SSL
+  # ---------------------------------------------------------------------------
+  traefik:
+    image: traefik:v3.6.13
+    command:
+      - --providers.docker=true
+      - --providers.docker.endpoint=unix:///var/run/docker.sock
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik-data:/letsencrypt
+    networks:
+      - web
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 17 with pgvector (RAG embeddings)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: odoo
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL exporter for Prometheus
+  # ---------------------------------------------------------------------------
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo?sslmode=disable"
+    networks:
+      - internal
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Valkey – BSD-licensed in-memory store (sessions, ORM cache, bus)
+  # ---------------------------------------------------------------------------
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: valkey
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - ./valkey-data:/data
+    command: valkey-server --appendonly yes --save 900 1 --save 300 10
+    security_opt:
+      - no-new-privileges:true
+
+  # ---------------------------------------------------------------------------
+  # Odoo 19 CE – ERP, marketplace, and AI hub
+  # ---------------------------------------------------------------------------
+  odoo:
+    image: odoo:19.0
+    volumes:
+      - ./addons:/mnt/extra-addons
+      - ./odoo-data:/var/lib/odoo
+      - ./config:/etc/odoo
+    environment:
+      - HOST=postgres
+      - USER=odoo
+      - PASSWORD=${POSTGRES_PASSWORD}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.odoo.rule=Host(`${DOMAIN}`)
+      - traefik.http.services.odoo.loadbalancer.server.port=8069
+      - traefik.http.middlewares.odoo-ratelimit.ratelimit.average=100
+      - traefik.http.routers.odoo.middlewares=odoo-ratelimit
+    networks:
+      - web
+      - internal
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+
+  # ---------------------------------------------------------------------------
+  # Forgejo 15.0 LTS – self-hosted Git server
+  # ---------------------------------------------------------------------------
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:15.0
+    volumes:
+      - ./forgejo-data:/data
+    environment:
+      - FORGEJO__database__DB_TYPE=postgres
+      - FORGEJO__database__HOST=postgres:5432
+      - FORGEJO__database__NAME=forgejo
+      - FORGEJO__database__USER=forgejo
+      - FORGEJO__database__PASSWD=${FORGEJO_DB_PASSWORD}
+      - FORGEJO__security__SECRET_KEY=${FORGEJO_SECRET_KEY}
+      - FORGEJO__security__INTERNAL_TOKEN=${JWT_SECRET}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.forgejo.rule=Host(`git.${DOMAIN}`)
+      - traefik.http.services.forgejo.loadbalancer.server.port=3000
+    networks:
+      - web
+      - internal
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # LangGraph agent – durable AI orchestration (Prometheus metrics on /metrics)
+  # ---------------------------------------------------------------------------
+  langgraph:
+    build: ../langgraph-agent
+    image: langgraph-agent:latest
+    container_name: langgraph
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+    environment:
+      - LLM_BASE_URL=http://llama-cpp:8080/v1
+      - LLAMA_API_KEY=dummy
+      - LLM_MODEL=deepseek-r1:1.5b
+      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
+      - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.langgraph.rule=Host(`langgraph.${DOMAIN}`)
+      - traefik.http.services.langgraph.loadbalancer.server.port=8000
+      - traefik.http.middlewares.langgraph-ratelimit.ratelimit.average=50
+      - traefik.http.routers.langgraph.middlewares=langgraph-ratelimit
+    security_opt:
+      - no-new-privileges:true
+
+  # ---------------------------------------------------------------------------
+  # MCP-Odoo bridge – LLM tool-calling interface to Odoo
+  # ---------------------------------------------------------------------------
+  mcp-odoo:
+    build: ../mcp-odoo
+    image: mcp-odoo-server:latest
+    container_name: mcp-odoo
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      - ODOO_URL=http://odoo:8069
+      - ODOO_DATABASE=nettrades
+      - ODOO_API_KEY=${ODOO_API_KEY}
+      - ODOO_REQUEST_TIMEOUT=30
+      - ODOO_MAX_RETRIES=3
+      - MCP_API_KEY=${MCP_API_KEY}
+    security_opt:
+      - no-new-privileges:true
+
+  # ---------------------------------------------------------------------------
+  # llama.cpp – local CPU inference (fallback)
+  # ---------------------------------------------------------------------------
+  llama-cpp:
+    image: ghcr.io/ggml-org/llama.cpp:server-cpu
+    container_name: llama-cpp
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - ./llama-cpp-data:/models
+    command: >
+      -m /models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+      --host 0.0.0.0 --port 8080
+      --threads 6 --ctx-size 4096 --parallel 2
+    deploy:
+      resources:
+        limits:
+          memory: 28Gi
+        reservations:
+          memory: 12Gi
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+    security_opt:
+      - no-new-privileges:true
+
+  # ---------------------------------------------------------------------------
+  # GPUStack v2.1.2 – GPU cluster manager
+  # ---------------------------------------------------------------------------
+  gpustack:
+    image: gpustack/gpustack:v2.1.2
+    container_name: gpustack
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+    ports:
+      - "8080:80"
+    volumes:
+      - ./gpustack-data:/var/lib/gpustack
+    environment:
+      - GPUSTACK_JWT_SECRET=${GPUSTACK_JWT_SECRET}
+      # Disable built-in Prometheus & Grafana; use external stack instead.
+      # This environment variable tells GPUStack to point its UI links to
+      # the external Grafana rather than starting its own embedded stack.
+      # Metrics are scraped by the external Prometheus on port 10161.
+      - GPUSTACK_GRAFANA_URL=https://grafana.${DOMAIN}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gpustack.rule=Host(`gpustack.${DOMAIN}`)
+      - traefik.http.services.gpustack.loadbalancer.server.port=80
+    security_opt:
+      - no-new-privileges:true
+
+  # ---------------------------------------------------------------------------
+  # Monitoring stack
+  # ---------------------------------------------------------------------------
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    restart: unless-stopped
+    networks:
+      - internal
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    security_opt:
+      - no-new-privileges:true
+
+  prometheus:
+    image: prom/prometheus:v3.8.0
+    container_name: prometheus
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml
+      - ./prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.prometheus.rule=Host(`monitor.${DOMAIN}`)
+      - traefik.http.services.prometheus.loadbalancer.server.port=9090
+    security_opt:
+      - no-new-privileges:true
+
+  grafana:
+    image: grafana/grafana:12.4.2
+    container_name: grafana
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  web:
+  internal:
+    internal: true

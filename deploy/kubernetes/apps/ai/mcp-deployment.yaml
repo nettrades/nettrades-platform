@@ -1,0 +1,57 @@
+# =============================================================================
+# Section: C, G – MCP-Odoo bridge server.
+# Connects the LangGraph agent to Odoo's JSON-RPC API.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-odoo
+  namespace: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-odoo
+  template:
+    metadata:
+      labels:
+        app: mcp-odoo
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: mcp-odoo
+          image: registry.registry.svc.cluster.local:5000/mcp-odoo-server:latest
+          env:
+            - name: ODOO_URL
+              value: http://odoo.frontend.svc.cluster.local:8069
+            - name: ODOO_DATABASE
+              value: nettrades
+            - name: ODOO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-api-secret
+                  key: api-key
+            - name: MCP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-secret
+                  key: api-key
+            - name: ODOO_REQUEST_TIMEOUT
+              value: "30"
+            - name: ODOO_MAX_RETRIES
+              value: "3"
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-odoo
+  namespace: ai
+spec:
+  selector:
+    app: mcp-odoo
+  ports:
+    - port: 3000
+      targetPort: 3000
