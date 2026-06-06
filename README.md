@@ -184,19 +184,12 @@ The main entry point for the LangGraph service. Provides /invoke (authenticated 
 python
 
 @asynccontextmanager
-
 async def lifespan(app: FastAPI):
-
-    async with AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer:
-    
-        await checkpointer.setup()
-        
-        graph = build_supervisor()
-        
-        graph.checkpointer = checkpointer
-        
-        ml_models["graph"] = graph
-        
+    async with AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer:    
+        await checkpointer.setup()        
+        graph = build_supervisor()        
+        graph.checkpointer = checkpointer        
+        ml_models["graph"] = graph        
         yield
 
 Environment: DATABASE_URL, LLM_BASE_URL, LANGGRAPH_API_KEY, GPUSTACK_SERVER_URL, etc.
