@@ -23,38 +23,64 @@ The platform is built on Odoo 19 Community Edition, orchestrated by LangGraph, w
 
 ## 2. Technology Stack (Final Versions)
 
-Component			|Version		|License		|Purpose
-________________________________|_______________________|_______________________|___________________________________________________________
-Odoo				|19.0 CE		|LGPL-3.0		|ERP, marketplace, CRM, HR, Projects, Accounting
+Component			|    Version		|    License		|    Purpose
 
-PostgreSQL + pgvector		|18.1 (via CNPG)	|PostgreSQL License	|Business data, vector embeddings, LangGraph checkpoints
-Valkey				|8-alpine		|BSD-3-Clause		|Session storage, ORM cache, bus notifications
-Forgejo				|15.0 LTS		|GPL-3.0+		|Self-hosted Git + CI/CD
-Traefik				|v3.6.13		|MIT			|Reverse proxy, automatic Let's Encrypt TLS
-LangGraph			|≥1.2.0			|MIT			|Multi-agent orchestration, durable execution
-LangGraph Checkpoint Postgres	|≥3.0.3			|MIT			|Durable checkpoint storage in PostgreSQL
-GPUStack			|v2.1.2			|Apache-2.0		|GPU cluster manager, inference engine, token metering
-llama.cpp			|server-cpu/server-cuda	|MIT			|CPU inference fallback
-Unsloth (core)			|2026.5.2		|Apache-2.0		|Single-GPU fine-tuning
-Axolotl				|0.16.1+		|Apache-2.0		|Multi-GPU fine-tuning with FSDP2
-WireGuard			|kernel module		|GPL-2.0		|Kernel-level network isolation
-gVisor				|release-20260420.0	|Apache-2.0		|Syscall-level container isolation
-OCA queue_job			|19.0 branch		|LGPL-3.0		|Background job processing
-OCA payment_stripe		|19.0 branch		|LGPL-3.0		|Stripe payment acquirer
-Talos Linux			|1.13.2			|MPL-2.0		|Immutable K8s OS
-Kubernetes			|1.36 (via Talos)	|Apache-2.0		|Container orchestration
-Cilium				|1.19.3			|Apache-2.0		|CNI with WireGuard encryption
-Longhorn			|1.11.1			|Apache-2.0		|Distributed block storage
-CloudNativePG			|1.29.0			|Apache-2.0		|PostgreSQL operator with HA & backups
-cert-manager			|1.20.2			|Apache-2.0		|TLS certificate automation
-MetalLB				|0.15.3			|Apache-2.0		|Bare-metal load balancer
-Argo CD				|3.3.8			|Apache-2.0		|GitOps continuous delivery
-NVIDIA GPU Operator		|v26.3.1		|Apache-2.0		|GPU support on Kubernetes
-KubeRay				|1.6.1			|Apache-2.0		|Ray on Kubernetes for vLLM
-Prometheus			|v3.8.0			|Apache-2.0		|Metrics collection
-Grafana				|12.4.2			|AGPL-3.0 (unmodified)	|Dashboards
 
-## 3. Licensing Strategy
+Odoo				|    19.0 CE		|    LGPL-3.0		|    ERP, marketplace, CRM, HR, Projects, Accounting
+
+PostgreSQL + pgvector		|    18.1 (via CNPG)	|    PostgreSQL License	|    Business data, vector embeddings, LangGraph checkpoints
+
+Valkey				|    8-alpine		|    BSD-3-Clause		|    Session storage, ORM cache, bus notifications
+
+Forgejo				|    15.0 LTS		|    GPL-3.0+		|    Self-hosted Git + CI/CD
+
+Traefik				|    v3.6.13		|    MIT			|    Reverse proxy, automatic Let's Encrypt TLS
+
+LangGraph			|    ≥1.2.0			|    MIT			|    Multi-agent orchestration, durable execution
+
+LangGraph Checkpoint Postgres	|    ≥3.0.3			|    MIT    |    Durable checkpoint storage in PostgreSQL
+
+GPUStack			|    v2.1.2			|    Apache-2.0		|    GPU cluster manager, inference engine, token metering
+
+llama.cpp			|    server-cpu/server-cuda	|    MIT			|    CPU inference fallback
+
+Unsloth (core)			|    2026.5.2		|    Apache-2.0		|    Single-GPU fine-tuning
+
+Axolotl				|    0.16.1+		|    Apache-2.0		|    Multi-GPU fine-tuning with FSDP2
+
+WireGuard			|    kernel module		|    GPL-2.0		|    Kernel-level network isolation
+
+gVisor				|    release-20260420.0	|    Apache-2.0		|    Syscall-level container isolation
+
+OCA queue_job			|    19.0 branch		|    LGPL-3.0		|    Background job processing
+
+OCA payment_stripe		|    19.0 branch		|    LGPL-3.0		|    Stripe payment acquirer
+
+Talos Linux			|    1.13.2			|    MPL-2.0		|    Immutable K8s OS
+
+Kubernetes			|    1.36 (via Talos)	|    Apache-2.0		|    Container orchestration
+
+Cilium				|    1.19.3			|    Apache-2.0		|    CNI with WireGuard encryption
+
+Longhorn			   |    1.11.1			|    Apache-2.0		|    Distributed block storage
+
+CloudNativePG			|    1.29.0			|    Apache-2.0		|    PostgreSQL operator with HA & backups
+
+cert-manager			|    1.20.2			|    Apache-2.0		|    TLS certificate automation
+
+MetalLB				|    0.15.3			|    Apache-2.0		|    Bare-metal load balancer
+
+Argo CD				|    3.3.8			|    Apache-2.0		|    GitOps continuous delivery
+
+NVIDIA GPU Operator		|    v26.3.1		|    Apache-2.0		|    GPU support on Kubernetes
+
+KubeRay				|    1.6.1			|    Apache-2.0		|    Ray on Kubernetes for vLLM
+
+Prometheus			|    v3.8.0			|    Apache-2.0		|    Metrics collection
+
+Grafana				|    12.4.2			|    AGPL-3.0 (unmodified)	|    Dashboards
+
+## 3. Licensing 
 
 NETTRADES uses a dual-licensing approach to protect the platform while keeping it open:
 
@@ -72,283 +98,15 @@ NETTRADES uses a dual-licensing approach to protect the platform while keeping i
 
 A Contributor License Agreement (CLA) is in CONTRIBUTING.md to ensure contributions can be re-licensed under the commercial license.
 
-## 4. Complete Directory Structure
+## 4. Transaction control and error handling notes
 
-text
+    • Odoo transaction control – all database writes inside a single request are automatically committed or rolled back by the framework. If the registration fails, the node record is not created.
 
-nettrades-platform/
-│
-├── .vscode/
-│   └── launch.json                         ← VS Code debug configuration for Odoo
-│
-├── LICENSE.txt                              ← Root license notice (points to per-dir licenses)
-├── README.md                                ← Project overview and quick start
-├── OPEN-SOURCE-NOTICES.txt                  ← Attribution for all bundled third-party components
-├── CONTRIBUTING.md                          ← Contributor License Agreement (CLA)
-├── .gitignore                               ← Files excluded from version control
-│
-├── src/                                     ★ AGPL-3.0 – Your original code
-│   ├── LICENSE.txt                           ← Full AGPL-3.0 text
-│   │
-│   ├── core/                                 ← LangGraph orchestrator (the brain of NETTRADES)
-│   │   ├── Dockerfile                        ← Container image for the LangGraph service
-│   │   ├── requirements.txt                  ★ Python dependencies (added pillow, paho-mqtt)
-│   │   ├── app.py                            ← FastAPI application with PostgresSaver & Prometheus
-│   │   ├── supervisor.py                     ★ Supervisor agent – classifies intent and routes to sub-agents
-│   │   │								updated (vision/action routing)	
-│   │   ├── agents/                           ← Specialised business sub-agents
-│   │   │   ├── __init__.py
-│   │   │   ├── recruitment_agent.py          ← CV / job matching
-│   │   │   ├── freelance_agent.py            ← Project ↔ freelancer matching
-│   │   │   ├── lead_gen_agent.py             ← Lead scoring & creation
-│   │   │   ├── gpu_management_agent.py       ← GPU cluster health & scaling
-│   │   │   ├── vision_agent.py               ★ Multi-modal VLM agent (image + text)
-│   │   │   └── action_agent.py               ★ VLA agent for robotic control
-│   │   │
-│   │   └── tools/                            ← Shared tool functions used by agents
-│   │       ├── __init__.py
-│   │       ├── inference_tools.py            ← Auto-detection of inference backend
-│   │       ├── odoo_tools.py                 ← MCP-Odoo wrappers (search, create, etc.)
-│   │       ├── ros2_tools.py                 ★ ROS 2 bridge (move_arm, navigate, get_sensor)
-│   │       └── iot_tools.py                  ★ MQTT subscriber for IoT sensor data
-│   │
-│   ├── agent/                                ← Distributed GPU agent (runs on every GPU node)
-│   │   ├── agent.py                          ★ Main daemon – registration, WireGuard, GPUStack worker
-│   │   ├── wg_setup.py                       ← WireGuard key generation and config management
-│   │   ├── isolate.py                        ← Container runtime selection (gVisor / Docker)
-│   │   ├── wg_dns_watchdog.py                ← DNS re-resolution for dynamic IPs
-│   │   ├── tee_detect.py                     ← Detects TEE/Confidential Computing capabilities
-│   │   ├── edge_detect.py                    ★ Detects Jetson, Raspberry Pi, Coral TPU
-│   │   ├── modes/
-│   │   │   ├── __init__.py
-│   │   │   ├── trusted_multi_gpu.py          ← WireGuard full-mesh for internal pools
-│   │   │   └── untrusted_public.py           ← WireGuard hub-and-spoke for freelancer pools
-│   │   ├── requirements.txt                  ← Python dependencies for the agent
-│   │   ├── nettrades-agent.service           ← systemd unit file (Linux)
-│   │   ├── install-agent.sh                  ← One-click Linux/macOS installer
-│   │   └── client-wireguard-installer.ps1    ← Windows installer with WireGuard DNS watchdog
-│   │
-│   └── scripts/                              ← Training and data-quality scripts
-│       ├── unsloth_single_gpu_training.py    ← Single-GPU fine-tuning with Unsloth
-│       ├── axolotl_fsdp_config.yaml          ← Multi-GPU FSDP2 configuration for Axolotl
-│       ├── axolotl_multi_node_launch.sh      ← Launcher for multi-node Axolotl training
-│       ├── axolotl_vlm_fsdp_config.yaml      ← for Vision-Language Model fine-tuning 
-│       ├── unsloth_requirements.txt          ← Pinned Unsloth dependencies
-│       └── requirements-data-quality.txt     ★ Dependencies for Data-Juicer & DEITA
-│
-├── odoo-modules/                            ★ LGPL-3.0 – Your custom Odoo plugins
-│   ├── LICENSE.txt                           ← Full LGPL-3.0 text
-│   │
-│   ├── nettrades_core/                       ← Core marketplace & AI integration
-│   │   ├── __init__.py
-│   │   ├── __manifest__.py
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── res_partner.py                ← Extended partner (skills, reputation, Good Answer)
-│   │   │   ├── hr_job.py                     ← Job postings with AI matching
-│   │   │   ├── project_project.py            ← Project ↔ Forgejo integration
-│   │   │   ├── nettrades_user_match.py       ← AI match results
-│   │   │   ├── nettrades_skill.py            ← Skill catalog
-│   │   │   └── nettrades_field.py            ★ Professional field with quality, training & voting settings
-│   │   ├── security/
-│   │   │   ├── nettrades_security.xml        ← User groups (Job Seeker, Freelancer, etc.)
-│   │   │   └── ir.model.access.csv           ← Access rights for all custom models
-│   │   ├── views/
-│   │   │   ├── res_partner_views.xml
-│   │   │   ├── hr_job_views.xml
-│   │   │   ├── project_views.xml
-│   │   │   ├── nettrades_review_views.xml
-│   │   │   └── nettrades_field_views.xml     ★ Field admin screens (qualification, training, quality)
-│   │   └── data/
-│   │       └── nettrades.skill.csv            ← Seed data for skills
-│   │
-│   ├── nettrades_ask_someone/                ← "Ask Someone" – expert help marketplace
-│   │   ├── __init__.py
-│   │   ├── __manifest__.py
-│   │   ├── controllers/__init__.py, main.py               ← Session creation, matching, escrow
-│   │   ├── models/ (expert_session, ask_someone_config, escrow_hold, expert_agreement)
-│   │   ├── security/ir.model.access.csv
-│   │   ├── views/ (ask_someone_config_views.xml, expert_session_views.xml)
-│   │   └── data/expert_agreement_template.xml ← Updated agreement with AI training transparency
-│   │
-│   ├── nettrades_good_answer/                ← "Good Answer" voting & fine-tuning pipeline
-│   │   ├── __init__.py
-│   │   ├── __manifest__.py
-│   │   ├── controllers/main.py               ← Vote recording
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── good_answer_vote.py
-│   │   │   ├── user_field_reputation.py      ★ Reputation decay, auto-adjust weights
-│   │   │   ├── qualified_professional.py
-│   │   │   ├── llm_feedback.py               ← Training data extraction
-│   │   │   ├── ft_dataset.py                 ★ Dataset export + quality pipeline trigger
-│   │   │   ├── ft_training_job.py
-│   │   │   ├── nettrades_field.py            ← Field model extension
-│   │   │   └── ft_dataset_contribution.py    ← Indirect reputation tracking
-│   │   ├── security/ir.model.access.csv
-│   │   ├── views/ (qualified_professional_views.xml, good_answer_config_views.xml, ft_dataset_views.xml)
-│   │   └── data/cron.xml                     ★ All scheduled jobs (feedback, decay, auto-qualify, auto-adjust)
-│   │
-│   ├── nettrades_gpu_admin/                  ← GPU cluster administration dashboard
-│   │   ├── __init__.py
-│   │   ├── __manifest__.py                   ★ Updated to include multimodal_config
-│   │   ├── controllers/main.py               ← Agent registration, WireGuard peers, fine-tuning endpoints
-│   │   ├── models/
-│   │   │   ├── gpu_cluster.py                ★ Cluster model with utilisation alert & fine-tuning fields
-│   │   │   ├── gpu_cluster_subnet.py
-│   │   │   ├── gpu_node.py                   ★ Node model with TEE, edge-device, watchdog
-│   │   │   ├── gpu_sharing_schedule.py
-│   │   │   ├── gpu_token_economics.py
-│   │   │   └── multimodal_config.py          ★ System-wide toggles for multi-modal, robotics, IoT, edge
-│   │   ├── security/
-│   │   │   ├── gpu_admin_security.xml
-│   │   │   └── ir.model.access.csv
-│   │   ├── views/
-│   │   │   ├── gpu_cluster_views.xml         ★ Cluster config with "Next Steps" note
-│   │   │   ├── gpu_node_views.xml            ★ Node detail with Edge Device, Checklist, TEE guidance
-│   │   │   ├── gpu_schedule_views.xml
-│   │   │   ├── gpu_token_economics_views.xml
-│   │   │   ├── gpu_dashboard_templates.xml   ← Owl dashboard + fine-tuning panel
-│   │   │   ├── menu_items.xml
-│   │   │   └── multimodal_config_views.xml   ★ Admin screen for multi-modal & edge settings
-│   │   ├── data/cron.xml                     ← Watchdog & utilisation alert cron jobs
-│   │   └── static/src/
-│   │       ├── js/ (dashboard.js, node_manager.js, network_scan.js, wireguard_manager.js)
-│   │       └── scss/dashboard.scss
-│   │
-│   ├── nettrades_gpustack_adapter/           ← Bridge between GPUStack API and Odoo models
-│   │   ├── __init__.py
-│   │   ├── __manifest__.py
-│   │   ├── controllers/gpustack_api.py
-│   │   └── models/gpustack_sync.py           ← Worker & token usage sync with retry logic
-│   │
-│   ├── nettrades_queue/                      ← Meta-module to auto-load OCA queue_job
-│   │   ├── __init__.py
-│   │   └── __manifest__.py
-│   │
-│   ├── nettrades_onboarding/                 ← Smart onboarding wizard & CV parsing
-│   ├── nettrades_job_matching/               ← Conversational job search & one-click apply
-│   ├── nettrades_proposals/                  ← Freelancer proposals & milestone payments
-│   ├── nettrades_lead_scoring/               ← Lead scoring from platform activity
-│   ├── nettrades_research/                   ← Research project marketplace
-│   ├── nettrades_chatbot/                    ← AI chatbot widget + "Ask Someone" / "Good Answer" buttons
-│   ├── nettrades_notifications/              ← In-app notification centre, reviews, disputes
-│   └── nettrades_pwa/                        ← Mobile PWA manifest & service worker
-│
-├── third-party/                             ★ UNMODIFIED – All third-party dependencies
-│   ├── README.md                             ← "Do not modify any files in this directory."
-│   ├── odoo/                                 ← Odoo 19 CE (LGPL-3.0) – clone
-│   ├── website_sale_marketplace/             ← ERPGAP marketplace addon (LGPL-3.0) – clone
-│   ├── odoo_llm/                             ← Apexive LLM modules (LGPL-3.0) – clone, merged 18.0→19.0
-│   ├── odoo_llm_compat/                      ← Compatibility shim for Odoo 19
-│   │   ├── __init__.py                 
-│   │   └── __manifest__.py 
-│   ├── payment_stripe_ce/                    ← OCA Stripe payment (LGPL-3.0) – clone
-│   │   ├── __init__.py                 
-│   │   └── __manifest__.py 
-│   ├── queue_job/                            ← OCA Job Queue (LGPL-3.0) – clone
-│   └── mcp-odoo/                             ← MCP-Odoo bridge (MIT) – clone
-│
-├── deploy/                                  ★ AGPL-3.0 – Deployment configurations
-│   ├── LICENSE.txt
-│   ├── docker/                               ← Single-VM Docker Compose deployment
-│   │   ├── docker-compose.yml                ★ Full stack: Valkey, GPUStack, Forgejo, etc.
-│   │   ├── .env.example                      ← Template for secrets
-│   │   ├── .env.generator.sh                 ← One-command secret generator
-│   │   ├── init-db.sql                       ← pgvector extension creation
-│   │   ├── prometheus.yml                    ★ Scrape config (GPUStack ports corrected)
-│   │   ├── alert-rules.yml
-│   │   ├── alertmanager.yml
-│   │   ├── config/
-│   │   │   └── odoo.conf                     ★ Odoo configuration (Valkey sessions, addons path)
-│   │   ├── deploy-single.sh                  ★ Idempotent deployment script
-│   │   ├── install-nettrades.sh              ★ Interactive installation wizard
-│   │   ├── nettrades-ai-detect               ← Shared hardware detection library
-│   │   ├── migrate-to-gpu.sh                 ← CPU → GPU migration script
-│   │   └── security-harden.sh                ← Ubuntu VM security hardening
-│   │
-│   └── kubernetes/                           ★ Kubernetes (Talos + Proxmox) manifests
-│       ├── talos
-│       │   ├── secrets.yaml.example
-│       │   └── talos-proxmox/              ← Talos VM provisioning (main.tf, variables.tf, etc.)
-│       │           ├── main.tf
-│       │           ├── variables.tf
-│       │           ├── outputs.tf
-│       │           ├── terraform.tfvars.example
-│       │           ├── deploy-infra.sh          (Cilium v1.19.3, Longhorn v1.11.1, Traefik v3.6.13)
-│       │           └── patches/
-│       │                 ├── controlplane.yaml.tpl
-│       │                 └── worker.yaml.tpl
-│       ├── apps/
-│       │     ├── namespaces.yaml
-│       │     ├── frontend/
-│       │     │    ├── odoo-pvc.yaml
-│       │     │    ├── odoo-deployment.yaml
-│       │     │    └── kustomization.yaml               
-│       │     ├── backend/
-│       │     │    ├── postgres-cluster.yaml
-│       │     │    ├── postgres-scheduled-backup.yaml
-│       │     │    ├── redis-statefulset.yaml
-│       │     │    └── kustomization.yaml
-│       │     ├── ai/
-│       │     │    ├── llama-cpp.yaml
-│       │     │    ├── langgraph-deployment.yaml
-│       │     │    ├── mcp-deployment.yaml
-│       │     │    ├── vllm-deployment.yaml (optional)
-│       │     │    └── kustomization.yaml
-│       │     ├── forgejo/
-│       │     │    ├── forgejo-internal.yaml
-│       │     │    ├── forgejo-client.yaml
-│       │     │    └── kustomization.yaml
-│       │     ├── gpustack/
-│       │     │    ├── gpustack-server.yaml
-│       │     │    ├── wg-peer-manager.yaml
-│       │     │    └── kustomization.yaml
-│       │     ├── monitoring/
-│       │     │    ├── kustomization.yaml
-│       │     │    └── grafana-values.yaml
-│       │     ├── registry/
-│       │     │    ├── registry-deployment.yaml
-│       │     │    └── kustomization.yaml
-│       │     └── runners/
-│       │           └── kustomization.yaml
-│       ├── distributed-gpu/controller/ 
-│       │     ├── gpustack-server.yaml
-│       │     ├── gpustack-company-server.yaml
-│       │     ├── wg-peer-manager
-│       │     │     ├── main.go
-│       │     │     ├── go.mod
-│       │     │     ├── go.sum (generated by go mod tidy)
-│       │     │     └── Dockerfile
-│       │     ├── gvisor-runtime-class.yaml
-│       │     ├── attestation-cron.yaml
-│       │     ├── deploy-controller.sh
-│       │     └── install-gpustack-company.sh
-│       ├── ingress/ingress.yaml
-│       ├── argocd/application.yaml
-│       ├── kustomization.yaml
-│       ├── deploy-k8s-base.sh                ★ K8s deployment script
-│       ├── postgres-restore-guide.md
-│       └── .env.example
-│
-├── docs/                                    ← Documentation & legal agreements
-│   ├── README-QUICKSTART.md                  ★ One-page deployment cheat sheet
-│   ├── README-LICENSING.md                   ★ Dual-licensing explanation
-│   ├── TERMS-OF-SERVICE.md                   ★ Maximum legal protection for NETTRADES
-│   ├── EXPERT-AGREEMENT.md                   ★ Professional agreement with indemnification
-│   └── architecture/                         ← (future architecture diagrams)
-│
-├── scripts/                                 ← Build & setup orchestration (MIT)
-│   ├── nettrades-setup.sh                    ★ Orchestrator – the only script the operator runs
-│   ├── phase-dev-env.sh                      ★ Dev environment setup
-│   ├── phase-deploy.sh                       ★ Single-VM deployment
-│   ├── phase-add-gpu.sh                      ★ GPU addition
-│   ├── phase-scale.sh                        ★ Kubernetes upgrade
-│   └── create-nettrades-projects.sh          ★ Full scaffold & clone script
-│
-├── requirements-dev.txt                      ← Top-level Python dev dependencies
-└── .gitignore
+    • LangGraph checkpointing – every node state is saved to PostgreSQL via PostgresSaver. If a machine crashes during training or inference, the workflow resumes from the last checkpoint without duplicating work.
 
+    • Agent retry logic – the agent retries registration with exponential backoff and never gives up on transient failures. WireGuard and GPUStack workers are restarted automatically after a power‑cycle thanks to persistent config files and the DNS watchdog.
+
+    • GPUStack worker recovery – GPUStack reschedules model instances onto other healthy workers within minutes of a node going offline.
 
 ## 5. Key Component Summaries & Critical Code
 
@@ -567,6 +325,16 @@ Tabs: General, Qualification & Karma, Training & AI Learning, Data-Juicer Qualit
 Every field has help text; dependency notes remind admins to install libraries.
 
 ## 6. Deployment Scripts
+
+The deployment scripts are in: 
+
+nettrades-platform\scripts
+
+The file
+
+nettrades-platform\scripts\Readme.txt
+
+Provided the instructions. The script “create-nettrades-projects.sh” has already been ran and many of the files were copied over from the previous deepseek context window into the file structure, so it could be ignored.
 
 The project ships with a phase-based orchestrator (scripts/nettrades-setup.sh):
 text
