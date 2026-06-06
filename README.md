@@ -26,6 +26,7 @@ The platform is built on Odoo 19 Community Edition, orchestrated by LangGraph, w
 Component			|Version		|License		|Purpose
 ________________________________|_______________________|_______________________|___________________________________________________________
 Odoo				|19.0 CE		|LGPL-3.0		|ERP, marketplace, CRM, HR, Projects, Accounting
+
 PostgreSQL + pgvector		|18.1 (via CNPG)	|PostgreSQL License	|Business data, vector embeddings, LangGraph checkpoints
 Valkey				|8-alpine		|BSD-3-Clause		|Session storage, ORM cache, bus notifications
 Forgejo				|15.0 LTS		|GPL-3.0+		|Self-hosted Git + CI/CD
