@@ -113,30 +113,50 @@ A Contributor License Agreement (CLA) is in CONTRIBUTING.md to ensure contributi
 ### 5.1 LangGraph Supervisor (src/core/supervisor.py)
 
 The supervisor classifies user intents and routes to the correct business sub-agent. It also performs clinical screening for medical/legal questions.
+
 python
 
 class SupervisorState(dict):
+
     pass
+    
 
 def build_supervisor():
+
     backend = get_inference_backend()   # auto-detects GPUStack / vLLM / llama.cpp
+    
     llm = ChatOpenAI(...)
+    
     # compile sub-agents
+    
     recruitment_agent = create_recruitment_agent()
+    
     freelance_agent = create_freelance_agent()
+    
     lead_gen_agent = create_lead_gen_agent()
+    
     gpu_management_agent = create_gpu_management_agent()
+    
     vision_agent = create_vision_agent()
+    
     action_agent = create_action_agent()
 
     workflow = StateGraph(dict)
+    
     workflow.add_node("classify", classify)
+    
     workflow.add_node("medical_screening", medical_screening)
+    
     workflow.add_node("route", route)
+    
     workflow.add_edge(START, "classify")
+    
     workflow.add_edge("classify", "medical_screening")
+    
     workflow.add_edge("medical_screening", "route")
+    
     workflow.add_edge("route", END)
+    
     return workflow.compile()
 
 Intent routing:
@@ -164,12 +184,19 @@ The main entry point for the LangGraph service. Provides /invoke (authenticated 
 python
 
 @asynccontextmanager
+
 async def lifespan(app: FastAPI):
+
     async with AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer:
+    
         await checkpointer.setup()
+        
         graph = build_supervisor()
+        
         graph.checkpointer = checkpointer
+        
         ml_models["graph"] = graph
+        
         yield
 
 Environment: DATABASE_URL, LLM_BASE_URL, LANGGRAPH_API_KEY, GPUSTACK_SERVER_URL, etc.
@@ -203,12 +230,19 @@ Registration payload example:
 python
 
 payload = {
+
     "node_id": node_id,
+    
     "hostname": socket.gethostname(),
+    
     "gpus": gpus,
+    
     "wireguard_public_key": get_wireguard_pubkey(),
+    
     "os": platform.system().lower(),
+    
     "tee_capabilities": tee_caps,
+    
     "edge_device_info": edge_info,
 }
 
@@ -340,8 +374,11 @@ The project ships with a phase-based orchestrator (scripts/nettrades-setup.sh):
 text
 
 Phase 1 – dev-env    : scaffold + clone repos + install dependencies
+
 Phase 2 – deploy     : single-VM production stack (no GPU required)
+
 Phase 3 – add-gpu    : migrate CPU→GPU (installs vLLM)
+
 Phase 4 – scale      : upgrade to Kubernetes (Talos + K8s)
 
 All phase scripts auto-detect missing prerequisites and run earlier phases if needed.
@@ -359,13 +396,21 @@ All phase scripts auto-detect missing prerequisites and run earlier phases if ne
 text
 
 DOMAIN=nettrades.ai
+
 POSTGRES_PASSWORD=...  ADMIN_PASSWORD=...
+
 FORGEJO_DB_PASSWORD=...  FORGEJO_SECRET_KEY=...  JWT_SECRET=...
+
 GRAFANA_PASSWORD=...
+
 LLAMA_API_KEY=dummy  LANGGRAPH_API_KEY=...
+
 ODOO_API_KEY=...  MCP_API_KEY=...
+
 GPUSTACK_JWT_SECRET=...
+
 WIREGUARD_PRIVATE_KEY=...  WIREGUARD_PUBLIC_KEY=...
+
 DATABASE_URL=postgresql://odoo:...@postgres:5432/odoo
 
 ## 8. Quickstart Guide (Development)
