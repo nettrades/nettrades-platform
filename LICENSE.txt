@@ -30,3 +30,421 @@ license explicitly permits:
     NETTRADES Cloud managed-hosting platform.
 
 Please contact licensing@nettrades.ai for terms and pricing.
+
+===============================
+Restricted Use Addendum
+===============================
+
+
+## 1. Scope
+
+Notwithstanding any other provision of this License, all rights granted under this License are conditioned upon compliance with the restrictions set forth in this Addendum.
+
+Any use, modification, distribution, deployment, hosting, sublicensing, integration, execution, training, fine-tuning, adaptation, derivative work, fork, clone, port, translation, compilation, or incorporation of the Software, in whole or in part, shall be subject to these restrictions.
+
+These restrictions apply to:
+
+* The Software.
+* Any modified version.
+* Any fork.
+* Any derivative work.
+* Any model trained using the Software.
+* Any service powered by the Software.
+* Any component derived from the Software.
+* Any source code copied from the Software.
+* Any substantially similar implementation derived from the Software.
+
+## 2. Absolute Prohibition on Military and Weapons Use
+
+The Software shall not be used, directly or indirectly, for:
+
+(a) military operations;
+
+(b) defense operations;
+
+(c) military planning;
+
+(d) military intelligence;
+
+(e) intelligence gathering for military purposes;
+
+(f) military logistics;
+
+(g) military procurement;
+
+(h) military simulation;
+
+(i) battlefield analysis;
+
+(j) targeting systems;
+
+(k) command-and-control systems;
+
+(l) weapons development;
+
+(m) weapons manufacturing;
+
+(n) weapons testing;
+
+(o) autonomous weapons;
+
+(p) lethal autonomous weapons systems;
+
+(q) weapons guidance systems;
+
+(r) military robotics;
+
+(s) military cyber operations;
+
+(t) nuclear weapons programs;
+
+(u) chemical weapons programs;
+
+(v) biological weapons programs;
+
+(w) support of any armed force;
+
+(x) support of any military alliance;
+
+(y) support of any paramilitary organization;
+
+(z) support of any military contractor.
+
+No military use is permitted under any circumstances.
+
+## 3. Prohibited Government and State Security Uses
+
+The Software shall not be used by, for, on behalf of, at the direction of, or for the benefit of:
+
+(a) defense ministries;
+
+(b) armed forces;
+
+(c) intelligence agencies;
+
+(d) national security agencies;
+
+(e) military contractors;
+
+(f) law enforcement agencies where the Software contributes to surveillance, profiling, predictive analysis, or coercive enforcement activities;
+
+(g) secret police organizations;
+
+(h) internal security agencies;
+
+(i) border enforcement agencies;
+
+(j) immigration enforcement agencies;
+
+(k) detention authorities;
+
+(l) correctional authorities;
+
+(m) any governmental entity engaged in repression, censorship, political persecution, mass surveillance, population control, or suppression of civil liberties.
+
+## 4. Prohibited Surveillance Uses
+
+The Software shall not be used for:
+
+(a) mass surveillance;
+
+(b) bulk monitoring of individuals;
+
+(c) population monitoring;
+
+(d) facial recognition;
+
+(e) facial identification;
+
+(f) facial verification in public spaces;
+
+(g) real-time biometric identification;
+
+(h) gait recognition;
+
+(i) voiceprint identification;
+
+(j) biometric tracking;
+
+(k) location tracking without informed consent;
+
+(l) behavioral profiling;
+
+(m) social graph construction without informed consent;
+
+(n) social scoring systems;
+
+(o) citizen scoring systems;
+
+(p) political profiling;
+
+(q) religious profiling;
+
+(r) ethnic profiling;
+
+(s) workplace surveillance beyond legitimate security requirements;
+
+(t) monitoring individuals without lawful informed consent.
+
+## 5. High-Risk Government Decision Making
+
+The Software shall not be used to make, support, recommend, automate, influence, or materially assist decisions relating to:
+
+(a) predictive policing;
+
+(b) criminal sentencing;
+
+(c) parole decisions;
+
+(d) bail decisions;
+
+(e) immigration enforcement;
+
+(f) deportation decisions;
+
+(g) refugee determinations;
+
+(h) social credit systems;
+
+(i) population control programs;
+
+(j) political risk scoring;
+
+(k) public order monitoring;
+
+(l) political dissident identification;
+
+(m) protest monitoring;
+
+(n) voter profiling;
+
+(o) citizen ranking systems.
+
+## 6. Human Rights Compliance
+
+Use of the Software must comply with:
+
+* United Nations Guiding Principles on Business and Human Rights;
+* OECD AI Principles;
+* Universal Declaration of Human Rights;
+* International Covenant on Civil and Political Rights;
+* International Covenant on Economic, Social and Cultural Rights;
+* Convention Against Torture;
+* Genocide Convention;
+* Applicable international humanitarian law.
+
+Any use that contributes to human rights violations is prohibited.
+
+## 7. Harm Prevention
+
+The Software shall not be used in any manner that is reasonably foreseeable to:
+
+(a) cause death;
+
+(b) facilitate killing;
+
+(c) facilitate torture;
+
+(d) facilitate cruel, inhuman, or degrading treatment;
+
+(e) cause serious bodily injury;
+
+(f) cause unlawful detention;
+
+(g) facilitate enforced disappearance;
+
+(h) facilitate persecution;
+
+(i) facilitate war crimes;
+
+(j) facilitate crimes against humanity;
+
+(k) facilitate genocide;
+
+(l) facilitate substantial property destruction;
+
+(m) facilitate oppression of civil populations.
+
+## 8. Animal Welfare and Anti-Cruelty Restrictions
+
+The Software shall not be used, directly or indirectly, to facilitate, support, enable, optimize, automate, analyze, monitor, plan, or conduct activities involving animal cruelty.
+
+Prohibited uses include, but are not limited to:
+
+(a) animal torture;
+
+(b) animal fighting activities;
+
+(c) unlawful hunting, poaching, or wildlife trafficking;
+
+(d) industrial practices that knowingly inflict unnecessary suffering upon animals;
+
+(e) animal experimentation conducted in violation of applicable animal welfare laws or recognized scientific ethical standards;
+
+(f) development, testing, or deployment of weapons intended for use against animals;
+
+(g) tracking, monitoring, capturing, confining, breeding, transporting, or killing animals in a manner that causes unnecessary suffering;
+
+(h) commercial activities involving endangered species or protected wildlife in violation of applicable laws, treaties, or conservation standards;
+
+(i) practices prohibited by the Convention on International Trade in Endangered Species of Wild Fauna and Flora (CITES);
+
+(j) activities that materially contribute to the extinction, eradication, or unlawful exploitation of protected species.
+
+Any use of the Software that materially contributes to unnecessary animal suffering shall constitute a material breach of this License.
+
+## 9. Environmental Protection Restrictions
+
+The Software shall not be used, directly or indirectly, to facilitate, support, optimize, plan, manage, conceal, or enable activities that cause significant environmental harm.
+
+Prohibited uses include:
+
+(a) unlawful pollution of air, land, or water;
+
+(b) unlawful disposal of hazardous waste;
+
+(c) unlawful discharge of toxic substances;
+
+(d) unlawful destruction of protected ecosystems;
+
+(e) unlawful deforestation;
+
+(f) unlawful destruction of wetlands, coral reefs, or protected habitats;
+
+(g) illegal mining operations;
+
+(h) illegal logging operations;
+
+(i) illegal fishing operations;
+
+(j) wildlife trafficking;
+
+(k) concealment, manipulation, or falsification of environmental compliance data;
+
+(l) activities that knowingly cause substantial contamination of soil, groundwater, rivers, lakes, oceans, or drinking water supplies;
+
+(m) activities resulting in significant and avoidable environmental degradation;
+
+(n) activities that materially contribute to ecocide, where recognized by applicable law;
+
+(o) violations of environmental protection laws, regulations, permits, treaties, or binding international obligations.
+
+## 10. Sustainability and Climate Protection
+
+The Software shall not be used to knowingly support projects or activities that:
+
+(a) intentionally conceal environmental impacts;
+
+(b) intentionally evade environmental regulations;
+
+(c) intentionally evade emissions reporting requirements;
+
+(d) intentionally circumvent environmental monitoring obligations;
+
+(e) intentionally misrepresent sustainability, climate, pollution, biodiversity, or conservation data.
+
+Licensees shall take reasonable measures to ensure that use of the Software does not materially contribute to severe environmental harm where such harm is reasonably foreseeable.
+
+## 11. Environmental and Animal Welfare Standards
+
+Use of the Software shall be consistent with the objectives and principles reflected in:
+
+The Universal Declaration of Animal Welfare (where applicable);
+The Convention on Biological Diversity;
+The Convention on International Trade in Endangered Species (CITES);
+The Ramsar Convention on Wetlands;
+The Paris Climate Agreement;
+The United Nations Sustainable Development Goals;
+Applicable environmental protection and animal welfare laws.
+19. Broad Construction
+
+The restrictions contained in Sections 15 through 18 shall be interpreted broadly in favor of:
+
+(a) preventing animal suffering;
+
+(b) protecting biodiversity;
+
+(c) protecting ecosystems;
+
+(d) preventing environmental degradation;
+
+(e) preserving natural resources for future generations.
+
+Any ambiguity shall be resolved in favor of animal welfare and environmental protection.
+
+
+## 12. Downstream Restrictions
+
+Any distribution, sublicense, transfer, hosting arrangement, deployment, managed service, API service, cloud offering, derivative work, fork, or modification must include these restrictions in full.
+
+Removal, modification, circumvention, or weakening of these restrictions is prohibited.
+
+Recipients must contractually impose identical restrictions on all downstream recipients.
+
+## 13. Identity Verification and Know-Your-Customer Requirements
+
+The Licensor may require any user, organization, customer, contributor, distributor, or operator to provide information sufficient to determine:
+
+(a) legal identity;
+
+(b) beneficial ownership;
+
+(c) jurisdiction;
+
+(d) intended use case;
+
+(e) deployment environment;
+
+(f) end users;
+
+(g) funding sources.
+
+Refusal to provide such information may result in immediate termination.
+
+## 14. Audit Rights
+
+The Licensor may request information reasonably necessary to verify compliance.
+
+The Licensor may conduct compliance reviews.
+
+Licensees shall maintain records sufficient to demonstrate compliance for at least seven years.
+
+Failure to cooperate constitutes a material breach.
+
+## 15. Monitoring and Enforcement
+
+The Licensor may:
+
+(a) monitor use;
+
+(b) investigate suspected violations;
+
+(c) suspend access;
+
+(d) terminate rights;
+
+(e) seek injunctive relief;
+
+(f) seek damages;
+
+(g) seek specific performance.
+
+## 16. Automatic Termination
+
+Any violation of this Addendum immediately and automatically terminates all rights granted under this License.
+
+Termination is effective without notice.
+
+Upon termination, all use, distribution, deployment, hosting, operation, modification, and possession of the Software shall cease immediately.
+
+## 17. No Circumvention
+
+No person may knowingly structure transactions, subsidiaries, intermediaries, contractors, affiliates, resellers, agents, cloud providers, or third parties for the purpose of avoiding these restrictions.
+
+Indirect use is prohibited to the same extent as direct use.
+
+## 18. Interpretation
+
+This Addendum shall be interpreted broadly in favor of preventing military use, surveillance use, oppressive governmental use, human rights abuses, and harmful uses.
+
+Where ambiguity exists, the interpretation most protective of human rights and civil liberties shall prevail.
