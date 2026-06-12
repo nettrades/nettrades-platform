@@ -38,7 +38,7 @@
         </field>
     </record>
 
-    <!-- Search View for Expert Sessions -->
+    <!-- Search View for Expert Sessions (simplified for Odoo 19) -->
     <record id="view_expert_session_search" model="ir.ui.view">
         <field name="name">expert.session.search</field>
         <field name="model">expert.session</field>
@@ -48,9 +48,7 @@
                 <field name="requester_id"/>
                 <field name="expert_id"/>
                 <field name="status"/>
-                <group expand="0" string="Group By">
-                    <filter name="group_by_status" string="Status" context="{'group_by':'status'}"/>
-                </group>
+                <filter name="group_by_status" string="Status" context="{'group_by':'status'}"/>
             </search>
         </field>
     </record>
