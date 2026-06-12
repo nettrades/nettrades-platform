@@ -217,14 +217,14 @@
         <field name="name">nettrades.field.tree</field>
         <field name="model">nettrades.field</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="only_qualified"/>
                 <field name="auto_karma_qualify"/>
                 <field name="expert_answers_trainable"/>
                 <field name="indirect_reputation_points"/>
                 <field name="reputation_threshold_for_charging"/>
-            </tree>
+            </list>
         </field>
     </record>
 </odoo>
