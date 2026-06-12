@@ -9,3 +9,5 @@ from . import nettrades_field
 from . import ft_dataset_contribution       # new – indirect reputation tracking
 from . import models
 from . import controllers
+from . import res_partner
+from . import nettrades_field

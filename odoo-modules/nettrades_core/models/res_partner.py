@@ -31,7 +31,7 @@ class ResPartner(models.Model):
         ('freelancer', 'Freelancer'),
         ('company', 'Company'),
         ('partner', 'Partner/Researcher')
-    ], string="User Type", help="Determines which features are available on the portal.")
+    ], string="User Type", help="Determines which features are available on the portal.", default='partner')
 
     # ---- Professional profile ----
     professional_summary = fields.Text(string="Professional Summary")
