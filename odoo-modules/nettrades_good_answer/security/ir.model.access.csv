@@ -1,4 +1,4 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+id,name,model_id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_good_answer_vote,good.answer.vote,model_good_answer_vote,base.group_user,1,1,1,1
 access_user_field_reputation,user.field.reputation,model_user_field_reputation,base.group_user,1,1,1,1
 access_qualified_professional,qualified.professional,model_qualified_professional,base.group_user,1,1,1,1
