@@ -1,17 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_expert_session_tree" model="ir.ui.view">
-        <field name="name">expert.session.tree</field>
+    <!-- List View for Expert Sessions -->
+    <record id="view_expert_session_list" model="ir.ui.view">
+        <field name="name">expert.session.list</field>
         <field name="model">expert.session</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
+                <field name="session_id"/>
+                <field name="requester_id"/>
+                <field name="expert_id"/>
+                <field name="field_id"/>
+                <field name="status"/>
+                <field name="started_at"/>
+                <field name="total_charged" widget="monetary"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View for Expert Sessions -->
+    <record id="view_expert_session_form" model="ir.ui.view">
+        <field name="name">expert.session.form</field>
+        <field name="model">expert.session</field>
+        <field name="arch" type="xml">
+            <form string="Expert Session">
+                <sheet>
+                    <group>
+                        <field name="session_id" readonly="1"/>
+                        <field name="requester_id"/>
+                        <field name="expert_id"/>
+                        <field name="field_id"/>
+                        <field name="status" widget="badge"/>
+                        <field name="total_charged" widget="monetary"/>
+                        <field name="duration_minutes"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View for Expert Sessions -->
+    <record id="view_expert_session_search" model="ir.ui.view">
+        <field name="name">expert.session.search</field>
+        <field name="model">expert.session</field>
+        <field name="arch" type="xml">
+            <search>
                 <field name="session_id"/>
                 <field name="requester_id"/>
                 <field name="expert_id"/>
                 <field name="status"/>
-                <field name="started_at"/>
-            </tree>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_status" string="Status" context="{'group_by':'status'}"/>
+                </group>
+            </search>
         </field>
     </record>
-    <act_window id="action_expert_session" name="Expert Sessions" res_model="expert.session" view_mode="tree,form"/>
-    <menuitem id="menu_expert_session" name="Expert Sessions" parent="base.menu_administration" action="action_expert_session"/>
+
+    <!-- Action for Expert Sessions -->
+    <record id="action_expert_session" model="ir.actions.act_window">
+        <field name="name">Expert Sessions</field>
+        <field name="res_model">expert.session</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No expert sessions found.</p>
+        </field>
+    </record>
 </odoo>

@@ -1,57 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Ask Someone Settings – matching weights and payment configuration.
-    The administrator can adjust how the matching algorithm balances
-    distance, reputation, and availability.
--->
 <odoo>
-    <record id="view_ask_someone_config" model="ir.ui.view">
+    <record id="ask_someone_config_form" model="ir.ui.view">
         <field name="name">ask.someone.config.form</field>
         <field name="model">ask.someone.config</field>
         <field name="arch" type="xml">
             <form string="Ask Someone Settings">
                 <sheet>
-                    <group string="Matching Weights">
-                        <field name="distance_weight"
-                               help="How heavily the system favours experts who are geographically close to the requester. 0 = ignore distance, 1 = maximum weight."/>
-                        <field name="reputation_weight"
-                               help="How heavily the system favours experts with high reputation scores. 0 = ignore reputation, 1 = maximum weight."/>
-                        <field name="online_bonus"
-                               help="Bonus points added to experts who are currently online."/>
-                        <field name="available_bonus"
-                               help="Bonus points added to experts who are not currently in another session."/>
-                        <field name="max_distance_km"
-                               help="Maximum distance (in km) within which experts will be considered. Experts further away are excluded."/>
-                        <field name="reputation_threshold"
-                               help="Reputation points required before an expert can appear in search results."/>
-                    </group>
-                    <group string="Geolocation">
-                        <field name="geocoding_provider"
-                               help="Service used to convert addresses into coordinates."/>
-                        <field name="geocoding_api_key" password="True"
-                               help="API key for the selected geocoding provider."/>
-                    </group>
-                    <group string="Payment">
-                        <field name="platform_fee_percent"
-                               help="Percentage of each session's cost that NETTRADES retains as a platform fee."/>
-                    </group>
-                    <group string="Fallback">
-                        <field name="default_field_id"
-                               help="If the system cannot determine which professional field a question belongs to, it will use this field as the default."/>
+                    <group>
+                        <field name="distance_weight"/>
+                        <field name="reputation_weight"/>
+                        <field name="online_bonus"/>
+                        <field name="available_bonus"/>
+                        <field name="max_distance_km"/>
+                        <field name="reputation_threshold"/>
+                        <field name="geocoding_provider"/>
+                        <field name="platform_fee_percent"/>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
-
-    <menuitem id="menu_ask_someone_config"
-              name="Ask Someone Settings"
-              parent="base.menu_administration"
-              action="action_ask_someone_config"/>
-
-    <act_window id="action_ask_someone_config"
-                name="Ask Someone Settings"
-                res_model="ask.someone.config"
-                view_mode="form"
-                target="inline"/>
 </odoo>
