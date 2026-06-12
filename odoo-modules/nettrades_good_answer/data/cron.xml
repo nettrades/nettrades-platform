@@ -19,7 +19,6 @@
             <field name="code">model.process_feedback()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">hours</field>
-            <field name="numbercall">-1</field>
             <field name="active">True</field>
         </record>
 
@@ -31,7 +30,6 @@
             <field name="code">model._cron_decay_reputation()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
-            <field name="numbercall">-1</field>
             <field name="active">True</field>
         </record>
 
@@ -43,7 +41,6 @@
             <field name="code">model._cron_auto_qualify_by_karma()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">hours</field>
-            <field name="numbercall">-1</field>
             <field name="active">True</field>
         </record>
         <!-- Trigger Fine-Tuning on Dataset Threshold - Dont know if this could be removed, Unsloth/Axolotl now handle fine tuning -->
@@ -54,7 +51,6 @@
             <field name="code">model.action_trigger_finetune()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
-            <field name="numbercall">-1</field>
             <field name="active">True</field>
         </record>
     </data>

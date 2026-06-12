@@ -1,15 +1,2 @@
-<odoo>
-    <record id="view_ft_dataset_tree" model="ir.ui.view">
-        <field name="name">ft.dataset.tree</field>
-        <field name="model">ft.dataset</field>
-        <field name="arch" type="xml">
-            <list>
-                <field name="name"/>
-                <field name="field_id"/>
-                <field name="record_count"/>
-            </list>
-        </field>
-    </record>
-    <act_window id="action_ft_dataset" name="Fine-tuning Datasets" res_model="ft.dataset" view_mode="tree,form"/>
-    <menuitem id="menu_ft_dataset" name="Datasets" parent="base.menu_administration" action="action_ft_dataset"/>
-</odoo>
+<?xml version="1.0" encoding="utf-8"?>
+<odoo/>
