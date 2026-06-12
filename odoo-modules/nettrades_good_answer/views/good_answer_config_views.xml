@@ -1,19 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- We attach fine-tuning settings to the nettrades.field form -->
-    <record id="view_nettrades_field_form_inherit" model="ir.ui.view">
-        <field name="name">nettrades.field.form.inherit.goodanswer</field>
-        <field name="model">nettrades.field</field>
-        <field name="inherit_id" ref="nettrades_core.view_nettrades_field_form"/>
+    <record id="view_good_answer_config_form" model="ir.ui.view">
+        <field name="name">good.answer.config.form</field>
+        <field name="model">good.answer.config</field>
         <field name="arch" type="xml">
-            <xpath expr="//form/sheet" position="inside">
-                <group string="Fine-Tuning Configuration">
-                    <field name="finetune_provider"/>
-                    <field name="base_model"/>
-                    <field name="hyperparameters"/>
-                </group>
-            </xpath>
+            <form string="Good Answer Settings">
+                <sheet>
+                    <group>
+                        <field name="base_points_per_vote"/>
+                        <field name="qualified_points_per_vote"/>
+                        <field name="reputation_threshold_for_charging"/>
+                    </group>
+                </sheet>
+            </form>
         </field>
     </record>
-    <act_window id="action_good_answer_config" name="Good Answer Settings" res_model="good.answer.config" view_mode="form" target="inline"/>
-    <menuitem id="menu_good_answer_config" name="Good Answer Settings" parent="base.menu_administration" action="action_good_answer_config"/>
+
+    <act_window id="action_good_answer_config"
+                name="Good Answer Settings"
+                res_model="good.answer.config"
+                view_mode="form"
+                target="inline"/>
 </odoo>
