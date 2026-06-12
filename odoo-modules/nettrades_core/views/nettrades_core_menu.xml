@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_nettrades_root" name="NETTRADES" sequence="10" web_icon="nettrades_core,static/description/icon.png"/>
+</odoo>

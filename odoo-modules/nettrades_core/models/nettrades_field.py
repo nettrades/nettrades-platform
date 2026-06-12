@@ -94,24 +94,24 @@ class NettradesField(models.Model):
     # ------------------------------------------------------------------
     # Computed voting insights
     # ------------------------------------------------------------------
-    qualified_professional_count = fields.Integer(
-        string='Qualified Professionals',
-        compute='_compute_qualified_stats',
-        help="Total number of active qualified professionals in this field.  "
-             "This count is used to suggest optimal voting weights."
-    )
-    total_voter_count = fields.Integer(
-        string='Total Voters',
-        compute='_compute_qualified_stats',
-        help="Total number of distinct users who have cast a Good Answer vote "
-             "in this field."
-    )
-    suggested_qualified_weight = fields.Integer(
-        string='Suggested Qualified Weight',
-        compute='_compute_qualified_stats',
-        help="Automatically calculated suggestion: higher when many qualified "
-             "professionals exist, lower when the field relies on community voting."
-    )
+    # qualified_professional_count = fields.Integer(
+    #     string='Qualified Professionals',
+    #     compute='_compute_qualified_stats',
+    #     help="Total number of active qualified professionals in this field.  "
+    #          "This count is used to suggest optimal voting weights."
+    # )
+    # total_voter_count = fields.Integer(
+    #     string='Total Voters',
+    #     compute='_compute_qualified_stats',
+    #     help="Total number of distinct users who have cast a Good Answer vote "
+    #          "in this field."
+    # )
+    # suggested_qualified_weight = fields.Integer(
+    #     string='Suggested Qualified Weight',
+    #     compute='_compute_qualified_stats',
+    #     help="Automatically calculated suggestion: higher when many qualified "
+    #          "professionals exist, lower when the field relies on community voting."
+    # )
     auto_adjust_weights = fields.Boolean(
         string='Auto-Adjust Weights',
         default=False,
@@ -309,25 +309,25 @@ class NettradesField(models.Model):
                 field.deita_status = 'disabled'
 
     @api.depends('qualified_professional_ids.is_active')
-    def _compute_qualified_stats(self):
-        """
-        Compute:
-          - qualified_professional_count (active verified experts)
-          - total_voter_count (distinct Good Answer voters)
-          - suggested_qualified_weight (based on expert-to-voter ratio)
-        """
-        for field in self:
-            field.qualified_professional_count = len(
-                field.qualified_professional_ids.filtered(lambda q: q.is_active)
-            )
-            votes = self.env['good.answer.vote'].search([
-                ('field_id', '=', field.id)
-            ])
-            field.total_voter_count = len(votes.mapped('user_id'))
-            ratio = field.qualified_professional_count / max(field.total_voter_count, 1)
-            if ratio > 0.1:
-                field.suggested_qualified_weight = 5
-            elif ratio > 0.01:
-                field.suggested_qualified_weight = 3
-            else:
-                field.suggested_qualified_weight = 1
+   # def _compute_qualified_stats(self):
+   #      """
+   #      Compute:
+   #        - qualified_professional_count (active verified experts)
+   #        - total_voter_count (distinct Good Answer voters)
+   #        - suggested_qualified_weight (based on expert-to-voter ratio)
+   #      """
+   #      for field in self:
+   #          field.qualified_professional_count = len(
+   #              field.qualified_professional_ids.filtered(lambda q: q.is_active)
+   #          )
+   #          votes = self.env['good.answer.vote'].search([
+   #              ('field_id', '=', field.id)
+   #          ])
+   #          field.total_voter_count = len(votes.mapped('user_id'))
+   #          ratio = field.qualified_professional_count / max(field.total_voter_count, 1)
+   #          if ratio > 0.1:
+   #              field.suggested_qualified_weight = 5
+   #          elif ratio > 0.01:
+   #              field.suggested_qualified_weight = 3
+   #          else:
+   #              field.suggested_qualified_weight = 1

@@ -3,7 +3,7 @@
 {
     'name': 'NETTRADES Good Answer System',
     'version': '1.0',
-    'depends': ['nettrades_core', 'odoo_llm', 'mail'],
+    'depends': ['nettrades_core', 'llm', 'mail'],
     'data': [
         'security/ir.model.access.csv',
         'views/qualified_professional_views.xml',
