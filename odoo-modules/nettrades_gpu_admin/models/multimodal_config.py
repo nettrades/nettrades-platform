@@ -11,6 +11,7 @@ from odoo import fields, models
 class MultimodalConfig(models.TransientModel):
     _name = 'multimodal.config'
     _inherit = 'res.config.settings'
+    _description = 'Multi-Modal & Edge-Device Configuration'
 
     # ── Multi-Modal Inferencing ──
     enable_multimodal = fields.Boolean(
