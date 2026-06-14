@@ -14,7 +14,7 @@
         <field name="name">gpu.cluster.tree</field>
         <field name="model">gpu.cluster</field>
         <field name="arch" type="xml">
-            <tree decoration-info="status == 'online'"
+            <list decoration-info="status == 'online'"
                   decoration-warning="status == 'degraded'"
                   decoration-danger="status == 'offline'">
                 <field name="name"/>
@@ -25,7 +25,7 @@
                 <field name="total_gpu_count"/>
                 <field name="total_vram_gb" string="VRAM (GB)"/>
                 <field name="total_earnings" widget="monetary"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -94,17 +94,17 @@
                         <page string="Registered Subnets">
                             <field name="registered_subnet_ids"
                                    help="Subnets that will be scanned when the 'Scan Network' button is pressed.">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="subnet"/>
                                     <field name="description"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
 
                         <!-- GPU Nodes -->
                         <page string="GPU Nodes">
                             <field name="node_ids" context="{'default_cluster_id': id}">
-                                <tree decoration-info="status == 'online'"
+                                <list decoration-info="status == 'online'"
                                       decoration-danger="status == 'offline'">
                                     <field name="hostname"/>
                                     <field name="ip_address"/>
@@ -119,7 +119,7 @@
                                             type="object" icon="fa-trash"
                                             confirm="Permanently remove this node? WireGuard peer will be revoked."
                                             help="Removes the node from the cluster and revokes its WireGuard access."/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
 
