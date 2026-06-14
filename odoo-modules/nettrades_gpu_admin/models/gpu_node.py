@@ -21,7 +21,7 @@ import subprocess
 import logging
 from datetime import timedelta
 
-from odoo import fields, models, api, _
+from odoo import fields, models, api
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
