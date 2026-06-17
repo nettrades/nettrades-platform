@@ -94,7 +94,7 @@ NETTRADES uses a dual-licensing approach to protect the platform while keeping i
 
 *    docs/: Documentation under Creative Commons Attribution 4.0.
 
-*    scripts/: Build and setup scripts are MIT.
+*    scripts/: Build and setup scripts are AGPL‑3.0.
 
 A Contributor License Agreement (CLA) is in CONTRIBUTING.md to ensure contributions can be re-licensed under the commercial license.
 
