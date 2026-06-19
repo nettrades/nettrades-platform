@@ -373,21 +373,76 @@ async def classify(state: dict) -> dict:
 The odoo_tools.py module provides async functions for interacting with Odoo.
 
 ### 3.1 Available Tools
-Function	Purpose	Parameters
-res_partner_search(domain)	Search partners	Domain list
-res_partner_read(ids, fields)	Read partner data	List of IDs, fields
-crm_lead_search(domain)	Search CRM leads	Domain list
-crm_lead_create(values)	Create a CRM lead	Dict of values
-crm_lead_update(id, values)	Update a CRM lead	ID, dict of values
-hr_job_search(domain)	Search job postings	Domain list
-hr_job_create(values)	Create a job posting	Dict of values
-hr_applicant_search(domain)	Search applicants	Domain list
-hr_applicant_create(values)	Create an applicant	Dict of values
-project_search(domain)	Search projects	Domain list
-project_create(values)	Create a project	Dict of values
-gpu_cluster_search(domain)	Search GPU clusters	Domain list
-gpu_node_search(domain)	Search GPU nodes	Domain list
-gpu_node_write(id, values)	Update a GPU node	ID, dict of values
+
+### Function: res_partner_search(domain)	
+Purpose: Search partners	
+
+Parameters: Domain list
+
+### Function: res_partner_read(ids, fields)	
+Purpose: Read partner data	
+
+Parameters: List of IDs, fields
+
+### Function: crm_lead_search(domain)	
+Purpose: Search CRM leads	
+
+Parameters: Domain list
+
+### Function: crm_lead_create(values)	
+Purpose: Create a CRM lead	
+
+Parameters: Dict of values
+
+### Function: crm_lead_update(id, values)	
+Purpose: Update a CRM lead	
+
+Parameters: ID, dict of values
+
+### Function: hr_job_search(domain)	
+Purpose: Search job postings	
+
+Parameters: Domain list
+
+### Function: hr_job_create(values)	
+Purpose: Create a job posting	
+
+Parameters: Dict of values
+
+### Function: hr_applicant_search(domain)	
+Purpose: Search applicants	
+
+Parameters: Domain list
+
+### Function: hr_applicant_create(values)	
+Purpose: Create an applicant	
+
+Parameters: Dict of values
+
+### Function: project_search(domain)	
+Purpose: Search projects	
+
+Parameters: Domain list
+
+### Function: project_create(values)	
+Purpose: Create a project	
+
+Parameters: Dict of values
+
+### Function: gpu_cluster_search(domain)	
+Purpose: Search GPU clusters	
+
+Parameters: Domain list
+
+### Function: gpu_node_search(domain)	
+Purpose: Search GPU nodes	
+
+Parameters: Domain list
+
+### Function: gpu_node_write(id, values)	
+Purpose: Update a GPU node	
+
+Parameters: ID, dict of values
 
 ### 3.2 Domain List Format
 
