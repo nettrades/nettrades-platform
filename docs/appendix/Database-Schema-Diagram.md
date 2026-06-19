@@ -1,10 +1,23 @@
+## Schema Diagram
 
----
-
-## File: `docs/appendix/database-schema.md` (With Schema Diagram)
-
-
-# Database Schema
+```mermaid
+erDiagram
+    res_users ||--o{ user_field_reputation : "has"
+    netrades_field ||--o{ user_field_reputation : "qualifies"
+    res_users ||--o{ consultation_asker : "asks"
+    res_users ||--o{ consultation_expert : "answers"
+    netrades_field ||--o{ consultation : "categorizes"
+    res_users ||--o{ lead : "assigned_to"
+    res_users ||--o{ conversation : "initiates"
+    netrades_field ||--o{ conversation : "contexts"
+    res_users ||--o{ freelancer : "is_one"
+    res_users ||--o{ project : "owns(client)"
+    job_posting ||--o{ candidate_match : "results"
+    candidate ||--o{ candidate_match : "matches"
+    project ||--o{ project_match : "receives"
+    freelancer ||--o{ project_match : "proposes"
+    netrades_field ||--o{ ft_dataset : "trains"
+```
 
 Based on a meticulous, line-by-line analysis of the Odoo custom modules within the nettrades-platform repository (covering nettrades_core, nettrades_good_answer, nettrades_gpu_admin, nettrades_job_matching, nettrades_proposals, nettrades_lead_scoring, nettrades_ask_someone, and nettrades_chatbot), here is an extremely detailed, fully normalized Database Schema Diagram.
 
@@ -77,22 +90,3 @@ This schema provides a comprehensive, normalized view of the entire NETTRADES.AI
 
 ---
 
-## Schema Diagram
-
-```mermaid
-erDiagram
-    res_users ||--o{ user_field_reputation : "has"
-    netrades_field ||--o{ user_field_reputation : "qualifies"
-    res_users ||--o{ consultation_asker : "asks"
-    res_users ||--o{ consultation_expert : "answers"
-    netrades_field ||--o{ consultation : "categorizes"
-    res_users ||--o{ lead : "assigned_to"
-    res_users ||--o{ conversation : "initiates"
-    netrades_field ||--o{ conversation : "contexts"
-    res_users ||--o{ freelancer : "is_one"
-    res_users ||--o{ project : "owns(client)"
-    job_posting ||--o{ candidate_match : "results"
-    candidate ||--o{ candidate_match : "matches"
-    project ||--o{ project_match : "receives"
-    freelancer ||--o{ project_match : "proposes"
-    netrades_field ||--o{ ft_dataset : "trains"
