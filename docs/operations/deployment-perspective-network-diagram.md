@@ -1,22 +1,22 @@
-# DEPLOYMENT TEAM PERSPECTIVE � Network Diagram
+# DEPLOYMENT TEAM PERSPECTIVE — Network Diagram
 
 Purpose: Shows the network topology, including subnets, firewalls, VPN tunnels, and service exposure.
 
 ---
 
-## DEPLOYMENT TEAM PERSPECTIVE � Network Diagram
+## DEPLOYMENT TEAM PERSPECTIVE — Network Diagram
 
 ```mermaid
 flowchart TB
-    subgraph Internet["?? Internet"]
+    subgraph Internet["Internet"]
         Users["End Users"]
         APIClients["API Clients"]
         JobBoards["External Job Boards"]
     end
 
     subgraph DMZ["??? DMZ / Edge Network"]
-        Firewall["Firewall<br>????????????????<br>� Allow: 443 (HTTPS)<br>� Allow: 22 (SSH - Admin)<br>� Allow: 51820 (WireGuard UDP)<br>� Deny: All Other"]
-        Traefik["Traefik Load Balancer<br>????????????????<br>� Public IP: 203.0.113.10<br>� TLS Termination<br>� Rate Limiting"]
+        Firewall["Firewall<br>━━━━━━━━━━━━━━━━<br>• Allow: 443 (HTTPS)<br>• Allow: 22 (SSH - Admin)<br>• Allow: 51820 (WireGuard UDP)<br>• Deny: All Other"]
+        Traefik["Traefik Load Balancer<br>━━━━━━━━━━━━━━━━<br>• Public IP: 203.0.113.10<br>• TLS Termination<br>• Rate Limiting"]
     end
 
     subgraph Internal["?? Internal Network (10.0.0.0/16)"]
@@ -37,7 +37,7 @@ flowchart TB
         end
         
         subgraph Subnet3["Subnet: 10.0.3.0/24 (WireGuard VPN)"]
-            WGHub["WireGuard Hub<br>10.0.3.1<br>????????????????<br>� Hub-and-Spoke Topology<br>� Encrypted Mesh"]
+            WGHub["WireGuard Hub<br>10.0.3.1<br>━━━━━━━━━━━━━━━━<br>• Hub-and-Spoke Topology<br>• Encrypted Mesh"]
         end
         
         subgraph Subnet4["Subnet: 10.0.4.0/24 (Storage)"]
@@ -46,7 +46,7 @@ flowchart TB
         end
     end
 
-    subgraph ExternalServices["?? External Services"]
+    subgraph ExternalServices["External Services"]
         Stripe["Stripe API<br>api.stripe.com"]
         LLMProviders["LLM Providers<br>api.openai.com"]
     end
