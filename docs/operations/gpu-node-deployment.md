@@ -1,9 +1,4 @@
 
----
-
-## File 20: `docs/operations/gpu-node-deployment.md`
-
-```markdown
 # GPU Node Deployment
 
 This guide covers deploying GPU nodes to the distributed GPU network on both Linux and Windows.
