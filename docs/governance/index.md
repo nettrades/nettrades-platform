@@ -1,9 +1,3 @@
-
----
-
-## File 22: `docs/governance/index.md`
-
-```markdown
 # Governance Documentation
 
 This section covers the project governance, contribution guidelines, roadmap, and licensing information.
