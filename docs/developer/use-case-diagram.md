@@ -1,4 +1,4 @@
-# USER PERSPECTIVE � Use Case Diagram
+# USER PERSPECTIVE — Use Case Diagram
 
 Purpose: Shows how different types of users interact with the platform and what business capabilities are available to each role.
 
@@ -9,25 +9,25 @@ Purpose: Shows how different types of users interact with the platform and what 
 ```mermaid
 flowchart TD
     subgraph Users["?? User Types"]
-        Guest["Guest / Unauthenticated<br>????????????????<br>� Website Visitor<br>� Job Seeker"]
-        Member["Registered Member<br>????????????????<br>� Has Odoo Account<br>� Basic Profile"]
-        Expert["Verified Expert<br>????????????????<br>� Qualified in Fields<br>� Can Answer Questions"]
-        Freelancer["Freelancer<br>????????????????<br>� Offers Services<br>� Has Portfolio"]
-        Client["Client / Company<br>????????????????<br>� Posts Jobs/Projects<br>� Hires Talent"]
-        Admin["System Administrator<br>????????????????<br>� Full System Control"]
+        Guest["Guest / Unauthenticated<br>━━━━━━━━━━━━━━━━<br>• Website Visitor<br>• Job Seeker"]
+        Member["Registered Member<br>━━━━━━━━━━━━━━━━<br>• Has Odoo Account<br>• Basic Profile"]
+        Expert["Verified Expert<br>━━━━━━━━━━━━━━━━<br>• Qualified in Fields<br>• Can Answer Questions"]
+        Freelancer["Freelancer<br>━━━━━━━━━━━━━━━━<br>• Offers Services<br>• Has Portfolio"]
+        Client["Client / Company<br>━━━━━━━━━━━━━━━━<br>• Posts Jobs/Projects<br>• Hires Talent"]
+        Admin["System Administrator<br>━━━━━━━━━━━━━━━━<br>• Full System Control"]
     end
 
-    subgraph System["?? NETTRADES.AI Platform"]
+    subgraph System["NETTRADES.AI Platform"]
         direction TB
         
-        subgraph PublicFeatures["?? Public Features"]
+        subgraph PublicFeatures["Public Features"]
             BrowseJobs["Browse Job Postings"]
             BrowseFreelancers["Browse Freelancers"]
             ReadForum["Read Forum / Knowledge Base"]
             Register["Register Account"]
         end
 
-        subgraph MemberFeatures["?? Member Features"]
+        subgraph MemberFeatures["Member Features"]
             PostJob["Post Job Opening"]
             PostProject["Post Freelance Project"]
             ApplyJob["Apply to Job"]
@@ -38,14 +38,14 @@ flowchart TD
             InitiateConsultation["Initiate Paid Consultation"]
         end
 
-        subgraph ExpertFeatures["? Expert Features"]
+        subgraph ExpertFeatures["Expert Features"]
             AnswerQuestion["Answer Questions"]
             EarnReputation["Earn Reputation Points"]
             ReceiveConsultation["Receive Consultation Request"]
             GetPaid["Get Paid (Stripe Escrow)"]
         end
 
-        subgraph AdminFeatures["?? Admin Features"]
+        subgraph AdminFeatures["Admin Features"]
             ManageFields["Manage Professional Fields"]
             ManageGPU["Manage GPU Nodes & Cluster"]
             ManageFineTuning["Manage Fine-Tuning Pipeline"]
