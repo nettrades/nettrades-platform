@@ -1,9 +1,4 @@
 
----
-
-## File 15: `docs/developer/api-reference.md`
-
-
 # API Reference
 
 This document provides comprehensive API reference for the NETTRADES.AI platform.
