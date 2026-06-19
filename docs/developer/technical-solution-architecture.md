@@ -1,8 +1,170 @@
-# Technical Solution Architecture
+## Technical Solution Architecture
 
-Here is an extremely detailed and up-to-date Technical Solution Architecture (Deployment – Single VM) diagram for the NETTRADES.AI platform.
+```mermaid
+flowchart TD
+    %% ========================================================================
+    %% 1. EXTERNAL ACCESS & EDGE (Single VM Entry Point)
+    %% ========================================================================
+    subgraph External["?? External Access"]
+        Internet["Internet / Public Network<br><br>â€¢ End Users (Web Browsers)<br>â€¢ API Clients<br>â€¢ Robotic / Edge Clients"]
+    end
 
-This diagram visualizes how all services—from the web interface and business logic to the AI orchestration and data persistence—are containerized and deployed on a single, powerful virtual machine, providing a complete, self-contained production environment.
+    subgraph VM["??? Single Virtual Machine (Host OS: Talos Linux / Ubuntu 22.04 LTS)"]
+        direction TB
+
+        subgraph Edge["?? Edge Layer (Container: traefik)"]
+            Traefik["Traefik Reverse Proxy<br>????????????????<br>â€¢ Port 443 (HTTPS) with Let's Encrypt<br>â€¢ Port 80 (HTTP ? HTTPS redirect)<br>â€¢ Path-based routing:<br>  - / ? Odoo Web UI<br>  - /api/v1/* ? Odoo JSON-RPC API<br>  - /invoke ? LangGraph FastAPI<br>â€¢ JWT / OAuth2 Authentication Proxy<br>â€¢ Rate Limiting"]
+        end
+
+        %% ========================================================================
+        %% 2. APPLICATION & ORCHESTRATION SERVICES
+        %% ========================================================================
+        subgraph AppLayer["?? Application Services Layer"]
+
+            subgraph OdooContainer["Container: odoo-web (Port 8069 internal)"]
+                Odoo["Odoo 19 CE Application Server<br>????????????????<br>â€¢ Web Controllers (/website, /forum)<br>â€¢ JSON-RPC API Controllers<br>â€¢ Custom Odoo Modules:<br>  - nettrades_core<br>  - nettrades_good_answer<br>  - nettrades_gpu_admin<br>  - nettrades_job_matching<br>  - nettrades_proposals<br>  - nettrades_lead_scoring<br>  - nettrades_ask_someone<br>  - nettrades_chatbot<br>â€¢ Scheduled Cron Jobs:<br>  - _cron_decay_reputation()<br>  - _cron_auto_qualify_by_karma()<br>  - _cron_trigger_finetune()"]
+            end
+
+            subgraph LangGraphContainer["Container: langgraph-orchestrator (Port 8000 internal)"]
+                FastAPI["FastAPI Application<br>????????????????<br>â€¢ /invoke (async inference)<br>â€¢ /health (liveness probe)<br>â€¢ /metrics (Prometheus)"]
+                Supervisor["Supervisor Graph<br>????????????????<br>â€¢ classify Node<br>â€¢ medical_screening Node<br>â€¢ route Node"]
+                SubAgents["Sub-Agents<br>????????????????<br>â€¢ Recruitment Agent<br>â€¢ Freelance Agent<br>â€¢ Lead Gen Agent<br>â€¢ GPU Management Agent<br>â€¢ Vision Agent<br>â€¢ Action Agent<br>â€¢ General LLM Fallback"]
+                Checkpointer["PostgresSaver Checkpointer<br>????????????????<br>â€¢ Durable state snapshots"]
+            end
+
+            subgraph GPUStackContainer["Container: gpustack-manager (Port 8080 internal)"]
+                GPUStack["GPUStack Manager<br>????????????????<br>â€¢ Inference Engine (OpenAI-compatible)<br>â€¢ Token Metering<br>â€¢ Worker Pool Manager<br>  - gVisor (public pools)<br>  - Docker (internal pools)"]
+            end
+
+            subgraph GPUNodeAgent["Container: gpu-node-agent (Privileged)"]
+                GNA["GPU Node Agent<br>????????????????<br>â€¢ ensure_wireguard()<br>â€¢ get_or_create_node_id()<br>â€¢ get_gpu_info() (nvidia-smi)<br>â€¢ get_tee_summary()<br>â€¢ register_with_odoo()<br>â€¢ apply_wireguard_config()<br>â€¢ start_gpustack_worker()<br>â€¢ start_dns_watchdog()<br>â€¢ Token Refresh Loop (every 600s)"]
+            end
+        end
+
+        %% ========================================================================
+        %% 3. DATA & PERSISTENCE LAYER
+        %% ========================================================================
+        subgraph DataLayer["?? Data & Persistence Layer"]
+
+            subgraph PostgresContainer["Container: postgres (Port 5432 internal)"]
+                PostgreSQL["PostgreSQL 17 + pgvector<br>????????????????<br>â€¢ Odoo transactional data<br>â€¢ Vector embeddings<br>â€¢ LangGraph checkpoint blobs<br>â€¢ Full-text search indexes<br><br>Persistent Volume:<br>â€¢ /var/lib/postgresql/data"]
+            end
+
+            subgraph ValkeyContainer["Container: valkey (Port 6379 internal)"]
+                Valkey["Valkey 8.0 (Redis-compatible)<br>????????????????<br>â€¢ Odoo ORM session cache<br>â€¢ Odoo bus notifications (Pub/Sub)<br>â€¢ Rate limiting counters<br>â€¢ Temporary job locks"]
+            end
+
+            subgraph StorageContainer["Container: longhorn (Optional / NFS / HostPath)"]
+                Longhorn["Longhorn Distributed Storage<br>????????????????<br>â€¢ Fine-tuning datasets (JSONL)<br>â€¢ Trained model weights (GGUF/Safetensors)<br>â€¢ Data-Juicer intermediate artifacts<br>â€¢ Odoo filestore (CVs, images)<br><br>Persistent Volume:<br>â€¢ /mnt/longhorn"]
+            end
+        end
+
+        %% ========================================================================
+        %% 4. AI/ML PIPELINE (Optional, Triggered by Cron)
+        %% ========================================================================
+        subgraph MLPipeline["?? AI/ML Pipeline (Container: ml-pipeline)"]
+            DataJuicer["Data-Juicer<br>????????????????<br>â€¢ Quality filtering<br>â€¢ Deduplication"]
+            DEITA["DEITA Scorer<br>????????????????<br>â€¢ LLM-as-Judge scoring"]
+            Unsloth["Unsloth/Axolotl Trainer<br>????????????????<br>â€¢ LoRA/QLoRA fine-tuning"]
+            ModelRegistry["Model Registry<br>????????????????<br>â€¢ Versioned model storage"]
+        end
+
+        %% ========================================================================
+        %% 5. NETWORK & SECURITY FABRIC (Host-Level)
+        %% ========================================================================
+        subgraph SecurityFabric["??? Host-Level Security & Networking"]
+            WireGuard["WireGuard VPN Mesh<br>????????????????<br>â€¢ Kernel module (enabled)<br>â€¢ Hub-and-spoke topology<br>â€¢ Encrypted node-to-node traffic"]
+            gVisor["gVisor Sandbox<br>????????????????<br>â€¢ Syscall-level isolation<br>â€¢ Applied to public GPU worker pools"]
+            Firewall["Host Firewall (iptables/nftables)<br>????????????????<br>â€¢ Allow: 443, 22 (SSH)<br>â€¢ Allow: WireGuard UDP port<br>â€¢ Deny: All other inbound"]
+        end
+
+        %% ========================================================================
+        %% 6. HARDWARE RESOURCES (Single VM)
+        %% ========================================================================
+        subgraph Hardware["?? Hardware Resources"]
+            CPU["CPU: 16+ Cores (x86_64)"]
+            RAM["RAM: 64+ GB"]
+            GPU["GPU: 1+ NVIDIA GPUs (e.g., A100, RTX 4090)<br>â€¢ NVIDIA Driver 550+<br>â€¢ CUDA 12.4+<br>â€¢ nvidia-container-toolkit"]
+            Storage["Storage: 1+ TB NVMe SSD<br>â€¢ /var/lib/docker<br>â€¢ /mnt/longhorn<br>â€¢ /mnt/models"]
+        end
+    end
+
+    %% ========================================================================
+    %% 7. CONNECTIVITY & DATA FLOW ARROWS (LABELED)
+    %% ========================================================================
+
+    %% External to VM
+    Internet -->|"HTTPS (443)"| Traefik
+
+    %% Edge Routing
+    Traefik -->|"Routes / ? Port 8069"| Odoo
+    Traefik -->|"Routes /api/v1/* ? Port 8069"| Odoo
+    Traefik -->|"Routes /invoke ? Port 8000"| FastAPI
+
+    %% Odoo Internal Calls
+    Odoo -->|"Async HTTP Request to /invoke"| FastAPI
+    Odoo -->|"SQL (psycopg2)"| PostgreSQL
+    Odoo -->|"Set/Get (redis-py)"| Valkey
+    Odoo -->|"Read/Write Files"| Longhorn
+
+    %% LangGraph Orchestration Flow
+    FastAPI -->|"Executes"| Supervisor
+    Supervisor -->|"Dispatches to"| SubAgents
+    SubAgents -->|"Reads/Updates Odoo Models"| Odoo
+    SubAgents -->|"OpenAI-compatible API"| GPUStack
+    FastAPI -->|"Checkpoint (asyncpg)"| Checkpointer
+    Checkpointer -->|"Read/Write blobs"| PostgreSQL
+
+    %% GPUStack & GPU Node Agent
+    GPUStack -->|"Manages Worker Pool"| GNA
+    GNA -->|"Registers via /api/v1/gpu/register"| Odoo
+    GNA -->|"Reads GPU Info"| GPU
+
+    %% ML Pipeline (Triggered by Odoo Cron)
+    Odoo -->|"export_to_jsonl()"| DataJuicer
+    DataJuicer -->|"Cleaned Data"| DEITA
+    DEITA -->|"Scored Data"| Unsloth
+    Unsloth -->|"Produces Adapter Weights"| ModelRegistry
+    ModelRegistry -->|"Stores Models"| Longhorn
+    ModelRegistry -->|"Registers New Model Version"| GPUStack
+
+    %% Security Fabric Dependencies
+    GNA -->|"Uses"| WireGuard
+    GPUStack -->|"Uses"| gVisor
+    Traefik -->|"Protected by"| Firewall
+
+    %% Hardware Dependencies
+    Odoo -->|"Runs on"| CPU & RAM
+    FastAPI -->|"Runs on"| CPU & RAM
+    GPUStack -->|"Accelerated by"| GPU
+    PostgreSQL -->|"Stored on"| Storage
+    Longhorn -->|"Stored on"| Storage
+
+    %% ========================================================================
+    %% 8. STYLE DEFINITIONS
+    %% ========================================================================
+    classDef external fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef edge fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef app fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px;
+    classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef ml fill:#fce4ec,stroke:#c62828,stroke-width:2px;
+    classDef security fill:#ffebee,stroke:#b71c1c,stroke-width:2px;
+    classDef hardware fill:#eceff1,stroke:#37474f,stroke-width:2px;
+
+    class External external;
+    class Edge,Traefik edge;
+    class AppLayer,OdooContainer,LangGraphContainer,GPUStackContainer,GPUNodeAgent app;
+    class DataLayer,PostgresContainer,ValkeyContainer,StorageContainer data;
+    class MLPipeline,DataJuicer,DEITA,Unsloth,ModelRegistry ml;
+    class SecurityFabric,WireGuard,gVisor,Firewall security;
+    class Hardware,CPU,RAM,GPU,Storage hardware;
+
+```
+
+
+Here is an extremely detailed and up-to-date Technical Solution Architecture (Deployment â€“ Single VM) diagram for the NETTRADES.AI platform.
+
+This diagram visualizes how all servicesâ€”from the web interface and business logic to the AI orchestration and data persistenceâ€”are containerized and deployed on a single, powerful virtual machine, providing a complete, self-contained production environment.
 
 # Detailed Narrative of the Single VM Deployment Architecture
 # 1. Host Operating System & Hardware
@@ -71,7 +233,7 @@ This container provides the inference fabric for the platform:
 
     Token Metering: Counts tokens per request for usage billing.
 
-    Worker Pool Manager: Manages GPU worker pools with strict isolation—gVisor for public workloads (syscall-level sandboxing) and Docker for internal pools.
+    Worker Pool Manager: Manages GPU worker pools with strict isolationâ€”gVisor for public workloads (syscall-level sandboxing) and Docker for internal pools.
 
 # D. GPU Node Agent (gpu-node-agent)
 
@@ -163,163 +325,3 @@ This single VM deployment architecture provides a complete, self-contained, prod
 
 ---
 
-## Technical Solution Architecture
-
-```mermaid
-flowchart TD
-    %% ========================================================================
-    %% 1. EXTERNAL ACCESS & EDGE (Single VM Entry Point)
-    %% ========================================================================
-    subgraph External["?? External Access"]
-        Internet["Internet / Public Network<br>????????????????<br>• End Users (Web Browsers)<br>• API Clients<br>• Robotic / Edge Clients"]
-    end
-
-    subgraph VM["??? Single Virtual Machine (Host OS: Talos Linux / Ubuntu 22.04 LTS)"]
-        direction TB
-
-        subgraph Edge["?? Edge Layer (Container: traefik)"]
-            Traefik["Traefik Reverse Proxy<br>????????????????<br>• Port 443 (HTTPS) with Let's Encrypt<br>• Port 80 (HTTP ? HTTPS redirect)<br>• Path-based routing:<br>  - / ? Odoo Web UI<br>  - /api/v1/* ? Odoo JSON-RPC API<br>  - /invoke ? LangGraph FastAPI<br>• JWT / OAuth2 Authentication Proxy<br>• Rate Limiting"]
-        end
-
-        %% ========================================================================
-        %% 2. APPLICATION & ORCHESTRATION SERVICES
-        %% ========================================================================
-        subgraph AppLayer["?? Application Services Layer"]
-
-            subgraph OdooContainer["Container: odoo-web (Port 8069 internal)"]
-                Odoo["Odoo 19 CE Application Server<br>????????????????<br>• Web Controllers (/website, /forum)<br>• JSON-RPC API Controllers<br>• Custom Odoo Modules:<br>  - nettrades_core<br>  - nettrades_good_answer<br>  - nettrades_gpu_admin<br>  - nettrades_job_matching<br>  - nettrades_proposals<br>  - nettrades_lead_scoring<br>  - nettrades_ask_someone<br>  - nettrades_chatbot<br>• Scheduled Cron Jobs:<br>  - _cron_decay_reputation()<br>  - _cron_auto_qualify_by_karma()<br>  - _cron_trigger_finetune()"]
-            end
-
-            subgraph LangGraphContainer["Container: langgraph-orchestrator (Port 8000 internal)"]
-                FastAPI["FastAPI Application<br>????????????????<br>• /invoke (async inference)<br>• /health (liveness probe)<br>• /metrics (Prometheus)"]
-                Supervisor["Supervisor Graph<br>????????????????<br>• classify Node<br>• medical_screening Node<br>• route Node"]
-                SubAgents["Sub-Agents<br>????????????????<br>• Recruitment Agent<br>• Freelance Agent<br>• Lead Gen Agent<br>• GPU Management Agent<br>• Vision Agent<br>• Action Agent<br>• General LLM Fallback"]
-                Checkpointer["PostgresSaver Checkpointer<br>????????????????<br>• Durable state snapshots"]
-            end
-
-            subgraph GPUStackContainer["Container: gpustack-manager (Port 8080 internal)"]
-                GPUStack["GPUStack Manager<br>????????????????<br>• Inference Engine (OpenAI-compatible)<br>• Token Metering<br>• Worker Pool Manager<br>  - gVisor (public pools)<br>  - Docker (internal pools)"]
-            end
-
-            subgraph GPUNodeAgent["Container: gpu-node-agent (Privileged)"]
-                GNA["GPU Node Agent<br>????????????????<br>• ensure_wireguard()<br>• get_or_create_node_id()<br>• get_gpu_info() (nvidia-smi)<br>• get_tee_summary()<br>• register_with_odoo()<br>• apply_wireguard_config()<br>• start_gpustack_worker()<br>• start_dns_watchdog()<br>• Token Refresh Loop (every 600s)"]
-            end
-        end
-
-        %% ========================================================================
-        %% 3. DATA & PERSISTENCE LAYER
-        %% ========================================================================
-        subgraph DataLayer["?? Data & Persistence Layer"]
-
-            subgraph PostgresContainer["Container: postgres (Port 5432 internal)"]
-                PostgreSQL["PostgreSQL 17 + pgvector<br>????????????????<br>• Odoo transactional data<br>• Vector embeddings<br>• LangGraph checkpoint blobs<br>• Full-text search indexes<br><br>Persistent Volume:<br>• /var/lib/postgresql/data"]
-            end
-
-            subgraph ValkeyContainer["Container: valkey (Port 6379 internal)"]
-                Valkey["Valkey 8.0 (Redis-compatible)<br>????????????????<br>• Odoo ORM session cache<br>• Odoo bus notifications (Pub/Sub)<br>• Rate limiting counters<br>• Temporary job locks"]
-            end
-
-            subgraph StorageContainer["Container: longhorn (Optional / NFS / HostPath)"]
-                Longhorn["Longhorn Distributed Storage<br>????????????????<br>• Fine-tuning datasets (JSONL)<br>• Trained model weights (GGUF/Safetensors)<br>• Data-Juicer intermediate artifacts<br>• Odoo filestore (CVs, images)<br><br>Persistent Volume:<br>• /mnt/longhorn"]
-            end
-        end
-
-        %% ========================================================================
-        %% 4. AI/ML PIPELINE (Optional, Triggered by Cron)
-        %% ========================================================================
-        subgraph MLPipeline["?? AI/ML Pipeline (Container: ml-pipeline)"]
-            DataJuicer["Data-Juicer<br>????????????????<br>• Quality filtering<br>• Deduplication"]
-            DEITA["DEITA Scorer<br>????????????????<br>• LLM-as-Judge scoring"]
-            Unsloth["Unsloth/Axolotl Trainer<br>????????????????<br>• LoRA/QLoRA fine-tuning"]
-            ModelRegistry["Model Registry<br>????????????????<br>• Versioned model storage"]
-        end
-
-        %% ========================================================================
-        %% 5. NETWORK & SECURITY FABRIC (Host-Level)
-        %% ========================================================================
-        subgraph SecurityFabric["??? Host-Level Security & Networking"]
-            WireGuard["WireGuard VPN Mesh<br>????????????????<br>• Kernel module (enabled)<br>• Hub-and-spoke topology<br>• Encrypted node-to-node traffic"]
-            gVisor["gVisor Sandbox<br>????????????????<br>• Syscall-level isolation<br>• Applied to public GPU worker pools"]
-            Firewall["Host Firewall (iptables/nftables)<br>????????????????<br>• Allow: 443, 22 (SSH)<br>• Allow: WireGuard UDP port<br>• Deny: All other inbound"]
-        end
-
-        %% ========================================================================
-        %% 6. HARDWARE RESOURCES (Single VM)
-        %% ========================================================================
-        subgraph Hardware["?? Hardware Resources"]
-            CPU["CPU: 16+ Cores (x86_64)"]
-            RAM["RAM: 64+ GB"]
-            GPU["GPU: 1+ NVIDIA GPUs (e.g., A100, RTX 4090)<br>• NVIDIA Driver 550+<br>• CUDA 12.4+<br>• nvidia-container-toolkit"]
-            Storage["Storage: 1+ TB NVMe SSD<br>• /var/lib/docker<br>• /mnt/longhorn<br>• /mnt/models"]
-        end
-    end
-
-    %% ========================================================================
-    %% 7. CONNECTIVITY & DATA FLOW ARROWS (LABELED)
-    %% ========================================================================
-
-    %% External to VM
-    Internet -->|"HTTPS (443)"| Traefik
-
-    %% Edge Routing
-    Traefik -->|"Routes / ? Port 8069"| Odoo
-    Traefik -->|"Routes /api/v1/* ? Port 8069"| Odoo
-    Traefik -->|"Routes /invoke ? Port 8000"| FastAPI
-
-    %% Odoo Internal Calls
-    Odoo -->|"Async HTTP Request to /invoke"| FastAPI
-    Odoo -->|"SQL (psycopg2)"| PostgreSQL
-    Odoo -->|"Set/Get (redis-py)"| Valkey
-    Odoo -->|"Read/Write Files"| Longhorn
-
-    %% LangGraph Orchestration Flow
-    FastAPI -->|"Executes"| Supervisor
-    Supervisor -->|"Dispatches to"| SubAgents
-    SubAgents -->|"Reads/Updates Odoo Models"| Odoo
-    SubAgents -->|"OpenAI-compatible API"| GPUStack
-    FastAPI -->|"Checkpoint (asyncpg)"| Checkpointer
-    Checkpointer -->|"Read/Write blobs"| PostgreSQL
-
-    %% GPUStack & GPU Node Agent
-    GPUStack -->|"Manages Worker Pool"| GNA
-    GNA -->|"Registers via /api/v1/gpu/register"| Odoo
-    GNA -->|"Reads GPU Info"| GPU
-
-    %% ML Pipeline (Triggered by Odoo Cron)
-    Odoo -->|"export_to_jsonl()"| DataJuicer
-    DataJuicer -->|"Cleaned Data"| DEITA
-    DEITA -->|"Scored Data"| Unsloth
-    Unsloth -->|"Produces Adapter Weights"| ModelRegistry
-    ModelRegistry -->|"Stores Models"| Longhorn
-    ModelRegistry -->|"Registers New Model Version"| GPUStack
-
-    %% Security Fabric Dependencies
-    GNA -->|"Uses"| WireGuard
-    GPUStack -->|"Uses"| gVisor
-    Traefik -->|"Protected by"| Firewall
-
-    %% Hardware Dependencies
-    Odoo -->|"Runs on"| CPU & RAM
-    FastAPI -->|"Runs on"| CPU & RAM
-    GPUStack -->|"Accelerated by"| GPU
-    PostgreSQL -->|"Stored on"| Storage
-    Longhorn -->|"Stored on"| Storage
-
-    %% ========================================================================
-    %% 8. STYLE DEFINITIONS
-    %% ========================================================================
-    classDef external fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
-    classDef edge fill:#fff3e0,stroke:#e65100,stroke-width:2px;
-    classDef app fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px;
-    classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef ml fill:#fce4ec,stroke:#c62828,stroke-width:2px;
-    classDef security fill:#ffebee,stroke:#b71c1c,stroke-width:2px;
-    classDef hardware fill:#eceff1,stroke:#37474f,stroke-width:2px;
-
-    class External external;
-    class Edge,Traefik edge;
-    class AppLayer,OdooContainer,LangGraphContainer,GPUStackContainer,GPUNodeAgent app;
-    class DataLayer,PostgresContainer,ValkeyContainer,StorageContainer data;
-    class MLPipeline,DataJuicer,DEITA,Unsloth,ModelRegistry ml;
-    class SecurityFabric,WireGuard,gVisor,Firewall security;
-    class Hardware,CPU,RAM,GPU,Storage hardware;
