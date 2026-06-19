@@ -5,25 +5,25 @@ Overview
 
 LangGraph agents are self-contained workflows that:
 
-    Receive input from the supervisor (user messages, state data)
+Receive input from the supervisor (user messages, state data)
 
-    Process data using LLMs and Odoo tools
+Process data using LLMs and Odoo tools
 
-    Return structured results back to the supervisor
+Return structured results back to the supervisor
 
 Agents are ideal for tasks like:
 
-    Analysing CVs and matching candidates to jobs
+Analysing CVs and matching candidates to jobs
 
-    Matching freelancers to projects
+Matching freelancers to projects
 
-    Generating and scoring leads
+Generating and scoring leads
 
-    Managing GPU clusters
+Managing GPU clusters
 
-    Analysing images with VLM
+Analysing images with VLM
 
-    Planning robotic actions
+Planning robotic actions
 
 Where Agents Live
 
