@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/governance/contributor-quickstart.md`
-
-```markdown
 # Contributor Quick Start Guide
 
 Welcome! This guide helps you make your first contribution to NETTRADES.AI.
@@ -65,3 +60,4 @@ Go to [GitHub Issues](https://github.com/nettrades/nettrades-platform/issues) an
 ```bash
 git clone https://github.com/your-username/nettrades-platform.git
 cd nettrades-platform
+```
