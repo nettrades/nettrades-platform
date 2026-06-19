@@ -38,7 +38,7 @@ NETTRADES.AI is an **open-source, autonomous enterprise platform** that combines
 
 The fastest way to get started is with the interactive installation wizard:
 
-```bash
+
 # Download and run the installer
 curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/deploy/docker/install-nettrades.sh | sudo bash
 
