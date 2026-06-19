@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/operations/kubernetes-deployment.md` (With Architecture Diagram)
-
-```markdown
 # Kubernetes on Talos Deployment
 
 This guide walks you through deploying the NETTRADES.AI platform on a production-grade Kubernetes cluster using **Talos Linux** as the operating system and **Proxmox** as the hypervisor.
