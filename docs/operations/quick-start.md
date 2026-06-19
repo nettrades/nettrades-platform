@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/operations/quick-start.md`
-
-```markdown
 # Quick Start – Operations
 
 This guide provides a **5-minute** walkthrough to get NETTRADES.AI running on a single server for evaluation or small-scale production.
