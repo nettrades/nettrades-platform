@@ -3,7 +3,6 @@
 
 ## File: `docs/appendix/database-schema.md` (With Schema Diagram)
 
-```markdown
 # Database Schema
 
 This document provides the consolidated database schema for the NETTRADES.AI platform.
