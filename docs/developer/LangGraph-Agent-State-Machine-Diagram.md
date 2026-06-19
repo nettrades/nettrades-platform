@@ -2,10 +2,8 @@
 
 The diagram covers the main Supervisor graph, all sub-agents, their internal states, and the overall flow.
 
-
-    
-    Detailed Explanation of the State Machine
-    1. Supervisor Graph (The Orchestrator)
+##  Detailed Explanation of the State Machine
+## 1. Supervisor Graph (The Orchestrator)
     
     The supervisor is the core entry point for all user requests. It is built in src/core/supervisor.py and compiled in src/core/app.py with a durable PostgresSaver checkpointer.
     Node	Function	Key Logic
@@ -41,25 +39,25 @@ The diagram covers the main Supervisor graph, all sub-agents, their internal sta
     
     The GPU Node Agent runs on every GPU machine in the cluster. It is a standalone script (src/agent/agent.py) that performs the following steps:
     
-        ensure_wireguard() – Auto-installs WireGuard if missing (supports Ubuntu/Debian/CentOS/RHEL).
+        ensure_wireguard() â€“ Auto-installs WireGuard if missing (supports Ubuntu/Debian/CentOS/RHEL).
     
-        get_or_create_node_id() – Generates a hardware-bound node ID, preferring TPM Endorsement Key (EK) hash, falling back to MAC address hash.
+        get_or_create_node_id() â€“ Generates a hardware-bound node ID, preferring TPM Endorsement Key (EK) hash, falling back to MAC address hash.
     
-        get_gpu_info() – Detects NVIDIA GPUs via nvidia-smi.
+        get_gpu_info() â€“ Detects NVIDIA GPUs via nvidia-smi.
     
-        get_tee_summary() – Detects TEE capabilities (NVIDIA CC, Intel SGX, AMD SEV).
+        get_tee_summary() â€“ Detects TEE capabilities (NVIDIA CC, Intel SGX, AMD SEV).
     
-        get_edge_device_info() – Detects edge devices (Jetson, Raspberry Pi, Coral TPU).
+        get_edge_device_info() â€“ Detects edge devices (Jetson, Raspberry Pi, Coral TPU).
     
-        register_with_odoo() – Registers with Odoo via POST /api/v1/gpu/register with retries and exponential backoff.
+        register_with_odoo() â€“ Registers with Odoo via POST /api/v1/gpu/register with retries and exponential backoff.
     
-        apply_wireguard_config() – Writes wg0.conf and brings up the WireGuard interface.
+        apply_wireguard_config() â€“ Writes wg0.conf and brings up the WireGuard interface.
     
-        start_gpustack_worker() – Launches the GPUStack worker: uses gVisor for public pools (syscall-level isolation) and Docker directly for internal pools.
+        start_gpustack_worker() â€“ Launches the GPUStack worker: uses gVisor for public pools (syscall-level isolation) and Docker directly for internal pools.
     
-        start_dns_watchdog() – Starts a daemon thread that keeps the WireGuard tunnel alive when the ISP changes the IP.
+        start_dns_watchdog() â€“ Starts a daemon thread that keeps the WireGuard tunnel alive when the ISP changes the IP.
     
-        Token Refresh Loop – Every 600 seconds, refreshes the GPUStack worker token and restarts the worker.
+        Token Refresh Loop â€“ Every 600 seconds, refreshes the GPUStack worker token and restarts the worker.
     
     4. Inference Backend Auto-Detection
     
