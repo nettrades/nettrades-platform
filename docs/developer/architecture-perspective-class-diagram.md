@@ -1,6 +1,6 @@
-# Architect Perspective — Class Diagram (Core Domain Models) 
+# Architect Perspective â€” Class Diagram (Core Domain Models)
 
-Below is the Architect Perspective — Class Diagram (Core Domain Models) for NETTRADES.AI, showing the primary Odoo models, their attributes, key methods, and relationships. This diagram is based on the actual code in odoo-modules/ and the database schema described in the documentation.
+Below is the Architect Perspective â€” Class Diagram (Core Domain Models) for NETTRADES.AI, showing the primary Odoo models, their attributes, key methods, and relationships. This diagram is based on the actual code in odoo-modules/ and the database schema described in the documentation.
 
 # Explanation of Key Models
 # User & Professional Models
@@ -79,7 +79,7 @@ This class diagram provides an architect?level view of the core domain models, e
 
 ---
 
-## Architect Perspective — Class Diagram (Core Domain Models) 
+## Architect Perspective â€” Class Diagram (Core Domain Models)
 
 ```mermaid
 classDiagram
