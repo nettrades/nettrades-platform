@@ -13,7 +13,7 @@ user_field_reputation: Per-field reputation points for each user, with cron jobs
 
 qualified_professional: Explicitly verified experts for restricted fields (e.g., medical).
 
-# Good Answer & Fine?Tuning
+# Good Answer & Fine-Tuning
 
 good_answer_vote: Stores user votes on answers. Points are weighted based on voter qualification.
 
