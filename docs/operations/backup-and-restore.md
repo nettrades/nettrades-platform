@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/operations/backup-and-restore.md`
-
-```markdown
 # Backup & Restore Guide
 
 This document provides comprehensive backup and restore procedures for the NETTRADES.AI platform.
@@ -36,3 +31,4 @@ A daily cron job is automatically configured to dump the database at 2 AM with 7
 ```bash
 cd /opt/nettrades-ai
 docker exec postgres pg_dump -U odoo nettrades > backups/nettrades_$(date +%Y%m%d).sql
+```
