@@ -41,6 +41,29 @@ src/core/agents/
 └── custom_agent.py           # Your new agent goes here
 
 Agent Architecture Diagram
+
+graph LR
+    subgraph Supervisor["LangGraph Supervisor"]
+        Classify["classify()"]
+        Route["route()"]
+    end
+
+    subgraph Agent["Your Custom Agent"]
+        State["CustomState"]
+        Node1["fetch_data()"]
+        Node2["process_data()"]
+        Node3["create_output()"]
+    end
+
+    subgraph Tools["Available Tools"]
+        OdooTools["Odoo Tools"]
+        Inference["Inference Tools"]
+    end
+
+    Supervisor --> Agent
+    Agent --> Tools
+    Tools --> Agent
+
 Step 1: Create the Agent File
 
 Create a new file src/core/agents/custom_agent.py:
