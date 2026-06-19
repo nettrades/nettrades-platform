@@ -1,4 +1,4 @@
-# Technical Solution Architecture (Single?VM Deployment)
+# Technical Solution Architecture (Single-VM Deployment)
 
 Networks: Docker web network (172.20.0.0/24) for public?facing services; internal network (172.21.0.0/24) for databases and inference engines.
 
@@ -8,7 +8,7 @@ SSL: Traefik automatically obtains Let's Encrypt certificates via HTTP?01 challe
 
 ---
 
-## Technical Solution Architecture (Single?VM Deployment)
+## Technical Solution Architecture (Single-VM Deployment)
 
 ```mermaid
 graph TB
