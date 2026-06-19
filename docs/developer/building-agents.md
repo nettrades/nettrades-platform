@@ -1,7 +1,9 @@
-Building LangGraph Agents
+
+# Building LangGraph Agents
 
 This guide explains how to create new LangGraph sub-agents for the NETTRADES.AI platform. Agents are specialised AI workflows that handle specific business domains.
-Overview
+
+## Overview
 
 LangGraph agents are self-contained workflows that:
 
@@ -25,23 +27,33 @@ Analysing images with VLM
 
 Planning robotic actions
 
-Where Agents Live
+## Where Agents Live
 
 All agents live in src/core/agents/:
+
 text
 
 src/core/agents/
+
 ├── __init__.py
+
 ├── recruitment_agent.py      # CV / job matching
+
 ├── freelance_agent.py        # Project ↔ freelancer matching
+
 ├── lead_gen_agent.py         # Lead scoring & creation
+
 ├── gpu_management_agent.py   # GPU cluster health & scaling
+
 ├── vision_agent.py           # Multi-modal VLM agent
+
 ├── action_agent.py           # VLA agent for robotic control
+
 └── custom_agent.py           # Your new agent goes here
 
-Agent Architecture Diagram
+## Agent Architecture Diagram
 
+```mermaid
 graph LR
     subgraph Supervisor["LangGraph Supervisor"]
         Classify["classify()"]
@@ -63,11 +75,12 @@ graph LR
     Supervisor --> Agent
     Agent --> Tools
     Tools --> Agent
+```
 
-Step 1: Create the Agent File
+## Step 1: Create the Agent File
 
 Create a new file src/core/agents/custom_agent.py:
-python
+``` python
 
 # -*- coding: utf-8 -*-
 # =============================================================================
@@ -279,24 +292,26 @@ def create_custom_agent() -> StateGraph:
 
     # Return the compiled graph
     return workflow.compile()
+```
 
-Step 2: Register with the Supervisor
+## Step 2: Register with the Supervisor
 
 In src/core/supervisor.py, you need to:
 
-    Import your agent
+Import your agent
 
-    Create an instance
+Create an instance
 
-    Add routing logic
+Add routing logic
 
-2.1 Import the Agent
-python
+### 2.1 Import the Agent
+```python
 
 # In src/core/supervisor.py
 from .agents.custom_agent import create_custom_agent
+```
 
-2.2 Create the Agent Instance
+### 2.2 Create the Agent Instance
 python
 
 def build_supervisor():
@@ -313,7 +328,7 @@ def build_supervisor():
 
     # ... rest of build_supervisor ...
 
-2.3 Add Routing Logic
+### 2.3 Add Routing Logic
 
 In the route() function:
 python
@@ -333,7 +348,7 @@ async def route(state: dict) -> dict:
 
     return result
 
-2.4 Update Intent Classification
+### 2.4 Update Intent Classification
 
 In the classify() function, update the prompt to include your new intent:
 python
@@ -353,10 +368,11 @@ async def classify(state: dict) -> dict:
 
     # ... rest of classify ...
 
-Step 3: Using Odoo Tools
+## Step 3: Using Odoo Tools
 
 The odoo_tools.py module provides async functions for interacting with Odoo.
-3.1 Available Tools
+
+### 3.1 Available Tools
 Function	Purpose	Parameters
 res_partner_search(domain)	Search partners	Domain list
 res_partner_read(ids, fields)	Read partner data	List of IDs, fields
@@ -372,7 +388,8 @@ project_create(values)	Create a project	Dict of values
 gpu_cluster_search(domain)	Search GPU clusters	Domain list
 gpu_node_search(domain)	Search GPU nodes	Domain list
 gpu_node_write(id, values)	Update a GPU node	ID, dict of values
-3.2 Domain List Format
+
+### 3.2 Domain List Format
 
 Domains are lists of triples: [field, operator, value]
 Operator	Description	Example
@@ -396,7 +413,7 @@ freelancers = await res_partner_search([
     ("skills_text", "ilike", "python")
 ])
 
-3.4 Example: Creating a CRM Lead
+### 3.4 Example: Creating a CRM Lead
 python
 
 lead = await crm_lead_create({
@@ -407,16 +424,19 @@ lead = await crm_lead_create({
     "stage_id": 1,  # New stage
 })
 
-Step 4: Using Inference Tools
+## Step 4: Using Inference Tools
 
 The inference_tools.py module auto-detects the best inference backend.
-4.1 Auto-Detection Priority
+
+### 4.1 Auto-Detection Priority
 Priority	Backend	Environment Variable
 1	GPUStack	GPUSTACK_SERVER_URL
 2	vLLM	VLLM_BASE_URL
 3	llama.cpp (fallback)	LLM_BASE_URL
-4.2 Usage Example
-python
+
+
+### 4.2 Usage Example
+```python
 
 from ..tools.inference_tools import get_inference_backend
 
@@ -429,11 +449,12 @@ llm = ChatOpenAI(
 )
 
 response = await llm.ainvoke("Hello, how are you?")
-
+```
 Step 5: Error Handling
 
 Always include error handling in your agent nodes.
-5.1 Try/Except Pattern
+
+### 5.1 Try/Except Pattern
 python
 
 async def process_data(state: CustomState) -> CustomState:
@@ -447,7 +468,7 @@ async def process_data(state: CustomState) -> CustomState:
         state["result"] = f"An error occurred: {e}"
     return state
 
-5.2 Logging
+### 5.2 Logging
 
 Use the module-level logger:
 python
@@ -459,8 +480,9 @@ def my_function():
     _logger.debug(f"State: {state}")
     _logger.error(f"Error occurred: {e}")
 
-Step 6: Testing Your Agent
-6.1 Unit Test Template
+## Step 6: Testing Your Agent
+
+### 6.1 Unit Test Template
 
 Create tests/test_custom_agent.py:
 python
@@ -487,7 +509,7 @@ async def test_custom_agent():
     assert "error" not in result
     assert result["output"]["status"] == "created"
 
-6.2 Manual Testing with curl
+### 6.2 Manual Testing with curl
 bash
 
 curl -X POST http://localhost:8000/invoke \
@@ -506,22 +528,23 @@ curl -X POST http://localhost:8000/invoke \
     }
   }'
 
-Step 7: Debugging Tips
-7.1 Enable Debug Logging
+## Step 7: Debugging Tips
+
+### 7.1 Enable Debug Logging
 python
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
 _logger = logging.getLogger(__name__)
 
-7.2 Use LangSmith (if available)
+### 7.2 Use LangSmith (if available)
 python
 
 import os
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_PROJECT"] = "nettrades-agent"
 
-7.3 Print State in Nodes
+### 7.3 Print State in Nodes
 python
 
 async def my_node(state: CustomState) -> CustomState:
@@ -599,7 +622,7 @@ async def my_node(state: CustomState) -> CustomState:
 Complete Agent Template
 
 Here's a complete template you can copy and modify:
-python
+```python
 
 # -*- coding: utf-8 -*-
 # =============================================================================
@@ -678,8 +701,10 @@ def create_{agent_name}_agent() -> StateGraph:
     workflow.add_edge("process_data", "create_output")
     workflow.add_edge("create_output", END)
     return workflow.compile()
+```
 
-Quick Reference
+## Quick Reference
+
 Task	Command / File
 Create agent file	src/core/agents/custom_agent.py
 Import agent	from .agents.custom_agent import create_custom_agent
@@ -687,3 +712,5 @@ Register with supervisor	src/core/supervisor.py
 Update intent classification	src/core/supervisor.py (classify function)
 Run tests	pytest tests/
 Manual test	curl -X POST http://localhost:8000/invoke ...
+
+
