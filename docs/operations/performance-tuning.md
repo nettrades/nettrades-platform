@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/operations/performance-tuning.md`
-
-```markdown
 # Performance Tuning Guide
 
 This document provides guidelines for optimising the NETTRADES.AI platform for production workloads.
