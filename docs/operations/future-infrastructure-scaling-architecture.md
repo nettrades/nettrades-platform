@@ -159,7 +159,7 @@ Odoo Monolith	~500 concurrent users	Microservices migration (future)
 text
 
 Phase 1 (Current)          Phase 2 (6-12 months)       Phase 3 (12-24 months)
-?????????????????????      ??????????????????????      ??????????????????????
+━━━━━━━━━━━━━━━━           ━━━━━━━━━━━━━━━━            ━━━━━━━━━━━━━━━━
 Single VM                  Multi-AZ (3 zones)          Multi-Region (Active-Active)
 3 Pods                     15+ Pods                    50+ Pods
 1 GPU Node                 5 GPU Nodes                 20+ GPU Nodes
@@ -168,7 +168,7 @@ Local Storage              Longhorn                    S3 + Multi-region Replica
 Manual Scaling             KEDA Auto-scaling           Predictive Scaling (ML)
 Basic Monitoring           Prometheus + Grafana        Thanos + Global Dashboards
 
-# ?? Scaling Configuration Examples
+# Scaling Configuration Examples
 Horizontal Pod Autoscaler (LangGraph)
 yaml
 
@@ -239,68 +239,68 @@ This future infrastructure scaling architecture is based on the NETTRADES.AI pla
 
 flowchart TB
     subgraph Global["?? Global Edge & DNS"]
-        DNS["Global DNS<br>????????????????<br>� GeoDNS / Route53<br>� Latency-based Routing<br>� Health Checks"]
-        WAF["Global WAF & DDoS<br>????????????????<br>� Cloudflare / AWS Shield<br>� Rate Limiting<br>� Bot Mitigation"]
-        CDN["CDN Edge<br>????????????????<br>� Static Asset Caching<br>� Image Optimization"]
+        DNS["Global DNS<br>━━━━━━━━━━━━━━━━<br>• GeoDNS / Route53<br>• Latency-based Routing<br>• Health Checks"]
+        WAF["Global WAF & DDoS<br>━━━━━━━━━━━━━━━━<br>• Cloudflare / AWS Shield<br>• Rate Limiting<br>• Bot Mitigation"]
+        CDN["CDN Edge<br>━━━━━━━━━━━━━━━━<br>• Static Asset Caching<br>• Image Optimization"]
     end
 
     subgraph Region1["?? Region 1: US-East (Primary)"]
         direction TB
         
         subgraph R1_Edge["Edge Layer"]
-            R1_Traefik["Traefik Fleet<br>????????????????<br>� 3+ Replicas<br>� HPA: CPU > 70%<br>� Session Affinity"]
+            R1_Traefik["Traefik Fleet<br>━━━━━━━━━━━━━━━━<br>• 3+ Replicas<br>• HPA: CPU > 70%<br>• Session Affinity"]
         end
         
         subgraph R1_App["Application Layer"]
-            R1_Odoo["Odoo Web Fleet<br>????????????????<br>� 5+ Replicas<br>� HPA: CPU > 65%<br>� Shared Filestore"]
-            R1_LangGraph["LangGraph Fleet<br>????????????????<br>� 5+ Replicas<br>� HPA: CPU > 60%<br>� Stateless"]
-            R1_GPUStack["GPUStack Fleet<br>????????????????<br>� 3+ Replicas<br>� GPU: 4x A100 each<br>� Model Sharding"]
+            R1_Odoo["Odoo Web Fleet<br>━━━━━━━━━━━━━━━━<br>• 5+ Replicas<br>• HPA: CPU > 65%<br>• Shared Filestore"]
+            R1_LangGraph["LangGraph Fleet<br>━━━━━━━━━━━━━━━━<br>• 5+ Replicas<br>• HPA: CPU > 60%<br>• Stateless"]
+            R1_GPUStack["GPUStack Fleet<br>━━━━━━━━━━━━━━━━<br>• 3+ Replicas<br>• GPU: 4x A100 each<br>• Model Sharding"]
         end
         
         subgraph R1_Data["Data Layer"]
-            R1_Postgres["PostgreSQL Cluster<br>????????????????<br>� Primary + 2 Standbys<br>� Synchronous Replication<br>� PgBouncer Pool"]
-            R1_Valkey["Valkey Cluster<br>????????????????<br>� 6 Nodes (3+3)<br>� Redis Sentinel<br>� Sharded Cache"]
-            R1_Longhorn["Longhorn Storage<br>????????????????<br>� 5+ Replicas<br>� Distributed Block<br>� Snapshot Scheduling"]
-            R1_S3["S3-Compatible Object Storage<br>????????????????<br>� MinIO / AWS S3<br>� Filestore & Models<br>� Multi-region Replication"]
+            R1_Postgres["PostgreSQL Cluster<br>━━━━━━━━━━━━━━━━<br>• Primary + 2 Standbys<br>• Synchronous Replication<br>• PgBouncer Pool"]
+            R1_Valkey["Valkey Cluster<br>━━━━━━━━━━━━━━━━<br>• 6 Nodes (3+3)<br>• Redis Sentinel<br>• Sharded Cache"]
+            R1_Longhorn["Longhorn Storage<br>━━━━━━━━━━━━━━━━<br>• 5+ Replicas<br>• Distributed Block<br>• Snapshot Scheduling"]
+            R1_S3["S3-Compatible Object Storage<br>━━━━━━━━━━━━━━━━<br>• MinIO / AWS S3<br>• Filestore & Models<br>• Multi-region Replication"]
         end
         
         subgraph R1_ML["ML Pipeline"]
-            R1_DataJuicer["Data-Juicer Workers<br>????????????????<br>� 3+ Replicas<br>� Queue-based<br>� Spot Instances"]
-            R1_Trainer["Training Cluster<br>????????????????<br>� 4x GPU Nodes<br>� Multi-GPU Training<br>� Checkpointing"]
+            R1_DataJuicer["Data-Juicer Workers<br>━━━━━━━━━━━━━━━━<br>• 3+ Replicas<br>• Queue-based<br>• Spot Instances"]
+            R1_Trainer["Training Cluster<br>━━━━━━━━━━━━━━━━<br>• 4x GPU Nodes<br>• Multi-GPU Training<br>• Checkpointing"]
         end
     end
 
     subgraph Region2["?? Region 2: EU-West (Active-Active)"]
         direction TB
         
-        R2_Edge["Edge Layer<br>????????????????<br>� Traefik Fleet<br>� 3+ Replicas"]
-        R2_App["Application Layer<br>????????????????<br>� Odoo: 5+ Replicas<br>� LangGraph: 5+ Replicas<br>� GPUStack: 3+ Replicas"]
-        R2_Data["Data Layer<br>????????????????<br>� PostgreSQL (Replica)<br>� Valkey Cluster<br>� S3 Replication"]
+        R2_Edge["Edge Layer<br>━━━━━━━━━━━━━━━━<br>• Traefik Fleet<br>• 3+ Replicas"]
+        R2_App["Application Layer<br>━━━━━━━━━━━━━━━━<br>• Odoo: 5+ Replicas<br>• LangGraph: 5+ Replicas<br>• GPUStack: 3+ Replicas"]
+        R2_Data["Data Layer<br>━━━━━━━━━━━━━━━━<br>• PostgreSQL (Replica)<br>• Valkey Cluster<br>• S3 Replication"]
     end
 
     subgraph Region3["?? Region 3: APAC (Disaster Recovery)"]
-        R3_App["Application Layer<br>????????????????<br>� Odoo: 3+ Replicas<br>� LangGraph: 3+ Replicas"]
-        R3_Data["Data Layer<br>????????????????<br>� PostgreSQL (Standby)<br>� S3 Replication"]
+        R3_App["Application Layer<br>━━━━━━━━━━━━━━━━<br>• Odoo: 3+ Replicas<br>• LangGraph: 3+ Replicas"]
+        R3_Data["Data Layer<br>━━━━━━━━━━━━━━━━<br>• PostgreSQL (Standby)<br>• S3 Replication"]
     end
 
     subgraph Observability["?? Global Observability"]
-        Prometheus["Prometheus Fleet<br>????????????????<br>� Regional Scrapers<br>� Thanos / Cortex<br>� Long-term Storage"]
-        Grafana["Grafana<br>????????????????<br>� Global Dashboards<br>� Multi-cluster View"]
-        Loki["Loki Logging<br>????????????????<br>� Log Aggregation<br>� Multi-region"]
-        Tempo["Tempo Tracing<br>????????????????<br>� Distributed Tracing<br>� Jaeger UI"]
+        Prometheus["Prometheus Fleet<br>━━━━━━━━━━━━━━━━<br>• Regional Scrapers<br>• Thanos / Cortex<br>• Long-term Storage"]
+        Grafana["Grafana<br>━━━━━━━━━━━━━━━━<br>• Global Dashboards<br>• Multi-cluster View"]
+        Loki["Loki Logging<br>━━━━━━━━━━━━━━━━<br>• Log Aggregation<br>• Multi-region"]
+        Tempo["Tempo Tracing<br>━━━━━━━━━━━━━━━━<br>• Distributed Tracing<br>• Jaeger UI"]
     end
 
     subgraph Automation["?? Auto-Scaling & Orchestration"]
-        KEDA["KEDA Scaler<br>????????????????<br>� Prometheus Metrics<br>� RabbitMQ Queue Length<br>� Custom Triggers"]
-        ClusterAutoscaler["Cluster Autoscaler<br>????????????????<br>� Node Pool Scaling<br>� Spot Instance Fallback"]
-        VPA["VPA<br>????????????????<br>� Resource Recommendations<br>� Vertical Scaling"]
-        ChaosMesh["Chaos Mesh<br>????????????????<br>� Chaos Engineering<br>� Fault Injection"]
+        KEDA["KEDA Scaler<br>━━━━━━━━━━━━━━━━<br>• Prometheus Metrics<br>• RabbitMQ Queue Length<br>• Custom Triggers"]
+        ClusterAutoscaler["Cluster Autoscaler<br>━━━━━━━━━━━━━━━━<br>• Node Pool Scaling<br>• Spot Instance Fallback"]
+        VPA["VPA<br>━━━━━━━━━━━━━━━━<br>• Resource Recommendations<br>• Vertical Scaling"]
+        ChaosMesh["Chaos Mesh<br>━━━━━━━━━━━━━━━━<br>• Chaos Engineering<br>• Fault Injection"]
     end
 
     subgraph CostOptimization["?? Cost Optimization"]
-        SpotInstances["Spot Instance Pools<br>????????????????<br>� ML Training<br>� Batch Processing<br>� Dev/Test"]
-        ReservedInstances["Reserved Instances<br>????????????????<br>� Control Plane<br>� Critical Services<br>� 1-3 Year Terms"]
-        AutoStop["Auto-Stop Scheduler<br>????????????????<br>� Dev Environments<br>� Non-Prod<br>� Nightly Shutdown"]
+        SpotInstances["Spot Instance Pools<br>━━━━━━━━━━━━━━━━<br>• ML Training<br>• Batch Processing<br>• Dev/Test"]
+        ReservedInstances["Reserved Instances<br>━━━━━━━━━━━━━━━━<br>• Control Plane<br>• Critical Services<br>• 1-3 Year Terms"]
+        AutoStop["Auto-Stop Scheduler<br>━━━━━━━━━━━━━━━━<br>• Dev Environments<br>• Non-Prod<br>• Nightly Shutdown"]
     end
 
     %% Global Traffic Flow
