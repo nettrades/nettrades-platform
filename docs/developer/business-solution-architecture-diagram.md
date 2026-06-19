@@ -39,7 +39,7 @@ PostgresSaver Checkpointer: Saves state at every node to PostgreSQL, enabling cr
 
 The platform's business logic is encapsulated in Odoo 19 CE, with custom modules and third?party integrations.
 
-Custom NETTRADES Modules (odoo-modules/):
+### Custom NETTRADES Modules (odoo-modules/):
 
 nettrades_core: Professional field configuration, qualification rules, voting weights, and karma management
 
@@ -63,7 +63,7 @@ nettrades_notifications: In?app notifications, reviews, and disputes
 
 nettrades_pwa: Progressive Web App manifest and service worker
 
-Third-Party Modules (third-party/):
+### Third-Party Modules (third-party/):
 
 Odoo 19 CE Core: CRM, Sales, Project, HR, Accounting, Website, eCommerce
 
