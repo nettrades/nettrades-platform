@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/operations/system-requirements.md`
-
-```markdown
 # System Requirements
 
 This document provides comprehensive system requirements for deploying and running the NETTRADES.AI platform.
