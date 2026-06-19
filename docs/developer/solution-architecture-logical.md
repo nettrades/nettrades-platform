@@ -1,222 +1,3 @@
-# Solution Architecture (Logical)
-
-# Detailed Explanation of the Logical Architecture
-# 1. Presentation Layer
-
-The presentation layer provides the user interface and API access points:
-Component  &   Purpose	Technologies
-
-### Component: Odoo Web UI	
-
-Main web interface for all user roles (Companies, Freelancers, Job Seekers, Experts)	
-
-Technologies: Odoo Website, Portal, QWeb
-
-### Component: Mobile PWA	
-
-Purpose: Mobile-optimized Progressive Web App with offline support	
-
-Technologies: Service Worker, PWA Manifest
-
-### Component: API Gateway	
-
-Purpose: Exposes Odoo JSON-RPC, LangGraph /invoke, GPU Registration, MCP-Odoo Bridge	
-
-Technologies: FastAPI, Odoo Controllers
-
-### Component: VS Code Extension	
-
-Purpose: Enables developers to use company-local vLLM inference from VS Code	
-
-Technologies: VS Code API, OpenAI-compatible endpoints
-
-# 2. Integration & Orchestration Layer (LangGraph)
-
-This is the "brain" of the platform, orchestrating all AI-driven workflows.
-
-PostgresSaver Checkpointer: Provides durable state snapshots, enabling crash recovery and workflow resumption.
-
-## Supervisor Agent (src/core/supervisor.py):
-
-classify Node: Classifies user intent using an LLM (recruitment, freelance, lead_gen, gpu_management, vision, action, medical, legal, general)
-
-medical_screening Node: Conducts up to 3 rounds of follow-up questions for medical/legal queries
-
-route Node: Dispatches requests to the appropriate sub-agent or fallback LLM
-
-## Business Sub-Agents (src/core/agents/):
-
-Recruitment Agent: CV parsing, job-candidate matching, shortlist generation
-
-Freelance Agent: Project-freelancer matching, skills & availability validation, rate suggestions
-
-Lead Gen Agent: Lead generation, quality scoring, automated CRM creation
-
-GPU Management Agent: GPU cluster health monitoring, node lifecycle, pool assignment, token economics
-
-Vision Agent: Multi-modal VLM (Vision-Language Model) for image + text analysis
-
-Action Agent: Robotic action planning and dispatch via ROS 2 / MCP
-
-General LLM: Fallback for unclassified or general queries
-
-
-
-# 3. Business Logic Layer (Odoo 19 CE)
-
-This layer contains all business logic, data models, and user administration.
-
-## Custom NETTRADES Modules:
-
-Module	      &              Purpose
-
-nettrades_core:	            Professional field configuration, qualification rules, voting weights, karma management
-
-nettrades_good_answer:	    Good Answer voting, reputation management, fine-tuning dataset pipeline
-
-nettrades_gpu_admin:	    GPU cluster dashboard, node registry, pool assignment, token economics
-
-nettrades_gpustack_adapter:	GPUStack API bridge for worker and token usage synchronization
-
-nettrades_ask_someone:	    Expert marketplace with Stripe escrow and live sessions
-
-nettrades_job_matching:	    AI-powered job search, matching, and one-click apply
-
-nettrades_proposals:	    Freelancer proposals and milestone payments
-
-nettrades_lead_scoring:	    AI-driven lead generation and CRM integration
-
-nettrades_chatbot:	        AI chatbot widget with Ask Someone integration
-
-nettrades_notifications:	In-app notifications, reviews, and disputes
-
-nettrades_pwa:	            Progressive Web App manifest and service worker
-
-# Third-Party Modules:
-
-Odoo 19 CE Core: CRM, Sales, Project, HR, Accounting, Website, eCommerce, Forum, Gamification
-
-Apexive LLM Modules: llm (framework), llm_pgvector (vector store), llm_knowledge (RAG), llm_assistant (chat), llm_training (fine-tuning), llm_tool (function calling), llm_thread (conversations)
-
-MCP-Odoo Bridge: Enables AI agents to call Odoo functions and execute CRUD operations
-
-# 4. Data & Persistence Layer
-
-### Component: PostgreSQL 18 + pgvector	
-Purpose: Odoo transactional data, vector embeddings for RAG, LangGraph checkpoints, full-text search	
-Technology: SQL, pgvector extension
-
-### Component: Valkey 8	
-Purpose: Session storage, ORM cache, bus notifications (Pub/Sub), rate limiting, job locks	
-Technology: Redis-compatible in-memory store
-
-### Component: Longhorn	
-Purpose: Odoo filestore (CVs, images), fine-tuning datasets (JSONL), model weights (GGUF/Safetensors), Data-Juicer artifacts, backups	
-Technology: Distributed block storage
-
-# 5. Infrastructure & Security Layer (Logical)
-
-## Security Services:
-
-WireGuard VPN Mesh: Kernel-level network isolation with AllowedIPs enforcement. Supports both hub-and-spoke (public freelancers) and full mesh (company internal) topologies.
-
-gVisor Sandbox: Syscall-level container isolation for untrusted public GPU workloads, preventing container escape attacks.
-
-RBAC & Policy Engine: Odoo security groups, Cilium network policies, OAuth authentication, API key management.
-
-## GPU Orchestration:
-
-GPUStack Manager: Provides an OpenAI-compatible inference engine, token metering, worker pool management, multi-vendor GPU support (NVIDIA, AMD, Apple Metal).
-
-GPU Node Agent: Runs on each GPU node, handles GPU detection, hardware-bound node ID generation, WireGuard setup, and GPUStack worker startup.
-
-## Observability:
-
-Prometheus: Metrics collection and alerting
-
-Grafana: Dashboards and visualization
-
-# 6. External Integrations
-
-Integration	Purpose
-### Integration: Stripe API	
-Purpose: Payment processing and escrow for Ask Someone consultations
-
-### Integration: External LLM Providers	
-Purpose: OpenAI / Anthropic fallback when GPUStack is unavailable
-
-### Integration: Forgejo Git	
-Purpose: Self-hosted Git for project collaboration and CI/CD
-
-### Integration: External Job Boards	
-Purpose: LinkedIn, Indeed, Upwork RSS/API feeds for lead ingestion
-
-# 7. Self-Improving AI Pipeline
-
-A closed-loop pipeline that continuously improves the AI models:
-
-Good Answer Vote: Users vote on helpful responses
-
-Export to JSONL: Feedback is exported from Odoo
-
-Data-Juicer: Quality filtering, deduplication, and PII removal
-
-DEITA Scorer: LLM-as-Judge scores complexity and quality
-
-Unsloth/Axolotl Training: LoRA/QLoRA fine-tuning with 4-bit quantization
-
-Model Registry: Versioned storage and registration with GPUStack
-
-LangGraph Agent: Uses the improved model for future inference
-
-# Data Flow Summary
-
-### Flow: User Request	
-
-Path: WebUI → API → Classify → MedicalScreening → Route → Sub-Agent → Odoo → PostgreSQL	
-
-Description: User makes a request, intent is classified, routed to the appropriate agent, which interacts with Odoo and stores data
-
-### Flow: AI Inference	
-
-Path: Sub-Agent → GPUStack Server → GPU Node Agent → GPU	
-
-Description: AI inference requests are routed to GPUStack, which distributes them to available GPU workers
-
-### Flow: GPU Registration	
-
-Path: GPU Node Agent → API → nettrades_gpu_admin → PostgreSQL	
-
-Description: GPU nodes register themselves with Odoo and receive WireGuard configuration
-
-### Flow: Good Answer Voting	
-
-Path: WebUI → nettrades_good_answer → PostgreSQL	
-
-Description: Users vote on answers, storing feedback for reputation and training
-
-### Flow: Fine-Tuning	
-
-Path: nettrades_good_answer → Data-Juicer → DEITA → Unsloth/Axolotl → Model Registry → GPUStack	
-
-Description: Feedback data is exported, quality-filtered, scored, and used to fine-tune models, which are then registered for inference
-
-### Flow: Payments	
-
-Path: nettrades_ask_someone → Stripe → PostgreSQL	
-
-Description: Expert consultations are paid via Stripe escrow
-
-### Flow: Git Collaboration	
-
-Path: nettrades_core → Forgejo → PostgreSQL	
-Description: Projects are linked to Forgejo repositories
-
-
-This logical architecture enables the platform to function as a self-improving, autonomous enterprise ecosystem, connecting all stakeholders through AI-powered matching, a distributed GPU marketplace, and a continuous learning pipeline.
-
----
-
 ## Solution Architecture (Logical)
 
 ```mermaid
@@ -471,3 +252,224 @@ flowchart TB
     class Infrastructure,Security,GPUOrchestration,Observability infrastructure;
     class External external;
     class ML ml;
+
+```
+
+# Detailed Explanation of the Logical Architecture
+# 1. Presentation Layer
+
+The presentation layer provides the user interface and API access points:
+Component  &   Purpose	Technologies
+
+### Component: Odoo Web UI	
+
+Main web interface for all user roles (Companies, Freelancers, Job Seekers, Experts)	
+
+Technologies: Odoo Website, Portal, QWeb
+
+### Component: Mobile PWA	
+
+Purpose: Mobile-optimized Progressive Web App with offline support	
+
+Technologies: Service Worker, PWA Manifest
+
+### Component: API Gateway	
+
+Purpose: Exposes Odoo JSON-RPC, LangGraph /invoke, GPU Registration, MCP-Odoo Bridge	
+
+Technologies: FastAPI, Odoo Controllers
+
+### Component: VS Code Extension	
+
+Purpose: Enables developers to use company-local vLLM inference from VS Code	
+
+Technologies: VS Code API, OpenAI-compatible endpoints
+
+# 2. Integration & Orchestration Layer (LangGraph)
+
+This is the "brain" of the platform, orchestrating all AI-driven workflows.
+
+PostgresSaver Checkpointer: Provides durable state snapshots, enabling crash recovery and workflow resumption.
+
+## Supervisor Agent (src/core/supervisor.py):
+
+classify Node: Classifies user intent using an LLM (recruitment, freelance, lead_gen, gpu_management, vision, action, medical, legal, general)
+
+medical_screening Node: Conducts up to 3 rounds of follow-up questions for medical/legal queries
+
+route Node: Dispatches requests to the appropriate sub-agent or fallback LLM
+
+## Business Sub-Agents (src/core/agents/):
+
+Recruitment Agent: CV parsing, job-candidate matching, shortlist generation
+
+Freelance Agent: Project-freelancer matching, skills & availability validation, rate suggestions
+
+Lead Gen Agent: Lead generation, quality scoring, automated CRM creation
+
+GPU Management Agent: GPU cluster health monitoring, node lifecycle, pool assignment, token economics
+
+Vision Agent: Multi-modal VLM (Vision-Language Model) for image + text analysis
+
+Action Agent: Robotic action planning and dispatch via ROS 2 / MCP
+
+General LLM: Fallback for unclassified or general queries
+
+
+
+# 3. Business Logic Layer (Odoo 19 CE)
+
+This layer contains all business logic, data models, and user administration.
+
+## Custom NETTRADES Modules:
+
+Module	      &              Purpose
+
+nettrades_core:	            Professional field configuration, qualification rules, voting weights, karma management
+
+nettrades_good_answer:	    Good Answer voting, reputation management, fine-tuning dataset pipeline
+
+nettrades_gpu_admin:	    GPU cluster dashboard, node registry, pool assignment, token economics
+
+nettrades_gpustack_adapter:	GPUStack API bridge for worker and token usage synchronization
+
+nettrades_ask_someone:	    Expert marketplace with Stripe escrow and live sessions
+
+nettrades_job_matching:	    AI-powered job search, matching, and one-click apply
+
+nettrades_proposals:	    Freelancer proposals and milestone payments
+
+nettrades_lead_scoring:	    AI-driven lead generation and CRM integration
+
+nettrades_chatbot:	        AI chatbot widget with Ask Someone integration
+
+nettrades_notifications:	In-app notifications, reviews, and disputes
+
+nettrades_pwa:	            Progressive Web App manifest and service worker
+
+# Third-Party Modules:
+
+Odoo 19 CE Core: CRM, Sales, Project, HR, Accounting, Website, eCommerce, Forum, Gamification
+
+Apexive LLM Modules: llm (framework), llm_pgvector (vector store), llm_knowledge (RAG), llm_assistant (chat), llm_training (fine-tuning), llm_tool (function calling), llm_thread (conversations)
+
+MCP-Odoo Bridge: Enables AI agents to call Odoo functions and execute CRUD operations
+
+# 4. Data & Persistence Layer
+
+### Component: PostgreSQL 18 + pgvector	
+Purpose: Odoo transactional data, vector embeddings for RAG, LangGraph checkpoints, full-text search	
+Technology: SQL, pgvector extension
+
+### Component: Valkey 8	
+Purpose: Session storage, ORM cache, bus notifications (Pub/Sub), rate limiting, job locks	
+Technology: Redis-compatible in-memory store
+
+### Component: Longhorn	
+Purpose: Odoo filestore (CVs, images), fine-tuning datasets (JSONL), model weights (GGUF/Safetensors), Data-Juicer artifacts, backups	
+Technology: Distributed block storage
+
+# 5. Infrastructure & Security Layer (Logical)
+
+## Security Services:
+
+WireGuard VPN Mesh: Kernel-level network isolation with AllowedIPs enforcement. Supports both hub-and-spoke (public freelancers) and full mesh (company internal) topologies.
+
+gVisor Sandbox: Syscall-level container isolation for untrusted public GPU workloads, preventing container escape attacks.
+
+RBAC & Policy Engine: Odoo security groups, Cilium network policies, OAuth authentication, API key management.
+
+## GPU Orchestration:
+
+GPUStack Manager: Provides an OpenAI-compatible inference engine, token metering, worker pool management, multi-vendor GPU support (NVIDIA, AMD, Apple Metal).
+
+GPU Node Agent: Runs on each GPU node, handles GPU detection, hardware-bound node ID generation, WireGuard setup, and GPUStack worker startup.
+
+## Observability:
+
+Prometheus: Metrics collection and alerting
+
+Grafana: Dashboards and visualization
+
+# 6. External Integrations
+
+Integration	Purpose
+### Integration: Stripe API	
+Purpose: Payment processing and escrow for Ask Someone consultations
+
+### Integration: External LLM Providers	
+Purpose: OpenAI / Anthropic fallback when GPUStack is unavailable
+
+### Integration: Forgejo Git	
+Purpose: Self-hosted Git for project collaboration and CI/CD
+
+### Integration: External Job Boards	
+Purpose: LinkedIn, Indeed, Upwork RSS/API feeds for lead ingestion
+
+# 7. Self-Improving AI Pipeline
+
+A closed-loop pipeline that continuously improves the AI models:
+
+Good Answer Vote: Users vote on helpful responses
+
+Export to JSONL: Feedback is exported from Odoo
+
+Data-Juicer: Quality filtering, deduplication, and PII removal
+
+DEITA Scorer: LLM-as-Judge scores complexity and quality
+
+Unsloth/Axolotl Training: LoRA/QLoRA fine-tuning with 4-bit quantization
+
+Model Registry: Versioned storage and registration with GPUStack
+
+LangGraph Agent: Uses the improved model for future inference
+
+# Data Flow Summary
+
+### Flow: User Request	
+
+Path: WebUI → API → Classify → MedicalScreening → Route → Sub-Agent → Odoo → PostgreSQL	
+
+Description: User makes a request, intent is classified, routed to the appropriate agent, which interacts with Odoo and stores data
+
+### Flow: AI Inference	
+
+Path: Sub-Agent → GPUStack Server → GPU Node Agent → GPU	
+
+Description: AI inference requests are routed to GPUStack, which distributes them to available GPU workers
+
+### Flow: GPU Registration	
+
+Path: GPU Node Agent → API → nettrades_gpu_admin → PostgreSQL	
+
+Description: GPU nodes register themselves with Odoo and receive WireGuard configuration
+
+### Flow: Good Answer Voting	
+
+Path: WebUI → nettrades_good_answer → PostgreSQL	
+
+Description: Users vote on answers, storing feedback for reputation and training
+
+### Flow: Fine-Tuning	
+
+Path: nettrades_good_answer → Data-Juicer → DEITA → Unsloth/Axolotl → Model Registry → GPUStack	
+
+Description: Feedback data is exported, quality-filtered, scored, and used to fine-tune models, which are then registered for inference
+
+### Flow: Payments	
+
+Path: nettrades_ask_someone → Stripe → PostgreSQL	
+
+Description: Expert consultations are paid via Stripe escrow
+
+### Flow: Git Collaboration	
+
+Path: nettrades_core → Forgejo → PostgreSQL	
+Description: Projects are linked to Forgejo repositories
+
+
+This logical architecture enables the platform to function as a self-improving, autonomous enterprise ecosystem, connecting all stakeholders through AI-powered matching, a distributed GPU marketplace, and a continuous learning pipeline.
+
+---
+
+
