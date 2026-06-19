@@ -1,3 +1,48 @@
+# NETTRADES.AI – Autonomous Enterprise Platform
+
+[![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
+[![Documentation](https://img.shields.io/badge/docs-MkDocs-brightgreen.svg)](https://nettrades.github.io/nettrades-platform/)
+[![GitHub Stars](https://img.shields.io/github/stars/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/stargazers)
+[![GitHub Issues](https://img.shields.io/github/issues/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/issues)
+
+> **AI-powered autonomous enterprise platform connecting companies, freelancers, job-seekers, researchers, partners, and customers.**
+
+---
+
+## 🚀 What is NETTRADES.AI?
+
+NETTRADES.AI is an **open-source, autonomous enterprise platform** that combines:
+
+- **AI-powered job matching & freelancing** – LangGraph agents analyse CVs, job postings, and projects, automatically creating leads.
+- **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs for inference and fine-tuning, earning tokens.
+- **Self-improving AI** – A "Good Answer" voting system feeds a fine-tuning pipeline (Unsloth/Axolotl) that continuously improves field-specific models.
+- **Expert marketplace ("Ask Someone")** – Users can request paid help from verified professionals with Stripe escrow.
+- **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
+
+---
+
+## ✨ Key Features
+
+| Feature | Description |
+|---------|-------------|
+| 🤖 **AI Agents** | LangGraph-based recruitment, freelancing, lead generation, GPU management, vision, and action agents |
+| 🖥️ **GPU Marketplace** | Share idle GPUs or rent capacity for inference and fine-tuning |
+| 🧠 **Self-Improving AI** | "Good Answer" voting system with automated fine-tuning via Unsloth/Axolotl |
+| 🧑‍🏫 **Expert Help** | "Ask Someone" – real-time expert consultations with Stripe escrow |
+| 🔐 **Secure & Sovereign** | WireGuard VPN, gVisor isolation, and full on-premise deployment options |
+| ⚙️ **Autonomous Ops** | GPU health watchdog, reputation decay, utilisation alerts, Karma-based qualification |
+
+---
+
+## 🛠️ Quick Start
+
+The fastest way to get started is with the interactive installation wizard:
+
+```bash
+# Download and run the installer
+curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/deploy/docker/install-nettrades.sh | sudo bash
+
+
 # NETTRADES.AI Platform — Codebase Summary
 
 ## 1. Project Overview
@@ -104,7 +149,7 @@ A Contributor License Agreement (CLA) is in CONTRIBUTING.md to ensure contributi
 
     • LangGraph checkpointing – every node state is saved to PostgreSQL via PostgresSaver. If a machine crashes during training or inference, the workflow resumes from the last checkpoint without duplicating work.
 
-    • Agent retry logic – the agent retries registration with exponential backoff and never gives up on transient failures. WireGuard and GPUStack workers are restarted automatically after a power‑cycle thanks to persistent config files and the DNS watchdog.
+    • Agent retry logic – the agent retries registration with exponential backoff and never gives up on transient failures. WireGuard and GPUStack workers are restarted automatically after a power-cycle thanks to persistent config files and the DNS watchdog.
 
     • GPUStack worker recovery – GPUStack reschedules model instances onto other healthy workers within minutes of a node going offline.
 

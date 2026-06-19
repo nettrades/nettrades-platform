@@ -6,6 +6,27 @@ Copyright (C) 2026  NETTRADES AI (PVT) LIMITED
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.
 
+
+This project uses a dual-licensing approach:
+
+1. src/ (core orchestrator, agent, training scripts) is licensed under:
+   GNU Affero General Public License v3.0 (AGPL-3.0)
+   See: src/LICENSE.txt
+
+2. odoo-modules/ (custom Odoo plugins) is licensed under:
+   GNU Lesser General Public License v3.0 (LGPL-3.0)
+   See: odoo-modules/LICENSE.txt
+
+3. third-party/ components retain their original licenses.
+
+4. deploy/ and scripts/ are licensed under AGPL-3.0.
+
+5. docs/ is licensed under Creative Commons Attribution 4.0 (CC BY 4.0).
+
+A commercial license is available for enterprises that cannot or do not wish to comply with AGPL-3.0. Contact: legal@nettrades.ai
+
+For full license texts, see the LICENSE.txt file in each directory.
+
                             Preamble
 ...
 

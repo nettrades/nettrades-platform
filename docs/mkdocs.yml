@@ -1,0 +1,51 @@
+nav:
+  - Home: index.md
+  - 🚀 Try It Now: try-it-now.md
+  - 📖 Getting Started: getting-started.md
+  - 👤 For Users:
+      - Overview: user/index.md
+      - Getting Started: user/getting-started.md
+      - Job Matching: user/job-matching.md
+      - Ask Someone: user/ask-someone.md
+      - GPU Marketplace: user/gpu-marketplace.md
+      - FAQ: user/faq.md
+  - 👨‍💻 For Developers:
+      - Overview: developer/index.md
+      - Getting Started: developer/getting-started.md
+      - Architecture: developer/architecture.md
+      - Building Agents: developer/building-agents.md
+      - Building Odoo Modules: developer/building-odoo-modules.md
+      - API Reference: developer/api-reference.md
+      - API Examples: developer/api-examples.md
+      - Troubleshooting: developer/troubleshooting.md
+      - Style Guide: developer/style-guide.md
+      - FAQ: developer/faq.md
+  - 🛠️ For Operators:
+      - Overview: operations/index.md
+      - Quick Start: operations/quick-start.md
+      - System Requirements: operations/system-requirements.md
+      - Single VM Deployment: operations/single-vm-deployment.md
+      - Kubernetes Deployment: operations/kubernetes-deployment.md
+      - GPU Node Deployment: operations/gpu-node-deployment.md
+      - Backup & Restore: operations/backup-and-restore.md
+      - Performance Tuning: operations/performance-tuning.md
+      - Troubleshooting: operations/troubleshooting.md
+      - Troubleshooting Guide: operations/troubleshooting-guide.md
+      - Troubleshooting Quick Reference: operations/troubleshooting-quickref.md
+      - FAQ: operations/faq.md
+  - 📋 Governance:
+      - Overview: governance/index.md
+      - Contributing: governance/contributing.md
+      - Contributor Quick Start: governance/contributor-quickstart.md
+      - Code of Conduct: governance/code-of-conduct.md
+      - Privacy Policy: governance/privacy.md
+      - Security Policy: governance/security.md
+      - Roadmap: governance/roadmap.md
+      - Changelog: governance/changelog.md
+      - License: governance/license.md
+  - 📚 Reference:
+      - Overview: appendix/index.md
+      - Glossary: appendix/glossary.md
+      - Environment Variables: appendix/environment-variables.md
+      - Database Schema: appendix/database-schema.md
+  - 🌐 Community: community.md

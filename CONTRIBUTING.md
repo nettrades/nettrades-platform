@@ -1,6 +1,8 @@
 # Contributing to NETTRADES.AI
 
-Thank you for your interest in contributing!  Before we can accept your
+Thank you for your interest in contributing!  
+We welcome contributions of all kinds: code, documentation, testing, and community support.
+Before we can accept your
 contribution, you must agree to the NETTRADES Contributor License
 Agreement below.
 
@@ -36,6 +38,41 @@ By submitting a pull request, you certify that:
    under a contract with a third party, you represent that you have
    obtained all necessary permissions from that party to make the
    contribution under these terms.
+
+
+All contributors must sign the **Contributor License Agreement** before their contributions can be merged. This ensures that:
+
+- Your contributions are licensed under the project's open-source licenses.
+- You are granting the project the rights to use your work.
+- We can re-license contributions under the commercial license if needed.
+
+**How to sign:**
+
+You will be prompted to sign the CLA when you open your first pull request. Alternatively, you can sign it manually by following the instructions below.
+
+## How to Contribute
+
+1. **Fork the repository** on GitHub.
+2. **Set up your development environment** – follow the [Developer Getting Started Guide](https://nettrades.github.io/nettrades-platform/developer/getting-started/).
+3. **Create a branch** – `git checkout -b feature/your-feature-name`.
+4. **Make your changes** – follow the [Style Guide](https://nettrades.github.io/nettrades-platform/developer/style-guide/).
+5. **Write tests** – include unit or integration tests.
+6. **Update documentation** – if your change affects user-facing functionality.
+7. **Open a pull request** – describe your changes and link any related issues.
+
+## Code Review Process
+
+1. PR submitted ? CI checks run.
+2. Maintainer reviews ? may request changes.
+3. PR approved ? merged into `main`.
+
+## Need Help?
+
+- Open an issue on GitHub.
+- Join our Discord community.
+- Email us at [dev@nettrades.ai](mailto:dev@nettrades.ai).
+
+Thank you for contributing!
 
 ## No Warranty
 
