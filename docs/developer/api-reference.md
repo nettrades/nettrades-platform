@@ -3,7 +3,7 @@
 
 ## File 15: `docs/developer/api-reference.md`
 
-```markdown
+
 # API Reference
 
 This document provides comprehensive API reference for the NETTRADES.AI platform.
