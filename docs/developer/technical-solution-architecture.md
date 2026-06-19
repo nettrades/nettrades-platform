@@ -13,7 +13,7 @@ flowchart TD
         direction TB
 
         subgraph Edge["?? Edge Layer (Container: traefik)"]
-            Traefik["Traefik Reverse Proxy<br>????????????????<br>• Port 443 (HTTPS) with Let's Encrypt<br>• Port 80 (HTTP ? HTTPS redirect)<br>• Path-based routing:<br>  - / ? Odoo Web UI<br>  - /api/v1/* ? Odoo JSON-RPC API<br>  - /invoke ? LangGraph FastAPI<br>• JWT / OAuth2 Authentication Proxy<br>• Rate Limiting"]
+            Traefik["Traefik Reverse Proxy<br>━━━━━━━━━━━━━━━━<br>• Port 443 (HTTPS) with Let's Encrypt<br>• Port 80 (HTTP ? HTTPS redirect)<br>• Path-based routing:<br>  - / ? Odoo Web UI<br>  - /api/v1/* ? Odoo JSON-RPC API<br>  - /invoke ? LangGraph FastAPI<br>• JWT / OAuth2 Authentication Proxy<br>• Rate Limiting"]
         end
 
         %% ========================================================================
@@ -22,22 +22,22 @@ flowchart TD
         subgraph AppLayer["?? Application Services Layer"]
 
             subgraph OdooContainer["Container: odoo-web (Port 8069 internal)"]
-                Odoo["Odoo 19 CE Application Server<br>????????????????<br>• Web Controllers (/website, /forum)<br>• JSON-RPC API Controllers<br>• Custom Odoo Modules:<br>  - nettrades_core<br>  - nettrades_good_answer<br>  - nettrades_gpu_admin<br>  - nettrades_job_matching<br>  - nettrades_proposals<br>  - nettrades_lead_scoring<br>  - nettrades_ask_someone<br>  - nettrades_chatbot<br>• Scheduled Cron Jobs:<br>  - _cron_decay_reputation()<br>  - _cron_auto_qualify_by_karma()<br>  - _cron_trigger_finetune()"]
+                Odoo["Odoo 19 CE Application Server<br>━━━━━━━━━━━━━━━━<br>• Web Controllers (/website, /forum)<br>• JSON-RPC API Controllers<br>• Custom Odoo Modules:<br>  - nettrades_core<br>  - nettrades_good_answer<br>  - nettrades_gpu_admin<br>  - nettrades_job_matching<br>  - nettrades_proposals<br>  - nettrades_lead_scoring<br>  - nettrades_ask_someone<br>  - nettrades_chatbot<br>• Scheduled Cron Jobs:<br>  - _cron_decay_reputation()<br>  - _cron_auto_qualify_by_karma()<br>  - _cron_trigger_finetune()"]
             end
 
             subgraph LangGraphContainer["Container: langgraph-orchestrator (Port 8000 internal)"]
-                FastAPI["FastAPI Application<br>????????????????<br>• /invoke (async inference)<br>• /health (liveness probe)<br>• /metrics (Prometheus)"]
-                Supervisor["Supervisor Graph<br>????????????????<br>• classify Node<br>• medical_screening Node<br>• route Node"]
-                SubAgents["Sub-Agents<br>????????????????<br>• Recruitment Agent<br>• Freelance Agent<br>• Lead Gen Agent<br>• GPU Management Agent<br>• Vision Agent<br>• Action Agent<br>• General LLM Fallback"]
-                Checkpointer["PostgresSaver Checkpointer<br>????????????????<br>• Durable state snapshots"]
+                FastAPI["FastAPI Application<br>━━━━━━━━━━━━━━━━<br>• /invoke (async inference)<br>• /health (liveness probe)<br>• /metrics (Prometheus)"]
+                Supervisor["Supervisor Graph<br>━━━━━━━━━━━━━━━━<br>• classify Node<br>• medical_screening Node<br>• route Node"]
+                SubAgents["Sub-Agents<br>━━━━━━━━━━━━━━━━<br>• Recruitment Agent<br>• Freelance Agent<br>• Lead Gen Agent<br>• GPU Management Agent<br>• Vision Agent<br>• Action Agent<br>• General LLM Fallback"]
+                Checkpointer["PostgresSaver Checkpointer<br>━━━━━━━━━━━━━━━━<br>• Durable state snapshots"]
             end
 
             subgraph GPUStackContainer["Container: gpustack-manager (Port 8080 internal)"]
-                GPUStack["GPUStack Manager<br>????????????????<br>• Inference Engine (OpenAI-compatible)<br>• Token Metering<br>• Worker Pool Manager<br>  - gVisor (public pools)<br>  - Docker (internal pools)"]
+                GPUStack["GPUStack Manager<br>━━━━━━━━━━━━━━━━<br>• Inference Engine (OpenAI-compatible)<br>• Token Metering<br>• Worker Pool Manager<br>  - gVisor (public pools)<br>  - Docker (internal pools)"]
             end
 
             subgraph GPUNodeAgent["Container: gpu-node-agent (Privileged)"]
-                GNA["GPU Node Agent<br>????????????????<br>• ensure_wireguard()<br>• get_or_create_node_id()<br>• get_gpu_info() (nvidia-smi)<br>• get_tee_summary()<br>• register_with_odoo()<br>• apply_wireguard_config()<br>• start_gpustack_worker()<br>• start_dns_watchdog()<br>• Token Refresh Loop (every 600s)"]
+                GNA["GPU Node Agent<br>━━━━━━━━━━━━━━━━<br>• ensure_wireguard()<br>• get_or_create_node_id()<br>• get_gpu_info() (nvidia-smi)<br>• get_tee_summary()<br>• register_with_odoo()<br>• apply_wireguard_config()<br>• start_gpustack_worker()<br>• start_dns_watchdog()<br>• Token Refresh Loop (every 600s)"]
             end
         end
 
@@ -47,15 +47,15 @@ flowchart TD
         subgraph DataLayer["?? Data & Persistence Layer"]
 
             subgraph PostgresContainer["Container: postgres (Port 5432 internal)"]
-                PostgreSQL["PostgreSQL 17 + pgvector<br>????????????????<br>• Odoo transactional data<br>• Vector embeddings<br>• LangGraph checkpoint blobs<br>• Full-text search indexes<br><br>Persistent Volume:<br>• /var/lib/postgresql/data"]
+                PostgreSQL["PostgreSQL 17 + pgvector<br>━━━━━━━━━━━━━━━━<br>• Odoo transactional data<br>• Vector embeddings<br>• LangGraph checkpoint blobs<br>• Full-text search indexes<br><br>Persistent Volume:<br>• /var/lib/postgresql/data"]
             end
 
             subgraph ValkeyContainer["Container: valkey (Port 6379 internal)"]
-                Valkey["Valkey 8.0 (Redis-compatible)<br>????????????????<br>• Odoo ORM session cache<br>• Odoo bus notifications (Pub/Sub)<br>• Rate limiting counters<br>• Temporary job locks"]
+                Valkey["Valkey 8.0 (Redis-compatible)<br>━━━━━━━━━━━━━━━━<br>• Odoo ORM session cache<br>• Odoo bus notifications (Pub/Sub)<br>• Rate limiting counters<br>• Temporary job locks"]
             end
 
             subgraph StorageContainer["Container: longhorn (Optional / NFS / HostPath)"]
-                Longhorn["Longhorn Distributed Storage<br>????????????????<br>• Fine-tuning datasets (JSONL)<br>• Trained model weights (GGUF/Safetensors)<br>• Data-Juicer intermediate artifacts<br>• Odoo filestore (CVs, images)<br><br>Persistent Volume:<br>• /mnt/longhorn"]
+                Longhorn["Longhorn Distributed Storage<br>━━━━━━━━━━━━━━━━<br>• Fine-tuning datasets (JSONL)<br>• Trained model weights (GGUF/Safetensors)<br>• Data-Juicer intermediate artifacts<br>• Odoo filestore (CVs, images)<br><br>Persistent Volume:<br>• /mnt/longhorn"]
             end
         end
 
@@ -63,19 +63,19 @@ flowchart TD
         %% 4. AI/ML PIPELINE (Optional, Triggered by Cron)
         %% ========================================================================
         subgraph MLPipeline["?? AI/ML Pipeline (Container: ml-pipeline)"]
-            DataJuicer["Data-Juicer<br>????????????????<br>• Quality filtering<br>• Deduplication"]
-            DEITA["DEITA Scorer<br>????????????????<br>• LLM-as-Judge scoring"]
-            Unsloth["Unsloth/Axolotl Trainer<br>????????????????<br>• LoRA/QLoRA fine-tuning"]
-            ModelRegistry["Model Registry<br>????????????????<br>• Versioned model storage"]
+            DataJuicer["Data-Juicer<br>━━━━━━━━━━━━━━━━<br>• Quality filtering<br>• Deduplication"]
+            DEITA["DEITA Scorer<br>━━━━━━━━━━━━━━━━<br>• LLM-as-Judge scoring"]
+            Unsloth["Unsloth/Axolotl Trainer<br>━━━━━━━━━━━━━━━━<br>• LoRA/QLoRA fine-tuning"]
+            ModelRegistry["Model Registry<br>━━━━━━━━━━━━━━━━<br>• Versioned model storage"]
         end
 
         %% ========================================================================
         %% 5. NETWORK & SECURITY FABRIC (Host-Level)
         %% ========================================================================
         subgraph SecurityFabric["??? Host-Level Security & Networking"]
-            WireGuard["WireGuard VPN Mesh<br>????????????????<br>• Kernel module (enabled)<br>• Hub-and-spoke topology<br>• Encrypted node-to-node traffic"]
-            gVisor["gVisor Sandbox<br>????????????????<br>• Syscall-level isolation<br>• Applied to public GPU worker pools"]
-            Firewall["Host Firewall (iptables/nftables)<br>????????????????<br>• Allow: 443, 22 (SSH)<br>• Allow: WireGuard UDP port<br>• Deny: All other inbound"]
+            WireGuard["WireGuard VPN Mesh<br>━━━━━━━━━━━━━━━━<br>• Kernel module (enabled)<br>• Hub-and-spoke topology<br>• Encrypted node-to-node traffic"]
+            gVisor["gVisor Sandbox<br>━━━━━━━━━━━━━━━━<br>• Syscall-level isolation<br>• Applied to public GPU worker pools"]
+            Firewall["Host Firewall (iptables/nftables)<br>━━━━━━━━━━━━━━━━<br>• Allow: 443, 22 (SSH)<br>• Allow: WireGuard UDP port<br>• Deny: All other inbound"]
         end
 
         %% ========================================================================
