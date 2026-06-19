@@ -1,84 +1,3 @@
-# Architect Perspective — Class Diagram (Core Domain Models)
-
-Below is the Architect Perspective — Class Diagram (Core Domain Models) for NETTRADES.AI, showing the primary Odoo models, their attributes, key methods, and relationships. This diagram is based on the actual code in odoo-modules/ and the database schema described in the documentation.
-
-# Explanation of Key Models
-# User & Professional Models
-
-res_partner: Extended Odoo partner with fields for freelancer, skills, reputation, location, and social links. The central user entity.
-
-nettrades_field: Professional fields (e.g., Cardiology, Python Development). Contains all configuration for qualification, voting, and fine?tuning.
-
-user_field_reputation: Per-field reputation points for each user, with cron jobs for decay and auto-qualification.
-
-qualified_professional: Explicitly verified experts for restricted fields (e.g., medical).
-
-# Good Answer & Fine-Tuning
-
-good_answer_vote: Stores user votes on answers. Points are weighted based on voter qualification.
-
-llm_feedback: Feedback data (question + answer) extracted from votes, used for training.
-
-ft_dataset: Collection of feedback records for a field, with export to JSONL and quality pipeline.
-
-ft_training_job: Tracks training jobs submitted to GPUStack.
-
-ft_dataset_contribution: Indirect reputation earned by professionals whose answers contributed to training.
-
-# Expert Help (Ask Someone)
-
-expert_session: Represents a live consultation session between requester and expert, with escrow and ratings.
-
-escrow_hold: Audit trail for Stripe escrow holds.
-
-ask_someone_config: Admin?configurable matching weights and fees.
-
-expert_agreement: Signed legal agreement for experts.
-
-# GPU Administration
-
-gpu_cluster: Represents a GPU cluster (company internal or public), with WireGuard configuration and GPUStack server details.
-
-gpu_node: Individual GPU node, with hardware inventory, WireGuard keys, pool assignment, and runtime.
-
-gpu_sharing_schedule: Schedule for public sharing (e.g., only at night).
-
-gpu_token_economics: Token earning/spending rates and payout schedule.
-
-# Job Matching & Freelance
-
-hr_job: Job posting with AI match criteria.
-
-hr_applicant: Applicant linked to a job, with AI match score.
-
-candidate_match: Explicit match record between job and candidate.
-
-project_project: Project with Forgejo Git integration.
-
-project_milestone: Milestone?based payments.
-
-# Lead Scoring & CRM
-
-crm_lead: Extended CRM lead with AI?generated scores and recommendations.
-
-# Research & Collaboration
-
-research_project: Research?specific project with matching logic.
-
-forgejo_repo: Git repository details linked to a project.
-
-# Notifications & Reviews
-
-user_notification: In?app notification store.
-
-nettrades_review: User reviews with ratings.
-
-dispute: Dispute resolution for sessions or projects.
-
-This class diagram provides an architect?level view of the core domain models, enabling a clear understanding of the data model, relationships, and business logic encapsulated in each entity. It is directly derived from the Odoo custom modules and the database schema described in the documentation.
-
----
-
 ## Architect Perspective — Class Diagram (Core Domain Models)
 
 ```mermaid
@@ -596,3 +515,85 @@ classDiagram
     project_project "1" --> "0..*" nettrades_review : is reviewed for
     expert_session "1" --> "0..1" dispute : raises dispute
     res_partner "1" --> "0..*" user_notification : receives
+
+```
+
+Below is the Architect Perspective — Class Diagram (Core Domain Models) for NETTRADES.AI, showing the primary Odoo models, their attributes, key methods, and relationships. This diagram is based on the actual code in odoo-modules/ and the database schema described in the documentation.
+
+# Explanation of Key Models
+# User & Professional Models
+
+res_partner: Extended Odoo partner with fields for freelancer, skills, reputation, location, and social links. The central user entity.
+
+nettrades_field: Professional fields (e.g., Cardiology, Python Development). Contains all configuration for qualification, voting, and fine?tuning.
+
+user_field_reputation: Per-field reputation points for each user, with cron jobs for decay and auto-qualification.
+
+qualified_professional: Explicitly verified experts for restricted fields (e.g., medical).
+
+# Good Answer & Fine-Tuning
+
+good_answer_vote: Stores user votes on answers. Points are weighted based on voter qualification.
+
+llm_feedback: Feedback data (question + answer) extracted from votes, used for training.
+
+ft_dataset: Collection of feedback records for a field, with export to JSONL and quality pipeline.
+
+ft_training_job: Tracks training jobs submitted to GPUStack.
+
+ft_dataset_contribution: Indirect reputation earned by professionals whose answers contributed to training.
+
+# Expert Help (Ask Someone)
+
+expert_session: Represents a live consultation session between requester and expert, with escrow and ratings.
+
+escrow_hold: Audit trail for Stripe escrow holds.
+
+ask_someone_config: Admin?configurable matching weights and fees.
+
+expert_agreement: Signed legal agreement for experts.
+
+# GPU Administration
+
+gpu_cluster: Represents a GPU cluster (company internal or public), with WireGuard configuration and GPUStack server details.
+
+gpu_node: Individual GPU node, with hardware inventory, WireGuard keys, pool assignment, and runtime.
+
+gpu_sharing_schedule: Schedule for public sharing (e.g., only at night).
+
+gpu_token_economics: Token earning/spending rates and payout schedule.
+
+# Job Matching & Freelance
+
+hr_job: Job posting with AI match criteria.
+
+hr_applicant: Applicant linked to a job, with AI match score.
+
+candidate_match: Explicit match record between job and candidate.
+
+project_project: Project with Forgejo Git integration.
+
+project_milestone: Milestone?based payments.
+
+# Lead Scoring & CRM
+
+crm_lead: Extended CRM lead with AI?generated scores and recommendations.
+
+# Research & Collaboration
+
+research_project: Research?specific project with matching logic.
+
+forgejo_repo: Git repository details linked to a project.
+
+# Notifications & Reviews
+
+user_notification: In?app notification store.
+
+nettrades_review: User reviews with ratings.
+
+dispute: Dispute resolution for sessions or projects.
+
+This class diagram provides an architect?level view of the core domain models, enabling a clear understanding of the data model, relationships, and business logic encapsulated in each entity. It is directly derived from the Odoo custom modules and the database schema described in the documentation.
+
+---
+
