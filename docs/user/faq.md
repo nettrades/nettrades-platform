@@ -1,6 +1,6 @@
 # User FAQ – Frequently Asked Questions
 
-This page answers common questions from end‑users (companies, freelancers, job‑seekers, and experts).
+This page answers common questions from end-users (companies, freelancers, job-seekers, and experts).
 
 ---
 
@@ -8,11 +8,11 @@ This page answers common questions from end‑users (companies, freelancers, job
 
 ### What is NETTRADES.AI?
 
-NETTRADES.AI is an autonomous enterprise platform that connects companies, freelancers, job‑seekers, researchers, partners, and customers. It uses AI to match talent to opportunities, manages a distributed GPU marketplace, and provides expert help through "Ask Someone".
+NETTRADES.AI is an autonomous enterprise platform that connects companies, freelancers, job-seekers, researchers, partners, and customers. It uses AI to match talent to opportunities, manages a distributed GPU marketplace, and provides expert help through "Ask Someone".
 
 ### Is my data safe?
 
-Yes. Your data is stored securely. For companies running the platform on their own infrastructure, data never leaves their control. For public users, we use industry‑standard encryption and access controls. Read our [Privacy Policy](/governance/privacy) for more details.
+Yes. Your data is stored securely. For companies running the platform on their own infrastructure, data never leaves their control. For public users, we use industry-standard encryption and access controls. Read our [Privacy Policy](/governance/privacy) for more details.
 
 ### How do I create an account?
 
@@ -32,7 +32,7 @@ Yes, posting jobs is free for registered companies. You only pay when you hire t
 
 ### How do I apply for a job?
 
-Browse jobs, click **Apply Now**, review the AI‑generated cover letter, edit if needed, and submit. Your application is sent instantly.
+Browse jobs, click **Apply Now**, review the AI-generated cover letter, edit if needed, and submit. Your application is sent instantly.
 
 ### What happens after I apply?
 
@@ -48,7 +48,7 @@ Post a project with a description, required skills, and budget. The AI will reco
 
 ### What is "Ask Someone"?
 
-"Ask Someone" lets you request paid help from verified professionals. You describe your question, the AI infers the field, matches you with experts, and you chat with them in real‑time. Payment is held in escrow until you're satisfied.
+"Ask Someone" lets you request paid help from verified professionals. You describe your question, the AI infers the field, matches you with experts, and you chat with them in real-time. Payment is held in escrow until you're satisfied.
 
 ### How much does it cost?
 
@@ -68,7 +68,7 @@ Yes. Only the expert sees your question. If the administrator enables training, 
 
 ### How do I share my GPU?
 
-Download the GPU agent installer from the GPU Manager, run it on your GPU machine, and follow the instructions. The agent auto‑detects your GPU, registers with the network, and you can start sharing. You earn tokens for every inference request processed on your GPU.
+Download the GPU agent installer from the GPU Manager, run it on your GPU machine, and follow the instructions. The agent auto-detects your GPU, registers with the network, and you can start sharing. You earn tokens for every inference request processed on your GPU.
 
 ### Can I use my GPU while sharing?
 
@@ -119,11 +119,11 @@ Contact support at [support@nettrades.ai](mailto:support@nettrades.ai) to reques
 
 ### What is a "Good Answer" vote?
 
-When you see a helpful answer (AI‑generated or human), you can click **Good Answer**. This increases the answerer's reputation and helps improve the AI through fine‑tuning.
+When you see a helpful answer (AI-generated or human), you can click **Good Answer**. This increases the answerer's reputation and helps improve the AI through fine-tuning.
 
 ### How is reputation calculated?
 
-Reputation is field‑specific. Each vote gives points (weighted more if you're a qualified professional). Reputation decays 1% daily if you're inactive for 30+ days. High reputation unlocks the ability to charge for expert sessions.
+Reputation is field-specific. Each vote gives points (weighted more if you're a qualified professional). Reputation decays 1% daily if you're inactive for 30+ days. High reputation unlocks the ability to charge for expert sessions.
 
 ### How do I become a qualified professional?
 

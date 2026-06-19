@@ -20,7 +20,7 @@ NETTRADES.AI can be deployed in two ways:
 ### For a Single VM Deployment
 
 1. Prepare an Ubuntu 24.04 VM with root access.
-2. Run the one‑command installer:
+2. Run the one-command installer:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/deploy/docker/install-nettrades.sh | sudo bash

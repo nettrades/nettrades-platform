@@ -24,7 +24,7 @@ When you create an account, we collect:
 - **Email address** – used for login, notifications, and password recovery.
 - **Name** – to personalise your profile and communications.
 - **User type** – Company, Freelancer, Job Seeker, Researcher, or Expert.
-- **Password** – stored securely using industry‑standard hashing.
+- **Password** – stored securely using industry-standard hashing.
 
 ### 2. Profile Data
 
@@ -131,7 +131,7 @@ For the public cloud version (`nettrades.ai`), the data controller is:
 [Registered Address]
 [Country]
 
-For self‑hosted instances, the organisation running the instance is the data controller.
+For self-hosted instances, the organisation running the instance is the data controller.
 
 ---
 

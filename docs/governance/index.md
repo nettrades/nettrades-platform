@@ -12,14 +12,14 @@ This section covers the project governance, contribution guidelines, roadmap, an
 
 ## Overview
 
-NETTRADES.AI is an open‑source project with a strong commitment to community, transparency, and sustainable development.
+NETTRADES.AI is an open-source project with a strong commitment to community, transparency, and sustainable development.
 
 | Aspect | Details |
 |--------|---------|
-| **License** | Dual‑licensed (AGPL‑3.0 + LGPL‑3.0) |
+| **License** | Dual-licensed (AGPL-3.0 + LGPL-3.0) |
 | **CLA** | Required for all contributions |
 | **Governance** | BDFL (Benevolent Dictator for Life) model |
-| **Roadmap** | Community‑driven, updated quarterly |
+| **Roadmap** | Community-driven, updated quarterly |
 
 ---
 

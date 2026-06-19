@@ -23,7 +23,7 @@ Security is a top priority for NETTRADES.AI. We follow industry best practices t
 
 - **Immutable OS** – We use Talos Linux (immutable) for Kubernetes deployments.
 - **Container isolation** – Untrusted GPU workloads run in gVisor (syscall sandbox).
-- **Network isolation** – WireGuard provides kernel‑level AllowedIPs enforcement.
+- **Network isolation** – WireGuard provides kernel-level AllowedIPs enforcement.
 - **TLS** – All traffic is encrypted with Let's Encrypt certificates.
 - **Firewall** – Minimal open ports (22, 80, 443, and 51820 for WireGuard).
 
@@ -89,7 +89,7 @@ We are interested in:
 We do **not** consider:
 
 - **Missing security headers** (but we appreciate reports).
-- **TLS certificate issues** (we use Let's Encrypt, these are typically auto‑fixed).
+- **TLS certificate issues** (we use Let's Encrypt, these are typically auto-fixed).
 - **Rate limiting issues** (we have basic rate limiting, but we're aware of its limits).
 - **Social engineering** or phishing attacks.
 

@@ -12,7 +12,7 @@ This page answers common questions from system administrators and DevOps enginee
 
 ## Deployment
 
-### What are the minimum hardware requirements for a single‑VM deployment?
+### What are the minimum hardware requirements for a single-VM deployment?
 
 - 4 CPU cores
 - 16 GB RAM
@@ -24,7 +24,7 @@ See [System Requirements](/operations/system-requirements) for details.
 
 ### Can I deploy on a server without a GPU?
 
-Yes. The platform uses `llama.cpp` for CPU‑based inference. If you add a GPU later, you can migrate to vLLM with the `migrate-to-gpu.sh` script.
+Yes. The platform uses `llama.cpp` for CPU-based inference. If you add a GPU later, you can migrate to vLLM with the `migrate-to-gpu.sh` script.
 
 ### How do I migrate from a single VM to Kubernetes?
 
@@ -47,7 +47,7 @@ Perform daily PostgreSQL dumps, weekly filestore backups, and regularly backup y
 
 ### Why is WireGuard required?
 
-WireGuard provides kernel‑level network isolation for GPU nodes. It ensures that only authorised peers can communicate, preventing unauthorised access to the GPU network.
+WireGuard provides kernel-level network isolation for GPU nodes. It ensures that only authorised peers can communicate, preventing unauthorised access to the GPU network.
 
 ### Can I use another VPN instead of WireGuard?
 
@@ -66,7 +66,7 @@ Traefik acts as the ingress controller. It automatically obtains SSL certificate
 - **Prometheus** for metrics collection.
 - **Grafana** for dashboards.
 - **Alertmanager** for alerting.
-- Built‑in GPU health watchdog and utilisation alerts.
+- Built-in GPU health watchdog and utilisation alerts.
 
 ### How do I view logs?
 
@@ -95,7 +95,7 @@ Move to Kubernetes (Talos) and use Horizontal Pod Autoscalers. You can also add 
 
 ### What is the maximum number of users the platform can support?
 
-The platform is designed to scale. With proper hardware and Kubernetes, it can support millions of users. The single‑VM deployment is limited to a few hundred concurrent users.
+The platform is designed to scale. With proper hardware and Kubernetes, it can support millions of users. The single-VM deployment is limited to a few hundred concurrent users.
 
 ### How do I handle high inference load?
 

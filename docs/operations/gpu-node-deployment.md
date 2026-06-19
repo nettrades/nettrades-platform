@@ -12,10 +12,10 @@ This guide covers deploying GPU nodes to the distributed GPU network on both Lin
 
 ## Overview
 
-GPU nodes are machines with one or more NVIDIA GPUs that participate in the distributed inference and fine‑tuning network. The GPU node agent:
+GPU nodes are machines with one or more NVIDIA GPUs that participate in the distributed inference and fine-tuning network. The GPU node agent:
 
 1. Detects available GPUs
-2. Generates a hardware‑bound node ID
+2. Generates a hardware-bound node ID
 3. Registers with the Odoo server
 4. Sets up WireGuard encryption
 5. Starts the GPUStack worker

@@ -6,7 +6,7 @@
 ```markdown
 # Quick Start – Operations
 
-This guide provides a **5‑minute** walkthrough to get NETTRADES.AI running on a single server for evaluation or small‑scale production.
+This guide provides a **5-minute** walkthrough to get NETTRADES.AI running on a single server for evaluation or small-scale production.
 
 ---
 
@@ -18,7 +18,7 @@ This guide provides a **5‑minute** walkthrough to get NETTRADES.AI running on 
 
 ---
 
-## One‑Command Installation
+## One-Command Installation
 
 ```bash
 # Download and run the interactive installer

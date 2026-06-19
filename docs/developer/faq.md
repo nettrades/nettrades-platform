@@ -10,7 +10,7 @@ This page answers common questions from developers contributing to or extending 
 
 - **Backend**: Python (Odoo 19 CE, LangGraph, FastAPI)
 - **Database**: PostgreSQL 18 with pgvector
-- **Caching**: Valkey (Redis‑compatible)
+- **Caching**: Valkey (Redis-compatible)
 - **Containerisation**: Docker and Kubernetes (Talos)
 - **GPU orchestration**: GPUStack
 - **Networking**: WireGuard
@@ -22,17 +22,17 @@ Follow the [Developer Getting Started Guide](/developer/getting-started). It cov
 
 ### What is the code structure?
 
-- `src/core/` – LangGraph supervisor and sub‑agents
+- `src/core/` – LangGraph supervisor and sub-agents
 - `src/agent/` – Distributed GPU node agent
-- `odoo-modules/` – Custom Odoo modules (LGPL‑3.0)
+- `odoo-modules/` – Custom Odoo modules (LGPL-3.0)
 - `third-party/` – Vendored dependencies (do not modify)
 - `deploy/` – Deployment scripts and configurations
 
 ### What are the licensing requirements?
 
-- `src/` is AGPL‑3.0 (copyleft).
-- `odoo-modules/` is LGPL‑3.0.
-- Third‑party dependencies retain their own licenses.
+- `src/` is AGPL-3.0 (copyleft).
+- `odoo-modules/` is LGPL-3.0.
+- Third-party dependencies retain their own licenses.
 - All contributors must sign a CLA.
 
 See the [License Information](/governance/license) for details.
@@ -67,7 +67,7 @@ Full template: [Building Odoo Modules](/developer/building-odoo-modules).
 3. Register it in the widget registry.
 4. Add the template to `gpu_dashboard_templates.xml`.
 
-### How do I integrate with the MCP‑Odoo bridge?
+### How do I integrate with the MCP-Odoo bridge?
 
 The bridge is already available at `third-party/mcp-odoo/`. Use the `odoo_tools.py` functions (e.g., `res_partner_search`, `crm_lead_create`) to call Odoo from your agents. Ensure you authenticate with the `ODOO_API_KEY`.
 

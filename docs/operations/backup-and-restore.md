@@ -29,7 +29,7 @@ A robust backup strategy is essential for production deployments. This guide cov
 
 #### 1. Database Backup (PostgreSQL)
 
-A daily cron job is automatically configured to dump the database at 2 AM with 7‑day retention.
+A daily cron job is automatically configured to dump the database at 2 AM with 7-day retention.
 
 **Manual backup:**
 
