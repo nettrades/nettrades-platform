@@ -1,72 +1,46 @@
-# Building LangGraph Agents
+Building LangGraph Agents
 
 This guide explains how to create new LangGraph sub-agents for the NETTRADES.AI platform. Agents are specialised AI workflows that handle specific business domains.
-
----
-
-## Overview
+Overview
 
 LangGraph agents are self-contained workflows that:
 
-- **Receive input** from the supervisor (user messages, state data)
-- **Process data** using LLMs and Odoo tools
-- **Return structured results** back to the supervisor
+    Receive input from the supervisor (user messages, state data)
+
+    Process data using LLMs and Odoo tools
+
+    Return structured results back to the supervisor
 
 Agents are ideal for tasks like:
 
-- Analysing CVs and matching candidates to jobs
-- Matching freelancers to projects
-- Generating and scoring leads
-- Managing GPU clusters
-- Analysing images with VLM
-- Planning robotic actions
+    Analysing CVs and matching candidates to jobs
 
----
+    Matching freelancers to projects
 
-## Where Agents Live
+    Generating and scoring leads
 
-All agents live in `src/core/agents/`:
+    Managing GPU clusters
 
-src/core/agents/
-├── init.py
-├── recruitment_agent.py # CV / job matching
-├── freelance_agent.py # Project ↔ freelancer matching
-├── lead_gen_agent.py # Lead scoring & creation
-├── gpu_management_agent.py # GPU cluster health & scaling
-├── vision_agent.py # Multi-modal VLM agent
-├── action_agent.py # VLA agent for robotic control
-└── custom_agent.py # Your new agent goes here
+    Analysing images with VLM
 
+    Planning robotic actions
+
+Where Agents Live
+
+All agents live in src/core/agents/:
 text
 
+src/core/agents/
+├── __init__.py
+├── recruitment_agent.py      # CV / job matching
+├── freelance_agent.py        # Project ↔ freelancer matching
+├── lead_gen_agent.py         # Lead scoring & creation
+├── gpu_management_agent.py   # GPU cluster health & scaling
+├── vision_agent.py           # Multi-modal VLM agent
+├── action_agent.py           # VLA agent for robotic control
+└── custom_agent.py           # Your new agent goes here
 
----
-
-## Agent Architecture Diagram
-
-mermaid
-graph LR
-    subgraph Supervisor["LangGraph Supervisor"]
-        Classify["classify()"]
-        Route["route()"]
-    end
-
-    subgraph Agent["Your Custom Agent"]
-        State["CustomState"]
-        Node1["fetch_data()"]
-        Node2["process_data()"]
-        Node3["create_output()"]
-    end
-
-    subgraph Tools["Available Tools"]
-        OdooTools["Odoo Tools"]
-        Inference["Inference Tools"]
-    end
-
-    Supervisor --> Agent
-    Agent --> Tools
-    Tools --> Agent
-
+Agent Architecture Diagram
 Step 1: Create the Agent File
 
 Create a new file src/core/agents/custom_agent.py:
