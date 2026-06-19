@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/operations/troubleshooting-guide.md`
-
-```markdown
 # Troubleshooting Decision Tree
 
 This guide provides a visual, step-by-step approach to diagnosing common NETTRADES.AI issues.
