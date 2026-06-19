@@ -162,7 +162,7 @@ flowchart TD
 ```
 
 
-Here is an extremely detailed and up-to-date Technical Solution Architecture (Deployment – Single VM) diagram for the NETTRADES.AI platform.
+Here is an extremely detailed Technical Solution Architecture (Deployment – Single VM) diagram for the NETTRADES.AI platform.
 
 This diagram visualizes how all services—from the web interface and business logic to the AI orchestration and data persistence—are containerized and deployed on a single, powerful virtual machine, providing a complete, self-contained production environment.
 
