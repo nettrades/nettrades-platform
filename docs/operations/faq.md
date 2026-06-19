@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/operations/faq.md`
-
-```markdown
 # Operations FAQ – Frequently Asked Questions
 
 This page answers common questions from system administrators and DevOps engineers deploying and maintaining the NETTRADES.AI platform.
