@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/operations/troubleshooting-quickref.md` (New – Quick Reference Card)
-
-```markdown
 # Troubleshooting Quick Reference
 
 A one-page cheat sheet for the most common issues.
