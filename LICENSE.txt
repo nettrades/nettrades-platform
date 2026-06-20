@@ -50,6 +50,8 @@ license explicitly permits:
   • Enterprise indemnification, support SLAs, and access to the
     NETTRADES Cloud managed-hosting platform.
 
+Any entity offering Nettrades software as a hosted service to third-party end users (PaaS/SaaS) must sign a separate Cloud Provider License Agreement. This agreement requires a royalty of 15% of the gross revenue generated from hosting the software, or a flat annual enterprise fee of $250,000, whichever is higher."
+
 Please contact licensing@nettrades.ai for terms and pricing.
 
 ===============================
