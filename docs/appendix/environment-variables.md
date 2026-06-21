@@ -156,6 +156,6 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 
 ## Next Steps
 
-- [Glossary →](/appendix/glossary)
-- [Database Schema →](/appendix/database-schema)
-- [Back to Appendix →](/appendix)
+- [Glossary →](glossary.md)
+- [Database Schema →](database-schema.md)
+- [Back to Appendix →](index.md)
