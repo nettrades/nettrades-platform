@@ -16,15 +16,15 @@ Follow the interactive wizard. It will auto-detect your hardware, ask for your d
 
 After ~10-20 minutes, you'll have:
 
-Odoo 19 CE – https://<your-domain>
+Odoo 19 CE – https://your-domain
 
-Grafana – https://grafana.<your-domain>
+Grafana – https://grafana.your-domain
 
-GPUStack – https://gpustack.<your-domain>
+GPUStack – https://gpustack.your-domain
 
-Forgejo – https://git.<your-domain>
+Forgejo – https://git.your-domain
 
-LangGraph Agent – https://langgraph.<your-domain>
+LangGraph Agent – https://langgraph.your-domain
 
 llama.cpp (CPU inference) or vLLM (GPU inference) – auto‑detected.
 
@@ -75,11 +75,11 @@ For more detailed help, see the Full Documentation.
 
 ## Next Steps
 
-[Single VM Deployment ](operations/single-vm-deployment)
+[Single VM Deployment ](operations/single-vm-deployment.md)
 
-[Kubernetes Deployment](operations/kubernetes-deployment)
+[Kubernetes Deployment](operations/kubernetes-deployment.md)
 
-[GPU Node Deployment](operations/gpu-node-deployment)
+[GPU Node Deployment](operations/gpu-node-deployment.md)
 
 [Developer Guide](developer/)
     
@@ -87,15 +87,15 @@ Follow the interactive wizard. It will auto‑detect your hardware, ask for your
 
 After ~10-20 minutes, you'll have:
 
-Odoo 19 CE – https://<your-domain>
+Odoo 19 CE – https://your-domain
 
-Grafana – https://grafana.<your-domain>
+Grafana – https://grafana.your-domain
 
-GPUStack – https://gpustack.<your-domain>
+GPUStack – https://gpustack.your-domain
 
-Forgejo – https://git.<your-domain>
+Forgejo – https://git.your-domain
 
-LangGraph Agent – https://langgraph.<your-domain>
+LangGraph Agent – https://langgraph.your-domain
 
 llama.cpp (CPU inference) or vLLM (GPU inference) – auto‑detected.
 
@@ -129,7 +129,7 @@ Confirmation of auto‑detected hardware (CPU cores, RAM, GPU presence)
 
 Wait for the stack to start (10‑20 minutes)
 
-Log in to Odoo at https://<your-domain> and create your admin account.
+Log in to Odoo at https://your-domain and create your admin account.
 
 Troubleshooting
 
