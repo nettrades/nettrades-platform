@@ -57,7 +57,7 @@ Watch this 3-minute video to see the platform in action:
 
 ## What's Next?
 
-- [Getting Started](/getting-started) – Choose your path
-- [User Guide](/user/) – Full user documentation
-- [Developer Guide](/developer/) – Build and extend
-- [Operations Guide](/operations/) – Deploy and manage
+- [Getting Started](getting-started.md) – Choose your path
+- [User Guide](user/index.md) – Full user documentation
+- [Developer Guide](developer/index.md) – Build and extend
+- [Operations Guide](operations/index.md) – Deploy and manage
