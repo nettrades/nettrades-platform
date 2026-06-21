@@ -200,6 +200,6 @@ A fast, modern, kernel-level VPN with minimal attack surface. It is used in NETT
 
 ## Next Steps
 
-- [Environment Variables →](/appendix/environment-variables)
-- [Database Schema →](/appendix/database-schema)
-- [Back to Appendix →](/appendix)
+- [Environment Variables →](environment-variables.md)
+- [Database Schema →](database-schema.md)
+- [Back to Appendix →](index.md)
