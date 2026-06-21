@@ -74,12 +74,12 @@ This page tracks notable changes to the NETTRADES.AI platform. All releases are 
 
 ## How to Contribute
 
-We welcome contributions! See our [Contributing Guide](/governance/contributing) for details.
+We welcome contributions! See our [Contributing Guide](contributing.md) for details.
 
 ---
 
 ## Next Steps
 
-- [Contributing Guide →](/governance/contributing)
-- [Roadmap →](/governance/roadmap)
-- [License →](/governance/license)
+- [Contributing Guide →](contributing.md)
+- [Roadmap →](roadmap.md)
+- [License →](license.md)
