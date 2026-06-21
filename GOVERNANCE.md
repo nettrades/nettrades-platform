@@ -177,6 +177,6 @@ If you have questions about project governance, please:
 
 ## Next Steps
 
-- [Contributing Guide →](https://nettrades.github.io/nettrades-platform/governance/contributing/)
-- [Roadmap →](https://nettrades.github.io/nettrades-platform/governance/roadmap/)
-- [License →](https://nettrades.github.io/nettrades-platform/governance/license/)
+- [Contributing Guide →](governance/contributing.md)
+- [Roadmap →](governance/roadmap/)
+- [License →](license.txt)
