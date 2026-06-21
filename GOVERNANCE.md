@@ -177,6 +177,6 @@ If you have questions about project governance, please:
 
 ## Next Steps
 
-- [Contributing Guide →](governance/contributing.md)
-- [Roadmap →](governance/roadmap/)
+- [Contributing Guide →](docs/governance/contributing.md)
+- [Roadmap →](docs/governance/roadmap.md)
 - [License →](license.txt)
