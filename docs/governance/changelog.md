@@ -82,4 +82,4 @@ We welcome contributions! See our [Contributing Guide](contributing.md) for deta
 
 - [Contributing Guide →](contributing.md)
 - [Roadmap →](roadmap.md)
-- [License →](license.md)
+- [License →](../../license.txt)
