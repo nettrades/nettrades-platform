@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="llm_tool_odoo_record_retriever" model="llm.tool">
+        <field name="name">odoo_record_retriever</field>
+        <field name="implementation">odoo_record_retriever</field>
+        <field name="category">general</field>
+        <field
+      name="description"
+    >Retrieve records from any Odoo model with filtering capabilities. This tool allows you to fetch data from the database by specifying the model name, domain filters, fields to retrieve, and a limit on the number of records returned.</field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="requires_user_consent" eval="False" />
+    </record>
+
+    <record id="llm_tool_odoo_record_creator" model="llm.tool">
+        <field name="name">odoo_record_creator</field>
+        <field name="implementation">odoo_record_creator</field>
+        <field name="category">general</field>
+        <field
+      name="description"
+    >Create one or multiple new records in any Odoo model. This tool allows you to insert data into the database by specifying the model name and either:
+- A dictionary of field values using the "fields" parameter for a single record, OR
+- A list of dictionaries using the "records" parameter for multiple records at once.
+
+Examples:
+1. Single record: {"model": "res.partner", "fields": {"name": "John Doe", "email": "john@example.com"}}
+2. Multiple records: {"model": "res.partner", "records": [{"name": "John Doe", "email": "john@example.com"}, {"name": "Jane Smith", "email": "jane@example.com"}]}
+
+Due to its data modification capabilities, this tool requires user consent before execution.</field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="requires_user_consent" eval="True" />
+    </record>
+
+    <record id="llm_tool_odoo_record_updater" model="llm.tool">
+        <field name="name">odoo_record_updater</field>
+        <field name="implementation">odoo_record_updater</field>
+        <field name="category">general</field>
+        <field
+      name="description"
+    >Update existing records in any Odoo model. This tool allows you to modify data in the database by specifying the model name, domain filters to identify records, and a dictionary of field values to update. For safety, it defaults to updating only one record at a time. Due to its data modification capabilities, this tool requires user consent before execution.</field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="requires_user_consent" eval="True" />
+    </record>
+
+    <record id="llm_tool_odoo_record_unlinker" model="llm.tool">
+        <field name="name">odoo_record_unlinker</field>
+        <field name="implementation">odoo_record_unlinker</field>
+        <field name="category">general</field>
+        <field
+      name="description"
+    >Delete existing records from any Odoo model. This tool allows you to remove data from the database by specifying the model name and domain filters to identify records to delete. For safety, it defaults to deleting only one record at a time. Due to its data modification capabilities, this tool requires user consent before execution.</field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="requires_user_consent" eval="True" />
+    </record>
+
+    <record id="llm_tool_odoo_model_method_executor" model="llm.tool">
+        <field name="name">odoo_model_method_executor</field>
+        <field name="implementation">odoo_model_method_executor</field>
+        <field name="category">technical</field>
+        <field
+      name="description"
+    ><![CDATA[
+**VERY HIGH RISK TOOL:** Executes a specified method on an Odoo model or specific records. Provide the model's technical name, the method name, and optionally a list of record IDs, positional arguments ('args'), and keyword arguments ('kwargs'). If record_ids is null/empty, the method is called on the model itself (e.g., for `search`, `create`, `@api.model`, `@staticmethod`).
+**WARNING:** This tool can modify or delete data, trigger complex actions, or cause system errors if used improperly. It bypasses standard UI workflows.
+**IMPORTANT:** The LLM using this tool MUST explicitly ask the user for confirmation before EVERY execution, clearly stating the model, method, records (if any), and arguments being used.
+Private methods (starting with '_') are disallowed by default unless 'allow_private' is explicitly set to true (use with extreme caution).
+Returns a JSON representation of the method's result or an error message.
+        ]]></field>
+        <field name="default" eval="False" />
+        <field name="active" eval="True" />
+        <field name="requires_user_consent" eval="True" />
+    </record>
+
+    <record id="llm_tool_odoo_model_inspector" model="llm.tool">
+        <field name="name">odoo_model_inspector</field>
+        <field name="implementation">odoo_model_inspector</field>
+        <field name="category">general</field>
+        <field
+      name="description"
+    ><![CDATA[
+            Comprehensive inspection of an Odoo model providing a complete analysis of its structure. This tool retrieves detailed information about:
+
+            1. **Basic Model Data**: Name, description, module, and inheritance structure.
+            2. **Fields Analysis**: Types, properties, relations, required/readonly status, and help text.
+            3. **Methods Inspection**: Signatures, docstrings, decorators (@api.model, @api.depends, etc.), and method types.
+
+            Use this tool to understand any Odoo model's structure, fields, and available methods. You can filter fields and methods by name or type, limit the number returned, and include/exclude private elements (those starting with '_').
+
+            This information is essential for:
+            - Understanding available data structures
+            - Determining which fields to use for record creation/updates
+            - Finding appropriate methods to execute with the model_method_executor tool
+            - Building domain filters for record retrieval
+
+            Perfect for exploring unfamiliar models before performing operations on them.
+        ]]></field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="requires_user_consent" eval="False" />
+        <field name="read_only_hint" eval="True" />
+    </record>
+
+</odoo>

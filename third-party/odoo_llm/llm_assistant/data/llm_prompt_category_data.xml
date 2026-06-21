@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="1">
+    <!-- Default Prompt Categories -->
+    <record id="category_general" model="llm.prompt.category">
+        <field name="name">General</field>
+        <field name="code">general</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="category_technical" model="llm.prompt.category">
+        <field name="name">Technical</field>
+        <field name="code">technical</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="category_business" model="llm.prompt.category">
+        <field name="name">Business</field>
+        <field name="code">business</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="category_creative" model="llm.prompt.category">
+        <field name="name">Creative</field>
+        <field name="code">creative</field>
+        <field name="sequence">40</field>
+    </record>
+</odoo>

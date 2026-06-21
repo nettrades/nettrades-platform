@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="1">
+    <record
+    id="llm_tool_consent_config_default"
+    model="llm.tool.consent.config"
+  >
+        <field name="name">Default Configuration</field>
+        <field name="active" eval="True" />
+        <field
+      name="tool_description_message"
+    >\n\nIMPORTANT: This tool requires explicit user consent before execution. Please ask the user for permission before using this tool.</field>
+        <field
+      name="system_message_template"
+    >The following tools require explicit user consent before execution: {tool_names}.
+For these tools, you MUST:
+1. Clearly explain to the user what the tool will do
+2. Ask for their explicit permission before using the tool
+3. Only proceed with using the tool if the user gives clear consent
+4. If the user denies consent or doesn't respond clearly, do not use the tool</field>
+    </record>
+</odoo>

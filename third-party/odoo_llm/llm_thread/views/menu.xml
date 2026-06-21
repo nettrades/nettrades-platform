@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Chat Menu Item -->
+    <menuitem
+    id="menu_llm_chat"
+    name="Chat"
+    action="action_llm_chat"
+    parent="llm.menu_llm_root"
+    sequence="10"
+  />
+    <menuitem
+    id="menu_llm_thread"
+    name="Threads"
+    action="llm_thread_action"
+    parent="llm.menu_llm_config"
+    sequence="27"
+  />
+</odoo>

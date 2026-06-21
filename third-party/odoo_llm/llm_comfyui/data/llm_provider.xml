@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="llm_provider_comfyui" model="llm.provider">
+        <field name="name">ComfyUI</field>
+        <field name="service">comfyui</field>
+        <field name="active" eval="True" />
+        <!-- API key, API Base URL is intentionally left empty for user to input later -->
+    </record>
+</odoo>

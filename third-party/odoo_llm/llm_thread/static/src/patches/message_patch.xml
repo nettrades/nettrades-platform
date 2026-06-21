@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <!-- Extend mail.Message to add LLM-specific message rendering -->
+    <t
+    t-name="mail.Message"
+    t-inherit="mail.Message"
+    t-inherit-mode="extension"
+  >
+        <!-- Add LLM-specific content after the main message content -->
+        <xpath
+      expr="//div[hasclass('o-mail-Message-content')]"
+      position="inside"
+    >
+            <!-- Tool Message Display -->
+            <t t-if="isToolMessage">
+                <LLMToolMessage message="message" />
+            </t>
+
+            <!-- Assistant Message with Tool Calls -->
+            <t t-if="hasToolCalls">
+                <div
+          class="o_llm_tool_calls mt-2 small text-muted border-top pt-2"
+        >
+                    <strong class="me-2">Tools Requested:</strong>
+                    <t
+            t-foreach="message.body_json.tool_calls"
+            t-as="toolCall"
+            t-key="toolCall.id"
+          >
+                        <span
+              class="badge bg-light text-dark border me-1 mb-1"
+              t-att-title="'ID: ' + toolCall.id"
+            >
+                            <i class="fa fa-cog me-1" aria-hidden="true" />
+                            <t
+                t-esc="toolCall.function and toolCall.function.name or 'Unknown Tool'"
+              />
+                        </span>
+                    </t>
+                </div>
+            </t>
+        </xpath>
+    </t>
+</templates>

@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_llm_assistant_user,llm.assistant.user,model_llm_assistant,base.group_user,1,0,0,0
+access_llm_assistant_manager,llm.assistant.manager,model_llm_assistant,llm.group_llm_manager,1,1,1,1
+access_llm_prompt_user,llm.prompt.user,model_llm_prompt,base.group_user,1,0,0,0
+access_llm_prompt_manager,llm.prompt.manager,model_llm_prompt,llm.group_llm_manager,1,1,1,1
+access_llm_prompt_tag_user,llm.prompt.tag.user,model_llm_prompt_tag,base.group_user,1,0,0,0
+access_llm_prompt_tag_manager,llm.prompt.tag.manager,model_llm_prompt_tag,llm.group_llm_manager,1,1,1,1
+access_llm_prompt_category_user,llm.prompt.category.user,model_llm_prompt_category,base.group_user,1,0,0,0
+access_llm_prompt_category_manager,llm.prompt.category.manager,model_llm_prompt_category,llm.group_llm_manager,1,1,1,1
+access_llm_prompt_test_user,llm.prompt.test.user,model_llm_prompt_test,base.group_user,1,1,1,1
+access_llm_thread_mock_user,llm.thread.mock.user,model_llm_thread_mock,base.group_user,1,1,1,1

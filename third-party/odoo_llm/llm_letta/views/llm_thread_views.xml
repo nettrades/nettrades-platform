@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <!-- Extend Thread Form View for Letta -->
+    <record id="view_llm_thread_form_inherit_letta" model="ir.ui.view">
+        <field name="name">llm.thread.form.inherit.letta</field>
+        <field name="model">llm.thread</field>
+        <field name="inherit_id" ref="llm_thread.llm_thread_view_form" />
+        <field name="arch" type="xml">
+            <field name="tool_ids" position="after">
+                <field name="is_letta_provider" invisible="1" />
+                <field
+          name="external_id"
+          readonly="1"
+          invisible="not is_letta_provider"
+        />
+            </field>
+            <div name="button_box" position="inside">
+                <button
+          name="sync_letta_tools"
+          type="object"
+          class="oe_stat_button"
+          icon="fa-refresh"
+          invisible="not is_letta_provider or not external_id"
+        >
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_text">Sync</span>
+                        <span class="o_stat_text">Tools</span>
+                    </div>
+                </button>
+                <button
+          name="ensure_letta_agent"
+          type="object"
+          class="oe_stat_button"
+          icon="fa-user-plus"
+          invisible="not is_letta_provider or external_id"
+        >
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_text">Create</span>
+                        <span class="o_stat_text">Agent</span>
+                    </div>
+                </button>
+            </div>
+        </field>
+    </record>
+
+    <!-- Extend Thread Search View for Letta -->
+    <record id="view_llm_thread_search_inherit_letta" model="ir.ui.view">
+        <field name="name">llm.thread.search.inherit.letta</field>
+        <field name="model">llm.thread</field>
+        <field name="inherit_id" ref="llm_thread.llm_thread_view_search" />
+        <field name="arch" type="xml">
+            <field name="provider_id" position="after">
+                <field name="external_id" />
+            </field>
+        </field>
+    </record>
+</odoo>

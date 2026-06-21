@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Invoice Parser Prompt Template with Auto-Trigger -->
+    <record id="llm_prompt_invoice_parser" model="llm.prompt">
+        <field name="name">Invoice Parser Multi-Message Prompt</field>
+        <field
+      name="description"
+    >Multi-message YAML prompt with system instructions and user message to auto-trigger invoice parsing on chat open.</field>
+        <field name="format">json</field>
+        <field
+      name="template"
+    ><![CDATA[[
+  {
+    "type": "system",
+    "content": {{ ('You are a ' + role + '.\n\nYour goal is to ' + goal + '\n\nBackground: ' + background + '\n\nInstructions: ' + instructions + '\n\n' + footer) | tojson }}
+  },
+  {
+    "type": "user",
+    "content": "Parse the attached invoice document and extract all data including:\n- Vendor/customer name\n- Invoice number and date\n- Line items with quantities and prices\n- Total amount\n- Payment terms\n\nPresent your findings clearly and suggest the next steps for processing this invoice."
+  }
+]]]></field>
+        <field
+      name="arguments_json"
+    ><![CDATA[{
+            "role": {
+                "type": "string",
+                "description": "The role of the assistant (e.g., 'Invoice Analysis Assistant')",
+                "required": true
+            },
+            "goal": {
+                "type": "string",
+                "description": "The primary goal or objective of this assistant",
+                "required": true
+            },
+            "background": {
+                "type": "string",
+                "description": "Background information for the assistant to understand its context",
+                "required": true
+            },
+            "instructions": {
+                "type": "string",
+                "description": "Specific instructions for the assistant to follow",
+                "required": true
+            },
+            "footer": {
+                "type": "string",
+                "description": "Optional footer text to add to the end of the prompt",
+                "required": false,
+                "default": ""
+            }
+        }]]></field>
+        <field name="active" eval="True" />
+    </record>
+</odoo>

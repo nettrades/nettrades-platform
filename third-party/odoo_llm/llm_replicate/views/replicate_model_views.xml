@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Extend Model Form View -->
+    <record id="replicate_llm_model_view_form" model="ir.ui.view">
+        <field name="name">replicate.llm.model.view.form</field>
+        <field name="model">llm.model</field>
+        <field name="inherit_id" ref="llm.llm_model_view_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='provider_id']" position="after">
+                <field name="is_replicate_provider" invisible="1" />
+                <label
+          for="replicate_version"
+          invisible="not is_replicate_provider"
+        />
+                <div
+          class="d-flex align-items-center"
+          invisible="not is_replicate_provider"
+        >
+                    <field
+            name="replicate_version"
+            placeholder="e.g. 02efc93b999..... (leave empty for latest)"
+            class="me-2"
+            nolabel="1"
+          />
+                    <a
+            href="https://replicate.com/docs/topics/models/versions"
+            target="_blank"
+            class="o_form_uri text-muted"
+          >
+                        <small><i class="fa fa-info-circle" /> Docs</small>
+                    </a>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

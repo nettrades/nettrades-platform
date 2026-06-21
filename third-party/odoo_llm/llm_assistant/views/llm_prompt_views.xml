@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Prompt Form View -->
+    <record id="llm_prompt_view_form" model="ir.ui.view">
+        <field name="name">llm.prompt.view.form</field>
+        <field name="model">llm.prompt</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="auto_detect_arguments" string="Auto-detect Arguments" type="object" class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
+                            <field name="active" widget="boolean_toggle" options="{'terminology': 'archive'}"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="e.g. Data Analysis Prompt" /></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="format" />
+                            <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+                        </group>
+                        <group>
+                            <field name="argument_count" readonly="1" />
+                            <field name="usage_count" readonly="1" />
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Template" name="template">
+                            <!-- Use widget="text" or "json_editor" instead of ace -->
+                            <field name="template" widget="text" placeholder="Enter your prompt template here..."/>
+                        </page>
+                        <page string="Arguments" name="arguments">
+                            <field name="arguments_json" widget="json_editor" />
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <!-- Prompt List View -->
+    <record id="llm_prompt_view_tree" model="ir.ui.view">
+        <field name="name">llm.prompt.view.list</field>
+        <field name="model">llm.prompt</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="format" />
+                <field name="argument_count" />
+                <field name="write_date" />
+            </list>
+        </field>
+    </record>
+
+    <!-- Prompt Action -->
+    <record id="llm_prompt_action" model="ir.actions.act_window">
+        <field name="name">LLM Prompts</field>
+        <field name="res_model">llm.prompt</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first AI prompt!</p>
+        </field>
+    </record>
+</odoo>

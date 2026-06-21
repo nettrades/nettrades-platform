@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="1">
+    <record id="llm_provider_letta" model="llm.provider">
+        <field name="name">Letta</field>
+        <field name="service">letta</field>
+        <field name="active" eval="True" />
+        <field name="api_base">http://localhost:8283</field>
+        <!-- No API key needed for local server -->
+    </record>
+</odoo>

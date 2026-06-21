@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <!-- Extend Thread Form View -->
+    <record id="view_llm_thread_form_inherit_assistant" model="ir.ui.view">
+        <field name="name">llm.thread.form.inherit.assistant</field>
+        <field name="model">llm.thread</field>
+        <field name="inherit_id" ref="llm_thread.llm_thread_view_form" />
+        <field name="arch" type="xml">
+            <field name="provider_id" position="before">
+                <field name="assistant_id" options="{'no_create': True}" />
+            </field>
+        </field>
+    </record>
+
+    <!-- Extend Thread Search View -->
+    <record id="view_llm_thread_search_inherit_assistant" model="ir.ui.view">
+        <field name="name">llm.thread.search.inherit.assistant</field>
+        <field name="model">llm.thread</field>
+        <field name="inherit_id" ref="llm_thread.llm_thread_view_search" />
+        <field name="arch" type="xml">
+            <field name="provider_id" position="after">
+                <field name="assistant_id" />
+            </field>
+            <search position="inside">
+                <filter
+          string="Assistant"
+          name="assistant"
+          domain="[]"
+          context="{'group_by': 'assistant_id'}"
+        />
+            </search>
+        </field>
+    </record>
+</odoo>

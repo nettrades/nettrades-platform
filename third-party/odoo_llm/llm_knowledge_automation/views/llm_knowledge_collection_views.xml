@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Automation List View -->
+    <record id="view_llm_knowledge_collection_automation_list" model="ir.ui.view">
+        <field name="name">llm.knowledge.collection.automation.list</field>
+        <field name="model">base.automation</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="state"/>
+                <field name="llm_collection_id"/>
+                <field name="llm_auto_process"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Inherit Collection Form View -->
+    <record id="view_llm_knowledge_collection_form_automation" model="ir.ui.view">
+        <field name="name">llm.knowledge.collection.form.automation</field>
+        <field name="model">llm.knowledge.collection</field>
+        <field name="inherit_id" ref="llm_knowledge.llm_knowledge_collection_view_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//sheet" position="inside">
+                <group string="Automation">
+                    <field name="automated_sync"/>
+                    <field name="auto_process_resources"/>
+                    <field name="automation_ids"
+                           readonly="1"
+                           context="{'default_llm_collection_id': active_id}"
+                           widget="one2many"
+                           options="{'no_create': False, 'no_edit': False}">
+                        <tree editable="bottom">
+                            <field name="name"/>
+                            <field name="state"/>
+                            <field name="llm_collection_id"/>
+                            <field name="llm_auto_process"/>
+                            <field name="active"/>
+                        </tree>
+                    </field>
+                </group>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

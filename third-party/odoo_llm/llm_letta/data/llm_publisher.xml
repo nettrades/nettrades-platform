@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="llm_publisher_letta" model="llm.publisher">
+        <field name="name">Letta</field>
+        <field name="official" eval="True" />
+        <field name="frontier" eval="False" />
+        <field
+      name="description"
+    >Letta is a platform for building stateful AI agents with advanced memory that can learn and self-improve over time. The platform is model-agnostic and supports various LLM providers for creating persistent, conversational AI agents.</field>
+        <!-- Logo field left empty for now -->
+        <field name="meta">{
+            "website": "https://www.letta.com",
+            "founded": 2023,
+            "headquarters": "San Francisco, California",
+            "key_products": ["Letta Platform", "Agent Framework", "Memory Management"]
+            }</field>
+    </record>
+</odoo>

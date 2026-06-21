@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Assistant Creator Assistant -->
+    <record id="llm_assistant_creator" model="llm.assistant">
+        <field name="name">Assistant Creator</field>
+        <field name="prompt_id" ref="llm_prompt_assistant_creator" />
+        <field name="active" eval="True" />
+        <field
+      name="tool_ids"
+      eval="[(6, 0, [
+            ref('llm_tool.llm_tool_odoo_model_inspector'),
+            ref('llm_tool.llm_tool_odoo_record_retriever'),
+            ref('llm_tool.llm_tool_odoo_record_creator'),
+            ref('llm_tool.llm_tool_odoo_record_updater')
+        ])]"
+    />
+    </record>
+
+    <!-- Website Builder Assistant -->
+    <record id="llm_assistant_website_builder" model="llm.assistant">
+        <field name="name">Website Builder Assistant</field>
+        <field name="prompt_id" ref="llm_prompt_website_builder" />
+        <field name="active" eval="True" />
+        <field
+      name="tool_ids"
+      eval="[(6, 0, [
+            ref('llm_tool.llm_tool_odoo_model_inspector'),
+            ref('llm_tool.llm_tool_odoo_record_retriever'),
+            ref('llm_tool.llm_tool_odoo_record_creator'),
+            ref('llm_tool.llm_tool_odoo_record_updater')
+        ])]"
+    />
+    </record>
+</odoo>

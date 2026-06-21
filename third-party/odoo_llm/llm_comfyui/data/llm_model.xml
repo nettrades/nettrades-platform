@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="llm_model_comfyui" model="llm.model">
+        <field name="name">Default ComfyUI Model</field>
+        <field name="provider_id" ref="llm_provider_comfyui" />
+        <field name="publisher_id" ref="llm_publisher_comfyui" />
+        <field name="model_use" eval="'image_generation'" />
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+    </record>
+</odoo>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Resource Form View -->
+    <record id="llm_resource_view_form" model="ir.ui.view">
+        <field name="name">llm.resource.view.form</field>
+        <field name="model">llm.resource</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Resource Name" />
+                        </h1>
+                    </div>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <!-- Resource List View -->
+    <record id="llm_resource_view_tree" model="ir.ui.view">
+        <field name="name">llm.resource.view.list</field>
+        <field name="model">llm.resource</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+            </list>
+        </field>
+    </record>
+    <record id="action_llm_resource" model="ir.actions.act_window">
+      <field name="name">LLM Resources</field>
+      <field name="res_model">llm.resource</field>
+      <field name="view_mode">list,form</field>
+    </record>
+    <!-- Resource Action -->
+	<record id="action_llm_knowledge_document" model="ir.actions.act_window">
+	    <field name="name">Documents</field> <!-- Optional: Rename to Documents -->
+	    <field name="res_model">llm.resource</field>
+	    <field name="view_mode">list,form</field>
+	    <field name="help" type="html">
+		<p class="o_view_nocontent_smiling_face">
+		    Create your first document!
+		</p>
+	    </field>
+	</record>
+</odoo>

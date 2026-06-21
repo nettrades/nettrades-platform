@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Collection Form View -->
+    <record id="llm_knowledge_collection_view_form" model="ir.ui.view">
+        <field name="name">llm.knowledge.collection.view.form</field>
+        <field name="model">llm.knowledge.collection</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Collection Name" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="active" widget="boolean_toggle" />
+                        </group>
+                    </group>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <!-- Collection List View -->
+    <record id="llm_knowledge_collection_view_tree" model="ir.ui.view">
+        <field name="name">llm.knowledge.collection.view.list</field>
+        <field name="model">llm.knowledge.collection</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="write_date" />
+            </list>
+        </field>
+    </record>
+
+    <!-- Collection Action -->
+    <record id="action_llm_knowledge_collection" model="ir.actions.act_window">
+        <field name="name">Knowledge Collections</field>
+        <field name="res_model">llm.knowledge.collection</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a knowledge collection for your AI models.
+            </p>
+        </field>
+    </record>
+</odoo>

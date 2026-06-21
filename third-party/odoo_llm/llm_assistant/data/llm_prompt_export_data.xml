@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="1">
+    <!-- Export Template for LLM Prompts -->
+    <record id="llm_prompt_export_template" model="ir.exports">
+        <field name="name">LLM Prompt Export</field>
+        <field name="resource">llm.prompt</field>
+    </record>
+
+    <!-- Export Fields for LLM Prompt Export -->
+    <record id="llm_prompt_export_line_name" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">name</field>
+    </record>
+
+    <record id="llm_prompt_export_line_description" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">description</field>
+    </record>
+
+    <record id="llm_prompt_export_line_active" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">active</field>
+    </record>
+
+    <record id="llm_prompt_export_line_category" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">category_id</field>
+    </record>
+
+    <record id="llm_prompt_export_line_tags" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">tag_ids</field>
+    </record>
+
+    <record id="llm_prompt_export_line_template" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">template</field>
+    </record>
+
+    <record id="llm_prompt_export_line_format" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">format</field>
+    </record>
+
+    <record id="llm_prompt_export_line_arguments_json" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">arguments_json</field>
+    </record>
+
+    <record id="llm_prompt_export_line_example_args" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_export_template" />
+        <field name="name">example_args</field>
+    </record>
+
+    <!-- Additional Export Template for Categories and Tags (for reference) -->
+    <record id="llm_prompt_category_export_template" model="ir.exports">
+        <field name="name">LLM Prompt Categories Export</field>
+        <field name="resource">llm.prompt.category</field>
+    </record>
+
+    <record id="llm_prompt_category_export_line_name" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_category_export_template" />
+        <field name="name">name</field>
+    </record>
+
+    <record id="llm_prompt_category_export_line_code" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_category_export_template" />
+        <field name="name">code</field>
+    </record>
+
+    <record id="llm_prompt_category_export_line_parent" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_category_export_template" />
+        <field name="name">parent_id</field>
+    </record>
+
+    <record
+    id="llm_prompt_category_export_line_description"
+    model="ir.exports.line"
+  >
+        <field name="export_id" ref="llm_prompt_category_export_template" />
+        <field name="name">description</field>
+    </record>
+
+    <record
+    id="llm_prompt_category_export_line_sequence"
+    model="ir.exports.line"
+  >
+        <field name="export_id" ref="llm_prompt_category_export_template" />
+        <field name="name">sequence</field>
+    </record>
+
+    <!-- Tags Export Template -->
+    <record id="llm_prompt_tag_export_template" model="ir.exports">
+        <field name="name">LLM Prompt Tags Export</field>
+        <field name="resource">llm.prompt.tag</field>
+    </record>
+
+    <record id="llm_prompt_tag_export_line_name" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_tag_export_template" />
+        <field name="name">name</field>
+    </record>
+
+    <record id="llm_prompt_tag_export_line_color" model="ir.exports.line">
+        <field name="export_id" ref="llm_prompt_tag_export_template" />
+        <field name="name">color</field>
+    </record>
+</odoo>

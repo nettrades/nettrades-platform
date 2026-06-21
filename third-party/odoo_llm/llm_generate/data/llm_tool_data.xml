@@ -1,0 +1,26 @@
+<odoo>
+    <record id="llm_tool_generate" model="llm.tool">
+        <field name="name">odoo_generate</field>
+        <field name="implementation">odoo_generate</field>
+        <field
+      name="description"
+    ><![CDATA[
+Generate content using a specified generation model. This tool allows you to create images, videos, or other media based on input parameters.
+
+Parameters:
+    model_id: The ID of the llm.model to use for generation (must have model_use='image_generation' or 'generation')
+    inputs: A dictionary containing parameters according to the model's input_schema (e.g., {"prompt": "A detailed description"})
+
+Returns:
+    A dictionary containing:
+    - success: Boolean indicating if the generation was successful
+    - output_data: Provider-specific output data with raw response information
+    - urls: List of URL objects with metadata (url, content_type, filename, etc.)
+    - markdown: Ready-to-use markdown for displaying the generated content
+    - content_count: Number of generated items
+]]></field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="requires_user_consent" eval="False" />
+    </record>
+</odoo>

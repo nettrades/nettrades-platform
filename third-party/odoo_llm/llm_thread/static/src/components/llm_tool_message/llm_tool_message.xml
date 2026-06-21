@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="llm_thread.LLMToolMessage">
+        <div class="o_llm_tool_result">
+            <!-- Tool Header -->
+            <div
+        class="o_llm_tool_result_header d-flex align-items-center mb-2"
+      >
+                <i t-attf-class="fa me-2 {{ statusIconClass }}" />
+                <strong class="me-2">
+                    Tool: <t t-esc="toolName" />
+                </strong>
+                <span class="text-muted small">
+                    (ID: <t t-esc="toolCallId" />)
+                </span>
+                <span
+          t-if="status !== 'completed' and status !== 'error'"
+          class="badge bg-secondary ms-2"
+        >
+                    <t t-esc="status" />
+                </span>
+            </div>
+
+            <!-- Arguments Section -->
+            <div class="o_llm_tool_result_section mb-2">
+                <div class="d-flex align-items-center">
+                    <button
+            class="btn btn-sm btn-link p-0 text-decoration-none text-muted"
+            t-on-click="toggleArgs"
+            type="button"
+          >
+                        <i
+              t-attf-class="fa me-1 {{ state.showArgs ? 'fa-chevron-down' : 'fa-chevron-right' }}"
+            />
+                        <strong class="small">Arguments</strong>
+                    </button>
+                </div>
+                <div t-if="state.showArgs" class="o_llm_tool_result_args mt-2">
+                    <pre class="bg-light p-2 rounded small overflow-auto"><code
+              t-esc="argumentsFormatted"
+            /></pre>
+                </div>
+            </div>
+
+            <!-- Result Section -->
+            <div class="o_llm_tool_result_section">
+                <div class="d-flex align-items-center">
+                    <button
+            class="btn btn-sm btn-link p-0 text-decoration-none text-muted"
+            t-on-click="toggleResult"
+            type="button"
+          >
+                        <i
+              t-attf-class="fa me-1 {{ state.showResult ? 'fa-chevron-down' : 'fa-chevron-right' }}"
+            />
+                        <strong class="small">
+                            <t t-if="isError">Error</t>
+                            <t t-else="">Result</t>
+                        </strong>
+                    </button>
+                </div>
+                <div
+          t-if="state.showResult"
+          class="o_llm_tool_result_content mt-2"
+        >
+                    <pre
+            t-if="isError"
+            class="bg-danger-subtle border border-danger text-danger p-2 rounded small overflow-auto"
+          >
+                        <code t-esc="resultFormatted" />
+                    </pre>
+                    <pre
+            t-else=""
+            class="bg-light border p-2 rounded small overflow-auto"
+          >
+                        <code t-esc="resultFormatted" />
+                    </pre>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

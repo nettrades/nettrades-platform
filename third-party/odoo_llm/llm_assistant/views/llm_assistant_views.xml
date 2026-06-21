@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Assistant Form View -->
+    <record id="llm_assistant_view_form" model="ir.ui.view">
+        <field name="name">llm.assistant.view.form</field>
+        <field name="model">llm.assistant</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Assistant Name" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <!-- We only keep the most basic fields likely to exist -->
+                            <field name="active" widget="boolean_toggle" />
+                        </group>
+                    </group>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <!-- Assistant List View -->
+    <record id="llm_assistant_view_tree" model="ir.ui.view">
+        <field name="name">llm.assistant.view.list</field>
+        <field name="model">llm.assistant</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="active" />
+            </list>
+        </field>
+    </record>
+
+    <!-- Assistant Action -->
+    <record id="action_llm_assistant" model="ir.actions.act_window">
+        <field name="name">Assistants</field>
+        <field name="res_model">llm.assistant</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Assistant module loading...
+            </p>
+        </field>
+    </record>
+</odoo>

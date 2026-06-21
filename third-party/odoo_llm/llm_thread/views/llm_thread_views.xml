@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Thread Form View -->
+    <record id="llm_thread_view_form" model="ir.ui.view">
+        <field name="name">llm.thread.view.form</field>
+        <field name="model">llm.thread</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="active" widget="boolean_toggle" />
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <!-- Add buttons if needed -->
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Chat Title" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="user_id" />
+                            <field name="provider_id" />
+                            <field name="model_id" />
+                            <field
+                name="tool_ids"
+                widget="many2many_tags"
+                options="{'no_create': True}"
+              />
+                        </group>
+                        <group>
+                            <field name="model" readonly="1" />
+                            <field name="res_id" readonly="1" />
+                        </group>
+                    </group>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <!-- Thread Tree View -->
+    <record id="llm_thread_view_tree" model="ir.ui.view">
+        <field name="name">llm.thread.view.tree</field>
+        <field name="model">llm.thread</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="user_id" />
+                <field name="provider_id" />
+                <field name="model_id" />
+                <field name="res_id" />
+                <field name="write_date" />
+            </list>
+        </field>
+    </record>
+
+    <!-- Thread Search View -->
+    <record id="llm_thread_view_search" model="ir.ui.view">
+        <field name="name">llm.thread.view.search</field>
+        <field name="model">llm.thread</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" />
+                <field name="user_id" />
+                <field name="provider_id" />
+                <field name="model_id" />
+                <field name="model" />
+                <field name="res_id" />
+            </search>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="llm_thread_action" model="ir.actions.act_window">
+        <field name="name">Chat Threads</field>
+        <field name="res_model">llm.thread</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_my_threads': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first chat thread!
+            </p>
+            <p>
+                Start a conversation with any of your configured LLM providers.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Items -->
+    <!-- Chat Client Action -->
+    <record id="action_llm_chat" model="ir.actions.client">
+        <field name="name">Chat</field>
+        <field name="tag">llm_thread.chat_client_action</field>
+        <field name="params" eval="&quot;{}&quot;" />
+    </record>
+
+</odoo>

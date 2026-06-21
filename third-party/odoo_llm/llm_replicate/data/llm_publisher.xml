@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="llm_publisher_replicate" model="llm.publisher">
+        <field name="name">Replicate</field>
+        <field name="official" eval="True" />
+        <field name="frontier" eval="False" />
+        <field
+      name="description"
+    >Replicate is a platform that makes it easy to run machine learning models in the cloud. It provides access to a wide variety of open source models and allows deployment of custom models.</field>
+        <field
+      name="logo"
+      type="base64"
+      file="llm_replicate/static/description/replicate_logo.png"
+    />
+        <field name="meta">{
+            "website": "https://replicate.com",
+            "founded": 2019,
+            "headquarters": "San Francisco, California",
+            "key_features": [
+            "Model Deployment",
+            "Open Source Models",
+            "Cloud Inference",
+            "Model Versioning"
+            ]
+            }</field>
+    </record>
+</odoo>
