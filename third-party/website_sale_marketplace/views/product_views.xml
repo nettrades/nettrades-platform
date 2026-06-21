@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add Marketplace Vendor field to Product Template Form -->
+    <record id="product_template_form_view_inherit_marketplace" model="ir.ui.view">
+        <field name="name">product.template.form.inherit.marketplace</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <!-- Add marketplace state and buttons in header -->
+            <xpath expr="//sheet" position="before">
+                <header>
+                    <button name="action_approve" string="Approve" type="object"
+                            class="oe_highlight"
+                            invisible="marketplace_state != 'approval' or not marketplace_vendor_id"
+                            groups="base.group_user"/>
+                    <button name="action_set_draft" string="Set to Draft" type="object"
+                            invisible="marketplace_state == 'draft' or not marketplace_vendor_id"
+                            groups="base.group_user"/>
+                    <button name="action_send_for_approval" string="Send for Approval" type="object"
+                            invisible="marketplace_state != 'draft' or not marketplace_vendor_id"
+                            groups="base.group_user"/>
+                    <field name="marketplace_state" widget="statusbar" statusbar_visible="draft,approval,approved"
+                           invisible="not marketplace_vendor_id"/>
+                </header>
+            </xpath>
+            <!-- Add marketplace vendor field -->
+            <xpath expr="//field[@name='categ_id']" position="after">
+                <field name="marketplace_vendor_id" string="Marketplace Vendor"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add ribbon to Product Template Kanban for Marketplace Products -->
+    <record id="product_template_kanban_view_inherit_marketplace" model="ir.ui.view">
+        <field name="name">product.template.kanban.inherit.marketplace</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_kanban_view"/>
+        <field name="arch" type="xml">
+            <!-- Add marketplace fields to kanban -->
+            <field name="categ_id" position="after">
+                <field name="marketplace_vendor_id"/>
+                <field name="marketplace_state"/>
+            </field>
+            <!-- Add badge for marketplace products -->
+            <xpath expr="//t[@t-name='card']//div[1]" position="inside">
+                <span t-if="record.marketplace_vendor_id.raw_value" class="badge marketplace-badge">
+                    Marketplace
+                </span>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Portal-enabled List View for Marketplace Product Management -->
+    <record id="marketplace_product_portal_list_view" model="ir.ui.view">
+        <field name="name">marketplace.product.portal.list</field>
+        <field name="model">product.template</field>
+        <field name="priority">999</field>
+        <field name="group_ids" eval="[(4, ref('base.group_portal')), (4, ref('base.group_user'))]"/>
+        <field name="arch" type="xml">
+            <list string="Products" create="true" edit="false" delete="true">
+                <field name="name" string="Product Name"/>
+                <field name="categ_id" string="Category"/>
+                <field name="list_price" string="Sales Price" widget="monetary"/>
+                <field name="marketplace_state" string="Status"
+                       decoration-info="marketplace_state == 'draft'"
+                       decoration-warning="marketplace_state == 'approval'"
+                       decoration-success="marketplace_state == 'approved'"
+                       widget="badge"/>
+                <field name="type" string="Type"/>
+                <field name="marketplace_vendor_id" string="Vendor"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Portal-enabled Form View for Creating/Editing Products -->
+    <record id="marketplace_product_portal_form_view" model="ir.ui.view">
+        <field name="name">marketplace.product.portal.form</field>
+        <field name="model">product.template</field>
+        <field name="priority">999</field>
+        <field name="group_ids" eval="[(4, ref('base.group_portal')), (4, ref('base.group_user'))]"/>
+        <field name="arch" type="xml">
+            <form string="Product" create="true" edit="true">
+                <header>
+                    <field name="marketplace_state" widget="statusbar" statusbar_visible="draft,approval,approved"/>
+                    <button name="action_send_for_approval" string="Send for Approval" type="object"
+                            class="oe_highlight"
+                            invisible="marketplace_state != 'draft'"/>
+                </header>
+                <sheet>
+                    <field name="id" invisible="1"/>
+                    <field name="image_1920" widget="image" class="oe_avatar"/>
+                    <group>
+                        <group>
+                            <field name="name" placeholder="e.g. Laptop" required="1"/>
+                            <field name="categ_id" string="Category" options="{'no_create': True}"/>
+                            <field name="type" invisible="1"/>
+                            <field name="invoice_policy" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="list_price" string="Sales Price"/>
+                            <field name="uom_id" required="1" options="{'no_create': True}"/>
+                            <field name="marketplace_vendor_id" invisible="1" readonly="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description" name="description">
+                            <field name="description_sale" placeholder="Description for customers..."/>
+                        </page>
+                        <page string="eCommerce Description" name="ecommerce_description">
+                            <field name="description_ecommerce" nolabel="1" placeholder="A detailed,formatted description to promote your product on this page. Use '/' to discover more features."/>
+                        </page>
+                        <page string="Product Images" name="images">
+                            <field name="product_template_image_ids" widget="one2many" mode="kanban" nolabel="1" context="{'default_name': 'Product Image'}">
+                                <kanban create="true" delete="true">
+                                    <field name="name"/>
+                                    <field name="image_1920"/>
+                                    <templates>
+                                        <t t-name="card">
+                                            <field name="image_1920" widget="image" options="{'size': [150, 150]}"/>
+                                            <div class="oe_kanban_details">
+                                                <strong><field name="name"/></strong>
+                                            </div>
+                                        </t>
+                                    </templates>
+                                </kanban>
+                                <form>
+                                    <sheet>
+                                        <field name="name" placeholder="Image name (optional)"/>
+                                        <field name="image_1920" widget="image"/>
+                                        <field name="sequence"/>
+                                    </sheet>
+                                </form>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action for Marketplace Product Management -->
+    <record id="marketplace_product_management_action" model="ir.actions.act_window">
+        <field name="name">My Products</field>
+        <field name="res_model">product.template</field>
+        <field name="path">marketplace_products</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('marketplace_product_portal_list_view')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('marketplace_product_portal_form_view')}),
+        ]"/>
+        <field name="domain">[('marketplace_vendor_id', '=', context.get('vendor_partner_id'))]</field>
+        <field name="context">{
+            'default_type': 'consu',
+            'default_invoice_policy': 'delivery',
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No products found. Let's create one!
+            </p>
+            <p>
+                Create and manage your marketplace products here.
+            </p>
+        </field>
+    </record>
+
+    <!-- Inherit product search view to add marketplace filters -->
+    <record id="product_template_search_view_inherit_marketplace" model="ir.ui.view">
+        <field name="name">product.template.search.inherit.marketplace</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <filter name="filter_to_sell" position="after">
+                <separator/>
+                <filter string="To Approve" name="to_approve" domain="[('marketplace_state', '=', 'approval')]"/>
+                <filter string="Draft" name="draft" domain="[('marketplace_state', '=', 'draft')]"/>
+                <filter string="Approved" name="approved" domain="[('marketplace_state', '=', 'approved')]"/>
+            </filter>
+        </field>
+    </record>
+
+    <!-- Backend Action for Marketplace Products -->
+    <record id="marketplace_product_backend_action" model="ir.actions.act_window">
+        <field name="name">Marketplace Products</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('marketplace_vendor_id', '!=', False)]</field>
+        <field name="context">{
+            'search_default_to_approve': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No marketplace products found!
+            </p>
+            <p>
+                Marketplace products submitted by vendors will appear here.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu item for Marketplace Products -->
+    <menuitem id="menu_marketplace_products"
+              name="Marketplace Products"
+              parent="sale.product_menu_catalog"
+              action="marketplace_product_backend_action"
+              sequence="50"/>
+
+</odoo>

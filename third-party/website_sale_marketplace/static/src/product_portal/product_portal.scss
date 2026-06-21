@@ -1,0 +1,98 @@
+// Marketplace Product Portal Styles
+
+.o_marketplace_portal {
+    padding: 20px 0;
+
+    .o_marketplace_portal_header {
+        margin-bottom: 20px;
+
+        h1 {
+            color: #212529;
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            font-size: 1rem;
+            margin-bottom: 0;
+        }
+    }
+
+    .o_marketplace_product_portal {
+        min-height: 500px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 15px;
+
+        // Ensure WebClient components display correctly
+        .o_action_manager {
+            height: auto;
+            min-height: 500px;
+        }
+
+        .o_control_panel {
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 1rem;
+        }
+
+        .o_list_view,
+        .o_kanban_view,
+        .o_form_view {
+            background: transparent;
+        }
+
+        // Adjust form view styling for portal
+        .o_form_view {
+            .o_form_sheet_bg {
+                background: white;
+            }
+
+            .o_form_sheet {
+                max-width: 100%;
+                padding: 24px;
+            }
+        }
+
+        // Kanban view adjustments
+        .o_kanban_view {
+            .o_kanban_record {
+                margin: 10px;
+                padding: 15px;
+                border-radius: 6px;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+                &:hover {
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                }
+            }
+        }
+
+        // List view adjustments
+        .o_list_view {
+            .o_list_table {
+                thead {
+                    background-color: #f8f9fa;
+                }
+            }
+        }
+    }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+    .o_marketplace_portal {
+        padding: 10px 0;
+
+        .o_marketplace_portal_header {
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        .o_marketplace_product_portal {
+            padding: 10px;
+        }
+    }
+}

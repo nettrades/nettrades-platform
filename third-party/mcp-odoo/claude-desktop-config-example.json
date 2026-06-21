@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "odoo": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--env-file",
+        "/Users/danielb/claude-odoo-api/.env",
+        "odoo-mcp-server"
+      ]
+    }
+  }
+}

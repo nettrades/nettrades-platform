@@ -1,0 +1,13 @@
+// Hide navbar in marketplace product management
+.o_marketplace_product_management {
+    .o_navbar_apps_menu,
+    .o_menu_brand,
+    .o_menu_sections,
+    nav.o_main_navbar {
+        display: none !important;
+    }
+
+    .o_action_manager {
+        height: 100vh;
+    }
+}

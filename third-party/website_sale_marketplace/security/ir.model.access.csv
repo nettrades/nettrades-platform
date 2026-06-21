@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_product_template_portal_vendor,product.template.portal.vendor,product.model_product_template,base.group_portal,1,1,1,1
+access_product_product_portal_vendor,product.product.portal.vendor,product.model_product_product,base.group_portal,1,1,1,1
+access_product_image_portal_vendor,product.image.portal.vendor,website_sale.model_product_image,base.group_portal,1,1,1,1
+access_ir_attachment_portal_vendor,ir.attachment.portal.vendor,base.model_ir_attachment,base.group_portal,1,1,1,1
+access_product_combo_portal_vendor,product.combo.portal.vendor,product.model_product_combo,base.group_portal,1,0,0,0
+access_product_category_portal_vendor,product.category.portal.vendor,product.model_product_category,base.group_portal,1,0,0,0
+access_uom_uom_portal_vendor,uom.uom.portal.vendor,uom.model_uom_uom,base.group_portal,1,0,0,0
+access_account_tax_portal_vendor,account.tax.portal.vendor,account.model_account_tax,base.group_portal,1,0,0,0
+access_account_account_tag_portal_vendor,account.account.tag.portal.vendor,account.model_account_account_tag,base.group_portal,1,0,0,0
+access_product_supplierinfo_portal_vendor,product.supplierinfo.portal.vendor,product.model_product_supplierinfo,base.group_portal,1,0,0,0
+access_stock_route_portal_vendor,stock.route.portal.vendor,stock.model_stock_route,base.group_portal,1,0,0,0

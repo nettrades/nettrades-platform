@@ -1,0 +1,11 @@
+servers:
+  odoo-api:
+    image: odoo-mcp-server
+    transport: stdio
+    volumes:
+      - /Users/danielb/claude-odoo-api/.env:/.env:ro
+    env:
+      - ODOO_URL
+      - ODOO_DB
+      - ODOO_USERNAME
+      - ODOO_PASSWORD

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Product Category Form View - Add Marketplace Markup -->
+    <record id="product_category_form_view_inherit_marketplace" model="ir.ui.view">
+        <field name="name">product.category.form.inherit.marketplace</field>
+        <field name="model">product.category</field>
+        <field name="inherit_id" ref="product.product_category_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='parent_id']" position="after">
+                <field name="marketplace_markup"
+                       widget="percentage"
+                       help="Markup percentage for marketplace vendor products in this category. If set, this overrides the vendor's default markup."/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

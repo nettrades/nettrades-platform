@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add Products Link to Portal Home -->
+    <template id="portal_my_home_menu_products" name="Portal My Home : Products" inherit_id="portal.portal_my_home" customize_show="True" priority="30">
+        <!-- Enable the vendor category -->
+        <xpath expr="//div[hasclass('o_portal_docs')]" position="before">
+            <t t-set="portal_vendor_category_enable" t-value="True"/>
+        </xpath>
+
+        <!-- Add Products entry to vendor category -->
+        <xpath expr="//div[@id='portal_vendor_category']" position="inside">
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/purchase/static/src/img/calculator.svg'"/>
+                <t t-set="title">Products</t>
+                <t t-set="text">Manage your marketplace products</t>
+                <t t-set="url" t-value="'/my/products'"/>
+                <t t-set="placeholder_count" t-value="'marketplace_product_count'"/>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- My Products Page -->
+    <template id="portal_my_products" name="My Products">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+
+            <t t-call="portal.portal_searchbar">
+                <t t-set="title">Products</t>
+            </t>
+
+            <div class="container">
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <t t-if="not products">
+                            <div class="alert alert-info" role="alert">
+                                <p class="mb-0">You don't have any products yet.</p>
+                            </div>
+                        </t>
+                        <t t-else="">
+                            <div class="table-responsive">
+                                <table class="table table-hover o_portal_my_doc_table">
+                                    <thead>
+                                        <tr>
+                                            <th>Product Name</th>
+                                            <th>Category</th>
+                                            <th class="text-end">Sale Price</th>
+                                            <th>Vendor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="products" t-as="product">
+                                            <tr>
+                                                <td>
+                                                    <span t-field="product.name"/>
+                                                </td>
+                                                <td>
+                                                    <span t-field="product.categ_id"/>
+                                                </td>
+                                                <td class="text-end">
+                                                    <span t-field="product.list_price" t-options='{"widget": "monetary", "display_currency": product.currency_id}'/>
+                                                </td>
+                                                <td>
+                                                    <span t-field="product.marketplace_vendor_id"/>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Breadcrumb -->
+    <template id="portal_breadcrumb_products" inherit_id="portal.portal_breadcrumbs" priority="30">
+        <xpath expr="//ol[hasclass('o_portal_submenu')]" position="inside">
+            <li t-if="page_name == 'products'" class="breadcrumb-item active">Products</li>
+        </xpath>
+    </template>
+
+    <!-- Marketplace Product Management Web Client -->
+    <template id="marketplace_product_management_portal" name="Marketplace Product Management">
+        <t t-call="web.layout">
+            <t t-set="head">
+                <script type="text/javascript">
+                    odoo.__session_info__ = <t t-out="json.dumps(session_info)"/>;
+                    // Prevent the menu service from loading menus
+                    odoo.loadMenusPromise = Promise.resolve({ root: { id: 'root', children: [], name: 'root', appID: false } });
+                </script>
+                <t t-call-assets="website_sale_marketplace.webclient" defer_load="True"/>
+                <t t-call="web.conditional_assets_tests">
+                    <t t-set="ignore_missing_deps" t-value="True"/>
+                </t>
+            </t>
+            <t t-set="body_classname" t-value="'o_web_client o_marketplace_product_management'"/>
+        </t>
+    </template>
+
+</odoo>

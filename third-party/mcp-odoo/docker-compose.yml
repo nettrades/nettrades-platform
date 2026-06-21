@@ -1,0 +1,19 @@
+services:
+  odoo-api:
+    build: .
+    container_name: odoo-mcp-server
+    volumes:
+      # Mount .env file for multi-company configuration
+      - ./.env:/app/.env:ro
+    environment:
+      # Optional: Override config file location
+      - ODOO_CONFIG_FILE=${ODOO_CONFIG_FILE:-/app/.env}
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    networks:
+      - odoo-network
+
+networks:
+  odoo-network:
+    driver: bridge

@@ -1,0 +1,50 @@
+═══════════════════════════════════════════════════════════════════════════════
+  RESUMEN CORRECCIÓN BUG CRÍTICO - MCP SERVER ODOO
+  Fecha: 2025-12-23
+═══════════════════════════════════════════════════════════════════════════════
+
+PROBLEMA DETECTADO:
+  ModuleNotFoundError: No module named 'requests'
+
+CAUSA:
+  Dockerfile copiaba dependencias Python a /root/.local
+  Contenedor ejecutaba como usuario 'odoo' sin acceso a /root/
+
+SOLUCIÓN:
+  ✓ Crear usuario odoo ANTES de copiar archivos
+  ✓ Copiar dependencias a /home/odoo/.local con --chown=odoo:odoo
+  ✓ Actualizar PATH=/home/odoo/.local/bin
+
+RESULTADO:
+  ✅ Imagen Docker funcional (ID: b18c9297c061)
+  ✅ Tests de verificación exitosos
+  ✅ Servidor habilitado en Docker MCP Toolkit
+  ✅ Commit realizado: 26c7ba6
+
+ARCHIVOS MODIFICADOS:
+  [COMMITEADO]  Dockerfile
+  [PENDIENTE]   CLAUDE.md (documentación actualizada)
+  [NUEVO]       ESTADO_FINAL_2025-12-23.md
+  [NUEVO]       PROCEDIMIENTO_CORRECCION.md
+  [NUEVO]       RESUMEN_CORRECCION.txt (este archivo)
+
+PENDIENTES:
+  ⚠ git push origin main
+  ⚠ docker push bmya/odoo-mcp-server:latest (opcional)
+
+VERIFICACIÓN RÁPIDA:
+  docker run --rm bmya/odoo-mcp-server:latest \
+    python -c "import requests, mcp; print('OK')"
+  → OK ✅
+
+ESTADO DOCKER MCP:
+  docker mcp server list
+  → odoo-api: ENABLED ✅
+  → perplexity-ask: ENABLED ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+Para más detalles, ver:
+  - ESTADO_FINAL_2025-12-23.md      (estado completo del sistema)
+  - PROCEDIMIENTO_CORRECCION.md     (comandos paso a paso)
+  - CLAUDE.md                        (documentación técnica)
+═══════════════════════════════════════════════════════════════════════════════

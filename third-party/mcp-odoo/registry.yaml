@@ -1,0 +1,13 @@
+registry:
+  fetch:
+    ref: ""
+  mcp-discord:
+    ref: ""
+  obsidian:
+    ref: ""
+  perplexity-ask:
+    ref: ""
+  youtube_transcript:
+    ref: ""
+  odoo-api:
+    ref: ""

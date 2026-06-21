@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="website_sale_marketplace.MarketplaceWebClient">
+        <div class="o_web_client h-100">
+            <div class="o_action_manager">
+                <ActionContainer/>
+            </div>
+            <MainComponentsContainer/>
+        </div>
+    </t>
+</templates>
