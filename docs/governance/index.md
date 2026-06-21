@@ -52,6 +52,6 @@ If you discover a security vulnerability, please report it privately to `securit
 
 ## Next Steps
 
-- [Contributing Guide →](/governance/contributing)
-- [Roadmap →](/governance/roadmap)
-- [License →](/governance/license)
+- [Contributing Guide →](contributing.md)
+- [Roadmap →](roadmap.md)
+- [License →](../../license.txt)
