@@ -24,16 +24,17 @@ NETTRADES.AI can be deployed in two ways:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/deploy/docker/install-nettrades.sh | sudo bash
+```
 
 3. Follow the interactive wizard (auto-detects hardware).
 4. Access your platform at https://<your-domain>.
-[Full Single VM Guide](operations/single-vm-deployment) →
+[Full Single VM Guide](operations/single-vm-deployment.md) →
 
 ### For Kubernetes on Talos
 1. Prepare a Proxmox host (or bare metal) and create Talos VMs.
 2. Bootstrap the Kubernetes cluster with talosctl.
 3. Deploy services using the provided manifests.
-[Full Kubernetes Guide](operations/kubernetes-deployment) →
+[Full Kubernetes Guide](operations/kubernetes-deployment.md) →
 
 ### Deployment Options Comparison
 
@@ -52,13 +53,13 @@ curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/de
 
 | Task | Guide |
 |-----------------|-------------|
-| Deploy the platform	| [Single VM](operations/single-vm-deployment) or [Kubernetes](operations/kubernetes-deployment)|
-| Add a GPU node	| [GPU node deployment](operations/gpu-node-deployment)|
-| Configure monitoring	| [Prometheus & Grafana](operations/kubernetes-deployment#deploy-monitoring)|
-| Troubleshoot issues	| [Troubleshooting guide](operations/troubleshooting)|
-| Backup and restore	| [Backup & Restore](operations/backup-and-restore)|
-| Scale the platform	| [Kubernetes scaling](operations/kubernetes-deployment#scaling)|
-| Optimise performance	| [Performance Tuning](operations/performance-tuning)|
+| Deploy the platform	| [Single VM](operations/single-vm-deployment.md) or [Kubernetes](operations/kubernetes-deployment.md)|
+| Add a GPU node	| [GPU node deployment](operations/gpu-node-deployment.md)|
+| Configure monitoring	| [Prometheus & Grafana](operations/kubernetes-deployment#deploy-monitoring.md)|
+| Troubleshoot issues	| [Troubleshooting guide](operations/troubleshooting.md)|
+| Backup and restore	| [Backup & Restore](operations/backup-and-restore.md)|
+| Scale the platform	| [Kubernetes scaling](operations/kubernetes-deployment#scaling.md)|
+| Optimise performance	| [Performance Tuning](operations/performance-tuning.md)|
 
 ### System Requirements
 Before you deploy, review the [System Requirements](operations/system-requirements) page to ensure your infrastructure meets the minimum hardware, OS, and network specifications.
@@ -73,10 +74,10 @@ The platform includes built-in monitoring:
 |`Alertmanager`	|Alerting	|Configured via alertmanager.yml|
 
 ### Command-Line Reference
-    • [Odoo CLI](operations/single-vm-deployment#command-line-reference) →
-    • [Docker Compose Commands](operations/single-vm-deployment#docker-compose-commands) →
-    • [Talos CLI](operations/kubernetes-deployment#talos-cli-commands) →
-    • [GPU Node Agent Commands](operations/gpu-node-deployment#gpu-node-agent-commands) →
+    • [Odoo CLI](operations/single-vm-deployment#command-line-reference.md) →
+    • [Docker Compose Commands](operations/single-vm-deployment#docker-compose-commands.md) →
+    • [Talos CLI](operations/kubernetes-deployment#talos-cli-commands.md) →
+    • [GPU Node Agent Commands](operations/gpu-node-deployment#gpu-node-agent-commands.md) →
 
 ### Security Best Practices
     1. Change default passwords – Immediately change admin/admin for GPUStack and Grafana.
@@ -86,15 +87,15 @@ The platform includes built-in monitoring:
     5. Update regularly – Run docker compose pull or kubectl apply for updates.
 
 ### Troubleshooting
-    • [Troubleshooting Quick Reference](operations/troubleshooting-quickref) – One-page cheat sheet
-    • [Troubleshooting Decision Tree](operations/troubleshooting-guide) – Visual step-by-step guide
-    • [Full Troubleshooting Guide](operations/troubleshooting) – Detailed error list and solutions
+    • [Troubleshooting Quick Reference](operations/troubleshooting-quickref.md) – One-page cheat sheet
+    • [Troubleshooting Decision Tree](operations/troubleshooting-guide.md) – Visual step-by-step guide
+    • [Full Troubleshooting Guide](operations/troubleshooting.md) – Detailed error list and solutions
 
 ### FAQ
-    • Operations FAQ(operations/faq) – Frequently asked questions for operators
+    • Operations FAQ(operations/faq.md) – Frequently asked questions for operators
 
 ### Next Steps
-    • [Single VM Deployment](operations/single-vm-deployment) →
-    • [Kubernetes Deployment](operations/kubernetes-deployment) →
-    • [GPU Node Deployment](operations/gpu-node-deployment) →
-    • [Troubleshooting](operations/troubleshooting) →
+    • [Single VM Deployment](operations/single-vm-deployment.md) →
+    • [Kubernetes Deployment](operations/kubernetes-deployment.md) →
+    • [GPU Node Deployment](operations/gpu-node-deployment.md) →
+    • [Troubleshooting](operations/troubleshooting.md) →
