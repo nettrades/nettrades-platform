@@ -171,155 +171,155 @@ This diagram visualizes how all services—from the web interface and business l
 
 The entire platform is designed to run on a single, powerful virtual machine or bare-metal server. The recommended host OS is Talos Linux (immutable, Kubernetes-optimized) or Ubuntu 22.04 LTS with the following minimum specifications:
 
-    CPU: 16+ cores (x86_64)
+* CPU: 16+ cores (x86_64)
 
-    RAM: 64+ GB
+* RAM: 64+ GB
 
-    GPU: 1+ NVIDIA GPUs (e.g., A100, RTX 4090) with NVIDIA Driver 550+, CUDA 12.4+, and nvidia-container-toolkit installed
+* GPU: 1+ NVIDIA GPUs (e.g., A100, RTX 4090) with NVIDIA Driver 550+, CUDA 12.4+, and nvidia-container-toolkit installed
 
-    Storage: 1+ TB NVMe SSD, partitioned for Docker, Longhorn, and model storage
+Storage: 1+ TB NVMe SSD, partitioned for Docker, Longhorn, and model storage
 
 The host runs a hardened firewall (iptables/nftables) that only exposes ports 443 (HTTPS), 22 (SSH for administration), and the WireGuard UDP port, blocking all other inbound traffic.
 # 2. Edge Layer (Traefik Reverse Proxy)
 
-Traefik runs as the single entry point for all external traffic. It is containerized and handles:
+### Traefik runs as the single entry point for all external traffic. It is containerized and handles:
 
-    TLS Termination: Automatic Let's Encrypt certificates for HTTPS on port 443, with HTTP-to-HTTPS redirection on port 80.
+* TLS Termination: Automatic Let's Encrypt certificates for HTTPS on port 443, with HTTP-to-HTTPS redirection on port 80.
 
-    Path-Based Routing:
+* ### Path-Based Routing:
 
-        / ? Odoo Web UI (internal port 8069)
+* / ? Odoo Web UI (internal port 8069)
 
-        /api/v1/* ? Odoo JSON-RPC API (internal port 8069)
+* /api/v1/* ? Odoo JSON-RPC API (internal port 8069)
 
-        /invoke ? LangGraph FastAPI (internal port 8000)
+* /invoke ? LangGraph FastAPI (internal port 8000)
 
-    Authentication: Acts as a JWT/OAuth2 authentication proxy, validating tokens before forwarding requests.
+* Authentication: Acts as a JWT/OAuth2 authentication proxy, validating tokens before forwarding requests.
 
-    Rate Limiting: Protects backend services from abuse by throttling requests per client IP.
+* Rate Limiting: Protects backend services from abuse by throttling requests per client IP.
 
 # 3. Application Services (Containerized)
 
 All application logic is packaged into Docker containers and orchestrated via docker-compose.yml.
-# A. Odoo 19 CE Application Server (odoo-web)
+## A. Odoo 19 CE Application Server (odoo-web)
 
-This container runs the full Odoo 19 CE instance with all custom NETTRADES modules installed:
+### This container runs the full Odoo 19 CE instance with all custom NETTRADES modules installed:
 
-    Web Controllers: Serve the Odoo website, forum, shop, "Ask Someone" marketplace, and job boards.
+* Web Controllers: Serve the Odoo website, forum, shop, "Ask Someone" marketplace, and job boards.
 
-    JSON-RPC API Controllers: Expose endpoints for GPU node registration (/api/v1/gpu/register), dataset export (/api/v1/dataset/export), and chatbot invocation (/api/v1/chatbot/invoke).
+* JSON-RPC API Controllers: Expose endpoints for GPU node registration (/api/v1/gpu/register), dataset export (/api/v1/dataset/export), and chatbot invocation (/api/v1/chatbot/invoke).
 
-    Custom Odoo Modules: All business logic is encapsulated in modules including nettrades_core, nettrades_good_answer, nettrades_gpu_admin, nettrades_job_matching, nettrades_proposals, nettrades_lead_scoring, nettrades_ask_someone, and nettrades_chatbot.
+* Custom Odoo Modules: All business logic is encapsulated in modules including nettrades_core, nettrades_good_answer, nettrades_gpu_admin, nettrades_job_matching, nettrades_proposals, nettrades_lead_scoring, nettrades_ask_someone, and nettrades_chatbot.
 
-    Scheduled Cron Jobs: Run periodically to decay reputation scores, auto-qualify experts by karma, and trigger the fine-tuning pipeline.
+* Scheduled Cron Jobs: Run periodically to decay reputation scores, auto-qualify experts by karma, and trigger the fine-tuning pipeline.
 
-# B. LangGraph Orchestrator (langgraph-orchestrator)
+## B. LangGraph Orchestrator (langgraph-orchestrator)
 
-This container runs the FastAPI application that hosts the LangGraph supervisor and all sub-agents:
+### This container runs the FastAPI application that hosts the LangGraph supervisor and all sub-agents:
 
-    FastAPI Application: Exposes /invoke for asynchronous inference, /health for liveness probes, and /metrics for Prometheus monitoring.
+* FastAPI Application: Exposes /invoke for asynchronous inference, /health for liveness probes, and /metrics for Prometheus monitoring.
 
-    Supervisor Graph: Orchestrates the classify ? medical_screening ? route pipeline.
+* Supervisor Graph: Orchestrates the classify ? medical_screening ? route pipeline.
 
-    Sub-Agents: Includes the Recruitment, Freelance, Lead Gen, GPU Management, Vision, Action, and General LLM agents.
+* Sub-Agents: Includes the Recruitment, Freelance, Lead Gen, GPU Management, Vision, Action, and General LLM agents.
 
-    PostgresSaver Checkpointer: Ensures durable state snapshots are written to PostgreSQL, allowing workflows to resume after container restarts.
+* PostgresSaver Checkpointer: Ensures durable state snapshots are written to PostgreSQL, allowing workflows to resume after container restarts.
 
-# C. GPUStack Manager (gpustack-manager)
+## C. GPUStack Manager (gpustack-manager)
 
-This container provides the inference fabric for the platform:
+#### This container provides the inference fabric for the platform:
 
-    Inference Engine: Exposes an OpenAI-compatible API on port 8080, supporting dynamic model loading.
+* Inference Engine: Exposes an OpenAI-compatible API on port 8080, supporting dynamic model loading.
 
-    Token Metering: Counts tokens per request for usage billing.
+* Token Metering: Counts tokens per request for usage billing.
 
-    Worker Pool Manager: Manages GPU worker pools with strict isolation—gVisor for public workloads (syscall-level sandboxing) and Docker for internal pools.
+* Worker Pool Manager: Manages GPU worker pools with strict isolation—gVisor for public workloads (syscall-level sandboxing) and Docker for internal pools.
 
-# D. GPU Node Agent (gpu-node-agent)
+## D. GPU Node Agent (gpu-node-agent)
 
-This privileged container runs the GPU node agent that executes on the host machine:
+#### This privileged container runs the GPU node agent that executes on the host machine:
 
-    ensure_wireguard(): Auto-installs WireGuard if missing (supports Ubuntu/Debian/CentOS/RHEL).
+* ensure_wireguard(): Auto-installs WireGuard if missing (supports Ubuntu/Debian/CentOS/RHEL).
 
-    get_or_create_node_id(): Generates a hardware-bound node ID (TPM EK hash or MAC address fallback).
+* get_or_create_node_id(): Generates a hardware-bound node ID (TPM EK hash or MAC address fallback).
 
-    get_gpu_info(): Detects NVIDIA GPUs via nvidia-smi.
+* get_gpu_info(): Detects NVIDIA GPUs via nvidia-smi.
 
-    get_tee_summary(): Detects TEE capabilities (NVIDIA CC, Intel SGX, AMD SEV).
+* get_tee_summary(): Detects TEE capabilities (NVIDIA CC, Intel SGX, AMD SEV).
 
-    register_with_odoo(): Registers the node with Odoo via POST /api/v1/gpu/register with retries and exponential backoff.
+* register_with_odoo(): Registers the node with Odoo via POST /api/v1/gpu/register with retries and exponential backoff.
 
-    apply_wireguard_config(): Writes wg0.conf and brings up the WireGuard interface.
+* apply_wireguard_config(): Writes wg0.conf and brings up the WireGuard interface.
 
-    start_gpustack_worker(): Launches the GPUStack worker with gVisor (public) or Docker (internal) isolation.
+* start_gpustack_worker(): Launches the GPUStack worker with gVisor (public) or Docker (internal) isolation.
 
-    start_dns_watchdog(): Starts a daemon thread to keep the WireGuard tunnel alive when the ISP changes the IP.
+* start_dns_watchdog(): Starts a daemon thread to keep the WireGuard tunnel alive when the ISP changes the IP.
 
-    Token Refresh Loop: Every 600 seconds, refreshes the GPUStack worker token and restarts the worker.
+* Token Refresh Loop: Every 600 seconds, refreshes the GPUStack worker token and restarts the worker.
 
 # 4. Data & Persistence Layer
 
-All stateful data is stored in dedicated containers with persistent volumes:
+#### All stateful data is stored in dedicated containers with persistent volumes:
 
-    PostgreSQL 17 + pgvector (postgres): Stores Odoo transactional data, vector embeddings for semantic search, and LangGraph checkpoint blobs. Data is persisted to /var/lib/postgresql/data on the host.
+* PostgreSQL 17 + pgvector (postgres): Stores Odoo transactional data, vector embeddings for semantic search, and LangGraph checkpoint blobs. Data is persisted to /var/lib/postgresql/data on the host.
 
-    Valkey 8.0 (valkey): A Redis-compatible in-memory data store used for Odoo ORM session caching, Odoo bus notifications (Pub/Sub), rate limiting counters, and temporary job locks.
+* Valkey 8.0 (valkey): A Redis-compatible in-memory data store used for Odoo ORM session caching, Odoo bus notifications (Pub/Sub), rate limiting counters, and temporary job locks.
 
-    Longhorn (longhorn): Provides distributed block storage for unstructured data, including fine-tuning datasets (JSONL), trained model weights (GGUF/Safetensors), Data-Juicer intermediate artifacts, and the Odoo filestore (CVs, images). Data is persisted to /mnt/longhorn on the host.
+* Longhorn (longhorn): Provides distributed block storage for unstructured data, including fine-tuning datasets (JSONL), trained model weights (GGUF/Safetensors), Data-Juicer intermediate artifacts, and the Odoo filestore (CVs, images). Data is persisted to /mnt/longhorn on the host.
 
 # 5. AI/ML Pipeline (Optional, Cron-Triggered)
 
-The fine-tuning pipeline runs in a separate container (ml-pipeline) and is triggered by Odoo's scheduled cron jobs:
+#### The fine-tuning pipeline runs in a separate container (ml-pipeline) and is triggered by Odoo's scheduled cron jobs:
 
-    Data-Juicer: Applies quality filtering and deduplication to the exported dataset.
+* Data-Juicer: Applies quality filtering and deduplication to the exported dataset.
 
-    DEITA Scorer: Uses an LLM-as-Judge to score the complexity and quality of responses.
+* DEITA Scorer: Uses an LLM-as-Judge to score the complexity and quality of responses.
 
-    Unsloth/Axolotl Trainer: Runs LoRA/QLoRA fine-tuning on the curated dataset.
+* Unsloth/Axolotl Trainer: Runs LoRA/QLoRA fine-tuning on the curated dataset.
 
-    Model Registry: The new adapter weights are saved to Longhorn and registered with the GPUStack inference engine, making the improved model available for future inference.
+* Model Registry: The new adapter weights are saved to Longhorn and registered with the GPUStack inference engine, making the improved model available for future inference.
 
 # 6. Network & Security Fabric (Host-Level)
 
-    WireGuard VPN Mesh: Provides an encrypted, kernel-level tunnel between the control plane and all GPU worker nodes, securing internal communication (e.g., GPU health checks, model transfers).
+WireGuard VPN Mesh: Provides an encrypted, kernel-level tunnel between the control plane and all GPU worker nodes, securing internal communication (e.g., GPU health checks, model transfers).
 
-    gVisor Sandbox: Provides syscall-level isolation for public GPU worker pools, preventing tenant workloads from affecting the host kernel.
+gVisor Sandbox: Provides syscall-level isolation for public GPU worker pools, preventing tenant workloads from affecting the host kernel.
 
-    Host Firewall: Restricts inbound traffic to only HTTPS (443), SSH (22), and the WireGuard UDP port.
+Host Firewall: Restricts inbound traffic to only HTTPS (443), SSH (22), and the WireGuard UDP port.
 
 # 7. Deployment & Orchestration
 
-The entire stack is defined in a single docker-compose.yml file, enabling:
+#### The entire stack is defined in a single docker-compose.yml file, enabling:
 
-    Single-Command Deployment: docker-compose up -d brings up all services with proper dependencies.
+* Single-Command Deployment: docker-compose up -d brings up all services with proper dependencies.
 
-    Service Discovery: Containers communicate via internal Docker network DNS names (e.g., postgres:5432, valkey:6379).
+* Service Discovery: Containers communicate via internal Docker network DNS names (e.g., postgres:5432, valkey:6379).
 
-    Persistent Volumes: All stateful data is mapped to host directories, ensuring data survives container restarts.
+* Persistent Volumes: All stateful data is mapped to host directories, ensuring data survives container restarts.
 
-    Health Checks: Each container includes liveness and readiness probes for automatic recovery.
+* Health Checks: Each container includes liveness and readiness probes for automatic recovery.
 
 # 8. Complete Request Flow (Single VM)
 
-    User Request: An end-user sends an HTTPS request to the VM's public IP.
+User Request: An end-user sends an HTTPS request to the VM's public IP.
 
-    Traefik Routing: Traefik terminates TLS, validates the JWT token, and routes the request:
+#### Traefik Routing: Traefik terminates TLS, validates the JWT token, and routes the request:
 
-        / or /api/v1/* ? Odoo container (port 8069)
+* / or /api/v1/* ? Odoo container (port 8069)
 
-        /invoke ? LangGraph FastAPI container (port 8000)
+* /invoke ? LangGraph FastAPI container (port 8000)
 
-    Odoo Processing: If the request is to the chatbot endpoint (/api/v1/chatbot/invoke), Odoo makes an internal HTTP call to the LangGraph container's /invoke endpoint.
+Odoo Processing: If the request is to the chatbot endpoint (/api/v1/chatbot/invoke), Odoo makes an internal HTTP call to the LangGraph container's /invoke endpoint.
 
-    LangGraph Orchestration: The FastAPI app executes the Supervisor Graph, which classifies the intent, performs medical/legal screening if needed, and dispatches to the appropriate sub-agent.
+LangGraph Orchestration: The FastAPI app executes the Supervisor Graph, which classifies the intent, performs medical/legal screening if needed, and dispatches to the appropriate sub-agent.
 
-    Sub-Agent Execution: The sub-agent processes the request, optionally calling the GPUStack inference engine (internal port 8080) for LLM inference, and reads/writes data to PostgreSQL, Valkey, or Longhorn as needed.
+Sub-Agent Execution: The sub-agent processes the request, optionally calling the GPUStack inference engine (internal port 8080) for LLM inference, and reads/writes data to PostgreSQL, Valkey, or Longhorn as needed.
 
-    GPUStack Inference: The GPUStack manager routes the inference request to the GPU node agent, which executes the model on the host's NVIDIA GPU(s).
+GPUStack Inference: The GPUStack manager routes the inference request to the GPU node agent, which executes the model on the host's NVIDIA GPU(s).
 
-    Response: The response flows back through the chain: sub-agent ? FastAPI ? Odoo ? Traefik ? User.
+Response: The response flows back through the chain: sub-agent ? FastAPI ? Odoo ? Traefik ? User.
 
-    State Persistence: All LangGraph state transitions are checkpointed to PostgreSQL via the PostgresSaver, ensuring durability and resume capability.
+State Persistence: All LangGraph state transitions are checkpointed to PostgreSQL via the PostgresSaver, ensuring durability and resume capability.
 
 This single VM deployment architecture provides a complete, self-contained, production-ready environment for the NETTRADES.AI platform, balancing simplicity with the full power of its AI-driven business logic, GPU acceleration, and continuous self-improvement pipeline.
 
