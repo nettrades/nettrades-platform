@@ -64,7 +64,7 @@ Ask questions, share ideas, and discuss the project.
 
 Browse the official documentation.
 
-**👉 [Documentation Site](https://nettrades.github.io/nettrades-platform/)**
+**👉 [Documentation Site](/)**
 
 ---
 
@@ -88,7 +88,7 @@ For private inquiries:
 3. **Be constructive** – Provide constructive feedback.
 4. **Be inclusive** – Welcome everyone, regardless of background.
 
-We follow the [Code of Conduct](https://nettrades.github.io/nettrades-platform/governance/code-of-conduct/).
+We follow the [Code of Conduct](/governance/code-of-conduct).
 
 ---
 
@@ -131,6 +131,6 @@ If you have questions about the community, please:
 
 ## Next Steps
 
-- [Contributing Guide →](https://nettrades.github.io/nettrades-platform/governance/contributing/)
-- [Getting Started →](https://nettrades.github.io/nettrades-platform/getting-started/)
-- [Documentation →](https://nettrades.github.io/nettrades-platform/)
+- [Contributing Guide →](/governance/contributing)
+- [Getting Started →](/getting-started)
+- [Documentation →](/)
