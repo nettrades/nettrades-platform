@@ -8,7 +8,7 @@ Welcome to the NETTRADES.AI documentation!
 
 | I want to... | Start here |
 |--------------|------------|
-| **Try the platform without installing anything** | [Try It Now →](/try-it-now) |
+| **Try the platform without installing anything** | [Try It Now →](/try-it-now.md) |
 | **Get started (any role)** | [Getting Started →](/getting-started.md) |
 | **Use the platform** (as a company, freelancer, or job-seeker) | [User Guide →](user/index.md) |
 | **Develop or extend the platform** | [Developer Guide →](developer/index.md) |
