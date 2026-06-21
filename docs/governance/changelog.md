@@ -13,6 +13,10 @@ This page tracks notable changes to the NETTRADES.AI platform. All releases are 
 - **Data-Juicer pipeline** – Automated quality filtering for fine-tuning datasets.
 - **DEITA scoring** – LLM-as-Judge scoring for dataset quality.
 - **Federated Learning module** – Cross-organisation model training (experimental).
+- **`nettrades.experience` model** – Work experience storage for user profiles
+- **`nettrades.review` model** – User ratings and reviews for completed projects
+- **`project` dependency** added to `nettrades_core` module
+- **Views for reviews** – Tree and form views for managing reviews in the admin panel
 
 ### Fixed
 
@@ -20,6 +24,9 @@ This page tracks notable changes to the NETTRADES.AI platform. All releases are 
 - **Authentication bypass** – `LANGGRAPH_API_KEY` now required (no silent bypass).
 - **Indentation bug** in `gpu_cluster.py` – fixed.
 - **Missing fields** on `nettrades.field` – all 30+ fields added.
+- **Model registry error** – Fixed missing `nettrades.experience` and `nettrades.review` models causing `Internal Server Error`
+- **`res.partner` One2many fields** – Properly linked to the new experience and review models
+- **Module loading** – `nettrades_gpu_admin` module now loads without `ImportError`
 
 ### Changed
 
@@ -27,6 +34,8 @@ This page tracks notable changes to the NETTRADES.AI platform. All releases are 
 - **Replaced N8N** with direct LangGraph calls.
 - **Replaced Redis** with Valkey.
 - **Replaced Kalavai** with GPUStack.
+- **`nettrades_core` module** – Updated dependencies to include `project`
+- **Documentation** – Added core models reference page
 
 ---
 

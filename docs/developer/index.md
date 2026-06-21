@@ -1,3 +1,4 @@
+
 # Developer Documentation
 
 Welcome to the NETTRADES.AI developer documentation. This section is designed for developers and contributors who want to extend, customize, or contribute to the platform.
@@ -20,6 +21,25 @@ Extend the platform with new business functionality – new data models, views, 
 Add new widgets to the GPU Admin Panel or create custom dashboards for specific user roles.
 
 [Learn about the GPU Admin Panel →](/developer/building-odoo-modules#extending-the-gpu-admin-panel)
+
+---
+
+## Core Models Reference
+
+The platform includes several custom Odoo models that form the foundation of the business logic.
+
+| Model | Description |
+|-------|-------------|
+| `nettrades.field` | Professional field configuration |
+| `nettrades.experience` | User work experience |
+| `nettrades.review` | User ratings and reviews |
+| `good.answer.vote` | Good Answer votes |
+| `user_field_reputation` | Reputation per field |
+| `ft.dataset` | Fine-tuning datasets |
+| `expert.session` | Expert consultation sessions |
+| `gpu.node` | GPU node management |
+
+[Full core models reference →](/developer/core-models)
 
 ---
 
@@ -60,6 +80,8 @@ Add new widgets to the GPU Admin Panel or create custom dashboards for specific 
 | Odoo `nettrades.field` | ⚠️ Sparse | 24+ fields missing |
 | Odoo `gpu.node` | ⚠️ Sparse | 15+ fields and methods missing |
 | Odoo `gpu.cluster` | ❌ Broken | Indentation bug, missing methods |
+| Odoo `nettrades.experience` | ✅ Complete | Work experience model |
+| Odoo `nettrades.review` | ✅ Complete | User review model |
 | Deployment Scripts | ✅ Full | Phase-based orchestrator works |
 
 [Full roadmap →](/governance/roadmap)
@@ -105,3 +127,5 @@ Key points:
 - **GitHub Issues**: [github.com/nettrades/nettrades-platform/issues](https://github.com/nettrades/nettrades-platform/issues)
 - **Discord**: [Join our community](https://discord.gg/nettrades)
 - **Email**: [dev@nettrades.ai](mailto:dev@nettrades.ai)
+
+
