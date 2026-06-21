@@ -152,6 +152,6 @@ If you have questions about this policy, contact:
 
 ## Next Steps
 
-- [Code of Conduct →](/governance/code-of-conduct)
-- [Security Policy →](/governance/security)
-- [Contributing Guide →](/governance/contributing)
+- [Code of Conduct →](code-of-conduct.md)
+- [Security Policy →](security.md)
+- [Contributing Guide →](contributing.md)
