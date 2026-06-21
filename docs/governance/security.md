@@ -121,6 +121,6 @@ We currently do **not** offer a bug bounty program. However, we greatly apprecia
 
 ## Next Steps
 
-- [Privacy Policy →](/governance/privacy)
-- [Code of Conduct →](/governance/code-of-conduct)
-- [Contributing Guide →](/governance/contributing)
+- [Privacy Policy →](privacy.md)
+- [Code of Conduct →](code-of-conduct.md)
+- [Contributing Guide →](contributing.md)
