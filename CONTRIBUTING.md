@@ -53,9 +53,9 @@ You will be prompted to sign the CLA when you open your first pull request. Alte
 ## How to Contribute
 
 1. **Fork the repository** on GitHub.
-2. **Set up your development environment** – follow the [Developer Getting Started Guide](https://nettrades.github.io/nettrades-platform/docs/developer/getting-started.md).
+2. **Set up your development environment** – follow the [Developer Getting Started Guide](https://github.io/nettrades-platform/docs/developer/getting-started.md).
 3. **Create a branch** – `git checkout -b feature/your-feature-name`.
-4. **Make your changes** – follow the [Style Guide](https://nettrades.github.io/nettrades-platform/docs/developer/style-guide.md).
+4. **Make your changes** – follow the [Style Guide](https://github.io/nettrades-platform/docs/developer/style-guide.md).
 5. **Write tests** – include unit or integration tests.
 6. **Update documentation** – if your change affects user-facing functionality.
 7. **Open a pull request** – describe your changes and link any related issues.
