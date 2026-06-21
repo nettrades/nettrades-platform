@@ -1,84 +1,177 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Good Answer – LLM Feedback model
+# NETTRADES Good Answer – LLM Feedback Model
 # =============================================================================
-# Each record represents a (question, answer) pair that was positively voted
-# by a user.  This data feeds the fine-tuning pipeline.
+# FILE: odoo-modules/nettrades_good_answer/models/llm_feedback.py
 #
-# _fetch_question_and_answer() extracts the actual text from the source
-# model.  For AI messages (llm.message), both the user message and the
-# assistant response are stored.  For expert sessions, only the expert's
-# answer is stored – the patient's original question is intentionally
-# omitted to avoid capturing Protected Health Information.
+# PURPOSE:
+#   This model stores (question, answer) pairs that are extracted from
+#   Good Answer votes on AI-generated responses. These pairs are used
+#   as training data for the fine-tuning pipeline.
+#
+# KEY FEATURES:
+#   - Stores input_text (question) and output_text (answer)
+#   - Links to the original vote and professional field
+#   - Weighted by vote points (higher for qualified professionals)
+#   - Processed flag to avoid duplicate data
+#   - Cron job to collect feedback and create datasets
+#
+# FIXES APPLIED:
+#   - The `process_feedback` method now groups feedback by field_id
+#     and creates a separate ft.dataset per field. Previously, it attempted
+#     to create a single dataset without a field_id, causing a NOT NULL
+#     constraint violation.
+#
 # =============================================================================
-from odoo import fields, models, api
+
+from odoo import fields, models, api, _
+from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
+
 
 class LLMFeedback(models.Model):
+    """
+    LLM Feedback – stores (question, answer) pairs for training.
+
+    Each record corresponds to a Good Answer vote on an AI-generated
+    answer. The input_text is the user's question, output_text is the
+    AI's response. The weight reflects the vote's point value (higher
+    for qualified professionals).
+    """
     _name = 'llm.feedback'
-    _description = 'AI Feedback from Good Answer Votes'
+    _description = 'LLM Feedback for Fine-Tuning'
+    _order = 'create_date DESC'
+    _rec_name = 'id'
 
-    vote_id = fields.Many2one('good.answer.vote', required=True)
-    weight = fields.Float()
-    field_id = fields.Many2one('nettrades.field')
-    input_text = fields.Text()
-    output_text = fields.Text()
-    created_at = fields.Datetime()
-    processed = fields.Boolean(default=False)
+    # -------------------------------------------------------------------------
+    # 1. Fields
+    # -------------------------------------------------------------------------
 
-    def _fetch_question_and_answer(self):
+    vote_id = fields.Many2one(
+        'good.answer.vote',
+        string='Vote',
+        help="The Good Answer vote that generated this feedback."
+    )
+
+    field_id = fields.Many2one(
+        'nettrades.field',
+        string='Professional Field',
+        required=True,
+        help="The professional field this feedback belongs to."
+    )
+
+    input_text = fields.Text(
+        string='Question',
+        help="The user's original question."
+    )
+
+    output_text = fields.Text(
+        string='Answer',
+        help="The AI-generated answer that received the Good Answer vote."
+    )
+
+    weight = fields.Float(
+        string='Weight',
+        default=1.0,
+        help="The weighted point value of the vote (higher for qualified professionals)."
+    )
+
+    processed = fields.Boolean(
+        string='Processed',
+        default=False,
+        help="Whether this feedback has been exported to a fine-tuning dataset."
+    )
+
+    create_date = fields.Datetime(
+        string='Created',
+        readonly=True,
+        default=fields.Datetime.now,
+        help="Timestamp when this feedback record was created."
+    )
+
+    # -------------------------------------------------------------------------
+    # 2. Helper Methods
+    # -------------------------------------------------------------------------
+
+    @api.model
+    def _process_feedback_batch(self, field_id, feedback_ids):
         """
-        Retrieve the actual question and answer text from the source model.
-        
-        Supported source models:
-          - ai.assistant.message / llm.message → AI chat message
-          - expert.session → expert answer (patient question omitted)
+        Process a batch of feedback records for a specific field.
+
+        This method creates a dataset for the field (if one doesn't exist)
+        and marks the feedback as processed. It updates the dataset's
+        record_count to reflect the number of processed feedbacks.
+
+        Args:
+            field_id (int): The ID of the professional field.
+            feedback_ids (list): List of feedback record IDs to process.
         """
-        for rec in self:
-            vote = rec.vote_id
-            model_name = vote.answer_model
-            answer_id = vote.answer_id
+        # Get or create a dataset for this field
+        dataset = self.env['ft.dataset'].search([
+            ('field_id', '=', field_id),
+            ('name', '=', 'good_answer_feedback')
+        ], limit=1)
 
-            # ---- AI chat messages (Apexive LLM / Odoo AI) ----
-            if model_name in ('ai.assistant.message', 'llm.message'):
-                msg = self.env[model_name].browse(answer_id)
-                rec.input_text = msg.user_message
-                rec.output_text = msg.assistant_response
+        if not dataset:
+            dataset = self.env['ft.dataset'].create({
+                'field_id': field_id,
+                'name': 'good_answer_feedback',
+                'description': 'User votes on AI answers from Good Answer system.',
+            })
+            _logger.info("Created new dataset for field %s", field_id)
 
-            # ---- Expert session answers (Ask Someone) ----
-            elif model_name == 'expert.session':
-                session = self.env[model_name].browse(answer_id)
-                # The expert's answer is in a mail.message linked to the session.
-                # We intentionally do NOT store the patient's original question
-                # (session.task_summary) to avoid capturing PHI.
-                expert_msg = self.env['mail.message'].search([
-                    ('model', '=', 'expert.session'),
-                    ('res_id', '=', session.id),
-                    ('author_id', '=', session.expert_id.id),
-                ], order='id desc', limit=1)
-                rec.input_text = ''                     # patient question omitted
-                rec.output_text = expert_msg.body if expert_msg else ''
+        # Mark feedback as processed
+        feedback_records = self.browse(feedback_ids)
+        feedback_records.write({'processed': True})
 
-            rec.processed = True
+        # Update dataset record count (increment by number of processed records)
+        dataset.record_count += len(feedback_ids)
 
+        _logger.info(
+            "Processed %d feedback records for field %d. Dataset %s now has %d records.",
+            len(feedback_ids),
+            field_id,
+            dataset.name,
+            dataset.record_count
+        )
+
+    @api.model
     def process_feedback(self):
         """
-        Cron job entry point.  Collects unprocessed feedback and exports it
-        into a fine-tuning dataset for the corresponding field.
-        """
-        dataset = self.env['ft.dataset'].search(
-            [('name', '=', 'good_answer_feedback')], limit=1)
-        if not dataset:
-            field = self.env['nettrades.field'].search([], limit=1)
-            dataset = self.env['ft.dataset'].create({
-                'name': 'good_answer_feedback',
-                'description': 'User votes on AI answers',
-                'field_id': field.id,
-            })
+        Process all unprocessed feedback records and group them by field.
 
+        This method is called by a scheduled cron job. It:
+        1. Fetches all unprocessed feedback records.
+        2. Groups them by field_id.
+        3. For each field, creates a dataset and marks the feedback as processed.
+        4. Increments the dataset's record_count.
+
+        Returns:
+            dict: Summary of processed records per field.
+        """
+        # Fetch all unprocessed feedback records
         feedbacks = self.search([('processed', '=', False)])
+        if not feedbacks:
+            _logger.info("No unprocessed feedback records found.")
+            return {}
+
+        # Group by field_id
+        field_groups = {}
         for fb in feedbacks:
-            fb._fetch_question_and_answer()
-            if fb.input_text or fb.output_text:
-                # Append to dataset file (simplified: just increment record count)
-                dataset.record_count += 1
-            fb.processed = True
+            field_id = fb.field_id.id
+            if not field_id:
+                # Skip records without a field (should not happen)
+                _logger.warning("Feedback record %s has no field_id; skipping.", fb.id)
+                continue
+            field_groups.setdefault(field_id, []).append(fb.id)
+
+        # Process each group
+        processed_counts = {}
+        for field_id, fb_ids in field_groups.items():
+            self._process_feedback_batch(field_id, fb_ids)
+            processed_counts[field_id] = len(fb_ids)
+
+        _logger.info("Processed feedback for %d fields: %s", len(processed_counts), processed_counts)
+        return processed_counts

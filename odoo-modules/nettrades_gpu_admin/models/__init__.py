@@ -1,5 +1,4 @@
 # First, models that have no dependencies on other custom models
-from . import test
 
 # Models that are referenced by others must come first
 from . import gpu_cluster_subnet      # this must come before gpu_cluster

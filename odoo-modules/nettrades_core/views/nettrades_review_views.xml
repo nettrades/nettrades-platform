@@ -1,15 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+============================================================================
+NETTRADES Core – Review Views
+============================================================================
+FILE: odoo-modules/nettrades_core/views/nettrades_review_views.xml
+
+PURPOSE:
+   Provides list and form views for the nettrades.review model.
+============================================================================
+-->
 <odoo>
     <record id="view_nettrades_review_tree" model="ir.ui.view">
         <field name="name">nettrades.review.tree</field>
         <field name="model">nettrades.review</field>
         <field name="arch" type="xml">
-            <list>
+            <tree>
+                <field name="create_date"/>
                 <field name="reviewer_id"/>
                 <field name="reviewed_partner_id"/>
-                <field name="rating"/>
+                <field name="rating" widget="star"/>
+                <field name="project_id"/>
                 <field name="comment"/>
-                <field name="create_date"/>
-            </list>
+            </tree>
         </field>
     </record>
 
@@ -20,29 +32,31 @@
             <form>
                 <sheet>
                     <group>
-                        <field name="reviewer_id"/>
-                        <field name="reviewed_partner_id"/>
-                        <field name="rating"/>
-                        <field name="comment"/>
+                        <field name="reviewer_id" readonly="1"/>
+                        <field name="reviewed_partner_id" readonly="1"/>
                         <field name="project_id"/>
+                        <field name="rating" widget="star"/>
+                    </group>
+                    <group>
+                        <field name="comment" nolabel="1"/>
+                    </group>
+                    <group string="Metadata">
+                        <field name="create_date" readonly="1"/>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
 
-    <record id="view_nettrades_review_search" model="ir.ui.view">
-        <field name="name">nettrades.review.search</field>
-        <field name="model">nettrades.review</field>
-        <field name="arch" type="xml">
-            <search>
-                <field name="reviewer_id"/>
-                <field name="reviewed_partner_id"/>
-                <filter string="My Reviews" name="my_reviews" domain="[('reviewer_id','=',uid)]"/>
-            </search>
-        </field>
+    <record id="action_nettrades_review" model="ir.actions.act_window">
+        <field name="name">Reviews</field>
+        <field name="res_model">nettrades.review</field>
+        <field name="view_mode">tree,form</field>
     </record>
 
-    <act_window id="action_nettrades_review" name="Reviews" res_model="nettrades.review" view_mode="tree,form"/>
-    <menuitem id="menu_nettrades_review" name="Reviews" parent="base.menu_administration" action="action_nettrades_review"/>
+    <menuitem id="menu_nettrades_review"
+              name="Reviews"
+              parent="nettrades_core.menu_nettrades_core"
+              action="action_nettrades_review"
+              sequence="50"/>
 </odoo>
