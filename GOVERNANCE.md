@@ -97,13 +97,13 @@ Contributions follow a standard open-source workflow:
 5. **Review** by maintainers
 6. **Merge** into `main`
 
-[Full Contributing Guide →](https://nettrades.github.io/nettrades-platform/governance/contributing/)
+[Full Contributing Guide →](docs/governance/contributing.md)
 
 ---
 
 ## Code of Conduct
 
-All participants are expected to follow the [Code of Conduct](https://nettrades.github.io/nettrades-platform/governance/code-of-conduct/).
+All participants are expected to follow the [Code of Conduct](docs/governance/code-of-conduct.md).
 
 ---
 
@@ -129,7 +129,7 @@ NETTRADES.AI uses a dual-licensing approach:
 | `odoo-modules/` (custom Odoo plugins) | **LGPL-3.0** |
 | `third-party/` | Original licenses |
 
-[Full License Information →](https://nettrades.github.io/nettrades-platform/governance/license/)
+[Full License Information →](license.txt)
 
 ---
 
@@ -145,7 +145,7 @@ The project is funded through:
 
 ## Roadmap
 
-The project roadmap is maintained in the [Roadmap](https://nettrades.github.io/nettrades-platform/governance/roadmap/) page.
+The project roadmap is maintained in the [Roadmap](docs/governance/roadmap.md) page.
 
 ---
 
