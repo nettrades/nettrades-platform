@@ -74,28 +74,28 @@ The platform includes built-in monitoring:
 |`Alertmanager`	|Alerting	|Configured via alertmanager.yml|
 
 ### Command-Line Reference
-    • [Odoo CLI](single-vm-deployment.md#command-line-reference) →
-    • [Docker Compose Commands](single-vm-deployment.md#docker-compose-commands) →
-    • [Talos CLI](kubernetes-deployment.md#talos-cli-commands) →
-    • [GPU Node Agent Commands](gpu-node-deployment.md#gpu-node-agent-commands) →
+[Odoo CLI](single-vm-deployment.md#command-line-reference) →
+[Docker Compose Commands](single-vm-deployment.md#docker-compose-commands) →
+[Talos CLI](kubernetes-deployment.md#talos-cli-commands) →
+[GPU Node Agent Commands](gpu-node-deployment.md#gpu-node-agent-commands) →
 
 ### Security Best Practices
-    1. Change default passwords – Immediately change admin/admin for GPUStack and Grafana.
-    2. Use HTTPS – Traefik with Let's Encrypt provides automatic TLS.
-    3. Restrict SSH – Use the security-harden.sh script.
-    4. Regular backups – Ensure daily database backups are running.
-    5. Update regularly – Run docker compose pull or kubectl apply for updates.
+1. Change default passwords – Immediately change admin/admin for GPUStack and Grafana.
+2. Use HTTPS – Traefik with Let's Encrypt provides automatic TLS.
+3. Restrict SSH – Use the security-harden.sh script.
+4. Regular backups – Ensure daily database backups are running.
+5. Update regularly – Run docker compose pull or kubectl apply for updates.
 
 ### Troubleshooting
-    • [Troubleshooting Quick Reference](troubleshooting-quickref.md) – One-page cheat sheet
-    • [Troubleshooting Decision Tree](troubleshooting-guide.md) – Visual step-by-step guide
-    • [Full Troubleshooting Guide](troubleshooting.md) – Detailed error list and solutions
+[Troubleshooting Quick Reference](troubleshooting-quickref.md) – One-page cheat sheet
+[Troubleshooting Decision Tree](troubleshooting-guide.md) – Visual step-by-step guide
+[Full Troubleshooting Guide](troubleshooting.md) – Detailed error list and solutions
 
 ### FAQ
-    • Operations FAQ(faq.md) – Frequently asked questions for operators
+Operations FAQ(faq.md) – Frequently asked questions for operators
 
 ### Next Steps
-    • [Single VM Deployment](single-vm-deployment.md) →
-    • [Kubernetes Deployment](kubernetes-deployment.md) →
-    • [GPU Node Deployment](gpu-node-deployment.md) →
-    • [Troubleshooting](troubleshooting.md) →
+[Single VM Deployment](single-vm-deployment.md) →
+[Kubernetes Deployment](kubernetes-deployment.md) →
+[GPU Node Deployment](gpu-node-deployment.md) →
+[Troubleshooting](troubleshooting.md) →
