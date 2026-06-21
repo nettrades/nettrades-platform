@@ -10,7 +10,7 @@ Thank you for using NETTRADES.AI! This document explains how to get help and sup
 |------------|-------------|
 | **Bug report** | [GitHub Issues](https://github.com/nettrades/nettrades-platform/issues) |
 | **Feature request** | [GitHub Discussions](https://github.com/nettrades/nettrades-platform/discussions) |
-| **Documentation** | [Documentation Site](https://nettrades.github.io/nettrades-platform/docs/index.md) |
+| **Documentation** | [Documentation Site](docs/index.md) |
 | **Community chat** | [Discord](https://discord.gg/nettrades) |
 | **Security issue** | [security@nettrades.ai](mailto:security@nettrades.ai) (do not open a public issue) |
 | **Commercial support** | [support@nettrades.ai](mailto:support@nettrades.ai) |
@@ -23,10 +23,10 @@ Thank you for using NETTRADES.AI! This document explains how to get help and sup
 
 The [NETTRADES.AI Documentation](https://nettrades.github.io/nettrades-platform/) covers:
 
-- [User Guide](https://nettrades.github.io/nettrades-platform/user/) – For end-users
-- [Developer Guide](https://nettrades.github.io/nettrades-platform/developer/) – For developers
-- [Operations Guide](https://nettrades.github.io/nettrades-platform/operations/) – For system administrators
-- [FAQ](https://nettrades.github.io/nettrades-platform/user/faq/) – Frequently asked questions
+- [User Guide](docs/user.md) – For end-users
+- [Developer Guide](docs/developer/index.md) – For developers
+- [Operations Guide](docs/operations/index.md) – For system administrators
+- [FAQ](docs/user/faq.md) – Frequently asked questions
 
 ### 2. Search GitHub Issues
 
@@ -94,13 +94,13 @@ If you discover a security vulnerability, **please do not** open a public issue.
    - Any suggested mitigation
 3. We will acknowledge your report within 48 hours
 
-[Full Security Policy →](https://nettrades.github.io/nettrades-platform/governance/security/)
+[Full Security Policy →](docs/governance/security.md)
 
 ---
 
 ## Contributing
 
-We welcome contributions! Check out our [Contributing Guide](https://nettrades.github.io/nettrades-platform/governance/contributing/) and [Contributor Quick Start](https://nettrades.github.io/nettrades-platform/governance/contributor-quickstart/).
+We welcome contributions! Check out our [Contributing Guide](docs/governance/contributing.md) and [Contributor Quick Start](docs/governance/contributor-quickstart.md).
 
 ---
 
