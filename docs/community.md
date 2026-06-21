@@ -131,6 +131,6 @@ If you have questions about the community, please:
 
 ## Next Steps
 
-- [Contributing Guide →](/governance/contributing)
-- [Getting Started →](/getting-started)
+- [Contributing Guide →](/governance/contributing.md)
+- [Getting Started →](/getting-started.md)
 - [Documentation →](/)
