@@ -19,9 +19,9 @@ NETTRADES.AI is an open-source project with a strong commitment to community, tr
 
 ## Quick Links
 
-- [Contributing Guide →](/governance/contributing)
-- [Roadmap →](/governance/roadmap)
-- [License Information →](/governance/license)
+- [Contributing Guide →](contributing.md)
+- [Roadmap →](roadmap.md)
+- [License Information →](../../license.txt)
 
 ---
 
@@ -34,7 +34,7 @@ We welcome contributions of all kinds:
 - **Testing** – Unit tests, integration tests, user testing
 - **Community** – Answering questions, moderating forums, evangelism
 
-[Full Contributing Guide →](/governance/contributing)
+[Full Contributing Guide →](contributing.md)
 
 ---
 
