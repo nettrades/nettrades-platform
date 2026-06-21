@@ -75,8 +75,11 @@ The platform includes built-in monitoring:
 
 ### Command-Line Reference
 [Odoo CLI](single-vm-deployment.md#command-line-reference) →
+
 [Docker Compose Commands](single-vm-deployment.md#docker-compose-commands) →
+
 [Talos CLI](kubernetes-deployment.md#talos-cli-commands) →
+
 [GPU Node Agent Commands](gpu-node-deployment.md#gpu-node-agent-commands) →
 
 ### Security Best Practices
@@ -88,14 +91,19 @@ The platform includes built-in monitoring:
 
 ### Troubleshooting
 [Troubleshooting Quick Reference](troubleshooting-quickref.md) – One-page cheat sheet
+
 [Troubleshooting Decision Tree](troubleshooting-guide.md) – Visual step-by-step guide
+
 [Full Troubleshooting Guide](troubleshooting.md) – Detailed error list and solutions
 
 ### FAQ
-Operations FAQ(faq.md) – Frequently asked questions for operators
+[Operations FAQ](faq.md) – Frequently asked questions for operators
 
 ### Next Steps
 [Single VM Deployment](single-vm-deployment.md) →
+
 [Kubernetes Deployment](kubernetes-deployment.md) →
+
 [GPU Node Deployment](gpu-node-deployment.md) →
+
 [Troubleshooting](troubleshooting.md) →
