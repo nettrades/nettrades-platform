@@ -41,7 +41,7 @@ Go to [GitHub Issues](https://github.com/nettrades/nettrades-platform/issues) an
 
 ### 2.3 Need Help Understanding the Issue?
 
-- Check the [Architecture Overview](/developer/architecture.md) to understand how the system works.
+- Check the [Architecture Overview](docs/developer/architecture.md) to understand how the system works.
 - Look at the [codebase](https://github.com/nettrades/nettrades-platform) for similar patterns.
 - Ask questions in the issue comments or on [Discord](https://discord.gg/nettrades).
 
