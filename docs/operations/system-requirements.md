@@ -198,6 +198,6 @@ A full list of environment variables is available in the [Appendix](/appendix/en
 
 ## Next Steps
 
-- [Single VM Deployment →](/operations/single-vm-deployment)
-- [Kubernetes Deployment →](/operations/kubernetes-deployment)
-- [GPU Node Deployment →](/operations/gpu-node-deployment)
+- [Single VM Deployment →](single-vm-deployment.md)
+- [Kubernetes Deployment →](kubernetes-deployment.md)
+- [GPU Node Deployment →](gpu-node-deployment.md)
