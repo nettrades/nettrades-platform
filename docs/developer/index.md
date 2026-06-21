@@ -10,17 +10,17 @@ Welcome to the NETTRADES.AI developer documentation. This section is designed fo
 ### 🤖 New LangGraph Agents
 Add new AI agents to handle specific business domains – recruitment, lead generation, customer service, or anything else.
 
-[Learn about building agents →](/developer/building-agents.md)
+[Learn about building agents →](building-agents.md)
 
 ### 🧩 New Odoo Modules
 Extend the platform with new business functionality – new data models, views, workflows, or integrations.
 
-[Learn about building Odoo modules →](/developer/building-odoo-modules.md)
+[Learn about building Odoo modules →](building-odoo-modules.md)
 
 ### 🖥️ Custom Dashboard Widgets
 Add new widgets to the GPU Admin Panel or create custom dashboards for specific user roles.
 
-[Learn about the GPU Admin Panel →](/developer/building-odoo-modules.md#extending-the-gpu-admin-panel)
+[Learn about the GPU Admin Panel →](building-odoo-modules.md#extending-the-gpu-admin-panel)
 
 ---
 
@@ -39,7 +39,7 @@ The platform includes several custom Odoo models that form the foundation of the
 | `expert.session` | Expert consultation sessions |
 | `gpu.node` | GPU node management |
 
-[Full core models reference →](/developer/core-models.md)
+[Full core models reference →](core-models.md)
 
 ---
 
@@ -50,7 +50,7 @@ The platform includes several custom Odoo models that form the foundation of the
 3. **Explore the codebase** – Understand the architecture and key components.
 4. **Build your first agent or module** – Use our templates and guides.
 
-[Full developer getting started guide →](/developer/getting-started.md)
+[Full developer getting started guide →](getting-started.md)
 
 ---
 
@@ -65,7 +65,7 @@ The platform includes several custom Odoo models that form the foundation of the
 | **Odoo Modules** | `odoo-modules/` | Business logic, UI, and administration |
 | **MCP-Odoo Bridge** | `third-party/mcp-odoo/` | Allows AI agents to interact with Odoo data |
 
-[Full architecture overview →](/developer/architecture.md)
+[Full architecture overview →](architecture.md)
 
 ---
 
@@ -84,7 +84,7 @@ The platform includes several custom Odoo models that form the foundation of the
 | Odoo `nettrades.review` | ✅ Complete | User review model |
 | Deployment Scripts | ✅ Full | Phase-based orchestrator works |
 
-[Full roadmap →](/governance/roadmap.md)
+[Full roadmap →](roadmap.md)
 
 ---
 
@@ -97,22 +97,22 @@ We follow the OCA (Odoo Community Association) conventions for Odoo modules and 
 - **JavaScript**: Owl framework conventions
 - **XML**: Prefix XML IDs with module name
 
-[Full style guide →](/developer/style-guide.md)
+[Full style guide →](style-guide.md)
 
 ---
 
 ## API Reference
 
-- [LangGraph `/invoke` API →](/developer/api-reference.md#langgraph-invoke-api)
-- [GPU Node Registration →](/developer/api-reference.md#gpu-node-registration-api)
-- [GPUStack Token Refresh →](/developer/api-reference.md#gpustack-token-refresh-api)
-- [WebSocket Bus API →](/developer/api-reference.md#websocket-bus-api)
+- [LangGraph `/invoke` API →](api-reference.md#langgraph-invoke-api)
+- [GPU Node Registration →](api-reference.md#gpu-node-registration-api)
+- [GPUStack Token Refresh →](api-reference.md#gpustack-token-refresh-api)
+- [WebSocket Bus API →](api-reference.md#websocket-bus-api)
 
 ---
 
 ## Contributing
 
-We welcome contributions! Please read our [Contributing Guide](/governance/contributing.md) before submitting PRs.
+We welcome contributions! Please read our [Contributing Guide](contributing.md) before submitting PRs.
 
 Key points:
 - **CLA required** – All contributors must sign the CLA
