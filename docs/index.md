@@ -9,12 +9,12 @@ Welcome to the NETTRADES.AI documentation!
 | I want to... | Start here |
 |--------------|------------|
 | **Try the platform without installing anything** | [Try It Now →](/try-it-now) |
-| **Get started (any role)** | [Getting Started →](/getting-started) |
-| **Use the platform** (as a company, freelancer, or job-seeker) | [User Guide →](/user/) |
-| **Develop or extend the platform** | [Developer Guide →](/developer/) |
-| **Deploy and run the platform** | [Operations Guide →](/operations/) |
-| **Contribute to the project** | [Governance →](/governance/) |
-| **Understand key terms** | [Glossary →](/appendix/glossary) |
+| **Get started (any role)** | [Getting Started →](/getting-started.md) |
+| **Use the platform** (as a company, freelancer, or job-seeker) | [User Guide →](/user/index.md) |
+| **Develop or extend the platform** | [Developer Guide →](/developer/index.md) |
+| **Deploy and run the platform** | [Operations Guide →](/operations/index.md) |
+| **Contribute to the project** | [Governance →](/governance/index.md) |
+| **Understand key terms** | [Glossary →](/appendix/glossary.md) |
 
 ---
 
