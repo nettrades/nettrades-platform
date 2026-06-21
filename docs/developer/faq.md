@@ -35,7 +35,7 @@ Follow the [Developer Getting Started Guide](getting-started.md). It covers ever
 - Third-party dependencies retain their own licenses.
 - All contributors must sign a CLA.
 
-See the [License Information](../../license.txt) for details.
+See the [License Information](../../LICENSE.txt) for details.
 
 ---
 
