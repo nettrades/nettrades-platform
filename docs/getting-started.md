@@ -79,7 +79,7 @@ If you want to:
 
 | I want to... | Go here |
 |--------------|---------|
-| Try the platform | [Try It Now](/try-it-now) |
+| Try the platform | [Try It Now](/try-it-now.md) |
 | Use the platform | [User Guide](/user/) |
 | Develop the platform | [Developer Guide](/developer/) |
 | Deploy the platform | [Operations Guide](/operations/) |
