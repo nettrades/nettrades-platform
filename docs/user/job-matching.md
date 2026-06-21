@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/user/job-matching.md` (With User Journey Diagram)
-
-```markdown
 # Job Matching & Freelancing
 
 This guide covers how companies and freelancers use NETTRADES.AI to find and match talent.
