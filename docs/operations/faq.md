@@ -15,7 +15,7 @@ This page answers common questions from system administrators and DevOps enginee
 - Ubuntu 24.04 LTS
 - Ports 80, 443, and 22 open (and 51820 if using WireGuard)
 
-See [System Requirements](/operations/system-requirements) for details.
+See [System Requirements](system-requirements.md) for details.
 
 ### Can I deploy on a server without a GPU?
 
@@ -27,7 +27,7 @@ Run `phase-scale.sh` in the project's scripts folder. This will deploy the platf
 
 ### What is the recommended backup strategy?
 
-Perform daily PostgreSQL dumps, weekly filestore backups, and regularly backup your configuration files. See [Backup & Restore](/operations/backup-and-restore) for full details.
+Perform daily PostgreSQL dumps, weekly filestore backups, and regularly backup your configuration files. See [Backup & Restore](backup-and-restore.md) for full details.
 
 ---
 
