@@ -145,13 +145,13 @@ A Contributor License Agreement (CLA) is in CONTRIBUTING.md to ensure contributi
 
 ## 4. Transaction control and error handling notes
 
-    • Odoo transaction control – all database writes inside a single request are automatically committed or rolled back by the framework. If the registration fails, the node record is not created.
+• Odoo transaction control – all database writes inside a single request are automatically committed or rolled back by the framework. If the registration fails, the node record is not created.
 
-    • LangGraph checkpointing – every node state is saved to PostgreSQL via PostgresSaver. If a machine crashes during training or inference, the workflow resumes from the last checkpoint without duplicating work.
+• LangGraph checkpointing – every node state is saved to PostgreSQL via PostgresSaver. If a machine crashes during training or inference, the workflow resumes from the last checkpoint without duplicating work.
 
-    • Agent retry logic – the agent retries registration with exponential backoff and never gives up on transient failures. WireGuard and GPUStack workers are restarted automatically after a power-cycle thanks to persistent config files and the DNS watchdog.
+• Agent retry logic – the agent retries registration with exponential backoff and never gives up on transient failures. WireGuard and GPUStack workers are restarted automatically after a power-cycle thanks to persistent config files and the DNS watchdog.
 
-    • GPUStack worker recovery – GPUStack reschedules model instances onto other healthy workers within minutes of a node going offline.
+• GPUStack worker recovery – GPUStack reschedules model instances onto other healthy workers within minutes of a node going offline.
 
 ## 5. Key Component Summaries & Critical Code
 
@@ -358,11 +358,11 @@ Fine-tuning dataset with built-in quality pipeline:
 
 user_field_reputation (odoo-modules/nettrades_good_answer/models/user_field_reputation.py)
 
-    _cron_decay_reputation() – daily 1% decay for inactive experts
+_cron_decay_reputation() – daily 1% decay for inactive experts
 
-    _cron_auto_qualify_by_karma() – hourly promotion of high-reputation users
+_cron_auto_qualify_by_karma() – hourly promotion of high-reputation users
 
-    _cron_auto_adjust_weights() – auto-adjusts qualified_points_per_vote based on community composition
+_cron_auto_adjust_weights() – auto-adjusts qualified_points_per_vote based on community composition
 
 
 ### 5.5 Administration Views (Key Screens)
@@ -383,15 +383,15 @@ Tabs: Configuration, WireGuard, Registered Subnets, GPU Nodes, Token Economics, 
 
 #### Multi-Modal & Edge Settings (multimodal_config_views.xml)
 
-Toggles for:
+##### Toggles for:
 
-    Multi-Modal Inferencing (requires VLM deployed in GPUStack)
+Multi-Modal Inferencing (requires VLM deployed in GPUStack)
 
-    Robotics Integration (requires ROS 2 bridge + VLA model)
+Robotics Integration (requires ROS 2 bridge + VLA model)
 
-    IoT Integration (requires MQTT broker)
+IoT Integration (requires MQTT broker)
 
-    Edge Device Support (auto-detected by agent)
+Edge Device Support (auto-detected by agent)
 
 Each section includes a “Before enabling” checklist with exact steps.
 
