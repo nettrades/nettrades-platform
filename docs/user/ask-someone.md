@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/user/ask-someone.md` (With Sequence Diagram)
-
-```markdown
 # Ask Someone – Expert Help Marketplace
 
 This guide covers how to request help from verified professionals and how to become an expert.
@@ -70,3 +65,7 @@ sequenceDiagram
     UI->>API: 27. POST /session/<id>/rate
     API->>API: 28. Update reputations
     API-->>UI: 29. Success
+```
+
+
+
