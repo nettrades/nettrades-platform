@@ -1,9 +1,4 @@
 
----
-
-## File 16: `docs/developer/style-guide.md`
-
-```markdown
 # Style Guide
 
 This document defines the coding standards for the NETTRADES.AI platform.
