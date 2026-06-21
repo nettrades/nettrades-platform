@@ -81,7 +81,7 @@ For more detailed help, see the Full Documentation.
 
 [GPU Node Deployment](operations/gpu-node-deployment.md)
 
-[Developer Guide](developer/)
+[Developer Guide](developer/index.md)
     
 Follow the interactive wizard. It will auto‑detect your hardware, ask for your domain, generate passwords, and start all services.
 
