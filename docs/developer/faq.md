@@ -18,7 +18,7 @@ This page answers common questions from developers contributing to or extending 
 
 ### How do I set up a development environment?
 
-Follow the [Developer Getting Started Guide](/developer/getting-started). It covers everything from installing dependencies to running Odoo locally.
+Follow the [Developer Getting Started Guide](getting-started.md). It covers everything from installing dependencies to running Odoo locally.
 
 ### What is the code structure?
 
@@ -35,7 +35,7 @@ Follow the [Developer Getting Started Guide](/developer/getting-started). It cov
 - Third-party dependencies retain their own licenses.
 - All contributors must sign a CLA.
 
-See the [License Information](/governance/license) for details.
+See the [License Information](/governance/license.md) for details.
 
 ---
 
@@ -49,7 +49,7 @@ See the [License Information](/governance/license) for details.
 4. Register it with the supervisor in `src/core/supervisor.py`.
 5. Update the intent classification to route to your agent.
 
-Full template: [Building LangGraph Agents](/developer/building-agents).
+Full template: [Building LangGraph Agents](building-agents.md).
 
 ### How do I create a new Odoo module?
 
@@ -58,7 +58,7 @@ Full template: [Building LangGraph Agents](/developer/building-agents).
 3. Define your models, views, and access rights.
 4. Install the module using the Odoo UI or CLI.
 
-Full template: [Building Odoo Modules](/developer/building-odoo-modules).
+Full template: [Building Odoo Modules](building-odoo-modules.md).
 
 ### How do I extend the GPU Admin Panel dashboard?
 
