@@ -37,3 +37,4 @@ sequenceDiagram
     LangGraph->>Odoo: Creates CRM lead for top matches
     Odoo-->>LangGraph: Confirms update
     LangGraph-->>User: Sends email/SMS notification
+```
