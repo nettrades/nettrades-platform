@@ -67,6 +67,6 @@ This Code of Conduct is adapted from the [Contributor Covenant](https://www.cont
 
 ## Next Steps
 
-- [Contributing Guide →](/governance/contributing)
-- [Privacy Policy →](/governance/privacy)
-- [Security Policy →](/governance/security)
+- [Contributing Guide →](contributing.md)
+- [Privacy Policy →](privacy.md)
+- [Security Policy →](security.md)
