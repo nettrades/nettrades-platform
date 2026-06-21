@@ -159,12 +159,12 @@ A Contributor License Agreement (CLA) is in CONTRIBUTING.md to ensure contributi
 
 The supervisor classifies user intents and routes to the correct business sub-agent. It also performs clinical screening for medical/legal questions.
 
-python
+```python
 
 class SupervisorState(dict):
 
     pass
-    
+
 
 def build_supervisor():
 
@@ -203,7 +203,7 @@ def build_supervisor():
     workflow.add_edge("route", END)
     
     return workflow.compile()
-
+```
 Intent routing:
 
 *    recruitment → recruitment_agent
@@ -226,7 +226,7 @@ Intent routing:
 
 The main entry point for the LangGraph service. Provides /invoke (authenticated inference), /health (liveness probe), and /metrics (Prometheus).
 
-python
+```python
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -242,7 +242,7 @@ async def lifespan(app: FastAPI):
         ml_models["graph"] = graph
         
         yield
-
+```
 Environment: DATABASE_URL, LLM_BASE_URL, LANGGRAPH_API_KEY, GPUSTACK_SERVER_URL, etc.
 
 ### 5.3 Distributed GPU Agent (src/agent/agent.py)
@@ -271,7 +271,7 @@ The agent runs on every GPU node. Key responsibilities:
 
 Registration payload example:
 
-python
+```python
 
 payload = {
 
@@ -289,7 +289,7 @@ payload = {
     
     "edge_device_info": edge_info,
 }
-
+```
 ### 5.4 Odoo Core Models
 
 
@@ -464,10 +464,11 @@ A.    Run scripts/create-nettrades-projects.sh to scaffold and clone repos.
 B.    Run ./scripts/nettrades-setup.sh → select Phase 1.
 
 C.    Start Odoo:
-    bash
+```    bash
 
     python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
         --addons-path=third-party/odoo/addons,odoo-modules
+```
 
 D.    Install Odoo modules in order: standard (CRM, Project, etc.) → community (llm, llm_pgvector, etc.) → NETTRADES custom modules (nettrades_core first, then the rest).
 
