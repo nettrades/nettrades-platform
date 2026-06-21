@@ -58,7 +58,7 @@ curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/de
 | Configure monitoring	| [Prometheus & Grafana](kubernetes-deployment.md#deploy-monitoring)|
 | Troubleshoot issues	| [Troubleshooting guide](troubleshooting.md)|
 | Backup and restore	| [Backup & Restore](backup-and-restore.md)|
-| Scale the platform	| [Kubernetes scaling](kubernetes-deployment#scaling.md)|
+| Scale the platform	| [Kubernetes scaling](kubernetes-deployment.md#scaling)|
 | Optimise performance	| [Performance Tuning](performance-tuning.md)|
 
 ### System Requirements
