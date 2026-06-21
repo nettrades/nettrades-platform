@@ -10,7 +10,7 @@ Thank you for using NETTRADES.AI! This document explains how to get help and sup
 |------------|-------------|
 | **Bug report** | [GitHub Issues](https://github.com/nettrades/nettrades-platform/issues) |
 | **Feature request** | [GitHub Discussions](https://github.com/nettrades/nettrades-platform/discussions) |
-| **Documentation** | [Documentation Site](https://nettrades.github.io/nettrades-platform/) |
+| **Documentation** | [Documentation Site](https://nettrades.github.io/nettrades-platform/docs/index.md) |
 | **Community chat** | [Discord](https://discord.gg/nettrades) |
 | **Security issue** | [security@nettrades.ai](mailto:security@nettrades.ai) (do not open a public issue) |
 | **Commercial support** | [support@nettrades.ai](mailto:support@nettrades.ai) |
