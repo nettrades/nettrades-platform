@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <a href="quick-start.md">Quick Start</a> •
+  <a href="#-quick-start.md">Quick Start</a> •
   <a href="#-key-features">Features</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-documentation">Documentation</a> •
@@ -52,31 +52,28 @@ NETTRADES.AI is an **open-source, autonomous enterprise platform** that connects
 
 ## 🌐 The Hub-and-Spoke Model
 
-┌───────────────────────────────────────────────────────────┐
-│ NETTRADES ECOSYSTEM                                       │
-│                                                           │
-│ ┌───────────────────────────────────────────────────────┐ │
-│ │                    Local (The Shell)                  │ │
-│ │ (Self-hosted, LGPL-3.0)                               │ │
-│ │                                                       │ │
-│ │ • Internal job adverts and collaboration              │ │
-│ │ • CRM, ERP, eCommerce                                 │ │
-│ │ • Local GPU inferencing on your own hardware          │ │
-│ │ • Agentic AI for internal operations                  │ │
-│ │ • Fine-tune AI on your internal data                  │ │
-│ └───────────────────────────────────────────────────────┘ │
-│                             │                             │
-│                             ▼                             │
-│ ┌───────────────────────────────────────────────────────┐ │
-│ │                NETTRADES.AI (The Brain)               │ │
-│ │               (Cloud-based, Commercial)               │ │
-│ │                                                       │ │
-│ │ • Global talent pool (external recruitment)           │ │
-│ │ • Global GPU marketplace                              │ │
-│ │ • Central inference and fine-tuning                   │ │
-│ │ • Self-improving AI pipeline                          │ │
-│ └───────────────────────────────────────────────────────┘ │
-└───────────────────────────────────────────────────────────┘
+
+NETTRADES ECOSYSTEM                                     
+
+`Local (The Shell)`
+(Self-hosted, LGPL-3.0)          
+                                                
+• Internal job adverts and collaboration 
+• CRM, ERP, eCommerce   
+• Local GPU inferencing on your own hardware 
+• Agentic AI for internal operations  
+• Fine-tune AI on your internal data 
+
+          ▼   
+
+`NETTRADES.AI (The Brain)`
+(Cloud-based, Commercial) 
+                                      
+• Global talent pool (external recruitment)
+• Global GPU marketplace    
+• Central inference and fine-tuning  
+• Self-improving AI pipeline    
+
 
 
 Companies can use `nettrades.com` internally for their operations and connect to `nettrades.ai` when they need external talent, researchers, partners, or additional GPU capacity.
@@ -252,27 +249,27 @@ We welcome contributions of all kinds! Please read our [Contributing Guide](gove
 
 ### Quick Steps
 
-*     Fork the repository
+* Fork the repository
 
-*     Set up your development environment – follow the [Developer Getting Started Guide](developer/getting-started.md)
+* Set up your development environment – follow the [Developer Getting Started Guide](developer/getting-started.md)
 
-*     Create a branch – git checkout -b feature/your-feature
+* Create a branch – git checkout -b feature/your-feature
 
-*     Make your changes – follow the [Style Guide](developer/style-guide.md)
+* Make your changes – follow the [Style Guide](developer/style-guide.md)
 
-*     Write tests – include unit or integration tests
+* Write tests – include unit or integration tests
 
-*     Update documentation – if your change affects user-facing functionality
+* Update documentation – if your change affects user-facing functionality
 
-*     Submit a PR – include a clear description and link any related issues
+* Submit a PR – include a clear description and link any related issues
 
 ### Contributor License Agreement (CLA)
 
 All contributors must sign the Contributor License Agreement before their contributions can be merged. This ensures that:
 
-*     Your contributions are licensed under the project's open-source licenses.
+* Your contributions are licensed under the project's open-source licenses.
 
-*     The project can re-license contributions under the commercial license if needed.
+* The project can re-license contributions under the commercial license if needed.
 
 You will be prompted to sign the CLA when you open your first pull request.
 
