@@ -10,7 +10,7 @@ Welcome! This guide helps you take your first steps with NETTRADES.AI, regardles
 
 If you just want to see what NETTRADES.AI can do without setting anything up:
 
-→ Go to the [Try It Now](/try-it-now) page
+→ Go to the [Try It Now](try-it-now.md) page
 
 ---
 
@@ -24,7 +24,7 @@ If you want to:
 - Get expert help ("Ask Someone")
 - Share or rent GPUs
 
-→ Read the [User Getting Started Guide](/user/getting-started)
+→ Read the [User Getting Started Guide](user/getting-started.md)
 
 ---
 
@@ -37,7 +37,7 @@ If you want to:
 - Extend the GPU Admin Panel
 - Contribute to the project
 
-→ Read the [Developer Getting Started Guide](/developer/getting-started)
+→ Read the [Developer Getting Started Guide](developer/getting-started.md)
 
 ---
 
@@ -50,7 +50,7 @@ If you want to:
 - Add GPU nodes
 - Manage and monitor the system
 
-→ Read the [Operations Quick Start Guide](/operations/quick-start)
+→ Read the [Operations Quick Start Guide](operations/quick-start.md)
 
 ---
 
@@ -62,14 +62,14 @@ If you want to:
 - Submit code or documentation
 - Join the community
 
-→ Read the [Contributing Guide](/governance/contributing)
+→ Read the [Contributing Guide](governance/contributing.md)
 
 ---
 
 ## Need Help?
 
-- Check the [Glossary](/appendix/glossary) for key terms
-- Browse the [FAQ](/user/faq) for common questions
+- Check the [Glossary](appendix/glossary.md) for key terms
+- Browse the [FAQ](user/faq.md) for common questions
 - Join our [Discord](https://discord.gg/nettrades) community
 - Open an issue on [GitHub](https://github.com/nettrades/nettrades-platform/issues)
 
@@ -79,9 +79,9 @@ If you want to:
 
 | I want to... | Go here |
 |--------------|---------|
-| Try the platform | [Try It Now](/try-it-now.md) |
-| Use the platform | [User Guide](/user/) |
-| Develop the platform | [Developer Guide](/developer/) |
-| Deploy the platform | [Operations Guide](/operations/) |
-| Contribute | [Governance](/governance/) |
-| Understand terms | [Glossary](/appendix/glossary) |
+| Try the platform | [Try It Now](try-it-now.md) |
+| Use the platform | [User Guide](user/index.md) |
+| Develop the platform | [Developer Guide](developer/index.md) |
+| Deploy the platform | [Operations Guide](operations/index.md) |
+| Contribute | [Governance](/governance/index.md) |
+| Understand terms | [Glossary](appendix/glossary.md) |
