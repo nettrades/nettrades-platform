@@ -1,9 +1,4 @@
 
----
-
-## File: `docs/user/gpu-marketplace.md` (With Token Flow and Distributed GPU Network Diagrams)
-
-```markdown
 # GPU Marketplace
 
 This guide covers how to share idle GPUs and rent GPU capacity on NETTRADES.AI.
