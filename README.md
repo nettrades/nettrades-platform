@@ -221,43 +221,24 @@ text
 nettrades-platform/
 
 *├── src/                                    # AGPL-3.0 – Core orchestration
-
 *│   ├── core/                               # LangGraph supervisor and sub-agents
-
 *│   ├── agent/                              # Distributed GPU node agent
-
 *│   └── scripts/                            # Training and data quality scripts
-
 *├── odoo-modules/                           # LGPL-3.0 – Custom Odoo plugins
-
 *│   ├── nettrades_core/                     # Core marketplace & AI integration
-
 *│   ├── nettrades_ask_someone/              # Expert help marketplace
-
 *│   ├── nettrades_good_answer/              # Good Answer voting & fine-tuning
-
 *│   ├── nettrades_gpu_admin/                # GPU cluster administration
-
 *│   └── ... (14 modules total)
-
 *├── third-party/                            # UNMODIFIED – Vendored dependencies
-
 *│   ├── odoo/                               # Odoo 19 CE (LGPL-3.0)
-
 *│   ├── odoo_llm/                           # Apexive LLM modules
-
 *│   └── ...
-
 *├── deploy/                                 # AGPL-3.0 – Deployment configurations
-
 *│   ├── docker/                             # Single-VM Docker Compose
-
 *│   └── kubernetes/                         # Kubernetes (Talos + Proxmox) manifests
-
 *├── docs/                                   # MkDocs documentation site
-
 *├── scripts/                                # Build & setup orchestration
-
 *└── README.md                               # This file
 
 
