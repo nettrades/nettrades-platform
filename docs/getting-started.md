@@ -24,7 +24,7 @@ If you want to:
 - Get expert help ("Ask Someone")
 - Share or rent GPUs
 
-→ Read the [User Getting Started Guide](user/getting-started.md)
+→ Read the [User Getting Started Guide](user/index.md)
 
 ---
 
@@ -37,7 +37,7 @@ If you want to:
 - Extend the GPU Admin Panel
 - Contribute to the project
 
-→ Read the [Developer Getting Started Guide](developer/getting-started.md)
+→ Read the [Developer Getting Started Guide](developer/index.md)
 
 ---
 
@@ -50,7 +50,7 @@ If you want to:
 - Add GPU nodes
 - Manage and monitor the system
 
-→ Read the [Operations Quick Start Guide](operations/quick-start.md)
+→ Read the [Operations Quick Start Guide](operations/index.md)
 
 ---
 
@@ -62,7 +62,7 @@ If you want to:
 - Submit code or documentation
 - Join the community
 
-→ Read the [Contributing Guide](governance/contributing.md)
+→ Read the [Contributing Guide](governance/index.md)
 
 ---
 
