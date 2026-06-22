@@ -44,7 +44,7 @@
     """,
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
-    'license': 'LGPL-3',
+    'license': 'AGPL-3.0',
     'depends': [
         'nettrades_core',
         'web',

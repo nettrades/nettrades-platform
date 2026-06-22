@@ -14,9 +14,9 @@ This project uses a dual-licensing approach:
    See: src/LICENSE.txt
 
 2. odoo-modules/ (custom Odoo plugins) is licensed under:
-   GNU Lesser General Public License v3.0 (LGPL-3.0)
-   See: odoo-modules/LICENSE.txt
-
+   GNU Affero General Public License v3.0 (AGPL-3.0)
+   See: src/LICENSE.txt
+   
 3. third-party/ components retain their original licenses.
 
 4. deploy/ and scripts/ are licensed under AGPL-3.0.

@@ -50,7 +50,7 @@
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
     'maintainer': 'Nettrades',
-    'license': 'LGPL-3',
+    'license': 'AGPL-3.0',
     'depends': [
         'base',
         'hr_recruitment',

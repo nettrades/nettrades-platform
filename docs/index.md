@@ -79,7 +79,7 @@ It combines:
 | Component | License |
 |-----------|---------|
 | `src/` (core orchestrator, agent, training scripts) | **AGPL-3.0** |
-| `odoo-modules/` (custom Odoo plugins) | **LGPL-3.0** |
+| `odoo-modules/` (custom Odoo plugins) | **AGPL-3.0** |
 | `third-party/` | Original licenses (LGPL, MIT, Apache-2.0) |
 
 [Full licensing information →](/governance/license)

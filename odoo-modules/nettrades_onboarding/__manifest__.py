@@ -5,6 +5,9 @@
     'version': '1.0',
     'category': 'Website',
     'summary': 'AI-powered user onboarding with CV parsing and profile completeness wizard',
+    'author': 'Nettrades',
+    'website': 'https://nettrades.ai',
+    'license': 'AGPL-3.0',
     'depends': ['nettrades_core', 'website', 'auth_oauth'],
     'data': [
         'security/ir.model.access.csv',

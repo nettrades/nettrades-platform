@@ -3,6 +3,14 @@
 {
     'name': 'NETTRADES Research Marketplace',
     'version': '1.0',
+    'category': 'Nettrades',
+    'summary': 'NETTRADES Research Marketplace',
+    'description': """
+        NETTRADES Research Marketplace.
+    """,
+    'author': 'Nettrades',
+    'website': 'https://nettrades.ai',
+    'license': 'AGPL-3.0',
     'depends': ['nettrades_core'],
     'data': [],
     'controllers': ['controllers/research.py'],

@@ -28,7 +28,7 @@ Please contact licensing@nettrades.ai for terms and pricing.
 
 ## What about the Odoo modules?
 
-The custom Odoo modules in /addons/nettrades_* are licensed under LGPL-3.0.
+The custom Odoo modules in /addons/nettrades_* are licensed under AGPL-3.0.
 This is compatible with Odoo's own LGPL-3.0 license and with the AGPL-3.0
 license that covers the NETTRADES Core.
 

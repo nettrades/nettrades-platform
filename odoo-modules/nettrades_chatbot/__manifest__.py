@@ -3,6 +3,10 @@
 {
     'name': 'NETTRADES AI Chatbot',
     'version': '1.0',
+    'category': 'Nettrades',
+    'author': 'Nettrades',
+    'website': 'https://nettrades.ai',
+    'license': 'AGPL-3.0',    
     'depends': ['nettrades_core', 'website', 'bus'],
     'data': [
         'views/llm_message_buttons.xml',

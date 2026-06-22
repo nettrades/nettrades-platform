@@ -298,7 +298,7 @@ This project uses a dual-licensing approach:
 | Component | License |
 |---------|-------------|
 |src/ (core orchestrator, agent, training scripts) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
-|odoo-modules/ (custom Odoo plugins)	| [LGPL-3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html) |
+|odoo-modules/ (custom Odoo plugins)	| [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
 |third-party/	| Original licenses (LGPL, MIT, Apache-2.0) |
 |deploy/	| AGPL-3.0 |
 |scripts/	| MIT |
