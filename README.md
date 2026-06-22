@@ -53,10 +53,9 @@ NETTRADES.AI is an **open-source, autonomous enterprise platform** that connects
 ## 🌐 The Hub-and-Spoke Model
 
 
-NETTRADES ECOSYSTEM                                     
+### NETTRADES ECOSYSTEM                                     
 
-`Local (The Shell)`
-(Self-hosted, LGPL-3.0)          
+`Local Internal Shell (Self-hosted, LGPL-3.0) `
                                                 
 • Internal job adverts and collaboration 
 • CRM, ERP, eCommerce   
@@ -66,8 +65,7 @@ NETTRADES ECOSYSTEM
 
           ▼   
 
-`NETTRADES.AI (The Brain)`
-(Cloud-based, Commercial) 
+`NETTRADES.AI (The Brain) (Cloud-based, Commercial)`
                                       
 • Global talent pool (external recruitment)
 • Global GPU marketplace    
@@ -76,7 +74,7 @@ NETTRADES ECOSYSTEM
 
 
 
-Companies can use `nettrades.com` internally for their operations and connect to `nettrades.ai` when they need external talent, researchers, partners, or additional GPU capacity.
+Companies can use `Local Internal Shell` internally for their operations and connect to `NETTRADES.AI` when they need external talent, researchers, partners, or additional GPU capacity.
 
 ---
 
@@ -221,25 +219,45 @@ Full documentation is available at: [Full Documentation](docs/index.md).
 text
 
 nettrades-platform/
+
 ├── src/                                    # AGPL-3.0 – Core orchestration
+
 │   ├── core/                               # LangGraph supervisor and sub-agents
+
 │   ├── agent/                              # Distributed GPU node agent
+
 │   └── scripts/                            # Training and data quality scripts
+
 ├── odoo-modules/                           # LGPL-3.0 – Custom Odoo plugins
+
 │   ├── nettrades_core/                     # Core marketplace & AI integration
+
 │   ├── nettrades_ask_someone/              # Expert help marketplace
+
 │   ├── nettrades_good_answer/              # Good Answer voting & fine-tuning
+
 │   ├── nettrades_gpu_admin/                # GPU cluster administration
+
 │   └── ... (14 modules total)
+
 ├── third-party/                            # UNMODIFIED – Vendored dependencies
+
 │   ├── odoo/                               # Odoo 19 CE (LGPL-3.0)
+
 │   ├── odoo_llm/                           # Apexive LLM modules
+
 │   └── ...
+
 ├── deploy/                                 # AGPL-3.0 – Deployment configurations
+
 │   ├── docker/                             # Single-VM Docker Compose
+
 │   └── kubernetes/                         # Kubernetes (Talos + Proxmox) manifests
+
 ├── docs/                                   # MkDocs documentation site
+
 ├── scripts/                                # Build & setup orchestration
+
 └── README.md                               # This file
 
 
