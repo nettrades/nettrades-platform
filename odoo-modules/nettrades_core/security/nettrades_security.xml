@@ -1,20 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Section: A-F
-    Purpose: Define user groups for the NETTRADES platform.
-    - Job Seeker: basic access to job search and CV management
-    - Freelancer: can sell services and participate in Ask Someone
-    - Partner/Researcher: collaborative project access
+    ============================================================================
+    NETTRADES Core – Security Groups
+    ============================================================================
+    FILE:    odoo-modules/nettrades_core/security/nettrades_security.xml
+    VERSION: 1.0
+
+    PURPOSE:
+        Defines the user groups used across the NETTRADES platform.
+        These groups are used for access control in various modules.
+
+    GROUPS:
+        1. NETTRADES Manager – full access to all NETTRADES features.
+        2. NETTRADES User – standard user access (portal, jobs, profiles).
+        3. NETTRADES API – for external API integrations.
+
+    These groups are intended to be inherited by other modules' groups.
+    They provide a baseline for the platform's RBAC.
+
+    ============================================================================
 -->
 <odoo>
-    <record id="group_job_seeker" model="res.groups">
-        <field name="name">Job Seeker</field>
-        <field name="category_id" ref="base.module_category_human_resources"/>
+
+    <!-- 1. NETTRADES Manager – highest privilege level -->
+    <record id="group_nettrades_manager" model="res.groups">
+        <field name="name">NETTRADES Manager</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <!-- Implied groups: system administrators (base.group_system) would typically
+             be granted this group manually; we don't imply it here to avoid over‑permission. -->
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <!-- Not implying base.group_system to limit damage -->
     </record>
-    <record id="group_freelancer" model="res.groups">
-        <field name="name">Freelancer</field>
+
+    <!-- 2. NETTRADES User – standard user -->
+    <record id="group_nettrades_user" model="res.groups">
+        <field name="name">NETTRADES User</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
-    <record id="group_partner" model="res.groups">
-        <field name="name">Partner / Researcher</field>
+
+    <!-- 3. NETTRADES API – for API calls -->
+    <record id="group_nettrades_api" model="res.groups">
+        <field name="name">NETTRADES API</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <!-- API users should have read access but not full write, we rely on record rules -->
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
+
 </odoo>
