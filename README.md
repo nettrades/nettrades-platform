@@ -19,7 +19,7 @@
   <a href="https://github.com/nettrades/nettrades-platform/issues">
     <img src="https://img.shields.io/github/issues/nettrades/nettrades-platform" alt="GitHub Issues"/>
   </a>
-  <a href="https://github.com/nettrades/nettrades-platform/blob/main/CONTRIBUTING.md">
+  <a href="CONTRIBUTING.md">
     <img src="https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg" alt="Contributions Welcome"/>
   </a>
 </p>
@@ -182,16 +182,16 @@ Full documentation is available at: [Full Documentation](docs/index.md).
 
 | Section | Description |
 |---------|-------------|
-|[User Guide](user/index.md)	| For end-users – companies, freelancers, job-seekers |
-|[Developer Guide](developer/index.md)	| For developers extending the platform |
-|[Operations Guide](operations/index.md)	| For system administrators and DevOps |
-|[API Reference](developer/api-reference.md)	| Complete API documentation |
-|[Architecture Overview](developer/architecture.md)	| System architecture diagrams and explanations |
-|[Core Models](developer/core-models.md)	| Reference for all custom Odoo models |
-|[Database Schema](appendix/database-schema.md)	| Complete database schema |
-|[Glossary](appendix/glossary.md)	| Key terms and definitions |
-|[Contributing Guide](governance/contributing.md)	| How to contribute to the project |
-|[Roadmap](governance/roadmap/)	| Project roadmap and milestones |
+|[User Guide](docs/user/index.md)	| For end-users – companies, freelancers, job-seekers |
+|[Developer Guide](docs/developer/index.md)	| For developers extending the platform |
+|[Operations Guide](docs/operations/index.md)	| For system administrators and DevOps |
+|[API Reference](docs/developer/api-reference.md)	| Complete API documentation |
+|[Architecture Overview](docs/developer/architecture.md)	| System architecture diagrams and explanations |
+|[Core Models](docs/developer/core-models.md)	| Reference for all custom Odoo models |
+|[Database Schema](docs/appendix/database-schema.md)	| Complete database schema |
+|[Glossary](docs/appendix/glossary.md)	| Key terms and definitions |
+|[Contributing Guide](docs/governance/contributing.md)	| How to contribute to the project |
+|[Roadmap](docs/governance/roadmap/)	| Project roadmap and milestones |
 
 
 ## 📦 Technology Stack
@@ -263,13 +263,13 @@ nettrades-platform/
 
 ## 🤝 Contributing
 
-We welcome contributions of all kinds! Please read our [Contributing Guide](governance/contributing.md) before submitting PRs.
+We welcome contributions of all kinds! Please read our [Contributing Guide](docs/governance/contributing.md) before submitting PRs.
 
 ### Quick Steps
 
 * Fork the repository
 
-* Set up your development environment – follow the [Developer Getting Started Guide](developer/getting-started.md)
+* Set up your development environment – follow the [Developer Getting Started Guide](docs/developer/getting-started.md)
 
 * Create a branch – git checkout -b feature/your-feature
 
@@ -315,7 +315,7 @@ Full license information →
 |[GitHub Issues](https://github.com/nettrades/nettrades-platform/issues) |	Bug reports and feature requests|
 |[GitHub Discussions](https://github.com/nettrades/nettrades-platform/discussions) |	Questions and ideas|
 |[Discord](https://discord.gg/nettrades)	| Real-time chat and community support|
-|[Documentation](https://nettrades.github.io/nettrades-platform/)	| Full documentation|
+|[Documentation](docs/users/index.md)	| Full documentation|
 |[Website](https://nettrades.ai/)	| Project website|
 
 ## ⭐ Star Us!
