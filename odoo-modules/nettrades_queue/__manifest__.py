@@ -8,7 +8,7 @@
     """,
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
-    'license': 'AGPL-3.0',
+    'license': 'AGPL-3',
     'depends': ['queue_job'],
     'installable': True,
     'auto_install': True,

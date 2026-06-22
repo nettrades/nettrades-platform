@@ -6,7 +6,7 @@
     'category': 'Nettrades',
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
-    'license': 'AGPL-3.0',    
+    'license': 'AGPL-3',    
     'depends': ['nettrades_core', 'website', 'bus'],
     'data': [
         'views/llm_message_buttons.xml',

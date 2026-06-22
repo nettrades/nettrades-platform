@@ -10,7 +10,7 @@
     """,
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
-    'license': 'AGPL-3.0',
+    'license': 'AGPL-3',
     'depends': ['website'],
     'data': ['templates/pwa_manifest.xml'],
     'installable': True,

@@ -16,7 +16,7 @@
 #   - hr_recruitment: Job postings and applicants
 #   - crm           : Lead management
 #   - project       : Project management and milestones
-#   - website_sale_marketplace : Multi‑vendor marketplace (for e‑commerce)
+#   - website_sale_marketplace : Multi‑vendor marketplace (for e-commerce)
 #
 # MODELS PROVIDED:
 #   - res.partner (extended)
@@ -50,7 +50,7 @@
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
     'maintainer': 'Nettrades',
-    'license': 'AGPL-3.0',
+    'license': 'AGPL-3',
     'depends': [
         'base',
         'hr_recruitment',

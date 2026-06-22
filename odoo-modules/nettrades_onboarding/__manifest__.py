@@ -7,7 +7,7 @@
     'summary': 'AI-powered user onboarding with CV parsing and profile completeness wizard',
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
-    'license': 'AGPL-3.0',
+    'license': 'AGPL-3',
     'depends': ['nettrades_core', 'website', 'auth_oauth'],
     'data': [
         'security/ir.model.access.csv',
