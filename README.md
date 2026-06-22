@@ -1,23 +1,85 @@
-# NETTRADES.AI – Autonomous Enterprise Platform
+
+
+<h1 align="center">NETTRADES.AI</h1>
+
+<p align="center">
+  <strong>Autonomous Enterprise Platform – AI-powered job matching, distributed GPU marketplace, and self-improving AI</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/nettrades/nettrades-platform/blob/main/LICENSE.txt">
+    <img src="https://img.shields.io/badge/License-AGPL%203.0-blue.svg" alt="License: AGPL-3.0"/>
+  </a>
+  <a href="https://github.com/nettrades/nettrades-platform/stargazers">
+    <img src="https://img.shields.io/github/stars/nettrades/nettrades-platform" alt="GitHub Stars"/>
+  </a>
+  <a href="https://github.com/nettrades/nettrades-platform/forks">
+    <img src="https://img.shields.io/github/forks/nettrades/nettrades-platform" alt="GitHub Forks"/>
+  </a>
+  <a href="https://github.com/nettrades/nettrades-platform/issues">
+    <img src="https://img.shields.io/github/issues/nettrades/nettrades-platform" alt="GitHub Issues"/>
+  </a>
+  <a href="https://github.com/nettrades/nettrades-platform/blob/main/CONTRIBUTING.md">
+    <img src="https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg" alt="Contributions Welcome"/>
+  </a>
+</p>
+
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-key-features">Features</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-documentation">Documentation</a> •
+  <a href="#-contributing">Contributing</a> •
+  <a href="#-license">License</a>
+</p>
+
+---
 
 [![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
 [![Documentation](https://img.shields.io/badge/docs-MkDocs-brightgreen.svg)](https://nettrades.github.io/nettrades-platform/)
 [![GitHub Stars](https://img.shields.io/github/stars/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/issues)
 
-> **AI-powered autonomous enterprise platform connecting companies, freelancers, job-seekers, researchers, partners, and customers.**
-
----
-
 ## 🚀 What is NETTRADES.AI?
 
-NETTRADES.AI is an **open-source, autonomous enterprise platform** that combines:
+NETTRADES.AI is an **open-source, autonomous enterprise platform** that connects companies, freelancers, job-seekers, researchers, partners, and customers. It combines:
 
 - **AI-powered job matching & freelancing** – LangGraph agents analyse CVs, job postings, and projects, automatically creating leads.
-- **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs for inference and fine-tuning, earning tokens.
+- **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
 - **Self-improving AI** – A "Good Answer" voting system feeds a fine-tuning pipeline (Unsloth/Axolotl) that continuously improves field-specific models.
 - **Expert marketplace ("Ask Someone")** – Users can request paid help from verified professionals with Stripe escrow.
 - **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
+
+## 🌐 The Hub-and-Spoke Model
+
+┌───────────────────────────────────────────────────────────┐
+│ NETTRADES ECOSYSTEM                                       │
+│                                                           │
+│ ┌───────────────────────────────────────────────────────┐ │
+│ │                    Local (The Shell)                  │ │
+│ │ (Self-hosted, LGPL-3.0)                               │ │
+│ │                                                       │ │
+│ │ • Internal job adverts and collaboration              │ │
+│ │ • CRM, ERP, eCommerce                                 │ │
+│ │ • Local GPU inferencing on your own hardware          │ │
+│ │ • Agentic AI for internal operations                  │ │
+│ │ • Fine-tune AI on your internal data                  │ │
+│ └───────────────────────────────────────────────────────┘ │
+│                             │                             │
+│                             ▼                             │
+│ ┌───────────────────────────────────────────────────────┐ │
+│ │                NETTRADES.AI (The Brain)               │ │
+│ │               (Cloud-based, Commercial)               │ │
+│ │                                                       │ │
+│ │ • Global talent pool (external recruitment)           │ │
+│ │ • Global GPU marketplace                              │ │
+│ │ • Central inference and fine-tuning                   │ │
+│ │ • Self-improving AI pipeline                          │ │
+│ └───────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────┘
+
+
+Companies can use `nettrades.com` internally for their operations and connect to `nettrades.ai` when they need external talent, researchers, partners, or additional GPU capacity.
 
 ---
 
@@ -31,455 +93,244 @@ NETTRADES.AI is an **open-source, autonomous enterprise platform** that combines
 | 🧑‍🏫 **Expert Help** | "Ask Someone" – real-time expert consultations with Stripe escrow |
 | 🔐 **Secure & Sovereign** | WireGuard VPN, gVisor isolation, and full on-premise deployment options |
 | ⚙️ **Autonomous Ops** | GPU health watchdog, reputation decay, utilisation alerts, Karma-based qualification |
+| 📱 **Mobile PWA** | Progressive Web App with offline support |
+| 🔗 **Git Collaboration** | Forgejo Git integration for project collaboration |
 
 ---
 
+## 📊 Architecture Overview
+
+```mermaid
+graph TB
+    subgraph Frontend["Frontend Layer"]
+        Web["Odoo Website / Portal"]
+        PWA["Mobile PWA"]
+        ChatWidget["AI Chatbot Widget"]
+        VSCode["VS Code Extension"]
+    end
+
+    subgraph Integration["Orchestration Layer (LangGraph)"]
+        Supervisor["Supervisor Agent"]
+        Agents["Sub-Agents"]
+        MCP["MCP-Odoo Bridge"]
+    end
+
+    subgraph AI["AI Layer"]
+        GPUStack["GPUStack Server"]
+        Workers["GPU Workers"]
+        FineTune["Fine-Tuning Jobs"]
+        External["External LLM APIs"]
+    end
+
+    subgraph Core["Core Layer (Odoo 19 CE)"]
+        Odoo["Odoo 19 CE"]
+        Modules["Custom Modules"]
+    end
+
+    subgraph Data["Data Layer"]
+        PG["PostgreSQL + pgvector"]
+        Valkey["Valkey"]
+        S3["Object Storage"]
+    end
+
+    subgraph Security["Security Layer"]
+        WG["WireGuard"]
+        gVisor["gVisor"]
+        TEE["TEE / Confidential Computing"]
+    end
+
+    Frontend --> Core
+    Frontend --> Integration
+    Integration --> AI
+    AI --> GPUStack
+    Core --> Data
+    Core --> Security
+    Security --> AI
+    
+```
+
+
 ## 🛠️ Quick Start
 
-The fastest way to get started is with the interactive installation wizard:
+### One-Command Deployment (Ubuntu 24.04)
 
+```bash
 
-# Download and run the installer
+# Download and run the interactive installer
 curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/deploy/docker/install-nettrades.sh | sudo bash
 
-
-# NETTRADES.AI Platform — Codebase Summary
-
-## 1. Project Overview
-
-NETTRADES.AI is an open-source, autonomous enterprise platform that connects companies, freelancers, job-seekers, researchers, partners, and customers. It combines:
-
-*    AI-powered job matching & freelancing – LangGraph agents analyse CVs, job postings, projects, and automatically create leads.
-
-*    Distributed GPU marketplace – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
-
-*    Self-improving AI – A “Good Answer” voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) that continuously improves field-specific models.
-
-*    Expert marketplace (“Ask Someone”) – Users can request paid help from verified professionals with Stripe escrow.
-
-*    Autonomous administration – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
-
-*    Multimodal & robotics support – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
-
-*    With transaction control and error handling
-
-The platform is built on Odoo 19 Community Edition, orchestrated by LangGraph, with GPUStack as the GPU cluster manager, WireGuard for network isolation, and gVisor for container security.
-
-
-## 2. Technology Stack (Final Versions)
-
-Component			|    Version		|    License		|    Purpose
-
-
-Odoo				|    19.0 CE		|    LGPL-3.0		|    ERP, marketplace, CRM, HR, Projects, Accounting
-
-PostgreSQL + pgvector		|    18.1 (via CNPG)	|    PostgreSQL License	|    Business data, vector embeddings, LangGraph checkpoints
-
-Valkey				|    8-alpine		|    BSD-3-Clause		|    Session storage, ORM cache, bus notifications
-
-Forgejo				|    15.0 LTS		|    GPL-3.0+		|    Self-hosted Git + CI/CD
-
-Traefik				|    v3.6.13		|    MIT			|    Reverse proxy, automatic Let's Encrypt TLS
-
-LangGraph			|    ≥1.2.0			|    MIT			|    Multi-agent orchestration, durable execution
-
-LangGraph Checkpoint Postgres	|    ≥3.0.3			|    MIT    |    Durable checkpoint storage in PostgreSQL
-
-GPUStack			|    v2.1.2			|    Apache-2.0		|    GPU cluster manager, inference engine, token metering
-
-llama.cpp			|    server-cpu/server-cuda	|    MIT			|    CPU inference fallback
-
-Unsloth (core)			|    2026.5.2		|    Apache-2.0		|    Single-GPU fine-tuning
-
-Axolotl				|    0.16.1+		|    Apache-2.0		|    Multi-GPU fine-tuning with FSDP2
-
-WireGuard			|    kernel module		|    GPL-2.0		|    Kernel-level network isolation
-
-gVisor				|    release-20260420.0	|    Apache-2.0		|    Syscall-level container isolation
-
-OCA queue_job			|    19.0 branch		|    LGPL-3.0		|    Background job processing
-
-OCA payment_stripe		|    19.0 branch		|    LGPL-3.0		|    Stripe payment acquirer
-
-Talos Linux			|    1.13.2			|    MPL-2.0		|    Immutable K8s OS
-
-Kubernetes			|    1.36 (via Talos)	|    Apache-2.0		|    Container orchestration
-
-Cilium				|    1.19.3			|    Apache-2.0		|    CNI with WireGuard encryption
-
-Longhorn			   |    1.11.1			|    Apache-2.0		|    Distributed block storage
-
-CloudNativePG			|    1.29.0			|    Apache-2.0		|    PostgreSQL operator with HA & backups
-
-cert-manager			|    1.20.2			|    Apache-2.0		|    TLS certificate automation
-
-MetalLB				|    0.15.3			|    Apache-2.0		|    Bare-metal load balancer
-
-Argo CD				|    3.3.8			|    Apache-2.0		|    GitOps continuous delivery
-
-NVIDIA GPU Operator		|    v26.3.1		|    Apache-2.0		|    GPU support on Kubernetes
-
-KubeRay				|    1.6.1			|    Apache-2.0		|    Ray on Kubernetes for vLLM
-
-Prometheus			|    v3.8.0			|    Apache-2.0		|    Metrics collection
-
-Grafana				|    12.4.2			|    AGPL-3.0 (unmodified)	|    Dashboards
-
-## 3. Licensing 
-
-NETTRADES uses a dual-licensing approach to protect the platform while keeping it open:
-
-*    src/ (core orchestrator, agent, training scripts): AGPL-3.0 — strong copyleft; any modifications must be shared if offered as a network service. A commercial license is available for enterprises needing closed-source use.
-
-*    odoo-modules/ (custom Odoo plugins): LGPL-3.0 — compatible with Odoo’s own license; plugins can be proprietary as long as they don’t copy Odoo core code.
-
-*    third-party/: All third-party components retain their original licenses (LGPL, MIT, Apache-2.0, etc.).
-
-*    deploy/: Deployment scripts and configurations are AGPL-3.0.
-
-*    docs/: Documentation under Creative Commons Attribution 4.0.
-
-*    scripts/: Build and setup scripts are AGPL‑3.0.
-
-A Contributor License Agreement (CLA) is in CONTRIBUTING.md to ensure contributions can be re-licensed under the commercial license.
-
-## 4. Transaction control and error handling notes
-
-• Odoo transaction control – all database writes inside a single request are automatically committed or rolled back by the framework. If the registration fails, the node record is not created.
-
-• LangGraph checkpointing – every node state is saved to PostgreSQL via PostgresSaver. If a machine crashes during training or inference, the workflow resumes from the last checkpoint without duplicating work.
-
-• Agent retry logic – the agent retries registration with exponential backoff and never gives up on transient failures. WireGuard and GPUStack workers are restarted automatically after a power-cycle thanks to persistent config files and the DNS watchdog.
-
-• GPUStack worker recovery – GPUStack reschedules model instances onto other healthy workers within minutes of a node going offline.
-
-## 5. Key Component Summaries & Critical Code
-
-### 5.1 LangGraph Supervisor (src/core/supervisor.py)
-
-The supervisor classifies user intents and routes to the correct business sub-agent. It also performs clinical screening for medical/legal questions.
-
-```python
-
-class SupervisorState(dict):
-
-    pass
-
-
-def build_supervisor():
-
-    backend = get_inference_backend()   # auto-detects GPUStack / vLLM / llama.cpp
-    
-    llm = ChatOpenAI(...)
-    
-    # compile sub-agents
-    
-    recruitment_agent = create_recruitment_agent()
-    
-    freelance_agent = create_freelance_agent()
-    
-    lead_gen_agent = create_lead_gen_agent()
-    
-    gpu_management_agent = create_gpu_management_agent()
-    
-    vision_agent = create_vision_agent()
-    
-    action_agent = create_action_agent()
-
-    workflow = StateGraph(dict)
-    
-    workflow.add_node("classify", classify)
-    
-    workflow.add_node("medical_screening", medical_screening)
-    
-    workflow.add_node("route", route)
-    
-    workflow.add_edge(START, "classify")
-    
-    workflow.add_edge("classify", "medical_screening")
-    
-    workflow.add_edge("medical_screening", "route")
-    
-    workflow.add_edge("route", END)
-    
-    return workflow.compile()
 ```
-Intent routing:
 
-*    recruitment → recruitment_agent
-
-*    freelance / project → freelance_agent
-
-*    lead → lead_gen_agent
-
-*    gpu / cluster → gpu_management_agent
-
-*    vision (if image uploaded) → vision_agent
-
-*    action (robotic command) → action_agent
-
-*    medical / legal → first screened, then general LLM
-
-*    general → general inference
-
-### 5.2 FastAPI Application (src/core/app.py)
-
-The main entry point for the LangGraph service. Provides /invoke (authenticated inference), /health (liveness probe), and /metrics (Prometheus).
-
-```python
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-
-    async with AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer:
-    
-        await checkpointer.setup()
-        
-        graph = build_supervisor()
-        
-        graph.checkpointer = checkpointer
-        
-        ml_models["graph"] = graph
-        
-        yield
-```
-Environment: DATABASE_URL, LLM_BASE_URL, LANGGRAPH_API_KEY, GPUSTACK_SERVER_URL, etc.
-
-### 5.3 Distributed GPU Agent (src/agent/agent.py)
-
-The agent runs on every GPU node. Key responsibilities:
-
-*    Auto-install WireGuard (Linux)
-
-*    Generate hardware-bound node ID (TPM EK or MAC hash)
-
-*    Detect GPUs via nvidia-smi
-
-*    Detect TEE capabilities (NVIDIA CC, Intel SGX, AMD SEV, etc.)
-
-*    Detect edge devices (Jetson, Raspberry Pi, Coral TPU)
-
-*    Register with Odoo (/api/v1/gpu/register) with all hardware info
-
-*    Bring up WireGuard with hub-and-spoke or mesh configuration
-
-*    Start GPUStack worker inside gVisor (public pool) or Docker (internal)
-
-*    Start WireGuard DNS watchdog (daemon thread)
-
-*    Periodically refresh GPUStack token
-
-Registration payload example:
-
-```python
-
-payload = {
-
-    "node_id": node_id,
-    
-    "hostname": socket.gethostname(),
-    
-    "gpus": gpus,
-    
-    "wireguard_public_key": get_wireguard_pubkey(),
-    
-    "os": platform.system().lower(),
-    
-    "tee_capabilities": tee_caps,
-    
-    "edge_device_info": edge_info,
-}
-```
-### 5.4 Odoo Core Models
-
-
-
-nettrades.field (odoo-modules/nettrades_core/models/nettrades_field.py)
-
-Central model for configuring every aspect of a professional field:
-
-*    Qualification rules (only_qualified, auto_karma_qualify)
-
-*    Voting weights (base_points_per_vote, qualified_points_per_vote, auto_adjust_weights)
-
-*    Expert answer usage (expert_answers_trainable, indirect_reputation_points)
-
-*    Fine-tuning backend (finetune_provider, base_model, hyperparameters)
-
-*    Data-Juicer quality filter (enable_data_juicer, data_juicer_min_quality_score, etc.)
-
-*    DEITA LLM-as-Judge (enable_deita_scoring, deita_min_complexity, etc.)
-
-*    Advanced training (A/B testing, GRPO, benchmark evaluation, vote thresholds)
-
-All settings have detailed help strings for the administrator.
-
-
-
-gpu.node (odoo-modules/nettrades_gpu_admin/models/gpu_node.py)
-
-Represents a registered GPU/edge machine:
-
-*    WireGuard identity
-
-*    GPU inventory (JSON)
-
-*    Pool assignment (internal / public)
-
-*    Container runtime (gvisor / docker)
-
-*    OS auto-detected (linux / windows / darwin)
-
-*    TEE capabilities (JSON)
-
-*    Edge device info (JSON) – Jetson, Raspberry Pi, Coral TPU
-
-*    GPUStack worker ID
-
-*    Status, token accounting, reputation, attestation
-
-*    Methods: action_remove_node, action_reassign_pool, _cron_health_watchdog
-
-
-
-ft.dataset (odoo-modules/nettrades_good_answer/models/ft_dataset.py)
-
-Fine-tuning dataset with built-in quality pipeline:
-
-*    export_to_jsonl() – exports eligible feedback, applying vote thresholds
-
-*    _run_data_juicer_pipeline() – runs Alibaba Data-Juicer for quality scoring, dedup, PII
-
-*    _run_deita_scoring() – runs DEITA (LLM-as-Judge) via distilabel
-
-*    action_trigger_finetune() – full pipeline: export → Data-Juicer → DEITA → record contributions → create training job → call LangGraph
-
-
-
-user_field_reputation (odoo-modules/nettrades_good_answer/models/user_field_reputation.py)
-
-_cron_decay_reputation() – daily 1% decay for inactive experts
-
-_cron_auto_qualify_by_karma() – hourly promotion of high-reputation users
-
-_cron_auto_adjust_weights() – auto-adjusts qualified_points_per_vote based on community composition
-
-
-### 5.5 Administration Views (Key Screens)
-
-#### GPU Node Detail (gpu_node_views.xml)
-
-Tabs: Hardware, Pool & Isolation, Hardware Security (TEE), Edge Device (new), Network (WireGuard), Earnings & Reputation, Administrator Checklist.
-
-Checklist guides the admin through required steps (agent installed, WireGuard active, GPUStack registered, runtime set, etc.).
-
-
-#### GPU Cluster Configuration (gpu_cluster_views.xml)
-
-Tabs: Configuration, WireGuard, Registered Subnets, GPU Nodes, Token Economics, Fine-Tuning.
-
-“Next Steps” note links to Multi-Modal & Edge Settings.
-
-
-#### Multi-Modal & Edge Settings (multimodal_config_views.xml)
-
-##### Toggles for:
-
-Multi-Modal Inferencing (requires VLM deployed in GPUStack)
-
-Robotics Integration (requires ROS 2 bridge + VLA model)
-
-IoT Integration (requires MQTT broker)
-
-Edge Device Support (auto-detected by agent)
-
-Each section includes a “Before enabling” checklist with exact steps.
-
-
-#### Professional Field Form (nettrades_field_views.xml)
-
-Tabs: General, Qualification & Karma, Training & AI Learning, Data-Juicer Quality, LLM-as-Judge (DEITA), Advanced Training.
-
-Every field has help text; dependency notes remind admins to install libraries.
-
-## 6. Deployment Scripts
-
-The deployment scripts are in: 
-
-nettrades-platform\scripts
-
-The file
-
-nettrades-platform\scripts\Readme.txt
-
-Provided the instructions. The script “create-nettrades-projects.sh” has already been ran and many of the files were copied over from the previous deepseek context window into the file structure, so it could be ignored.
-
-The project ships with a phase-based orchestrator (scripts/nettrades-setup.sh):
+The installer auto-detects your hardware, asks for your domain, generates secure passwords, and starts all services.
+
+### Access Your Platform
+
+### After ~10-20 minutes, you'll have:
+
+
+| Service | URL | Default Credentials |
+|---------|-------------|-------------|
+|`Odoo`	| https://your-domain	| Create database on first login|
+|`Grafana`	| https://grafana.your-domain	| admin / password from .env|
+|`GPUStack`	| https://gpustack.your-domain	| admin / admin (change immediately)|
+|`Forgejo`	| https://git.your-domain	| Create first user on first login|
+
+All services are secured with Let's Encrypt TLS.
+
+### Manual Installation
+
+For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
+
+## 📚 Documentation
+
+Full documentation is available at: [Full Documentation](docs/index.md).
+
+| Section | Description |
+|---------|-------------|
+|[User Guide](user/index.md)	| For end-users – companies, freelancers, job-seekers |
+|[Developer Guide](developer/index.md)	| For developers extending the platform |
+|[Operations Guide](operations/index.md)	| For system administrators and DevOps |
+|[API Reference](developer/api-reference.md)	| Complete API documentation |
+|[Architecture Overview](developer/architecture.md)	| System architecture diagrams and explanations |
+|[Core Models](developer/core-models.md)	| Reference for all custom Odoo models |
+|[Database Schema](appendix/database-schema.md)	| Complete database schema |
+|[Glossary](appendix/glossary.md)	| Key terms and definitions |
+|[Contributing Guide](governance/contributing.md)	| How to contribute to the project |
+|[Roadmap](governance/roadmap/)	| Project roadmap and milestones |
+
+
+## 📦 Technology Stack
+
+| Component | Version |License | Purpose |
+|---------|-------------|---------|-------------|
+|`Odoo` | 19.0 CE	| LGPL-3.0	| ERP, marketplace, CRM, HR, Projects, Accounting |
+|`PostgreSQL + pgvector` | 18.1	|  PostgreSQL License | 	Business data, vector embeddings, checkpoints |
+|`Valkey` | 8	|  BSD-3-Clause | Session storage, ORM cache, bus notifications |
+|`LangGraph` | 	≥1.2.0	 | MIT | Multi-agent orchestration, durable execution |
+|`GPUStack` | 	v2.1.2	 | Apache-2.0	 | GPU cluster manager, inference engine, token metering |
+|`llama.cpp` | 	server-cpu/server-cuda	 | MIT	 | CPU inference fallback |
+|`Unsloth` | 	2026.5.2	 | Apache-2.0	 | Single-GPU fine-tuning |
+|`Axolotl` | 	0.16.1+	 | Apache-2.0 | 	Multi-GPU fine-tuning with FSDP2 |
+|`WireGuard` | 	kernel module	 | GPL-2.0 | 	Kernel-level network isolation |
+|`gVisor` | 	release-20260420.0 | 	Apache-2.0 | 	Syscall-level container isolation |
+|`Forgejo` | 	15.0 LTS	 | GPL-3.0+ | 	Self-hosted Git + CI/CD |
+|`Traefik` | 	v3.6.13 | 	MIT | 	Reverse proxy, automatic Let's Encrypt TLS |
+|`Prometheus` | v3.8.0	 | Apache-2.0	 | Metrics collection |
+|`Grafana` | 	12.4.2	 | AGPL-3.0	 | Dashboards |
+|`Talos Linux` | 1.13.2	 | MPL-2.0	 | Immutable Kubernetes OS |
+|`Kubernetes` | 1.36	 | Apache-2.0 | 	Container orchestration |
+
+## 🏗️ Project Structure
 text
 
-Phase 1 – dev-env    : scaffold + clone repos + install dependencies
+nettrades-platform/
+├── src/                                    # AGPL-3.0 – Core orchestration
+│   ├── core/                               # LangGraph supervisor and sub-agents
+│   ├── agent/                              # Distributed GPU node agent
+│   └── scripts/                            # Training and data quality scripts
+├── odoo-modules/                           # LGPL-3.0 – Custom Odoo plugins
+│   ├── nettrades_core/                     # Core marketplace & AI integration
+│   ├── nettrades_ask_someone/              # Expert help marketplace
+│   ├── nettrades_good_answer/              # Good Answer voting & fine-tuning
+│   ├── nettrades_gpu_admin/                # GPU cluster administration
+│   └── ... (14 modules total)
+├── third-party/                            # UNMODIFIED – Vendored dependencies
+│   ├── odoo/                               # Odoo 19 CE (LGPL-3.0)
+│   ├── odoo_llm/                           # Apexive LLM modules
+│   └── ...
+├── deploy/                                 # AGPL-3.0 – Deployment configurations
+│   ├── docker/                             # Single-VM Docker Compose
+│   └── kubernetes/                         # Kubernetes (Talos + Proxmox) manifests
+├── docs/                                   # MkDocs documentation site
+├── scripts/                                # Build & setup orchestration
+└── README.md                               # This file
 
-Phase 2 – deploy     : single-VM production stack (no GPU required)
 
-Phase 3 – add-gpu    : migrate CPU→GPU (installs vLLM)
+## 🤝 Contributing
 
-Phase 4 – scale      : upgrade to Kubernetes (Talos + K8s)
+We welcome contributions of all kinds! Please read our [Contributing Guide](governance/contributing.md) before submitting PRs.
 
-All phase scripts auto-detect missing prerequisites and run earlier phases if needed.
+### Quick Steps
 
-### Key deployment files:
+*     Fork the repository
 
-*    deploy/docker/docker-compose.yml – full stack with Valkey, GPUStack, Forgejo, LangGraph, llama.cpp, Prometheus/Grafana.
+*     Set up your development environment – follow the [Developer Getting Started Guide](developer/getting-started.md)
 
-*    deploy/docker/config/odoo.conf – Valkey sessions, correct addons_path.
+*     Create a branch – git checkout -b feature/your-feature
 
-*    deploy/kubernetes/ – all K8s manifests for production HA deployment.
+*     Make your changes – follow the [Style Guide](developer/style-guide.md)
 
-## 7. Environment Variables (.env.example)
+*     Write tests – include unit or integration tests
 
-text
+*     Update documentation – if your change affects user-facing functionality
 
-DOMAIN=nettrades.ai
+*     Submit a PR – include a clear description and link any related issues
 
-POSTGRES_PASSWORD=...  ADMIN_PASSWORD=...
+### Contributor License Agreement (CLA)
 
-FORGEJO_DB_PASSWORD=...  FORGEJO_SECRET_KEY=...  JWT_SECRET=...
+All contributors must sign the Contributor License Agreement before their contributions can be merged. This ensures that:
 
-GRAFANA_PASSWORD=...
+*     Your contributions are licensed under the project's open-source licenses.
 
-LLAMA_API_KEY=dummy  LANGGRAPH_API_KEY=...
+*     The project can re-license contributions under the commercial license if needed.
 
-ODOO_API_KEY=...  MCP_API_KEY=...
+You will be prompted to sign the CLA when you open your first pull request.
 
-GPUSTACK_JWT_SECRET=...
+## 📄 License
 
-WIREGUARD_PRIVATE_KEY=...  WIREGUARD_PUBLIC_KEY=...
+This project uses a dual-licensing approach:
 
-DATABASE_URL=postgresql://odoo:...@postgres:5432/odoo
+| Component | License |
+|---------|-------------|
+|src/ (core orchestrator, agent, training scripts) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
+|odoo-modules/ (custom Odoo plugins)	| [LGPL-3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html) |
+|third-party/	| Original licenses (LGPL, MIT, Apache-2.0) |
+|deploy/	| AGPL-3.0 |
+|scripts/	| MIT |
 
-## 8. Quickstart Guide (Development)
+Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing to ensure that contributions can be re-licensed under the commercial license.
+A commercial license is available for enterprises that cannot or do not wish to comply with the AGPL-3.0. Contact: commercial@nettrades.ai
 
-A.    Run scripts/create-nettrades-projects.sh to scaffold and clone repos.
+Full license information →
 
-B.    Run ./scripts/nettrades-setup.sh → select Phase 1.
+## 🌐 Community & Support
 
-C.    Start Odoo:
-```    bash
+| Channel | Purpose |
+|---------|-------------|
+|[GitHub Issues](https://github.com/nettrades/nettrades-platform/issues) |	Bug reports and feature requests|
+|[GitHub Discussions](https://github.com/nettrades/nettrades-platform/discussions) |	Questions and ideas|
+|[Discord](https://discord.gg/nettrades)	| Real-time chat and community support|
+|[Documentation](https://nettrades.github.io/nettrades-platform/)	| Full documentation|
+|[Website](https://nettrades.ai/)	| Project website|
 
-    python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
-        --addons-path=third-party/odoo/addons,odoo-modules
-```
+## ⭐ Star Us!
 
-D.    Install Odoo modules in order: standard (CRM, Project, etc.) → community (llm, llm_pgvector, etc.) → NETTRADES custom modules (nettrades_core first, then the rest).
+If you find [NETTRADES.AI](https://nettrades.ai/) useful, please consider giving us a ⭐ on GitHub – it helps others discover the project and supports our work.
 
-## 9. Future Development Notes
+## 🙏 Acknowledgments
 
-*    Data-Juicer & DEITA are optional; install dependencies only when enabled in the admin UI.
+[NETTRADES.AI](https://nettrades.ai/) is built on the shoulders of giants. We are grateful to the authors and maintainers of:
 
-*    Multimodal features (vision, robotics, IoT) are off by default; they require separate hardware/dependencies.
+* [Odoo](https://www.odoo.com/) – The ERP and business application foundation
 
-*    Edge device support auto-detects Jetson, Raspberry Pi, Coral TPU; the agent reports device info to Odoo.
+* [LangChain](https://www.langchain.com/) / [LangGraph](https://langchain-ai.github.io/langgraph/) – Agent orchestration
 
-*    The project uses dual licensing – AGPL-3.0 for original code, LGPL-3.0 for Odoo plugins.
+* [GPUStack](https://gpustack.ai/) – GPU cluster management
 
-*    All external APIs are called with timeouts and retry logic; LangGraph uses PostgresSaver for crash recovery.
+* [Unsloth](https://unsloth.ai/) – Efficient fine-tuning
+
+* [Axolotl](https://github.com/OpenAccess-AI-Collective/axolotl) – Multi-GPU training
+
+* [WireGuard](https://www.wireguard.com/) – Secure networking
+
+* [gVisor](https://gvisor.dev/) – Container isolation
+
+* [Forgejo](https://forgejo.org/) – Git and CI/CD
+
+* [Talos Linux](https://www.talos.dev/) – Immutable Kubernetes OS
+
+* And many other open-source projects
+
+```<p align="center"> <strong>Built with ❤️ by the NETTRADES team</strong> </p> ```
+
+
