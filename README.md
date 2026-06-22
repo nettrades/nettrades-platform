@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <a href="#-quick-start">Quick Start</a> •
+  <a href="quick-start.md">Quick Start</a> •
   <a href="#-key-features">Features</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-documentation">Documentation</a> •
