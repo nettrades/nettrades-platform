@@ -70,6 +70,8 @@ It combines:
 | **WireGuard** | kernel module | Kernel-level network isolation |
 | **gVisor** | release-20260420.0 | Syscall-level container isolation |
 
+[Full technology stack →](/developer/architecture#technology-stack)
+
 ---
 
 ## License
@@ -80,6 +82,8 @@ It combines:
 | `odoo-modules/` (custom Odoo plugins) | **LGPL-3.0** |
 | `third-party/` | Original licenses (LGPL, MIT, Apache-2.0) |
 
+[Full licensing information →](/governance/license)
+
 ---
 
 ## Community & Support
@@ -88,3 +92,12 @@ It combines:
 - **Discord**: [Join our community](https://discord.gg/nettrades)
 - **Email**: [dev@nettrades.ai](mailto:dev@nettrades.ai)
 - **Website**: [nettrades.ai](https://nettrades.ai)
+
+---
+
+## Quick Links
+
+- [Repository](https://github.com/nettrades/nettrades-platform)
+- [Releases](https://github.com/nettrades/nettrades-platform/releases)
+- [Contributing Guide →](/governance/contributing)
+- [Roadmap →](/governance/roadmap.mp)

@@ -26,7 +26,7 @@ Forgejo – https://git.your-domain
 
 LangGraph Agent – https://langgraph.your-domain
 
-llama.cpp (CPU inference) or vLLM (GPU inference) – auto‑detected.
+llama.cpp (CPU inference) or vLLM (GPU inference) – auto-detected.
 
 All services are secured with Let's Encrypt TLS.
 
@@ -56,7 +56,7 @@ Your domain name (e.g., nettrades.ai)
 
 Your admin email (for Let's Encrypt)
 
-Confirmation of auto‑detected hardware (CPU cores, RAM, GPU presence)
+Confirmation of auto-detected hardware (CPU cores, RAM, GPU presence)
 
 Wait for the stack to start (10-20 minutes)
 
@@ -83,7 +83,7 @@ For more detailed help, see the Full Documentation.
 
 [Developer Guide](developer/index.md)
     
-Follow the interactive wizard. It will auto‑detect your hardware, ask for your domain, generate passwords, and start all services.
+Follow the interactive wizard. It will auto-detect your hardware, ask for your domain, generate passwords, and start all services.
 
 After ~10-20 minutes, you'll have:
 
@@ -97,10 +97,10 @@ Forgejo – https://git.your-domain
 
 LangGraph Agent – https://langgraph.your-domain
 
-llama.cpp (CPU inference) or vLLM (GPU inference) – auto‑detected.
+llama.cpp (CPU inference) or vLLM (GPU inference) – auto-detected.
 
 All services are secured with Let's Encrypt TLS.
-Manual Setup (if you prefer step‑by‑step)
+Manual Setup (if you prefer step-by-step)
 
 Clone the repository
 
@@ -125,9 +125,9 @@ Your domain name (e.g., nettrades.ai)
 
 Your admin email (for Let's Encrypt)
 
-Confirmation of auto‑detected hardware (CPU cores, RAM, GPU presence)
+Confirmation of auto-detected hardware (CPU cores, RAM, GPU presence)
 
-Wait for the stack to start (10‑20 minutes)
+Wait for the stack to start (10-20 minutes)
 
 Log in to Odoo at https://your-domain and create your admin account.
 

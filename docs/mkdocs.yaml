@@ -1,7 +1,49 @@
+site_name: NETTRADES.AI Documentation
+site_description: Documentation for the NETTRADES.AI autonomous enterprise platform
+site_url: https://nettrades.github.io/nettrades-platform/
+repo_url: https://github.com/nettrades/nettrades-platform
+repo_name: nettrades/nettrades-platform
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+    - search.share
+    - content.code.annotate
+    - content.code.copy
+
+plugins:
+  - search
+  - mike:
+      version_selector: true
+      canonical_version: null
+      css_dir: css
+      javascript_dir: js
+
 nav:
   - Home: index.md
   - 🚀 Try It Now: try-it-now.md
   - 📖 Getting Started: getting-started.md
+
   - 👤 For Users:
       - Overview: user/index.md
       - Getting Started: user/getting-started.md
@@ -9,6 +51,7 @@ nav:
       - Ask Someone: user/ask-someone.md
       - GPU Marketplace: user/gpu-marketplace.md
       - FAQ: user/faq.md
+
   - 👨‍💻 For Developers:
       - Overview: developer/index.md
       - Getting Started: developer/getting-started.md
@@ -18,8 +61,10 @@ nav:
       - API Reference: developer/api-reference.md
       - API Examples: developer/api-examples.md
       - Troubleshooting: developer/troubleshooting.md
+      - Core Models: developer/core-models.md
       - Style Guide: developer/style-guide.md
       - FAQ: developer/faq.md
+
   - 🛠️ For Operators:
       - Overview: operations/index.md
       - Quick Start: operations/quick-start.md
@@ -33,6 +78,7 @@ nav:
       - Troubleshooting Guide: operations/troubleshooting-guide.md
       - Troubleshooting Quick Reference: operations/troubleshooting-quickref.md
       - FAQ: operations/faq.md
+
   - 📋 Governance:
       - Overview: governance/index.md
       - Contributing: governance/contributing.md
@@ -43,9 +89,11 @@ nav:
       - Roadmap: governance/roadmap.md
       - Changelog: governance/changelog.md
       - License: governance/license.md
+
   - 📚 Reference:
       - Overview: appendix/index.md
       - Glossary: appendix/glossary.md
       - Environment Variables: appendix/environment-variables.md
       - Database Schema: appendix/database-schema.md
+
   - 🌐 Community: community.md

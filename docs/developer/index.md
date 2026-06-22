@@ -84,7 +84,7 @@ The platform includes several custom Odoo models that form the foundation of the
 | Odoo `nettrades.review` | ✅ Complete | User review model |
 | Deployment Scripts | ✅ Full | Phase-based orchestrator works |
 
-[Full roadmap →](roadmap.md)
+[Full roadmap →](governance/roadmap.md)
 
 ---
 
