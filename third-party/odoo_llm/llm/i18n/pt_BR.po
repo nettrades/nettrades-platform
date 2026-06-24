@@ -1,0 +1,636 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* llm
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 16.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-02-27 00:08+0000\n"
+"PO-Revision-Date: 2025-02-27 00:08+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: llm
+#. odoo-python
+#: code:addons/llm/wizards/fetch_models_wizard.py:0
+#, python-format
+msgid "%d models have been imported/updated."
+msgstr "%d modelos foram importados/atualizados."
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.view_fetch_models_wizard
+msgid ""
+"<i class=\"fa fa-info-circle\"/>\n"
+"                            Select the models you want to import or update. New models will be created, and existing ones will be updated if modified."
+msgstr ""
+"<i class=\"fa fa-info-circle\"/>\n"
+"                            Selecione os modelos que deseja importar ou atualizar. Novos modelos serão criados e os existentes serão atualizados se modificados."
+
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_needaction
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_needaction
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_needaction
+msgid "Action Needed"
+msgstr "Ação Necessária"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__active
+#: model:ir.model.fields,field_description:llm.field_llm_provider__active
+msgid "Active"
+msgstr "Ativo"
+
+#. module: llm
+#: model_terms:ir.actions.act_window,help:llm.llm_publisher_action
+msgid "Add publishers like OpenAI, Anthropic, Meta, Google, etc."
+msgstr "Adicione editores como OpenAI, Anthropic, Meta, Google, etc."
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_provider__api_base
+msgid "Api Base"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_provider__api_key
+msgid "Api Key"
+msgstr ""
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_model_view_search
+msgid "Archived"
+msgstr "Arquivado"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_attachment_count
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_attachment_count
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_attachment_count
+msgid "Attachment Count"
+msgstr "Contagem de Anexos"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.view_fetch_models_wizard
+msgid "Cancel"
+msgstr "Cancelar"
+
+#. module: llm
+#: model:ir.model.fields.selection,name:llm.selection__llm_fetch_models_line__model_use__chat
+#: model:ir.model.fields.selection,name:llm.selection__llm_model__model_use__chat
+msgid "Chat"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_provider__company_id
+msgid "Company"
+msgstr "Empresa"
+
+#. module: llm
+#: model:ir.model.fields.selection,name:llm.selection__llm_fetch_models_line__model_use__completion
+#: model:ir.model.fields.selection,name:llm.selection__llm_model__model_use__completion
+msgid "Completion"
+msgstr "Conclusão"
+
+#. module: llm
+#: model:ir.ui.menu,name:llm.menu_llm_config
+msgid "Configuration"
+msgstr "Configuração"
+
+#. module: llm
+#: model_terms:ir.actions.act_window,help:llm.llm_provider_action
+msgid ""
+"Configure providers like OpenAI, Anthropic, or Ollama to enable AI features."
+msgstr "Configure provedores como OpenAI, Anthropic ou Ollama para habilitar recursos de IA."
+
+#. module: llm
+#: model_terms:ir.actions.act_window,help:llm.llm_provider_action
+msgid "Create your first LLM provider!"
+msgstr "Crie seu primeiro provedor de LLM!"
+
+#. module: llm
+#: model_terms:ir.actions.act_window,help:llm.llm_publisher_action
+msgid "Create your first LLM publisher!"
+msgstr "Crie seu primeiro editor de LLM!"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__create_uid
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__create_uid
+#: model:ir.model.fields,field_description:llm.field_llm_model__create_uid
+#: model:ir.model.fields,field_description:llm.field_llm_provider__create_uid
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__create_uid
+msgid "Created by"
+msgstr "Criado por"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__create_date
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__create_date
+#: model:ir.model.fields,field_description:llm.field_llm_model__create_date
+#: model:ir.model.fields,field_description:llm.field_llm_provider__create_date
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__create_date
+msgid "Created on"
+msgstr "Criado em"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__default
+msgid "Default"
+msgstr "Padrão"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_model_view_search
+msgid "Default Models"
+msgstr "Modelos Padrão"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__description
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_form
+msgid "Description"
+msgstr "Descrição"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__details
+#: model:ir.model.fields,field_description:llm.field_llm_model__details
+msgid "Details"
+msgstr "Detalhes"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__display_name
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__display_name
+#: model:ir.model.fields,field_description:llm.field_llm_model__display_name
+#: model:ir.model.fields,field_description:llm.field_llm_provider__display_name
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__display_name
+msgid "Display Name"
+msgstr "Nome Exibido"
+
+#. module: llm
+#: model:ir.model.constraint,message:llm.constraint_llm_fetch_models_line_unique_model_per_wizard
+msgid "Each model can only be listed once per import."
+msgstr "Cada modelo pode ser listado apenas uma vez por importação."
+
+#. module: llm
+#: model:ir.model.fields.selection,name:llm.selection__llm_fetch_models_line__model_use__embedding
+#: model:ir.model.fields.selection,name:llm.selection__llm_model__model_use__embedding
+msgid "Embedding"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields.selection,name:llm.selection__llm_fetch_models_line__status__existing
+msgid "Existing"
+msgstr "Existente"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__existing_model_id
+msgid "Existing Model"
+msgstr "Modelo Existente"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_provider_view_form
+msgid "Fetch Models"
+msgstr "Buscar Modelos"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_follower_ids
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_follower_ids
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_follower_ids
+msgid "Followers"
+msgstr "Seguidores"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_partner_ids
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_partner_ids
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "Seguidores (Parceiros)"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__frontier
+msgid "Frontier"
+msgstr ""
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_search
+msgid "Frontier AI"
+msgstr ""
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_search
+msgid "Frontier Status"
+msgstr ""
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_model_view_search
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_search
+msgid "Group By"
+msgstr "Agrupar por"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__has_message
+#: model:ir.model.fields,field_description:llm.field_llm_provider__has_message
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__has_message
+msgid "Has Message"
+msgstr "Possui Mensagem"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__id
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__id
+#: model:ir.model.fields,field_description:llm.field_llm_model__id
+#: model:ir.model.fields,field_description:llm.field_llm_provider__id
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__id
+msgid "ID"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields,help:llm.field_llm_model__message_needaction
+#: model:ir.model.fields,help:llm.field_llm_provider__message_needaction
+#: model:ir.model.fields,help:llm.field_llm_publisher__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "Se marcado, novas mensagens exigem sua atenção."
+
+#. module: llm
+#: model:ir.model.fields,help:llm.field_llm_model__message_has_error
+#: model:ir.model.fields,help:llm.field_llm_provider__message_has_error
+#: model:ir.model.fields,help:llm.field_llm_publisher__message_has_error
+msgid "If checked, some messages have a delivery error."
+msgstr "Se marcado, algumas mensagens apresentam erro de entrega."
+
+#. module: llm
+#: model:ir.model,name:llm.model_llm_fetch_models_wizard
+msgid "Import LLM Models"
+msgstr "Importar Modelos de LLM"
+
+#. module: llm
+#: model:ir.actions.act_window,name:llm.action_fetch_models_wizard
+msgid "Import Models"
+msgstr "Importar Modelos"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.view_fetch_models_wizard
+msgid "Import Selected Models"
+msgstr "Importar Modelos Selecionados"
+
+#. module: llm
+#: model:ir.model.fields,help:llm.field_llm_publisher__official
+msgid "Indicates if this is an official model publisher"
+msgstr "Indica se este é um editor de modelos oficial"
+
+#. module: llm
+#: model:ir.model.fields,help:llm.field_llm_publisher__frontier
+msgid "Indicates if this publisher is working on frontier AI models"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_is_follower
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_is_follower
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_is_follower
+msgid "Is Follower"
+msgstr "É Seguidor"
+
+#. module: llm
+#: model:ir.ui.menu,name:llm.menu_llm_root
+msgid "LLM"
+msgstr ""
+
+#. module: llm
+#: model:res.groups,name:llm.group_llm_manager
+msgid "LLM Manager"
+msgstr "Gerenciador de LLM"
+
+#. module: llm
+#: model:ir.model,name:llm.model_llm_model
+msgid "LLM Model"
+msgstr "Modelo de LLM"
+
+#. module: llm
+#: model:ir.model,name:llm.model_llm_fetch_models_line
+msgid "LLM Model Import Line"
+msgstr "Linha de Importação de Modelo de LLM"
+
+#. module: llm
+#: model:ir.actions.act_window,name:llm.llm_model_action
+msgid "LLM Models"
+msgstr "Modelos de LLM"
+
+#. module: llm
+#: model:ir.model,name:llm.model_llm_provider
+msgid "LLM Provider"
+msgstr "Provedor de LLM"
+
+#. module: llm
+#: model:ir.actions.act_window,name:llm.llm_provider_action
+msgid "LLM Providers"
+msgstr "Provedores de LLM"
+
+#. module: llm
+#: model:ir.model,name:llm.model_llm_publisher
+msgid "LLM Publisher"
+msgstr ""
+
+#. module: llm
+#: model:ir.actions.act_window,name:llm.llm_publisher_action
+msgid "LLM Publishers"
+msgstr "Editor de LLM"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line____last_update
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard____last_update
+#: model:ir.model.fields,field_description:llm.field_llm_model____last_update
+#: model:ir.model.fields,field_description:llm.field_llm_provider____last_update
+#: model:ir.model.fields,field_description:llm.field_llm_publisher____last_update
+msgid "Last Modified on"
+msgstr "Última Modificação em"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__write_uid
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__write_uid
+#: model:ir.model.fields,field_description:llm.field_llm_model__write_uid
+#: model:ir.model.fields,field_description:llm.field_llm_provider__write_uid
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__write_uid
+msgid "Last Updated by"
+msgstr "Última Atualização por"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__write_date
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__write_date
+#: model:ir.model.fields,field_description:llm.field_llm_model__write_date
+#: model:ir.model.fields,field_description:llm.field_llm_provider__write_date
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__write_date
+msgid "Last Updated on"
+msgstr "Última Atualização em"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__logo
+msgid "Logo"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_main_attachment_id
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_main_attachment_id
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_main_attachment_id
+msgid "Main Attachment"
+msgstr "Anexo Principal"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_has_error
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_has_error
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_has_error
+msgid "Message Delivery error"
+msgstr "Erro de Entrega da Mensagem"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_ids
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_ids
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_ids
+msgid "Messages"
+msgstr "Mensagens"
+
+#. module: llm
+#. odoo-python
+#: code:addons/llm/models/llm_provider.py:0
+#, python-format
+msgid "Method %s not implemented for service %s"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__model_count
+msgid "Model Count"
+msgstr "Contagem de Modelos"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__model_info
+msgid "Model Info"
+msgstr "Informações do Modelo"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__name
+#: model_terms:ir.ui.view,arch_db:llm.llm_model_view_form
+msgid "Model Name"
+msgstr "Nome do Modelo"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__model_use
+#: model:ir.model.fields,field_description:llm.field_llm_model__model_use
+msgid "Model Use"
+msgstr "Uso do Modelo"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__line_ids
+#: model:ir.model.fields,field_description:llm.field_llm_provider__model_ids
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__model_ids
+#: model:ir.ui.menu,name:llm.menu_llm_model
+#: model_terms:ir.ui.view,arch_db:llm.llm_provider_view_form
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_form
+msgid "Models"
+msgstr "Modelos"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__model_count
+msgid "Models Found"
+msgstr "Modelos Encontrados"
+
+#. module: llm
+#: model_terms:ir.actions.act_window,help:llm.llm_model_action
+msgid "Models will be automatically created when you configure a provider."
+msgstr "Os modelos serão criados automaticamente quando você configurar um provedor."
+
+#. module: llm
+#: model:ir.model.fields.selection,name:llm.selection__llm_fetch_models_line__status__modified
+msgid "Modified"
+msgstr "Modificado"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__modified_count
+msgid "Modified Models"
+msgstr "Modelos Modificado"
+
+#. module: llm
+#: model:ir.model.fields.selection,name:llm.selection__llm_fetch_models_line__model_use__multimodal
+#: model:ir.model.fields.selection,name:llm.selection__llm_model__model_use__multimodal
+msgid "Multimodal"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__name
+#: model:ir.model.fields,field_description:llm.field_llm_provider__name
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__name
+msgid "Name"
+msgstr "Nome"
+
+#. module: llm
+#: model:ir.model.fields.selection,name:llm.selection__llm_fetch_models_line__status__new
+msgid "New"
+msgstr "Novo"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__new_count
+msgid "New Models"
+msgstr "Novos Modelos"
+
+#. module: llm
+#: model_terms:ir.actions.act_window,help:llm.llm_model_action
+msgid "No models found!"
+msgstr "Nenhum modelo encontrado!"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_needaction_counter
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_needaction_counter
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_needaction_counter
+msgid "Number of Actions"
+msgstr "Número de Ações"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__message_has_error_counter
+#: model:ir.model.fields,field_description:llm.field_llm_provider__message_has_error_counter
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__message_has_error_counter
+msgid "Number of errors"
+msgstr "Número de erros"
+
+#. module: llm
+#: model:ir.model.fields,help:llm.field_llm_model__message_needaction_counter
+#: model:ir.model.fields,help:llm.field_llm_provider__message_needaction_counter
+#: model:ir.model.fields,help:llm.field_llm_publisher__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "Número de mensagens que exigem ação"
+
+#. module: llm
+#: model:ir.model.fields,help:llm.field_llm_model__message_has_error_counter
+#: model:ir.model.fields,help:llm.field_llm_provider__message_has_error_counter
+#: model:ir.model.fields,help:llm.field_llm_publisher__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "Número de mensagens com erro de entrega"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__official
+msgid "Official"
+msgstr "Oficial"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_search
+msgid "Official Publishers"
+msgstr "Editores Oficiais"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_search
+msgid "Official Status"
+msgstr "Status Oficial"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__parameters
+msgid "Parameters"
+msgstr "Parâmetros"
+
+#. module: llm
+#. odoo-python
+#: code:addons/llm/wizards/fetch_models_wizard.py:0
+#, python-format
+msgid "Please select at least one model to import."
+msgstr "Por favor, selecione pelo menos um modelo para importar."
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_wizard__provider_id
+#: model:ir.model.fields,field_description:llm.field_llm_model__provider_id
+#: model_terms:ir.ui.view,arch_db:llm.llm_model_view_search
+msgid "Provider"
+msgstr "Provedor"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_provider_view_form
+msgid "Provider Name"
+msgstr "Nome do Provedor"
+
+#. module: llm
+#. odoo-python
+#: code:addons/llm/wizards/fetch_models_wizard.py:0
+#, python-format
+msgid "Provider not found."
+msgstr "Provedor não encontrado."
+
+#. module: llm
+#. odoo-python
+#: code:addons/llm/models/llm_provider.py:0
+#, python-format
+msgid "Provider service not configured"
+msgstr "Serviço do provedor não configurado"
+
+#. module: llm
+#: model:ir.ui.menu,name:llm.menu_llm_provider
+msgid "Providers"
+msgstr "Provedores"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__publisher_id
+msgid "Publisher"
+msgstr "Editor"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_publisher__meta
+msgid "Publisher Metadata"
+msgstr "Metadados do Editor"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_form
+msgid "Publisher Name"
+msgstr "Nome do Editor"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_publisher_view_form
+msgid "Publisher description..."
+msgstr "Descrição do Editor..."
+
+#. module: llm
+#: model:ir.model.fields,help:llm.field_llm_publisher__logo
+msgid "Publisher logo"
+msgstr "Logo do Editor"
+
+#. module: llm
+#: model:ir.ui.menu,name:llm.menu_llm_publisher
+msgid "Publishers"
+msgstr "Editores"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__selected
+msgid "Selected"
+msgstr "Selecionado"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_provider__service
+msgid "Service"
+msgstr "Serviço"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__status
+msgid "Status"
+msgstr "Status"
+
+#. module: llm
+#. odoo-python
+#: code:addons/llm/wizards/fetch_models_wizard.py:0
+#, python-format
+msgid "Success"
+msgstr "Sucesso"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_model__template
+msgid "Template"
+msgstr ""
+
+#. module: llm
+#: model:ir.model.fields,help:llm.field_llm_model__publisher_id
+msgid "The organization or entity that published this model"
+msgstr "A organização ou entidade que publicou este modelo"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_model_view_search
+msgid "Usage"
+msgstr "Uso"
+
+#. module: llm
+#: model:ir.model.fields,field_description:llm.field_llm_fetch_models_line__wizard_id
+msgid "Wizard"
+msgstr "Assistente"
+
+#. module: llm
+#: model_terms:ir.ui.view,arch_db:llm.llm_provider_view_form
+msgid "http://localhost:11434"
+msgstr ""

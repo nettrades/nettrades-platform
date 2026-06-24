@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Default MCP Server Configuration -->
+    <record id="default_mcp_server_config" model="llm.mcp.server.config">
+        <field name="name">odoo_llm_mcp_server</field>
+        <field name="version">1.0.0</field>
+        <field name="latest_protocol_version">2025-06-18</field>
+        <field name="supported_protocol_versions" eval="None" />
+        <field name="active" eval="True" />
+
+        <!-- Server Mode Configuration -->
+        <field name="mode">stateful</field>
+
+        <!-- External URL left empty for auto-detection from web.base.url -->
+        <field name="external_url" />
+    </record>
+</odoo>

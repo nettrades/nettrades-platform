@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Root Menu -->
+    <menuitem
+    id="menu_llm_root"
+    name="LLM"
+    web_icon="llm,static/description/icon.png"
+    sequence="100"
+  />
+
+    <!-- Configuration Menu -->
+    <menuitem
+    id="menu_llm_config"
+    name="Configuration"
+    parent="menu_llm_root"
+    sequence="100"
+  />
+
+    <!-- Provider Menu -->
+    <menuitem
+    id="menu_llm_provider"
+    name="Providers"
+    action="llm_provider_action"
+    parent="menu_llm_config"
+    sequence="10"
+  />
+
+    <!-- Publisher Menu -->
+    <menuitem
+    id="menu_llm_publisher"
+    name="Publishers"
+    action="llm_publisher_action"
+    parent="menu_llm_config"
+    sequence="15"
+  />
+
+    <!-- Model Menu -->
+    <menuitem
+    id="menu_llm_model"
+    name="Models"
+    action="llm_model_action"
+    parent="menu_llm_config"
+    sequence="20"
+  />
+</odoo>

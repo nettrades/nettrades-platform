@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="mt_tool" model="mail.message.subtype">
+        <field name="name">LLM Tool</field>
+        <field name="internal" eval="False" />
+        <field name="default" eval="False" />
+        <field name="sequence">100</field>
+        <field name="res_model">mail.thread</field>
+    </record>
+    <record id="mt_user" model="mail.message.subtype">
+        <field name="name">LLM User</field>
+        <field name="internal" eval="False" />
+        <field name="default" eval="False" />
+        <field name="sequence">110</field>
+        <field name="res_model">mail.thread</field>
+    </record>
+    <record id="mt_assistant" model="mail.message.subtype">
+        <field name="name">LLM Assistant</field>
+        <field name="internal" eval="False" />
+        <field name="default" eval="False" />
+        <field name="sequence">120</field>
+        <field name="res_model">mail.thread</field>
+    </record>
+    <record id="mt_system" model="mail.message.subtype">
+        <field name="name">LLM System</field>
+        <field name="internal" eval="False" />
+        <field name="default" eval="False" />
+        <field name="sequence">120</field>
+        <field name="res_model">mail.thread</field>
+    </record>
+</odoo>
