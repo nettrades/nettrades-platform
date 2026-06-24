@@ -8,18 +8,18 @@
 
     PURPOSE:
         This file defines the security model for the GPU Admin module. It
-        implements role-based access control (RBAC) and multi‑tenant
-        isolation using Odoo's built‑in security groups and record rules.
+        implements role-based access control (RBAC) and multi-tenant
+        isolation using Odoo's built-in security groups and record rules.
 
         The module has two user roles:
           • GPU Administrator – full CRUD access to all GPU resources
             within their own company.
-          • GPU Operator – read‑only access to GPU status and monitoring
+          • GPU Operator – read-only access to GPU status and monitoring
             within their own company.
 
         Record rules ensure that users can only see and modify GPU resources
         (clusters, nodes, schedules, etc.) that belong to their company.
-        This is critical for a multi‑tenant environment where multiple
+        This is critical for a multi-tenant environment where multiple
         companies share the same Odoo instance.
 
     HOW ODOO SECURITY WORKS:
@@ -36,7 +36,7 @@
         - Add new groups with a clear name and category.
         - For each new model, create record rules for both Administrator
           and Operator groups.
-        - Always use company‑based filtering to preserve multi‑tenancy.
+        - Always use company-based filtering to preserve multi-tenancy.
         - Test with users from different companies before deploying.
 
     ============================================================================
@@ -60,7 +60,7 @@
                 category to prevent these groups from appearing in the
                 standard "Settings → Users & Companies → Groups" menu
                 unless "Technical Features" is enabled. This keeps the UI
-                cleaner for non‑technical administrators.
+                cleaner for non-technical administrators.
 
                 Alternatives:
                   - base.module_category_tools – visible to all users
@@ -95,7 +95,7 @@
     </record>
 
     <!-- ======================================================================
-        2. GPU OPERATOR GROUP (read‑only)
+        2. GPU OPERATOR GROUP (read-only)
         ====================================================================== -->
     <record id="group_gpu_operator" model="res.groups">
         <field name="name">GPU Operator</field>
@@ -203,7 +203,7 @@
     </record>
 
     <!-- ======================================================================
-        4. RECORD RULES – GPU OPERATOR (Read‑only within Company)
+        4. RECORD RULES – GPU OPERATOR (Read-only within Company)
         ======================================================================
 
         For operators, we grant only `perm_read=True`. All other CRUD actions
@@ -292,7 +292,7 @@
         5. NOTES FOR FUTURE DEVELOPERS
         ======================================================================
 
-        - If you add a new GPU‑related model, remember to add record rules
+        - If you add a new GPU-related model, remember to add record rules
           for both Administrator and Operator groups.
 
         - The model references (e.g., `model_gpu_cluster`) are automatically
@@ -302,7 +302,7 @@
 
         - If a model does not have a direct `company_id`, always use the
           relationship traversal to the cluster (or company owner) to enforce
-          multi‑tenancy.
+          multi-tenancy.
 
         - When testing, always use at least two companies with different
           administrators to verify that they cannot see each other's records.

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+=============================================================================
+NETTRADES Bridge – Cron Jobs
+=============================================================================
+FILE: odoo-modules/nettrades_bridge/data/bridge_cron_data.xml
+
+PURPOSE:
+  This file defines the cron jobs for the bridge module.
+  Currently used for health check monitoring.
+=============================================================================
+-->
+<odoo>
+    <record id="cron_bridge_health_check" model="ir.cron">
+        <field name="name">Bridge Health Check</field>
+        <field name="model_id" ref="model_nettrades_bridge_config"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_health_check()</field>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="doall" eval="False"/>
+        <field name="numbercall">-1</field>
+        <field name="priority">10</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

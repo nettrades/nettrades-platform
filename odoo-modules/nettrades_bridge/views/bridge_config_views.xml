@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+=============================================================================
+NETTRADES Bridge – Global Configuration Views
+=============================================================================
+FILE: odoo-modules/nettrades_bridge/views/bridge_config_views.xml
+
+PURPOSE:
+  This file defines the Odoo admin interface for the global bridge
+  configuration. It provides a user-friendly way for administrators to
+  configure the bridge settings.
+
+  The view includes:
+  - Bridge mode selection
+  - Remote brain connection settings
+  - Feature flags per intent
+  - GPU overflow configuration
+  - Performance settings
+  - Fallback configuration
+  - Health check settings
+=============================================================================
+-->
+<odoo>
+    <!-- ---------------------------------------------------------------------
+    MENU
+    --------------------------------------------------------------------- -->
+    <menuitem id="menu_bridge_root" name="Bridge" parent="nettrades_core.menu_nettrades_root" sequence="50"/>
+
+    <menuitem id="menu_bridge_config" name="Global Configuration" parent="menu_bridge_root" action="action_bridge_config"/>
+    <menuitem id="menu_bridge_company_config" name="Company Configuration" parent="menu_bridge_root" action="action_bridge_company_config"/>
+    <menuitem id="menu_bridge_usage" name="Usage Logs" parent="menu_bridge_root" action="action_bridge_usage"/>
+
+    <!-- ---------------------------------------------------------------------
+    ACTION
+    --------------------------------------------------------------------- -->
+    <record id="action_bridge_config" model="ir.actions.act_window">
+        <field name="name">Bridge Global Configuration</field>
+        <field name="res_model">nettrades.bridge.config</field>
+        <field name="view_mode">form</field>
+        <field name="help" type="html">
+            <p>Configure the global bridge settings for the NETTRADES platform.</p>
+            <p>These settings apply to all companies unless overridden at the company level.</p>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    FORM VIEW
+    --------------------------------------------------------------------- -->
+    <record id="view_bridge_config_form" model="ir.ui.view">
+        <field name="name">nettrades.bridge.config.form</field>
+        <field name="model">nettrades.bridge.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_test_connection" string="Test Connection" type="object" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Bridge Global Configuration</h1>
+                    </div>
+
+                    <!-- ==========================================================
+                    BRIDGE MODE
+                    ========================================================== -->
+                    <group string="Bridge Mode">
+                        <field name="bridge_mode" widget="radio"/>
+                        <field name="display_name" invisible="1"/>
+                    </group>
+
+                    <!-- ==========================================================
+                    REMOTE BRAIN
+                    ========================================================== -->
+                    <group string="Remote Brain Connection" attrs="{'invisible': [('bridge_mode', '=', 'local')]}">
+                        <field name="remote_brain_url" placeholder="https://api.nettrades.ai"/>
+                        <field name="remote_brain_api_key" password="True"/>
+                    </group>
+
+                    <!-- ==========================================================
+                    FEATURE FLAGS
+                    ========================================================== -->
+                    <group string="Remote Feature Flags" attrs="{'invisible': [('bridge_mode', '=', 'local')]}">
+                        <field name="enable_remote_recruitment"/>
+                        <field name="enable_remote_freelance"/>
+                        <field name="enable_remote_gpu"/>
+                        <field name="enable_remote_vision"/>
+                        <field name="enable_remote_action"/>
+                    </group>
+
+                    <!-- ==========================================================
+                    GPU OVERFLOW
+                    ========================================================== -->
+                    <group string="GPU Overflow Configuration">
+                        <field name="gpu_overflow_enabled"/>
+                        <field name="gpu_overflow_threshold" attrs="{'invisible': [('gpu_overflow_enabled', '=', False)]}"/>
+                    </group>
+
+                    <!-- ==========================================================
+                    PERFORMANCE
+                    ========================================================== -->
+                    <group string="Performance Settings">
+                        <field name="request_timeout"/>
+                        <field name="max_retries"/>
+                        <field name="retry_delay"/>
+                    </group>
+
+                    <!-- ==========================================================
+                    FALLBACK
+                    ========================================================== -->
+                    <group string="Fallback Settings">
+                        <field name="fallback_to_local"/>
+                    </group>
+
+                    <!-- ==========================================================
+                    HEALTH CHECK
+                    ========================================================== -->
+                    <group string="Health Check">
+                        <field name="health_check_enabled"/>
+                        <field name="health_check_interval" attrs="{'invisible': [('health_check_enabled', '=', False)]}"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

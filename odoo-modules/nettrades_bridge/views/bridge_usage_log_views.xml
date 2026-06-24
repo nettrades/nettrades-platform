@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+=============================================================================
+NETTRADES Bridge – Usage Log Views
+=============================================================================
+FILE: odoo-modules/nettrades_bridge/views/bridge_usage_log_views.xml
+
+PURPOSE:
+  This file defines the Odoo admin interface for bridge usage logs.
+  It provides a tree view of all routed requests for monitoring and billing.
+=============================================================================
+-->
+<odoo>
+    <!-- ---------------------------------------------------------------------
+    ACTION
+    --------------------------------------------------------------------- -->
+    <record id="action_bridge_usage" model="ir.actions.act_window">
+        <field name="name">Bridge Usage Logs</field>
+        <field name="res_model">nettrades.bridge.usage.log</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>View all requests routed through the bridge.</p>
+            <p>This data is used for billing and monitoring purposes.</p>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    TREE VIEW
+    --------------------------------------------------------------------- -->
+    <record id="view_bridge_usage_log_tree" model="ir.ui.view">
+        <field name="name">nettrades.bridge.usage.log.tree</field>
+        <field name="model">nettrades.bridge.usage.log</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="create_date"/>
+                <field name="company_id"/>
+                <field name="intent" widget="badge"/>
+                <field name="source"/>
+                <field name="success" widget="boolean"/>
+                <field name="response_time_ms"/>
+                <field name="tokens_used"/>
+            </tree>
+        </field>
+    </record>
+</odoo>

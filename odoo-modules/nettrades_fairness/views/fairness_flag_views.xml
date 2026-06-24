@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+=============================================================================
+NETTRADES Fairness – Flag Views
+=============================================================================
+FILE: odoo-modules/nettrades_fairness/views/fairness_flag_views.xml
+
+PURPOSE:
+  This file defines the views for managing fairness flags.
+  Flags are responses that exceeded rationality or bias thresholds and
+  require human review.
+
+  The views provide:
+    - Tree view for listing flags
+    - Form view for reviewing individual flags
+    - Action buttons for accepting or rejecting flags
+=============================================================================
+-->
+<odoo>
+    <!-- ---------------------------------------------------------------------
+    TREE VIEW
+    --------------------------------------------------------------------- -->
+    <record id="view_fairness_flag_tree" model="ir.ui.view">
+        <field name="name">nettrades.fairness.flag.tree</field>
+        <field name="model">nettrades.fairness.flag</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="create_date"/>
+                <field name="field_id"/>
+                <field name="rationality_score"/>
+                <field name="bias_score"/>
+                <field name="status" widget="badge"/>
+                <field name="reviewed_by"/>
+                <field name="reviewed_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    FORM VIEW
+    --------------------------------------------------------------------- -->
+    <record id="view_fairness_flag_form" model="ir.ui.view">
+        <field name="name">nettrades.fairness.flag.form</field>
+        <field name="model">nettrades.fairness.flag</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_accept" string="Accept" type="object" class="btn-primary"
+                            attrs="{'invisible': [('status', 'in', ['accepted', 'rejected'])]}"/>
+                    <button name="action_reject" string="Reject" type="object" class="btn-danger"
+                            attrs="{'invisible': [('status', 'in', ['accepted', 'rejected'])]}"/>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Fairness Flag</h1>
+                    </div>
+
+                    <group string="Flag Details">
+                        <field name="field_id"/>
+                        <field name="reason"/>
+                        <field name="rationality_score"/>
+                        <field name="bias_score"/>
+                    </group>
+
+                    <group string="Review">
+                        <field name="status"/>
+                        <field name="reviewed_by"/>
+                        <field name="reviewed_date"/>
+                        <field name="review_notes"/>
+                    </group>
+
+                    <group string="Response Details">
+                        <!-- Link to the original response if available -->
+                        <field name="response_id" widget="many2one"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    ACTION BUTTONS
+    --------------------------------------------------------------------- -->
+    <record id="action_fairness_flag_accept" model="ir.actions.act_window">
+        <field name="name">Accept Flag</field>
+        <field name="res_model">nettrades.fairness.flag</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <record id="action_fairness_flag_reject" model="ir.actions.act_window">
+        <field name="name">Reject Flag</field>
+        <field name="res_model">nettrades.fairness.flag</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

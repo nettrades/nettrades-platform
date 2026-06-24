@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+=============================================================================
+NETTRADES Bridge – Company Configuration Views
+=============================================================================
+FILE: odoo-modules/nettrades_bridge/views/bridge_company_config_views.xml
+
+PURPOSE:
+  This file defines the Odoo admin interface for per-company bridge
+  configuration. It allows administrators to override global settings
+  for specific companies.
+=============================================================================
+-->
+<odoo>
+    <!-- ---------------------------------------------------------------------
+    ACTION
+    --------------------------------------------------------------------- -->
+    <record id="action_bridge_company_config" model="ir.actions.act_window">
+        <field name="name">Company Bridge Configurations</field>
+        <field name="res_model">nettrades.bridge.company.config</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>Override bridge settings for specific companies.</p>
+            <p>These settings take precedence over the global configuration.</p>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    TREE VIEW
+    --------------------------------------------------------------------- -->
+    <record id="view_bridge_company_config_tree" model="ir.ui.view">
+        <field name="name">nettrades.bridge.company.config.tree</field>
+        <field name="model">nettrades.bridge.company.config</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="company_id"/>
+                <field name="bridge_mode"/>
+                <field name="override_features"/>
+                <field name="gpu_overflow_enabled"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    FORM VIEW
+    --------------------------------------------------------------------- -->
+    <record id="view_bridge_company_config_form" model="ir.ui.view">
+        <field name="name">nettrades.bridge.company.config.form</field>
+        <field name="model">nettrades.bridge.company.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Company Bridge Configuration</h1>
+                    </div>
+
+                    <group>
+                        <field name="company_id" options="{'no_create': True}"/>
+                        <field name="active"/>
+                    </group>
+
+                    <group string="Mode Override">
+                        <field name="override_bridge_mode"/>
+                        <field name="bridge_mode" attrs="{'invisible': [('override_bridge_mode', '=', False)]}"/>
+                    </group>
+
+                    <group string="Feature Flags Override">
+                        <field name="override_features"/>
+                        <field name="enable_remote_recruitment" attrs="{'invisible': [('override_features', '=', False)]}"/>
+                        <field name="enable_remote_freelance" attrs="{'invisible': [('override_features', '=', False)]}"/>
+                        <field name="enable_remote_gpu" attrs="{'invisible': [('override_features', '=', False)]}"/>
+                        <field name="enable_remote_vision" attrs="{'invisible': [('override_features', '=', False)]}"/>
+                        <field name="enable_remote_action" attrs="{'invisible': [('override_features', '=', False)]}"/>
+                    </group>
+
+                    <group string="GPU Overflow Override">
+                        <field name="override_gpu_overflow"/>
+                        <field name="gpu_overflow_enabled" attrs="{'invisible': [('override_gpu_overflow', '=', False)]}"/>
+                        <field name="gpu_overflow_threshold" attrs="{'invisible': [('override_gpu_overflow', '=', False)]}"/>
+                    </group>
+
+                    <group string="Remote Connection Override">
+                        <field name="override_remote_url"/>
+                        <field name="remote_brain_url" attrs="{'invisible': [('override_remote_url', '=', False)]}"/>
+                        <field name="remote_brain_api_key" password="True" attrs="{'invisible': [('override_remote_url', '=', False)]}"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

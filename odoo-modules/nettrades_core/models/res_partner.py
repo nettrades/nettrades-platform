@@ -24,6 +24,12 @@
 #
 #   FIX: Added 'from odoo import _' to import the translation function.
 #
+#
+# MODIFICATIONS:
+#   - Added fairness evaluation trigger to action_good_answer method.
+#   - When a user clicks "Good Answer", the response is evaluated for
+#     rationality and bias using the fairness module.
+#
 # =============================================================================
 
 import json

@@ -1,0 +1,96 @@
+<!-- odoo-modules/nettrades_fairness/views/fairness_config_views.xml -->
+
+<odoo>
+    <!-- Global Configuration Form -->
+    <record id="view_fairness_global_config_form" model="ir.ui.view">
+        <field name="name">nettrades.fairness.config.form</field>
+        <field name="model">nettrades.fairness.config</field>
+        <field name="arch" type="xml">
+            <form string="Fairness &amp; Rationality Configuration">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>AI Fairness &amp; Rationality Configuration</h1>
+                    </div>
+                    
+                    <!-- Enable/Disable Features -->
+                    <group string="Feature Controls" colspan="4">
+                        <field name="rationality_evaluation_enabled"/>
+                        <field name="bias_detection_enabled"/>
+                        <field name="auto_flag_for_review"/>
+                        <field name="auto_filter_training"/>
+                    </group>
+                    
+                    <!-- Thresholds -->
+                    <group string="Quality Thresholds" colspan="4">
+                        <field name="rationality_threshold" widget="float_time"/>
+                        <field name="bias_threshold" widget="float_time"/>
+                        <field name="min_votes_for_training"/>
+                    </group>
+                    
+                    <!-- Evaluation Model -->
+                    <group string="Evaluation Model" colspan="4">
+                        <field name="evaluation_model"/>
+                        <field name="custom_evaluation_url" 
+                               attrs="{'invisible': [('evaluation_model', '!=', 'custom')]}"/>
+                        <field name="custom_evaluation_api_key" password="True"
+                               attrs="{'invisible': [('evaluation_model', '!=', 'custom')]}"/>
+                    </group>
+                    
+                    <!-- Status Summary -->
+                    <group string="System Status" colspan="4">
+                        <field name="last_audit_date"/>
+                        <field name="total_evaluations"/>
+                        <field name="flagged_responses"/>
+                        <field name="average_rationality"/>
+                        <field name="average_bias"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Field-Specific Configuration Form -->
+    <record id="view_fairness_field_config_form" model="ir.ui.view">
+        <field name="name">nettrades.fairness.field.config.form</field>
+        <field name="model">nettrades.fairness.field.config</field>
+        <field name="arch" type="xml">
+            <form string="Field Fairness Configuration">
+                <sheet>
+                    <group>
+                        <field name="field_id" options="{'no_create': True}"/>
+                        <field name="override_global"/>
+                        <field name="sensitivity_level"/>
+                        <field name="protected_attributes"/>
+                    </group>
+                    
+                    <group string="Threshold Overrides" 
+                           attrs="{'invisible': [('override_global', '=', False)]}">
+                        <field name="rationality_threshold"/>
+                        <field name="bias_threshold"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Menu Items -->
+    <menuitem id="menu_fairness_root" 
+              name="Fairness &amp; AI Ethics" 
+              parent="nettrades_core.menu_nettrades_root"
+              sequence="70"/>
+    
+    <menuitem id="menu_fairness_global_config" 
+              name="Global Configuration" 
+              parent="menu_fairness_root" 
+              action="action_fairness_global_config"/>
+    
+    <menuitem id="menu_fairness_field_config" 
+              name="Field Configurations" 
+              parent="menu_fairness_root" 
+              action="action_fairness_field_config"/>
+    
+    <menuitem id="menu_fairness_audit_log" 
+              name="Audit Logs" 
+              parent="menu_fairness_root" 
+              action="action_fairness_audit_log"/>
+</odoo>

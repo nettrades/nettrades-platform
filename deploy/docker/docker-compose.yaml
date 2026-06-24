@@ -1,6 +1,11 @@
 # =============================================================================
 # NETTRADES.AI – Single-VM Docker Compose deployment (Valkey edition)
 # =============================================================================
+# PURPOSE:
+#   This file defines all services for a single-VM deployment.
+#   It includes Odoo 19 CE with all custom NETTRADES modules,
+#   PostgreSQL, Valkey, LangGraph, GPUStack, and monitoring.
+#
 # All services are production-ready, with pinned versions for stability.
 # Forgejo 15.0 LTS is supported until July 2027.
 # GPUStack v2.1.2 is the current stable release.
@@ -16,6 +21,13 @@
 # Client companies running their own GPUStack server (Trusted Mode) retain
 # the built-in Grafana at http://<controller>:80/grafana for anonymous
 # Viewer access to GPU-level dashboards.
+#
+# MODIFICATIONS:
+#   - Added new self-improving modules to Odoo addons_path
+#   - Added bridge module for hub-and-spoke routing
+#   - Added data collection, trigger, and loop modules
+#   - Added fairness module to Odoo addons
+#   - Updated environment variables for fairness evaluation
 # =============================================================================
 version: '3.8'
 
@@ -98,13 +110,15 @@ services:
     volumes:
       - ./addons:/mnt/extra-addons
       - ./odoo-data:/var/lib/odoo
-      - ./config:/etc/odoo
+      - ./config/odoo.conf:/etc/odoo/odoo.conf
     environment:
       - HOST=postgres
+      - PORT=5432
       - USER=odoo
       - PASSWORD=${POSTGRES_PASSWORD}
-#     - REDIS_HOST=redis   # raplaced redis with valkey
-#     - REDIS_PORT=6379    # raplaced redis with valkey
+      # NEW: Fairness evaluation API keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       
     labels:
       - traefik.enable=true
@@ -119,7 +133,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-#     redis:  # raplaced redis with valkey
       valkey:
         condition: service_started
 
@@ -176,6 +189,12 @@ services:
       - traefik.http.routers.langgraph.middlewares=langgraph-ratelimit
     security_opt:
       - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ---------------------------------------------------------------------------
   # MCP-Odoo bridge – LLM tool-calling interface to Odoo

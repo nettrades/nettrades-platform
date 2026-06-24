@@ -93,6 +93,8 @@ class FTDataset(models.Model):
         field, filters based on the field's minimum vote and voter
         thresholds, and writes them to a temporary JSONL file.
 
+	Added fairness filter to exclude low-rationality and high-bias responses.
+
         Returns:
             str: Path to the exported JSONL file, or None if no eligible records.
 
@@ -106,6 +108,14 @@ class FTDataset(models.Model):
         min_votes = field.min_votes_for_training or 1
         min_voters = field.min_unique_voters or 1
 
+        # =========================================================================
+        # NEW: Get fairness configuration
+        # =========================================================================
+        fairness_config = self.env['nettrades.fairness.config'].get_config()
+        rationality_threshold = fairness_config.rationality_threshold
+        bias_threshold = fairness_config.bias_threshold
+        use_fairness_filter = fairness_config.auto_filter_training
+
         # Fetch all processed feedback for this field
         feedbacks = self.env['llm.feedback'].search([
             ('field_id', '=', field.id),
@@ -114,7 +124,36 @@ class FTDataset(models.Model):
 
         # Filter eligible records based on vote count and unique voters
         eligible = []
-        for fb in feedbacks:
+        for fb in feedbacks:        
+            # =========================================================================
+            # NEW: Apply fairness filter
+            # =========================================================================
+            if use_fairness_filter:
+                # Get the rationality feedback for this response
+                rationality_fb = self.env['nettrades.fairness.audit'].search([
+                    ('response_id', '=', fb.vote_id.answer_id),
+                ], order='create_date desc', limit=1)
+
+                if rationality_fb:
+                    rationality_score = rationality_fb.rationality_score
+                    bias_score = rationality_fb.bias_score
+
+                    # Skip if rationality is too low or bias is too high
+                    if rationality_score is not None and rationality_score < rationality_threshold:
+                        _logger.debug(
+                            "Skipping feedback %s: rationality score %.2f < threshold %.2f",
+                            fb.id, rationality_score, rationality_threshold
+                        )
+                        continue
+
+                    if bias_score is not None and bias_score > bias_threshold:
+                        _logger.debug(
+                            "Skipping feedback %s: bias score %.2f > threshold %.2f",
+                            fb.id, bias_score, bias_threshold
+                        )
+                        continue
+
+
             # Count total votes for the same answer
             answer_model = self.env['good.answer.vote'].search([
                 ('answer_id', '=', fb.vote_id.answer_id),

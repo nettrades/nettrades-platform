@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+=============================================================================
+NETTRADES Fairness – Dashboard Views
+=============================================================================
+FILE: odoo-modules/nettrades_fairness/views/fairness_dashboard_views.xml
+
+PURPOSE:
+  This file defines the fairness dashboard views for monitoring and
+  managing the fairness system.
+
+  The dashboard includes:
+    - Summary statistics (total evaluations, pass rate, flags)
+    - Recent audits
+    - Flagged responses pending review
+    - Charts for rationality and bias trends
+=============================================================================
+-->
+<odoo>
+    <!-- ---------------------------------------------------------------------
+    ACTION: Dashboard
+    --------------------------------------------------------------------- -->
+    <record id="action_fairness_dashboard" model="ir.actions.act_window">
+        <field name="name">Fairness Dashboard</field>
+        <field name="res_model">nettrades.fairness.audit</field>
+        <field name="view_mode">dashboard</field>
+        <field name="help" type="html">
+            <p>Monitor the fairness and rationality of AI responses.</p>
+            <p>This dashboard shows:</p>
+            <ul>
+                <li>Total evaluations</li>
+                <li>Pass/fail rates</li>
+                <li>Flagged responses pending review</li>
+                <li>Trends in rationality and bias scores</li>
+            </ul>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    ACTION: Flags
+    --------------------------------------------------------------------- -->
+    <record id="action_fairness_flags" model="ir.actions.act_window">
+        <field name="name">Fairness Flags</field>
+        <field name="res_model">nettrades.fairness.flag</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>Review AI responses flagged for rationality or bias issues.</p>
+            <p>Flags are created automatically when responses exceed thresholds.</p>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    ACTION: Audit Logs
+    --------------------------------------------------------------------- -->
+    <record id="action_fairness_audit_log" model="ir.actions.act_window">
+        <field name="name">Fairness Audit Log</field>
+        <field name="res_model">nettrades.fairness.audit</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>View all fairness evaluations.</p>
+            <p>Each record includes rationality and bias scores, rationale, and timestamps.</p>
+        </field>
+    </record>
+
+    <!-- ---------------------------------------------------------------------
+    MENU ITEMS
+    --------------------------------------------------------------------- -->
+    <menuitem id="menu_fairness_dashboard"
+              name="Dashboard"
+              parent="nettrades_fairness.menu_fairness_root"
+              action="action_fairness_dashboard"
+              sequence="10"/>
+
+    <menuitem id="menu_fairness_flags"
+              name="Flags for Review"
+              parent="nettrades_fairness.menu_fairness_root"
+              action="action_fairness_flags"
+              sequence="20"/>
+
+    <menuitem id="menu_fairness_audit_log"
+              name="Audit Logs"
+              parent="nettrades_fairness.menu_fairness_root"
+              action="action_fairness_audit_log"
+              sequence="30"/>
+</odoo>

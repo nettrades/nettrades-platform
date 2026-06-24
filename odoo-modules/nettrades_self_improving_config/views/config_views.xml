@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+=============================================================================
+NETTRADES Self-Improving Configuration – Admin Views
+=============================================================================
+FILE: odoo-modules/nettrades_self_improving_config/views/config_views.xml
+
+PURPOSE:
+  This file defines the administration views for the self-improving system.
+
+  The views provide:
+    - A configuration form for loop settings
+    - A dashboard for monitoring cycles
+    - Trigger management
+    - Manual cycle triggering
+
+  All settings are configurable via the Odoo admin interface.
+=============================================================================
+-->
+<odoo>
+
+    <!-- ==========================================================
+    MENU
+    ========================================================== -->
+    <menuitem id="menu_self_improving_root"
+              name="Self-Improving AI"
+              parent="nettrades_core.menu_nettrades_root"
+              sequence="60"/>
+
+    <menuitem id="menu_self_improving_config"
+              name="Configuration"
+              parent="menu_self_improving_root"
+              action="action_self_improving_config"
+              sequence="10"/>
+
+    <menuitem id="menu_self_improving_dashboard"
+              name="Dashboard"
+              parent="menu_self_improving_root"
+              action="action_self_improving_dashboard"
+              sequence="20"/>
+
+    <menuitem id="menu_self_improving_triggers"
+              name="Triggers"
+              parent="menu_self_improving_root"
+              action="action_trigger_config"
+              sequence="30"/>
+
+    <menuitem id="menu_self_improving_cycles"
+              name="Cycles"
+              parent="menu_self_improving_root"
+              action="action_loop_cycle"
+              sequence="40"/>
+
+    <menuitem id="menu_self_improving_episodes"
+              name="Episodes"
+              parent="menu_self_improving_root"
+              action="action_data_episode"
+              sequence="50"/>
+
+    <!-- ==========================================================
+    ACTION: Configuration
+    ========================================================== -->
+    <record id="action_self_improving_config" model="ir.actions.act_window">
+        <field name="name">Self-Improving Configuration</field>
+        <field name="res_model">self.improving.config</field>
+        <field name="view_mode">form</field>
+        <field name="help" type="html">
+            <p>Configure the self-improving AI system.</p>
+            <p>Settings include:</p>
+            <ul>
+                <li>Loop enable/disable</li>
+                <li>Data quality thresholds</li>
+                <li>A/B testing configuration</li>
+                <li>Trigger management</li>
+            </ul>
+        </field>
+    </record>
+
+    <!-- ==========================================================
+    ACTION: Dashboard
+    ========================================================== -->
+    <record id="action_self_improving_dashboard" model="ir.actions.act_window">
+        <field name="name">Self-Improving Dashboard</field>
+        <field name="res_model">loop.cycle</field>
+        <field name="view_mode">kanban,tree,form</field>
+        <field name="help" type="html">
+            <p>Monitor the self-improving AI system.</p>
+            <p>View recent cycles, performance metrics, and system status.</p>
+        </field>
+    </record>
+
+    <!-- ==========================================================
+    ACTION: Triggers
+    ========================================================== -->
+    <record id="action_trigger_config" model="ir.actions.act_window">
+        <field name="name">Triggers</field>
+        <field name="res_model">trigger.config</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>Configure triggers that initiate self-improvement cycles.</p>
+        </field>
+    </record>
+
+    <!-- ==========================================================
+    ACTION: Cycles
+    ========================================================== -->
+    <record id="action_loop_cycle" model="ir.actions.act_window">
+        <field name="name">Self-Improving Cycles</field>
+        <field name="res_model">loop.cycle</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>View and monitor self-improvement cycles.</p>
+        </field>
+    </record>
+
+    <!-- ==========================================================
+    ACTION: Episodes
+    ========================================================== -->
+    <record id="action_data_episode" model="ir.actions.act_window">
+        <field name="name">Data Episodes</field>
+        <field name="res_model">data.episode</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>View collected interaction episodes.</p>
+            <p>Episodes are the primary data source for training.</p>
+        </field>
+    </record>
+
+    <!-- ==========================================================
+    CONFIGURATION FORM
+    ========================================================== -->
+    <record id="view_self_improving_config_form" model="ir.ui.view">
+        <field name="name">self.improving.config.form</field>
+        <field name="model">self.improving.config</field>
+        <field name="arch" type="xml">
+            <form string="Self-Improving AI Configuration">
+                <header>
+                    <button name="action_run_cycle"
+                            string="Run Cycle Now"
+                            type="object"
+                            class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Self-Improving AI System</h1>
+                    </div>
+
+                    <!-- Loop Control -->
+                    <group string="Loop Control">
+                        <field name="loop_enabled"/>
+                        <field name="loop_interval" attrs="{'invisible': [('loop_enabled', '=', False)]}"/>
+                        <field name="auto_deploy" attrs="{'invisible': [('loop_enabled', '=', False)]}"/>
+                        <field name="auto_rollback" attrs="{'invisible': [('loop_enabled', '=', False)]}"/>
+                    </group>
+
+                    <!-- Data Quality -->
+                    <group string="Data Quality">
+                        <field name="min_quality_score"/>
+                        <field name="min_votes_for_training"/>
+                        <field name="max_samples_per_dataset"/>
+                        <field name="include_expert_answers"/>
+                    </group>
+
+                    <!-- A/B Testing -->
+                    <group string="A/B Testing">
+                        <field name="ab_testing_enabled"/>
+                        <field name="ab_traffic_split" attrs="{'invisible': [('ab_testing_enabled', '=', False)]}"/>
+                        <field name="promotion_threshold" attrs="{'invisible': [('ab_testing_enabled', '=', False)]}"/>
+                        <field name="evaluation_window_days" attrs="{'invisible': [('ab_testing_enabled', '=', False)]}"/>
+                    </group>
+
+                    <!-- Triggers -->
+                    <group string="Active Triggers">
+                        <field name="trigger_ids" attrs="{'invisible': [('loop_enabled', '=', False)]}"/>
+                    </group>
+
+                    <!-- Status -->
+                    <group string="System Status">
+                        <field name="last_cycle_id"/>
+                        <field name="last_cycle_status"/>
+                        <field name="total_episodes"/>
+                        <field name="qualified_episodes"/>
+                        <field name="total_cycles"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==========================================================
+    KANBAN VIEW (Dashboard)
+    ========================================================== -->
+    <record id="view_loop_cycle_kanban" model="ir.ui.view">
+        <field name="name">loop.cycle.kanban</field>
+        <field name="model">loop.cycle</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="name"/>
+                <field name="status"/>
+                <field name="improvement"/>
+                <field name="started_at"/>
+                <field name="completed_at"/>
+                <field name="duration_seconds"/>
+                <field name="episode_count"/>
+
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click">
+                            <div class="o_kanban_image">
+                                <span class="badge" t-attf-class="badge-#{record.status.raw_value == 'completed' ? 'success' : 'warning'}">
+                                    <t t-esc="record.status.value"/>
+                                </span>
+                            </div>
+                            <div class="oe_kanban_details">
+                                <strong class="o_kanban_record_title">
+                                    <t t-esc="record.name.value"/>
+                                </strong>
+                                <div>
+                                    Trigger: <t t-esc="record.trigger_name.value"/>
+                                </div>
+                                <div>
+                                    Episodes: <t t-esc="record.episode_count.value"/>
+                                </div>
+                                <div t-if="record.improvement.value">
+                                    Improvement: <t t-esc="record.improvement.value"/>%
+                                </div>
+                                <div t-if="record.duration_seconds.value">
+                                    Duration: <t t-esc="format_duration(record.duration_seconds.value)"/>
+                                </div>
+                                <div t-if="record.started_at.value">
+                                    Started: <t t-esc="record.started_at.value"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+</odoo>

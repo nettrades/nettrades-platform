@@ -1,0 +1,32 @@
+<!-- odoo-modules/nettrades_self_improving_config/views/loop_dashboard_views.xml -->
+
+<record id="view_loop_dashboard" model="ir.ui.view">
+    <field name="name">Self-Improving Loop Dashboard</field>
+    <field name="model">loop.cycle</field>
+    <field name="arch" type="xml">
+        <kanban>
+            <!-- Status cards -->
+            <templates>
+                <t t-name="kanban-box">
+                    <div class="oe_kanban_global_click">
+                        <div class="o_kanban_image">
+                            <t t-esc="record.status.raw_value"/>
+                        </div>
+                        <div class="oe_kanban_details">
+                            <strong t-esc="record.name.value"/>
+                            <div>
+                                Episodes: <t t-esc="record.episode_count.value"/>
+                            </div>
+                            <div>
+                                Triggers: <t t-esc="record.trigger_count.value"/>
+                            </div>
+                            <div>
+                                Improvement: <t t-esc="record.improvement.value"/>%
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </templates>
+        </kanban>
+    </field>
+</record>

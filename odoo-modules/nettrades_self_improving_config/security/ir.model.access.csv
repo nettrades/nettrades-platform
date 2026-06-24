@@ -1,0 +1,19 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_self_improving_config_user,Access Self-Improving Config,model_self_improving_config,base.group_user,1,0,0,0
+access_self_improving_config_manager,Manage Self-Improving Config,model_self_improving_config,base.group_system,1,1,1,1
+access_loop_cycle_user,Access Loop Cycle,model_loop_cycle,base.group_user,1,0,0,0
+access_loop_cycle_manager,Manage Loop Cycle,model_loop_cycle,base.group_system,1,1,1,1
+access_trigger_config_user,Access Trigger Config,model_trigger_config,base.group_user,1,0,0,0
+access_trigger_config_manager,Manage Trigger Config,model_trigger_config,base.group_system,1,1,1,1
+access_trigger_event_user,Access Trigger Event,model_trigger_event,base.group_user,1,0,0,0
+access_trigger_event_manager,Manage Trigger Event,model_trigger_event,base.group_system,1,1,1,1
+access_data_episode_user,Access Data Episode,model_data_episode,base.group_user,1,0,0,0
+access_data_episode_manager,Manage Data Episode,model_data_episode,base.group_system,1,1,1,1
+access_data_feedback_user,Access Data Feedback,model_data_feedback,base.group_user,1,0,0,0
+access_data_feedback_manager,Manage Data Feedback,model_data_feedback,base.group_system,1,1,1,1
+access_data_annotation_user,Access Data Annotation,model_data_annotation,base.group_user,1,0,0,0
+access_data_annotation_manager,Manage Data Annotation,model_data_annotation,base.group_system,1,1,1,1
+access_data_metric_user,Access Data Metric,model_data_metric,base.group_user,1,0,0,0
+access_data_metric_manager,Manage Data Metric,model_data_metric,base.group_system,1,1,1,1
+access_data_edge_case_user,Access Data Edge Case,model_data_edge_case,base.group_user,1,0,0,0
+access_data_edge_case_manager,Manage Data Edge Case,model_data_edge_case,base.group_system,1,1,1,1

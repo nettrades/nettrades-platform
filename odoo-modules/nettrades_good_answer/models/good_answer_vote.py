@@ -19,8 +19,15 @@ class GoodAnswerVote(models.Model):
 
     @api.model
     def create(self, vals):
-        # duplicate check
-        existing = self.search([('user_id','=',vals['user_id']),('answer_id','=',vals['answer_id']),('answer_model','=',vals['answer_model'])])
-        if existing:
-            raise UserError(_("Already voted."))
-        return super().create(vals)
+        vote = super().create(vals)
+    
+        # Send to self-improving system
+        self.env['data.feedback'].create({
+            'episode_id': vote.answer_id,  # Link to original episode
+            'feedback_type': 'good_answer',
+            'value': vote.points,
+            'user_id': vote.user_id.id,
+            'field_id': vote.field_id.id,
+        })
+    
+    return vote

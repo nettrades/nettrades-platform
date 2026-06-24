@@ -54,3 +54,18 @@ class ExpertSession(models.Model):
             if not rep:
                 rep = self.env['user.field.reputation'].create({'partner_id':self.expert_id.id, 'field_id':self.field_id.id})
             rep.reputation_points += self.rating_by_requester
+            
+def action_complete_session(self):
+    """Complete an expert session and collect data."""
+    # Existing completion logic
+
+    # Collect episode
+    self.env['data.episode'].create({
+        'source': 'ask_someone',
+        'input_text': self.question,
+        'output_text': self.expert_answer,
+        'quality_score': self.rating_by_requester * 2,  # Scale to 1-10
+        'is_qualified': True,
+        'field_id': self.field_id.id,
+        'partner_id': self.expert_id.id,
+    })

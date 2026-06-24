@@ -11,7 +11,7 @@
 #
 # KEY FEATURES:
 #   - GPU cluster and node registration
-#   - WireGuard VPN configuration (mesh and hub‑and‑spoke)
+#   - WireGuard VPN configuration (mesh and hub-and-spoke)
 #   - Pool assignment (internal vs public)
 #   - Container runtime selection (Docker vs gVisor)
 #   - GPUStack worker integration
@@ -21,7 +21,7 @@
 # DEPENDENCIES:
 #   - nettrades_core : for company and user models
 #   - web            : for UI assets
-#   - bus            : for real‑time updates
+#   - bus            : for real-time updates
 #
 # =============================================================================
 {
@@ -32,10 +32,10 @@
     'description': """
         This module provides a comprehensive administration dashboard for
         managing GPU clusters and nodes. It integrates with GPUStack to
-        orchestrate inference and fine‑tuning workloads.
+        orchestrate inference and fine-tuning workloads.
 
         Features:
-          - Real‑time cluster dashboard
+          - Real-time cluster dashboard
           - Node registration and health monitoring
           - WireGuard network management
           - Pool assignment (internal/public)

@@ -1,40 +1,64 @@
 # =============================================================================
-# Section: G – LangGraph FastAPI microservice.
-# The agent routes inference requests to GPUStack or external providers.
+# NETTRADES.AI – LangGraph Deployment (UPDATED)
 # =============================================================================
+# FILE: deploy/kubernetes/apps/ai/langgraph-deployment.yaml
+#
+# PURPOSE:
+#   This file defines the LangGraph agent deployment on Kubernetes.
+#   It includes the supervisor and all sub-agents.
+#
+# UPDATED:
+#   - Added environment variables for bridge integration
+#   - Added health checks for the bridge
+# =============================================================================
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: langgraph
   namespace: ai
+  labels:
+    app: langgraph
 spec:
-  replicas: 1
-  selector: { matchLabels: { app: langgraph } }
+  replicas: 2
+  selector:
+    matchLabels:
+      app: langgraph
   template:
-    metadata: { labels: { app: langgraph } }
+    metadata:
+      labels:
+        app: langgraph
     spec:
-      imagePullSecrets: [{ name: regcred }]
       containers:
         - name: langgraph
-          image: registry.registry.svc.cluster.local:5000/langgraph-agent:latest
+          image: nettrades/langgraph:latest
+          ports:
+            - containerPort: 8000
           env:
-            - name: LLM_BASE_URL
-              value: http://gpustack.gpustack.svc.cluster.local/v1-openai
+            - name: DATABASE_URL
+              value: postgresql://odoo:${POSTGRES_PASSWORD}@odoo-db-rw.backend.svc.cluster.local:5432/odoo
             - name: LANGGRAPH_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: langgraph-secret
                   key: api-key
-          ports: [{ containerPort: 8000 }]
+            - name: GPUSTACK_SERVER_URL
+              value: http://gpustack.gpustack.svc.cluster.local:80
+            - name: NETTRADES_BRIDGE_URL
+              value: http://bridge.ai.svc.cluster.local:8000
+            - name: NETTRADES_BRAIN_MODE
+              value: hybrid
+            - name: NETTRADES_REMOTE_BRAIN_URL
+              value: https://api.nettrades.ai
           livenessProbe:
-            httpGet: { path: /health, port: 8000 }
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
             initialDelaySeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: langgraph
-  namespace: ai
-spec:
-  selector: { app: langgraph }
-  ports: [{ port: 8000, targetPort: 8000 }]
+            periodSeconds: 10

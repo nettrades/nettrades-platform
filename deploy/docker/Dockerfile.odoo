@@ -1,0 +1,44 @@
+# =============================================================================
+# NETTRADES.AI – Odoo 19 CE with Custom Modules
+# =============================================================================
+# FILE: deploy/docker/Dockerfile.odoo
+#
+# PURPOSE:
+#   This Dockerfile builds the Odoo 19 CE image with all NETTRADES custom
+#   modules included. It includes bridge, fairness, and self-improving modules.
+#
+# USAGE:
+#   docker build -f deploy/docker/Dockerfile.odoo -t nettrades/odoo:19.0 .
+#
+# =============================================================================
+
+FROM odoo:19.0
+
+# Switch to root to install additional packages
+USER root
+
+# Install additional packages needed for fairness and data processing
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    gcc \
+    python3-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for fairness evaluation
+RUN pip3 install --no-cache-dir \
+    pandas \
+    numpy \
+    scikit-learn \
+    requests \
+    openai \
+    anthropic
+
+# Copy custom NETTRADES modules
+COPY odoo-modules/ /mnt/extra-addons/
+
+# Set the correct ownership
+USER odoo
+
+# Addons path is configured in odoo.conf

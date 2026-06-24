@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_bridge_config_admin,config.admin,model_nettrades_bridge_config,group_bridge_admin,1,1,1,1
+access_bridge_config_user,config.user,model_nettrades_bridge_config,group_bridge_user,1,0,0,0
+access_bridge_company_config_admin,company.config.admin,model_nettrades_bridge_company_config,group_bridge_admin,1,1,1,1
+access_bridge_company_config_user,company.config.user,model_nettrades_bridge_company_config,group_bridge_user,1,0,0,0
+access_bridge_usage_log_admin,usage.log.admin,model_nettrades_bridge_usage_log,group_bridge_admin,1,1,1,1
+access_bridge_usage_log_user,usage.log.user,model_nettrades_bridge_usage_log,group_bridge_user,1,0,0,0
+access_bridge_routing_admin,routing.admin,model_nettrades_bridge_routing,group_bridge_admin,1,1,1,1
+access_bridge_routing_user,routing.user,model_nettrades_bridge_routing,group_bridge_user,1,0,0,0

@@ -1,0 +1,79 @@
+# =============================================================================
+# Odoo 19 CE Deployment – sessions, ORM cache, and bus via Valkey
+# 3 replicas with anti-affinity, valkey session store, CNPG as database backend.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odoo
+  namespace: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: odoo
+  template:
+    metadata:
+      labels:
+        app: odoo
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: odoo
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: odoo
+          image: registry.registry.svc.cluster.local:5000/odoo-custom:19.0
+          env:
+            - name: HOST
+              value: odoo-db-rw.backend.svc.cluster.local
+            - name: USER
+              value: odoo
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+            # Valkey replaces Redis – BSD-3-Clause, fully compatible
+            - name: SESSION_STORE
+              value: redis
+            - name: SESSION_STORE_URL
+              value: redis://valkey.backend.svc.cluster.local:6379
+            - name: ORMCACHE_REDIS_URL
+              value: redis://valkey.backend.svc.cluster.local:6379/1
+          ports:
+            - containerPort: 8069
+          volumeMounts:
+            - name: odoo-data
+              mountPath: /var/lib/odoo
+          readinessProbe:
+            httpGet:
+              path: /web/health
+              port: 8069
+            initialDelaySeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /web/health
+              port: 8069
+            initialDelaySeconds: 60
+      volumes:
+        - name: odoo-data
+          persistentVolumeClaim:
+            claimName: odoo-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo
+  namespace: frontend
+spec:
+  selector:
+    app: odoo
+  ports:
+    - port: 8069
+      targetPort: 8069

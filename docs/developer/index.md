@@ -1,4 +1,3 @@
-
 # Developer Documentation
 
 Welcome to the NETTRADES.AI developer documentation. This section is designed for developers and contributors who want to extend, customize, or contribute to the platform.
@@ -16,6 +15,21 @@ Add new AI agents to handle specific business domains – recruitment, lead gene
 Extend the platform with new business functionality – new data models, views, workflows, or integrations.
 
 [Learn about building Odoo modules →](building-odoo-modules.md)
+
+### 🌉 Bridge Module
+The hub-and-spoke routing module that enables client companies to use local AI for internal operations while seamlessly accessing global services.
+
+[Learn about the Bridge Module →](bridge-module.md)
+
+### 🔄 Self-Improving AI
+The closed-loop learning architecture that continuously improves the platform's AI models through data collection, trigger detection, fine-tuning, and deployment.
+
+[Learn about Self-Improving AI →](self-improving.md)
+
+### ⚖️ Fairness & Bias Detection
+The fairness system that evaluates AI responses for rationality and bias, with configurable thresholds, automated filtering, and audit logging.
+
+[Learn about Fairness & Bias →](fairness.md)
 
 ### 🖥️ Custom Dashboard Widgets
 Add new widgets to the GPU Admin Panel or create custom dashboards for specific user roles.
@@ -38,6 +52,11 @@ The platform includes several custom Odoo models that form the foundation of the
 | `ft.dataset` | Fine-tuning datasets |
 | `expert.session` | Expert consultation sessions |
 | `gpu.node` | GPU node management |
+| `data.episode` | Self-improving interaction episode |
+| `trigger.config` | Self-improving trigger configuration |
+| `loop.cycle` | Self-improving loop cycle |
+| `nettrades.fairness.audit` | Fairness audit log |
+| `nettrades.fairness.flag` | Fairness flag for human review |
 
 [Full core models reference →](core-models.md)
 
@@ -63,6 +82,9 @@ The platform includes several custom Odoo models that form the foundation of the
 | **Sub-Agents** | `src/core/agents/` | Specialised business agents (Recruitment, Freelance, Lead Gen, GPU Management) |
 | **Distributed GPU Agent** | `src/agent/agent.py` | Runs on each GPU node, manages WireGuard and GPUStack |
 | **Odoo Modules** | `odoo-modules/` | Business logic, UI, and administration |
+| **Bridge Module** | `odoo-modules/nettrades_bridge/` | Hub-and-spoke routing engine |
+| **Self-Improving Modules** | `odoo-modules/nettrades_data_collection/`, `nettrades_trigger/`, `nettrades_loop/`, `nettrades_self_improving_config/` | Closed-loop learning system |
+| **Fairness Module** | `odoo-modules/nettrades_fairness/` | Fairness, rationality, and bias detection |
 | **MCP-Odoo Bridge** | `third-party/mcp-odoo/` | Allows AI agents to interact with Odoo data |
 
 [Full architecture overview →](architecture.md)
@@ -82,9 +104,12 @@ The platform includes several custom Odoo models that form the foundation of the
 | Odoo `gpu.cluster` | ❌ Broken | Indentation bug, missing methods |
 | Odoo `nettrades.experience` | ✅ Complete | Work experience model |
 | Odoo `nettrades.review` | ✅ Complete | User review model |
+| **Bridge Module** | ✅ Complete | Hub-and-spoke routing |
+| **Self-Improving Modules** | ✅ Complete | MAPE loop implementation |
+| **Fairness Module** | ✅ Complete | Bias detection and rationality evaluation |
 | Deployment Scripts | ✅ Full | Phase-based orchestrator works |
 
-[Full roadmap →](governance/roadmap.md)
+[Full roadmap →](./governance/roadmap.md)
 
 ---
 
@@ -107,12 +132,13 @@ We follow the OCA (Odoo Community Association) conventions for Odoo modules and 
 - [GPU Node Registration →](api-reference.md#gpu-node-registration-api)
 - [GPUStack Token Refresh →](api-reference.md#gpustack-token-refresh-api)
 - [WebSocket Bus API →](api-reference.md#websocket-bus-api)
+- [Bridge API →](bridge-module.md#api-endpoints.md)
 
 ---
 
 ## Contributing
 
-We welcome contributions! Please read our [Contributing Guide](contributing.md) before submitting PRs.
+We welcome contributions! Please read our [Contributing Guide](./governance/contributing.md) before submitting PRs.
 
 Key points:
 - **CLA required** – All contributors must sign the CLA
@@ -127,5 +153,3 @@ Key points:
 - **GitHub Issues**: [github.com/nettrades/nettrades-platform/issues](https://github.com/nettrades/nettrades-platform/issues)
 - **Discord**: [Join our community](https://discord.gg/nettrades)
 - **Email**: [dev@nettrades.ai](mailto:dev@nettrades.ai)
-
-

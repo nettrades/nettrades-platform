@@ -7,11 +7,24 @@
 -- It MUST be run by a superuser because it creates a PostgreSQL extension.
 -- All other tables are created automatically by Odoo when the corresponding
 -- custom modules are installed via the Apps menu.
--- =============================================================================
-
 -- Enable the pgvector extension for RAG (retrieval-augmented generation).
 -- This is required by the community LLM module (llm_pgvector) to store
 -- text embeddings and perform similarity searches.
+--
+-- PURPOSE:
+--   This script initialises the PostgreSQL database with all custom tables
+--   required by the NETTRADES platform. It is run automatically by the
+--   deploy-single.sh script.
+--
+-- UPDATED:
+--   - Added tables for bridge module (hub-and-spoke routing)
+--   - Added tables for data collection (Monitor phase)
+--   - Added tables for trigger detection (Analyze phase)
+--   - Added tables for loop orchestration (Plan + Execute phases)
+--   - Added tables for self-improving configuration
+--   - Added fairness module tables
+-- =============================================================================
+
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ============================================
@@ -431,3 +444,335 @@ CREATE TABLE IF NOT EXISTS ai_gpu_sharing_agreement (
 -- These tables will be created automatically when you install 
 -- the respective modules from the community odoo_llm package.
 -- ============================================
+
+-- =============================================================================
+-- FAIRNESS MODULE TABLES (nettrades_fairness)
+-- =============================================================================
+
+-- Global fairness configuration (singleton)
+CREATE TABLE IF NOT EXISTS nettrades_fairness_config (
+    id SERIAL PRIMARY KEY,
+    rationality_evaluation_enabled BOOLEAN DEFAULT TRUE,
+    bias_detection_enabled BOOLEAN DEFAULT TRUE,
+    auto_flag_for_review BOOLEAN DEFAULT TRUE,
+    auto_filter_training BOOLEAN DEFAULT TRUE,
+    auto_audit_enabled BOOLEAN DEFAULT TRUE,
+    rationality_threshold FLOAT DEFAULT 7.0,
+    bias_threshold FLOAT DEFAULT 3.0,
+    min_votes_for_training INTEGER DEFAULT 2,
+    evaluation_model VARCHAR(50) DEFAULT 'gpt-4o-mini',
+    custom_evaluation_url VARCHAR(255),
+    custom_evaluation_api_key VARCHAR(255),
+    protected_attributes VARCHAR(50) DEFAULT 'all',
+    fairness_metrics_enabled BOOLEAN DEFAULT TRUE,
+    ab_testing_enabled BOOLEAN DEFAULT TRUE,
+    ab_traffic_split FLOAT DEFAULT 10.0,
+    promotion_threshold FLOAT DEFAULT 5.0,
+    evaluation_window_days INTEGER DEFAULT 7,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Field-specific fairness configuration
+CREATE TABLE IF NOT EXISTS nettrades_fairness_field_config (
+    id SERIAL PRIMARY KEY,
+    field_id INTEGER NOT NULL REFERENCES nettrades_field(id) ON DELETE CASCADE,
+    override_global BOOLEAN DEFAULT FALSE,
+    rationality_threshold FLOAT,
+    bias_threshold FLOAT,
+    min_votes_for_training INTEGER,
+    sensitivity_level VARCHAR(20) DEFAULT 'medium',
+    protected_attributes VARCHAR(50),
+    active BOOLEAN DEFAULT TRUE,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_fairness_field_config_field ON nettrades_fairness_field_config(field_id);
+
+-- Fairness audit log
+CREATE TABLE IF NOT EXISTS nettrades_fairness_audit (
+    id SERIAL PRIMARY KEY,
+    response_id INTEGER,
+    field_id INTEGER REFERENCES nettrades_field(id) ON DELETE SET NULL,
+    question_text TEXT,
+    response_text TEXT,
+    rationality_score FLOAT,
+    bias_score FLOAT,
+    rationale TEXT,
+    evaluation_model VARCHAR(50),
+    protected_attributes VARCHAR(50),
+    is_passed BOOLEAN DEFAULT FALSE,
+    create_date TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_fairness_audit_field ON nettrades_fairness_audit(field_id);
+CREATE INDEX idx_fairness_audit_create_date ON nettrades_fairness_audit(create_date);
+
+-- Fairness flags for human review
+CREATE TABLE IF NOT EXISTS nettrades_fairness_flag (
+    id SERIAL PRIMARY KEY,
+    response_id INTEGER,
+    field_id INTEGER REFERENCES nettrades_field(id) ON DELETE SET NULL,
+    reason TEXT,
+    rationality_score FLOAT,
+    bias_score FLOAT,
+    status VARCHAR(20) DEFAULT 'pending',
+    reviewed_by INTEGER REFERENCES res_users(id) ON DELETE SET NULL,
+    review_notes TEXT,
+    reviewed_date TIMESTAMP,
+    create_date TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_fairness_flag_status ON nettrades_fairness_flag(status);
+CREATE INDEX idx_fairness_flag_field ON nettrades_fairness_flag(field_id);
+
+-- =============================================================================
+-- Enable pgvector extension for RAG
+-- =============================================================================
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- =============================================================================
+-- BRIDGE MODULE TABLES (nettrades_bridge)
+-- =============================================================================
+
+-- Global bridge configuration (singleton)
+CREATE TABLE IF NOT EXISTS nettrades_bridge_config (
+    id SERIAL PRIMARY KEY,
+    bridge_mode VARCHAR(20) DEFAULT 'local',
+    remote_brain_url VARCHAR(255) DEFAULT 'https://api.nettrades.ai',
+    remote_brain_api_key VARCHAR(255),
+    enable_remote_recruitment BOOLEAN DEFAULT FALSE,
+    enable_remote_freelance BOOLEAN DEFAULT FALSE,
+    enable_remote_gpu BOOLEAN DEFAULT FALSE,
+    enable_remote_vision BOOLEAN DEFAULT FALSE,
+    enable_remote_action BOOLEAN DEFAULT FALSE,
+    gpu_overflow_enabled BOOLEAN DEFAULT FALSE,
+    gpu_overflow_threshold FLOAT DEFAULT 80.0,
+    request_timeout INTEGER DEFAULT 30,
+    max_retries INTEGER DEFAULT 3,
+    retry_delay INTEGER DEFAULT 1,
+    fallback_to_local BOOLEAN DEFAULT TRUE,
+    health_check_enabled BOOLEAN DEFAULT TRUE,
+    health_check_interval INTEGER DEFAULT 5,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Per-company bridge configuration
+CREATE TABLE IF NOT EXISTS nettrades_bridge_company_config (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER NOT NULL REFERENCES res_company(id) ON DELETE CASCADE,
+    override_bridge_mode BOOLEAN DEFAULT FALSE,
+    bridge_mode VARCHAR(20),
+    override_features BOOLEAN DEFAULT FALSE,
+    enable_remote_recruitment BOOLEAN,
+    enable_remote_freelance BOOLEAN,
+    enable_remote_gpu BOOLEAN,
+    enable_remote_vision BOOLEAN,
+    enable_remote_action BOOLEAN,
+    override_gpu_overflow BOOLEAN DEFAULT FALSE,
+    gpu_overflow_enabled BOOLEAN,
+    gpu_overflow_threshold FLOAT,
+    override_remote_url BOOLEAN DEFAULT FALSE,
+    remote_brain_url VARCHAR(255),
+    remote_brain_api_key VARCHAR(255),
+    active BOOLEAN DEFAULT TRUE,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_bridge_company_config_company ON nettrades_bridge_company_config(company_id);
+
+-- Bridge usage log (billing and monitoring)
+CREATE TABLE IF NOT EXISTS nettrades_bridge_usage_log (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER NOT NULL REFERENCES res_company(id) ON DELETE CASCADE,
+    intent VARCHAR(50) NOT NULL,
+    source VARCHAR(20) NOT NULL,
+    success BOOLEAN DEFAULT TRUE,
+    request_data TEXT,
+    response_data TEXT,
+    error_message TEXT,
+    response_time_ms INTEGER,
+    tokens_used INTEGER,
+    create_date TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_bridge_usage_log_company ON nettrades_bridge_usage_log(company_id);
+CREATE INDEX idx_bridge_usage_log_intent ON nettrades_bridge_usage_log(intent);
+CREATE INDEX idx_bridge_usage_log_create_date ON nettrades_bridge_usage_log(create_date);
+
+-- =============================================================================
+-- DATA COLLECTION MODULE TABLES (nettrades_data_collection)
+-- =============================================================================
+
+-- Data episode – complete interaction record
+CREATE TABLE IF NOT EXISTS data_episode (
+    id SERIAL PRIMARY KEY,
+    source VARCHAR(50) NOT NULL,
+    source_id VARCHAR(255),
+    input_text TEXT NOT NULL,
+    output_text TEXT NOT NULL,
+    context_data JSONB,
+    quality_score FLOAT DEFAULT 0.0,
+    confidence_score FLOAT DEFAULT 0.0,
+    vote_count INTEGER DEFAULT 0,
+    is_qualified BOOLEAN DEFAULT FALSE,
+    processed BOOLEAN DEFAULT FALSE,
+    processed_date TIMESTAMP,
+    partner_id INTEGER REFERENCES res_partner(id) ON DELETE SET NULL,
+    field_id INTEGER REFERENCES nettrades_field(id) ON DELETE SET NULL,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_data_episode_partner ON data_episode(partner_id);
+CREATE INDEX idx_data_episode_field ON data_episode(field_id);
+CREATE INDEX idx_data_episode_qualified ON data_episode(is_qualified);
+CREATE INDEX idx_data_episode_processed ON data_episode(processed);
+CREATE INDEX idx_data_episode_create_date ON data_episode(create_date);
+
+-- Data annotation – human/expert evaluation
+CREATE TABLE IF NOT EXISTS data_annotation (
+    id SERIAL PRIMARY KEY,
+    episode_id INTEGER NOT NULL REFERENCES data_episode(id) ON DELETE CASCADE,
+    annotator_id INTEGER NOT NULL REFERENCES res_partner(id) ON DELETE CASCADE,
+    annotation_type VARCHAR(50) NOT NULL,
+    annotation_data JSONB,
+    quality_score FLOAT,
+    create_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Data feedback – user ratings and votes
+CREATE TABLE IF NOT EXISTS data_feedback (
+    id SERIAL PRIMARY KEY,
+    episode_id INTEGER NOT NULL REFERENCES data_episode(id) ON DELETE CASCADE,
+    feedback_type VARCHAR(50) NOT NULL,
+    value FLOAT NOT NULL,
+    user_id INTEGER REFERENCES res_partner(id) ON DELETE SET NULL,
+    field_id INTEGER REFERENCES nettrades_field(id) ON DELETE SET NULL,
+    create_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Data metric – performance metrics
+CREATE TABLE IF NOT EXISTS data_metric (
+    id SERIAL PRIMARY KEY,
+    metric_type VARCHAR(50) NOT NULL,
+    metric_value FLOAT NOT NULL,
+    field_id INTEGER REFERENCES nettrades_field(id) ON DELETE SET NULL,
+    metadata JSONB,
+    create_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Data edge case – novel interactions
+CREATE TABLE IF NOT EXISTS data_edge_case (
+    id SERIAL PRIMARY KEY,
+    episode_id INTEGER NOT NULL REFERENCES data_episode(id) ON DELETE CASCADE,
+    similarity_score FLOAT,
+    is_confirmed BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    create_date TIMESTAMP DEFAULT NOW()
+);
+
+-- =============================================================================
+-- TRIGGER MODULE TABLES (nettrades_trigger)
+-- =============================================================================
+
+-- Trigger configuration
+CREATE TABLE IF NOT EXISTS trigger_config (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    active BOOLEAN DEFAULT TRUE,
+    trigger_type VARCHAR(50) NOT NULL,
+    threshold_value FLOAT DEFAULT 5.0,
+    comparison_operator VARCHAR(10) DEFAULT 'below',
+    time_window_hours INTEGER DEFAULT 24,
+    min_samples INTEGER DEFAULT 10,
+    field_id INTEGER REFERENCES nettrades_field(id) ON DELETE SET NULL,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Trigger event – when a trigger fires
+CREATE TABLE IF NOT EXISTS trigger_event (
+    id SERIAL PRIMARY KEY,
+    trigger_id INTEGER NOT NULL REFERENCES trigger_config(id) ON DELETE CASCADE,
+    fired_at TIMESTAMP DEFAULT NOW(),
+    status VARCHAR(20) DEFAULT 'pending',
+    processed_at TIMESTAMP,
+    cycle_id INTEGER,
+    create_date TIMESTAMP DEFAULT NOW()
+);
+
+-- =============================================================================
+-- LOOP MODULE TABLES (nettrades_loop)
+-- =============================================================================
+
+-- Self-improving cycle
+CREATE TABLE IF NOT EXISTS loop_cycle (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    trigger_event_id INTEGER REFERENCES trigger_event(id) ON DELETE SET NULL,
+    dataset_id INTEGER,
+    training_job_id INTEGER,
+    model_id VARCHAR(255),
+    deployment_id INTEGER,
+    deployed_agents TEXT,
+    metrics JSONB,
+    results JSONB,
+    episode_count INTEGER DEFAULT 0,
+    improvement FLOAT,
+    error_message TEXT,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Training pipeline configuration
+CREATE TABLE IF NOT EXISTS training_pipeline (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    field_id INTEGER REFERENCES nettrades_field(id) ON DELETE SET NULL,
+    dataset_config JSONB,
+    training_config JSONB,
+    ab_testing_enabled BOOLEAN DEFAULT FALSE,
+    ab_traffic_split FLOAT DEFAULT 10.0,
+    ab_promotion_threshold FLOAT DEFAULT 5.0,
+    gpu_cluster_id INTEGER,
+    gpu_requirements JSONB,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+-- =============================================================================
+-- SELF-IMPROVING CONFIG MODULE TABLES (nettrades_self_improving_config)
+-- =============================================================================
+
+-- Self-improving system configuration (singleton)
+CREATE TABLE IF NOT EXISTS self_improving_config (
+    id SERIAL PRIMARY KEY,
+    loop_enabled BOOLEAN DEFAULT TRUE,
+    loop_interval INTEGER DEFAULT 24,
+    auto_deploy BOOLEAN DEFAULT TRUE,
+    auto_rollback BOOLEAN DEFAULT TRUE,
+    min_quality_score FLOAT DEFAULT 5.0,
+    min_votes_for_training INTEGER DEFAULT 2,
+    max_samples_per_dataset INTEGER DEFAULT 10000,
+    include_expert_answers BOOLEAN DEFAULT TRUE,
+    ab_testing_enabled BOOLEAN DEFAULT TRUE,
+    ab_traffic_split FLOAT DEFAULT 10.0,
+    promotion_threshold FLOAT DEFAULT 5.0,
+    evaluation_window_days INTEGER DEFAULT 7,
+    last_cycle_id INTEGER,
+    create_date TIMESTAMP DEFAULT NOW(),
+    write_date TIMESTAMP DEFAULT NOW()
+);
+
+-- Ensure only one config record exists
+INSERT INTO self_improving_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;

@@ -5,7 +5,7 @@
 # FILE:    odoo-modules/nettrades_ask_someone/__manifest__.py
 #
 # PURPOSE:
-#   This module provides a real‑time expert help marketplace where users can
+#   This module provides a real-time expert help marketplace where users can
 #   request paid consultations from verified professionals. It handles expert
 #   matching, Stripe escrow, live sessions, and ratings.
 #
@@ -28,7 +28,7 @@
     'category': 'Nettrades',
     'summary': 'Expert help marketplace with Stripe escrow',
     'description': """
-        Users can request help from verified professionals in real‑time.
+        Users can request help from verified professionals in real-time.
         Payments are held in escrow until the session is completed.
         Matching is based on reputation, location, and online status.
     """,

@@ -16,7 +16,7 @@
 #   - hr_recruitment: Job postings and applicants
 #   - crm           : Lead management
 #   - project       : Project management and milestones
-#   - website_sale_marketplace : Multi‑vendor marketplace (for e-commerce)
+#   - website_sale_marketplace : Multi-vendor marketplace (for e-commerce)
 #
 # MODELS PROVIDED:
 #   - res.partner (extended)
@@ -42,7 +42,7 @@
           - User roles (Job Seeker, Freelancer, Company, Partner)
           - Professional fields and qualifications
           - Work experience and reviews
-          - AI‑powered job matching
+          - AI-powered job matching
           - Lead generation and scoring
 
         This module is a dependency for all other NETTRADES modules.

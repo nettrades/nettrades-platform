@@ -27,7 +27,7 @@ curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/de
 ```
 
 3. Follow the interactive wizard (auto-detects hardware).
-4. Access your platform at https://<your-domain>.
+4. Access your platform at https://your-domain
 [Full Single VM Guide](single-vm-deployment.md) →
 
 ### For Kubernetes on Talos
@@ -49,6 +49,8 @@ curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/de
 | GitOps | 	❌ No	| ✅ Argo CD|
 | Multi-region|	❌ No	| ✅ Yes (with Karmada)|
 
+
+
 ### Key Operations Tasks
 
 | Task | Guide |
@@ -60,6 +62,47 @@ curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/de
 | Backup and restore	| [Backup & Restore](backup-and-restore.md)|
 | Scale the platform	| [Kubernetes scaling](kubernetes-deployment.md#scaling)|
 | Optimise performance	| [Performance Tuning](performance-tuning.md)|
+| Configure fairness	| [Fairness Configuration](fairness-configuration.md)|
+
+### Fairness Configuration
+
+The fairness system evaluates AI responses for rationality and bias, with configurable thresholds and automated filtering.
+
+### Key Settings
+
+| Setting | Description	| Default |
+|---------|-------------|---------|
+| rationality_evaluation_enabled | Enable rationality evaluation | True |
+| bias_detection_enabled | Enable bias detection | True |
+| auto_flag_for_review | Auto-flag low-quality responses | True |
+| auto_filter_training | Filter training data | True |
+| rationality_threshold | Minimum rationality score | 7.0 |
+| bias_threshold | Maximum bias score | 3.0 |
+| evaluation_model | LLM judge model | gpt-4o-mini |
+
+### Fairness Configuration Steps
+
+    Navigate to Settings → Technical → Fairness → Global Configuration.
+
+    Enable or disable features as needed.
+
+    Adjust thresholds for rationality and bias.
+
+    Select the evaluation model.
+
+    Configure protected attributes for bias detection.
+
+### Fairness Monitoring
+
+    Navigate to Settings → Technical → Fairness → Dashboard.
+
+    View recent audits and flags.
+
+    Review flagged responses manually.
+
+    Accept or reject flagged responses.
+
+[Full Fairness Documentation](./developer/fairness.md)
 
 ### System Requirements
 Before you deploy, review the [System Requirements](system-requirements.md) page to ensure your infrastructure meets the minimum hardware, OS, and network specifications.
@@ -69,8 +112,8 @@ The platform includes built-in monitoring:
 
 | Tool | Purpose | Access |
 |-----------------|----------|-------------|
-|`Prometheus`|	Metrics collection	|https://prometheus.<your-domain>|
-|`Grafana`	|Dashboards and visualization	|https://grafana.<your-domain> (admin / password from .env)|
+|`Prometheus`|	Metrics collection	|https://prometheus.your-domain|
+|`Grafana`	|Dashboards and visualization	|https://grafana.your-domain (admin / password from .env)|
 |`Alertmanager`	|Alerting	|Configured via alertmanager.yml|
 
 ### Command-Line Reference

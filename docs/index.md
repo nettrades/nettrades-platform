@@ -8,8 +8,8 @@ Welcome to the NETTRADES.AI documentation!
 
 | I want to... | Start here |
 |--------------|------------|
-| **Try the platform without installing anything** | [Try It Now →](/try-it-now.md) |
-| **Get started (any role)** | [Getting Started →](/getting-started.md) |
+| **Try the platform without installing anything** | [Try It Now →](try-it-now.md) |
+| **Get started (any role)** | [Getting Started →](getting-started.md) |
 | **Use the platform** (as a company, freelancer, or job-seeker) | [User Guide →](user/index.md) |
 | **Develop or extend the platform** | [Developer Guide →](developer/index.md) |
 | **Deploy and run the platform** | [Operations Guide →](operations/index.md) |
@@ -28,6 +28,7 @@ It combines:
 - **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
 - **Self-improving AI** – A "Good Answer" voting system feeds a fine-tuning pipeline (Unsloth/Axolotl) that continuously improves field-specific models.
 - **Expert marketplace ("Ask Someone")** – Users can request paid help from verified professionals with Stripe escrow.
+- **Fairness & Bias Detection** – AI responses are evaluated for rationality and bias, with configurable thresholds and automated filtering.
 - **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
 
 ---
@@ -40,6 +41,7 @@ It combines:
 | 🖥️ **GPU Marketplace** | Share idle GPUs or rent capacity for inference and fine-tuning |
 | 🧠 **Self-Improving AI** | "Good Answer" voting system with automated fine-tuning via Unsloth/Axolotl |
 | 🧑‍🏫 **Expert Help** | "Ask Someone" – real-time expert consultations with Stripe escrow |
+| ⚖️ **Fairness & Bias** | LLM-as-Judge rationality and bias evaluation with automated filtering |
 | 🔐 **Secure & Sovereign** | WireGuard VPN, gVisor isolation, and full on-premise deployment options |
 
 ---

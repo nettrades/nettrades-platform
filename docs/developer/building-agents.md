@@ -1,4 +1,3 @@
-
 # Building LangGraph Agents
 
 This guide explains how to create new LangGraph sub-agents for the NETTRADES.AI platform. Agents are specialised AI workflows that handle specific business domains.
@@ -7,31 +6,41 @@ This guide explains how to create new LangGraph sub-agents for the NETTRADES.AI 
 
 LangGraph agents are self-contained workflows that:
 
-Receive input from the supervisor (user messages, state data)
-
-Process data using LLMs and Odoo tools
-
-Return structured results back to the supervisor
+- **Receive input** from the supervisor (user messages, state data)
+- **Process data** using LLMs and Odoo tools
+- **Return structured results** back to the supervisor
 
 Agents are ideal for tasks like:
 
-Analysing CVs and matching candidates to jobs
+- Analysing CVs and matching candidates to jobs
+- Matching freelancers to projects
+- Generating and scoring leads
+- Managing GPU clusters
+- Analysing images with VLM
+- Planning robotic actions
 
-Matching freelancers to projects
+---
 
-Generating and scoring leads
+## Fairness Integration in Agents
 
-Managing GPU clusters
+When building agents, you should consider fairness and bias detection:
 
-Analysing images with VLM
+1. **The agent's responses will be automatically evaluated** for rationality and bias by the fairness module.
+2. **Low-quality responses are filtered** from training data.
+3. **Responses that fail thresholds are flagged** for human review.
 
-Planning robotic actions
+To ensure your agent produces high-quality, unbiased responses:
+
+- **Use diverse training data** – Ensure your training data represents diverse populations.
+- **Test with fairness metrics** – Use `nettrades.fairness.metrics` to test your agent.
+- **Monitor flags** – Check `nettrades.fairness.flag` for responses flagged for review.
+
+---
 
 ## Where Agents Live
 
-All agents live in src/core/agents/:
+All agents live in `src/core/agents/`:
 
-text
 
 src/core/agents/
 
@@ -50,6 +59,10 @@ src/core/agents/
 ├── action_agent.py           # VLA agent for robotic control
 
 └── custom_agent.py           # Your new agent goes here
+text
+
+
+---
 
 ## Agent Architecture Diagram
 
@@ -70,6 +83,7 @@ graph LR
     subgraph Tools["Available Tools"]
         OdooTools["Odoo Tools"]
         Inference["Inference Tools"]
+        Fairness["Fairness Tools"]
     end
 
     Supervisor --> Agent
@@ -305,6 +319,7 @@ Create an instance
 Add routing logic
 
 ### 2.1 Import the Agent
+
 ```python
 
 # In src/core/supervisor.py
@@ -312,7 +327,8 @@ from .agents.custom_agent import create_custom_agent
 ```
 
 ### 2.2 Create the Agent Instance
-python
+
+```python
 
 def build_supervisor():
     # ... existing code ...
@@ -327,11 +343,13 @@ def build_supervisor():
     custom_agent = create_custom_agent()  # <-- Add this line
 
     # ... rest of build_supervisor ...
+```
 
 ### 2.3 Add Routing Logic
 
 In the route() function:
-python
+
+```python
 
 async def route(state: dict) -> dict:
     """
@@ -347,11 +365,13 @@ async def route(state: dict) -> dict:
     # ... rest of routing ...
 
     return result
+```
 
 ### 2.4 Update Intent Classification
 
 In the classify() function, update the prompt to include your new intent:
-python
+
+```python
 
 async def classify(state: dict) -> dict:
     """
@@ -367,12 +387,46 @@ async def classify(state: dict) -> dict:
     )
 
     # ... rest of classify ...
+```
 
-## Step 3: Using Odoo Tools
+## Step 3: Fairness Integration
+
+When building agents, consider how fairness and bias detection integrate:
+
+### 3.1 Automatic Evaluation
+
+The fairness module automatically evaluates all AI responses for rationality and bias. This is done in the action_good_answer method of res_partner.py.
+
+### 3.2 Testing for Bias
+
+You can use the fairness metrics calculator to test your agent:
+
+```python
+
+# In your test code
+metrics = self.env['nettrades.fairness.metrics']
+result = metrics.calculate_demographic_parity(candidate_ids, 'gender')
+if not result.get('passed'):
+    _logger.warning("Demographic parity check failed: %s", result.get('message'))
+```
+
+### 3.3 Monitoring Flags
+
+Check the nettrades.fairness.flag model for responses flagged for review:
+
+```python
+
+flags = self.env['nettrades.fairness.flag'].search([
+    ('status', '=', 'pending'),
+    ('field_id', '=', field_id),
+])
+```
+
+## Step 4: Using Odoo Tools
 
 The odoo_tools.py module provides async functions for interacting with Odoo.
 
-### 3.1 Available Tools
+### 4.1 Available Tools
 
 ### Function: res_partner_search(domain)	
 Purpose: Search partners	
@@ -444,9 +498,10 @@ Purpose: Update a GPU node
 
 Parameters: ID, dict of values
 
-### 3.2 Domain List Format
+### 4.2 Domain List Format
 
 Domains are lists of triples: [field, operator, value]
+
 Operator	Description	Example
 =	Equal	["user_type", "=", "freelancer"]
 !=	Not equal	["is_active", "!=", False]
@@ -458,8 +513,10 @@ ilike	Case-insensitive contains	["name", "ilike", "python"]
 like	Case-sensitive contains	["skills", "like", "Django"]
 in	In list	["status", "in", ["draft", "active"]]
 not in	Not in list	["status", "not in", ["closed", "archived"]]
-3.3 Example: Searching for Freelancers
-python
+
+4.3 Example: Searching for Freelancers
+
+```python
 
 # Search for active freelancers with Python skills
 freelancers = await res_partner_search([
@@ -467,50 +524,15 @@ freelancers = await res_partner_search([
     ("is_active", "=", True),
     ("skills_text", "ilike", "python")
 ])
-
-### 3.4 Example: Creating a CRM Lead
-python
-
-lead = await crm_lead_create({
-    "name": "New Lead from AI Agent",
-    "description": "Automatically generated by the custom agent",
-    "partner_id": partner_id,
-    "type": "lead",
-    "stage_id": 1,  # New stage
-})
-
-## Step 4: Using Inference Tools
-
-The inference_tools.py module auto-detects the best inference backend.
-
-### 4.1 Auto-Detection Priority
-Priority	Backend	Environment Variable
-1	GPUStack	GPUSTACK_SERVER_URL
-2	vLLM	VLLM_BASE_URL
-3	llama.cpp (fallback)	LLM_BASE_URL
-
-
-### 4.2 Usage Example
-```python
-
-from ..tools.inference_tools import get_inference_backend
-
-backend = get_inference_backend()
-llm = ChatOpenAI(
-    base_url=backend["base_url"],
-    api_key=backend["api_key"],
-    model=backend["model_name"],
-    temperature=0.1,
-)
-
-response = await llm.ainvoke("Hello, how are you?")
 ```
+
 Step 5: Error Handling
 
 Always include error handling in your agent nodes.
 
 ### 5.1 Try/Except Pattern
-python
+
+```python
 
 async def process_data(state: CustomState) -> CustomState:
     try:
@@ -522,11 +544,13 @@ async def process_data(state: CustomState) -> CustomState:
         state["error"] = str(e)
         state["result"] = f"An error occurred: {e}"
     return state
+```
 
 ### 5.2 Logging
 
 Use the module-level logger:
-python
+
+```python
 
 _logger = logging.getLogger(__name__)
 
@@ -534,13 +558,15 @@ def my_function():
     _logger.info("Starting processing...")
     _logger.debug(f"State: {state}")
     _logger.error(f"Error occurred: {e}")
+```
 
 ## Step 6: Testing Your Agent
 
 ### 6.1 Unit Test Template
 
 Create tests/test_custom_agent.py:
-python
+
+```python
 
 import pytest
 from src.core.agents.custom_agent import create_custom_agent
@@ -563,9 +589,30 @@ async def test_custom_agent():
     assert "result" in result
     assert "error" not in result
     assert result["output"]["status"] == "created"
+```
 
-### 6.2 Manual Testing with curl
-bash
+### 6.2 Fairness Testing
+
+```python
+
+def test_fairness():
+    # Get the fairness metrics calculator
+    metrics = env['nettrades.fairness.metrics']
+    
+    # Calculate demographic parity
+    result = metrics.calculate_demographic_parity(
+        candidate_ids=candidate_ids,
+        protected_attr='gender',
+        score_field='ai_match_score'
+    )
+    
+    # Assert the result passes
+    assert result.get('passed'), "Demographic parity check failed"
+```
+
+### 6.3 Manual Testing with curl
+
+```bash
 
 curl -X POST http://localhost:8000/invoke \
   -H "Content-Type: application/json" \
@@ -582,54 +629,64 @@ curl -X POST http://localhost:8000/invoke \
       }
     }
   }'
+```
 
 ## Step 7: Debugging Tips
 
 ### 7.1 Enable Debug Logging
-python
+
+```python
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
 _logger = logging.getLogger(__name__)
+```
 
 ### 7.2 Use LangSmith (if available)
-python
+
+```python
 
 import os
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_PROJECT"] = "nettrades-agent"
+```
 
 ### 7.3 Print State in Nodes
-python
+
+```python
 
 async def my_node(state: CustomState) -> CustomState:
     _logger.debug(f"State before processing: {state}")
     # ... processing ...
     _logger.debug(f"State after processing: {state}")
     return state
+```
 
-Best Practices
-1. Keep Agents Focused
+## Best Practices
+### 1. Keep Agents Focused
 
 One agent per business domain:
 
-    ✅ Good: "Recruitment Agent" (handles CVs and job matching)
+✅ Good: "Recruitment Agent" (handles CVs and job matching)
 
-    ❌ Bad: "Everything Agent" (handles recruitment, leads, GPUs, and more)
+❌ Bad: "Everything Agent" (handles recruitment, leads, GPUs, and more)
 
-2. Use Async Functions
+### 2. Use Async Functions
 
 All agent nodes should be async:
-python
+
+```python
 
 async def my_node(state: CustomState) -> CustomState:
     # ... async operations ...
     return state
+```
 
-3. Handle Errors Gracefully
+### 3. Handle Errors Gracefully
 
 Never let an agent crash the supervisor:
-python
+
+```python
 
 async def my_node(state: CustomState) -> CustomState:
     try:
@@ -639,29 +696,35 @@ async def my_node(state: CustomState) -> CustomState:
         state["error"] = str(e)
         state["result"] = "Fallback result"
     return state
+```
 
-4. Log Extensively
+### 4. Log Extensively
 
 Use _logger for debugging:
-python
+
+```python
 
 _logger.info("Node started")
 _logger.debug(f"State: {state}")
 _logger.error(f"Error: {e}")
+```
 
-5. Use Type Hints
+### 5. Use Type Hints
 
 Type hints improve maintainability:
-python
+
+```python
 
 async def my_node(state: CustomState) -> CustomState:
     # ... implementation ...
     return state
+```
 
-6. Write Docstrings
+### 6. Write Docstrings
 
 Document what each node does:
-python
+
+```python
 
 async def my_node(state: CustomState) -> CustomState:
     """
@@ -673,99 +736,26 @@ async def my_node(state: CustomState) -> CustomState:
     3. Stores results in the state
     """
     pass
-
-Complete Agent Template
-
-Here's a complete template you can copy and modify:
-```python
-
-# -*- coding: utf-8 -*-
-# =============================================================================
-# {Agent Name} – {Description}
-# =============================================================================
-import json
-import logging
-from typing import Dict, Any, List, Optional
-
-from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
-
-from ..tools.inference_tools import get_inference_backend
-from ..tools.odoo_tools import (
-    res_partner_search,
-    crm_lead_create,
-    crm_lead_search,
-)
-
-_logger = logging.getLogger(__name__)
-
-
-class {AgentName}State(dict):
-    """State for the {AgentName} agent."""
-    pass
-
-
-async def fetch_data(state: {AgentName}State) -> {AgentName}State:
-    """Fetch data from Odoo."""
-    _logger.info("Fetching data...")
-    try:
-        # TODO: Implement data fetching
-        state["data"] = []
-    except Exception as e:
-        state["error"] = str(e)
-    return state
-
-
-async def process_data(state: {AgentName}State) -> {AgentName}State:
-    """Process data with LLM."""
-    _logger.info("Processing data...")
-    try:
-        backend = get_inference_backend()
-        llm = ChatOpenAI(
-            base_url=backend["base_url"],
-            api_key=backend["api_key"],
-            model=backend["model_name"],
-            temperature=0.1,
-        )
-        # TODO: Implement LLM processing
-        state["result"] = "Processed result"
-    except Exception as e:
-        state["error"] = str(e)
-    return state
-
-
-async def create_output(state: {AgentName}State) -> {AgentName}State:
-    """Create output in Odoo."""
-    _logger.info("Creating output...")
-    try:
-        # TODO: Implement output creation
-        state["output"] = {"status": "created"}
-    except Exception as e:
-        state["error"] = str(e)
-    return state
-
-
-def create_{agent_name}_agent() -> StateGraph:
-    """Build and return the {AgentName} agent."""
-    workflow = StateGraph({AgentName}State)
-    workflow.add_node("fetch_data", fetch_data)
-    workflow.add_node("process_data", process_data)
-    workflow.add_node("create_output", create_output)
-    workflow.add_edge(START, "fetch_data")
-    workflow.add_edge("fetch_data", "process_data")
-    workflow.add_edge("process_data", "create_output")
-    workflow.add_edge("create_output", END)
-    return workflow.compile()
 ```
 
-## Quick Reference
-
-Task	Command / File
-Create agent file	src/core/agents/custom_agent.py
-Import agent	from .agents.custom_agent import create_custom_agent
-Register with supervisor	src/core/supervisor.py
-Update intent classification	src/core/supervisor.py (classify function)
-Run tests	pytest tests/
-Manual test	curl -X POST http://localhost:8000/invoke ...
 
 
+## 9: Consider Fairness
+
+When designing agents, consider:
+
+* Data diversity: Ensure training data represents diverse populations.
+
+* Bias testing: Regularly test your agent for bias.
+
+* Human oversight: Always have human review for high-stakes decisions.
+
+### Next Steps
+
+[Building Odoo Modules](building-odoo-modules.md)
+
+[API Reference](api-reference.md)
+
+[Style Guide](style-guide.md)
+
+[Contributing Guide](./governance/contributing.md)

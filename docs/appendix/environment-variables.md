@@ -24,7 +24,7 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 |----------|---------|---------|----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string (format: `postgresql://user:pass@host:port/dbname`) | `postgresql://odoo:password@postgres:5432/odoo` | ✅ Yes | Odoo, LangGraph |
 | `POSTGRES_PASSWORD` | PostgreSQL password for the `odoo` user | None | ✅ Yes | Odoo, Postgres container |
-| `DB_HOST` | PostgreSQL host (single-VM) | `localhost` | ⚠️ Optional (if `DATABASE_URL` set) | Odoo |
+| `DB_HOST` | PostgreSQL host (single‑VM) | `localhost` | ⚠️ Optional (if `DATABASE_URL` set) | Odoo |
 | `DB_PORT` | PostgreSQL port | `5432` | ⚠️ Optional | Odoo |
 | `DB_USER` | PostgreSQL user | `odoo` | ⚠️ Optional | Odoo |
 | `DB_NAME` | PostgreSQL database name | `odoo` | ⚠️ Optional | Odoo |
@@ -60,6 +60,16 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 | `LLM_BASE_URL` | URL of the llama.cpp server (lowest priority) | `http://llama-cpp:8080/v1` | ⚠️ Optional | Inference tools |
 | `LLAMA_API_KEY` | API key for llama.cpp | `dummy` | ⚠️ Optional | Inference tools |
 
+### Fairness & Bias Detection
+
+| Variable | Purpose | Default | Required | Used By |
+|----------|---------|---------|----------|---------|
+| `OPENAI_API_KEY` | API key for OpenAI GPT models (used by fairness evaluator) | None | ⚠️ Optional | Fairness evaluator |
+| `ANTHROPIC_API_KEY` | API key for Anthropic Claude models (used by fairness evaluator) | None | ⚠️ Optional | Fairness evaluator |
+| `FAIRNESS_EVALUATION_MODEL` | Default model for fairness evaluation | `gpt-4o-mini` | ⚠️ Optional | Fairness evaluator |
+| `FAIRNESS_RATIONALITY_THRESHOLD` | Minimum rationality score (0-10) | `7.0` | ⚠️ Optional | Fairness config |
+| `FAIRNESS_BIAS_THRESHOLD` | Maximum bias score (0-10) | `3.0` | ⚠️ Optional | Fairness config |
+
 ### Remote Brain (nettrades.ai)
 
 | Variable | Purpose | Default | Required | Used By |
@@ -75,8 +85,8 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
 | `ADMIN_PASSWORD` | Master password for Odoo database creation | `admin` | ✅ Yes | Odoo |
-| `ODOO_API_KEY` | API key for Odoo JSON-RPC calls (MCP bridge) | None | ✅ Yes | MCP-Odoo bridge |
-| `ODOO_URL` | Odoo server URL for MCP bridge | `http://odoo:8069` | ⚠️ Optional | MCP-Odoo bridge |
+| `ODOO_API_KEY` | API key for Odoo JSON‑RPC calls (MCP bridge) | None | ✅ Yes | MCP‑Odoo bridge |
+| `ODOO_URL` | Odoo server URL for MCP bridge | `http://odoo:8069` | ⚠️ Optional | MCP‑Odoo bridge |
 | `WORKERS` | Number of Odoo worker processes (set to 0 for development) | `0` | ⚠️ Optional | Odoo |
 | `LOG_LEVEL` | Odoo log level (`info`, `debug`, `warn`, `error`) | `info` | ⚠️ Optional | Odoo |
 
@@ -113,15 +123,15 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 
 ---
 
-## Bridge Service (Company-Specific Overrides)
+## Bridge Service (Company‑Specific Overrides)
 
 These variables are used by the `nettrades_bridge` module to route requests between local and remote brains. They are typically set in the Odoo admin interface rather than environment variables, but they can also be set in `.env`.
 
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
 | `BRIDGE_MODE` | Override for a specific company: `local`, `remote`, `hybrid`, `global` | `global` | ⚠️ Optional | Bridge service |
-| `BRIDGE_REMOTE_URL` | Company-specific remote brain URL | None | ⚠️ Optional | Bridge service |
-| `BRIDGE_REMOTE_API_KEY` | Company-specific remote brain API key | None | ⚠️ Optional | Bridge service |
+| `BRIDGE_REMOTE_URL` | Company‑specific remote brain URL | None | ⚠️ Optional | Bridge service |
+| `BRIDGE_REMOTE_API_KEY` | Company‑specific remote brain API key | None | ⚠️ Optional | Bridge service |
 
 ---
 
@@ -129,9 +139,21 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
-| `FINETUNE_BACKEND` | Which fine-tuning backend to use: `local` or `remote` | `local` | ⚠️ Optional | `ft.dataset` |
-| `DATA_JUICER_ENABLED` | Whether to enable Data-Juicer filtering | `false` | ⚠️ Optional | `ft.dataset` |
+| `FINETUNE_BACKEND` | Which fine‑tuning backend to use: `local` or `remote` | `local` | ⚠️ Optional | `ft.dataset` |
+| `DATA_JUICER_ENABLED` | Whether to enable Data‑Juicer filtering | `false` | ⚠️ Optional | `ft.dataset` |
 | `DEITA_ENABLED` | Whether to enable DEITA scoring | `false` | ⚠️ Optional | `ft.dataset` |
+
+---
+
+## Fairness & Bias Detection
+
+| Variable | Purpose | Default | Required | Used By |
+|----------|---------|---------|----------|---------|
+| `OPENAI_API_KEY` | API key for OpenAI (used by fairness evaluator) | None | ⚠️ Optional | Fairness evaluator |
+| `ANTHROPIC_API_KEY` | API key for Anthropic (used by fairness evaluator) | None | ⚠️ Optional | Fairness evaluator |
+| `FAIRNESS_EVALUATION_MODEL` | Default fairness evaluation model | `gpt-4o-mini` | ⚠️ Optional | Fairness evaluator |
+| `FAIRNESS_RATIONALITY_THRESHOLD` | Minimum rationality score | `7.0` | ⚠️ Optional | Fairness config |
+| `FAIRNESS_BIAS_THRESHOLD` | Maximum bias score | `3.0` | ⚠️ Optional | Fairness config |
 
 ---
 
@@ -140,8 +162,8 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
 | `DOMAIN` | Main domain for the platform (e.g., `nettrades.ai`) | None | ✅ Yes | Traefik, Odoo, Forgejo |
-| `ADMIN_EMAIL` | Email address for Let's Encrypt certificate registration | None | ✅ Yes | Traefik, cert-manager |
-| `PUBLIC_IP` | Public IP address of the server (auto-detected if not set) | Auto-detected | ⚠️ Optional | Installer scripts |
+| `ADMIN_EMAIL` | Email address for Let's Encrypt certificate registration | None | ✅ Yes | Traefik, cert‑manager |
+| `PUBLIC_IP` | Public IP address of the server (auto‑detected if not set) | Auto‑detected | ⚠️ Optional | Installer scripts |
 
 ---
 
@@ -151,6 +173,7 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 2. **Use strong random passwords** for all secrets. Use `openssl rand -base64 32` to generate them.
 3. **Rotate API keys regularly** (especially `LANGGRAPH_API_KEY` and `ODOO_API_KEY`).
 4. **In production, set `LOG_LEVEL=warn`** to reduce log noise and avoid leaking sensitive information.
+5. **Store API keys securely** – use environment variables or a secrets manager, not hardcoded values.
 
 ---
 

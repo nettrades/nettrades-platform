@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fairness_config_admin,config.admin,model_nettrades_fairness_config,group_fairness_admin,1,1,1,1
+access_fairness_config_user,config.user,model_nettrades_fairness_config,group_fairness_reviewer,1,0,0,0
+access_fairness_field_config_admin,field.config.admin,model_nettrades_fairness_field_config,group_fairness_admin,1,1,1,1
+access_fairness_field_config_user,field.config.user,model_nettrades_fairness_field_config,group_fairness_reviewer,1,0,0,0
+access_fairness_audit_admin,audit.admin,model_nettrades_fairness_audit,group_fairness_admin,1,1,1,1
+access_fairness_audit_reviewer,audit.reviewer,model_nettrades_fairness_audit,group_fairness_reviewer,1,0,0,0
+access_fairness_audit_auditor,audit.auditor,model_nettrades_fairness_audit,group_fairness_auditor,1,0,0,0
+access_fairness_flag_admin,flag.admin,model_nettrades_fairness_flag,group_fairness_admin,1,1,1,1
+access_fairness_flag_reviewer,flag.reviewer,model_nettrades_fairness_flag,group_fairness_reviewer,1,1,1,1
+access_fairness_flag_auditor,flag.auditor,model_nettrades_fairness_flag,group_fairness_auditor,1,0,0,0
+access_fairness_metrics_admin,metrics.admin,model_nettrades_fairness_metrics,group_fairness_admin,1,1,1,1
+access_fairness_metrics_user,metrics.user,model_nettrades_fairness_metrics,group_fairness_reviewer,1,0,0,0

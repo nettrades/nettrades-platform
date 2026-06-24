@@ -24,6 +24,9 @@ Have idle GPU capacity? Share it and earn tokens. Need GPU power for inference o
 ### 🤖 AI-Powered Everything
 From job matching to lead generation, AI powers the platform. And it gets better over time – every "Good Answer" vote helps train the models.
 
+### ⚖️ Fairness & Bias Detection
+The platform automatically evaluates AI responses for rationality and bias. This ensures that all users receive fair, logical, and unbiased responses.
+
 ---
 
 ## Getting Started
@@ -38,6 +41,6 @@ From job matching to lead generation, AI powers the platform. And it gets better
 
 ## Need Help?
 
-- **FAQ**: Check the FAQ section (coming soon)
+- **FAQ**: Check the [FAQ section](faq.md)
 - **Support**: Contact us at [support@nettrades.ai](mailto:support@nettrades.ai)
 - **Community**: Join our community at [nettrades.org](https://nettrades.org)

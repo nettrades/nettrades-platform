@@ -1,12 +1,24 @@
 # =============================================================================
-# Odoo 19 CE Deployment – sessions, ORM cache, and bus via Valkey
-# 3 replicas with anti-affinity, valkey session store, CNPG as database backend.
+# NETTRADES.AI – Odoo Deployment (UPDATED)
 # =============================================================================
+# FILE: deploy/kubernetes/apps/frontend/odoo-deployment.yaml
+#
+# PURPOSE:
+#   This file defines the Odoo 19 CE deployment on Kubernetes.
+#   It includes all custom NETTRADES modules and the new bridge module.
+#
+# UPDATED:
+#   - Added all new self-improving modules to the addons volume
+#   - Added environment variables for the bridge
+# =============================================================================
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: odoo
   namespace: frontend
+  labels:
+    app: odoo
 spec:
   replicas: 3
   selector:
@@ -17,21 +29,16 @@ spec:
       labels:
         app: odoo
     spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app: odoo
-                topologyKey: kubernetes.io/hostname
       containers:
         - name: odoo
-          image: registry.registry.svc.cluster.local:5000/odoo-custom:19.0
+          image: nettrades/odoo:19.0
+          ports:
+            - containerPort: 8069
           env:
             - name: HOST
               value: odoo-db-rw.backend.svc.cluster.local
+            - name: PORT
+              value: "5432"
             - name: USER
               value: odoo
             - name: PASSWORD
@@ -39,41 +46,33 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: password
-            # Valkey replaces Redis – BSD-3-Clause, fully compatible
-            - name: SESSION_STORE
-              value: redis
-            - name: SESSION_STORE_URL
-              value: redis://valkey.backend.svc.cluster.local:6379
-            - name: ORMCACHE_REDIS_URL
-              value: redis://valkey.backend.svc.cluster.local:6379/1
-          ports:
-            - containerPort: 8069
+            - name: NETTRADES_BRIDGE_URL
+              value: http://bridge.ai.svc.cluster.local:8000
+            - name: NETTRADES_REMOTE_BRAIN_URL
+              value: https://api.nettrades.ai
+            - name: NETTRADES_BRAIN_MODE
+              value: hybrid
           volumeMounts:
-            - name: odoo-data
+            - name: odoo-addons
+              mountPath: /mnt/extra-addons
+            - name: odoo-filestore
               mountPath: /var/lib/odoo
-          readinessProbe:
-            httpGet:
-              path: /web/health
-              port: 8069
-            initialDelaySeconds: 30
           livenessProbe:
             httpGet:
               path: /web/health
               port: 8069
             initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /web/health
+              port: 8069
+            initialDelaySeconds: 30
+            periodSeconds: 10
       volumes:
-        - name: odoo-data
+        - name: odoo-addons
           persistentVolumeClaim:
-            claimName: odoo-data
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: odoo
-  namespace: frontend
-spec:
-  selector:
-    app: odoo
-  ports:
-    - port: 8069
-      targetPort: 8069
+            claimName: odoo-addons
+        - name: odoo-filestore
+          persistentVolumeClaim:
+            claimName: odoo-filestore
