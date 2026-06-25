@@ -33,13 +33,20 @@ class LLMStoreCollection(models.AbstractModel):
 # -------------------------------------------------------------------------
 # CONSTRAINTS
 # -------------------------------------------------------------------------
-    _constraints = [
-        models.Constraint(
-            'unique_name_per_store',
-            models.Q(('store_id', '=', models.Q()), ('name', '=', models.Q())),
-            'Collection names must be unique per store.'
-        ),
-    ]
+
+    @api.constrains('store_id', 'name')
+    def _check_unique_name(self):
+        """
+        Ensure collection names are unique per store.
+        
+        This is the Odoo 19-compatible version of the constraint.
+        """
+        for record in self:
+            if self.search_count([
+                ('store_id', '=', record.store_id.id),
+                ('name', '=', record.name)
+            ]) > 1:
+            raise ValidationError(_("Collection names must be unique per store."))
 
     def refresh_stats(self):
         """Update stats about this collection from the store"""
