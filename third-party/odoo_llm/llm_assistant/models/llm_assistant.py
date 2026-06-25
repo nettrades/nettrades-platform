@@ -14,6 +14,7 @@
 #   2. Replaced `models.Q` with `@api.constrains` for uniqueness
 #   3. Removed `auto_join` parameter (deprecated in Odoo 19)
 #   4. Changed `ondelete='restrict'` to `'set null'` where appropriate
+#   5. Changed `ondelete='restrict'` to `'set null'` where appropriate
 #
 # =============================================================================
 
@@ -134,6 +135,10 @@ class LLMAssistant(models.Model):
         tracking=True,
         help="The LLM model to use for this assistant."
     )
+
+    # ========================================================================
+    # FIX: Added missing `provider_id` field (required by views)
+    # ========================================================================
     
     provider_id = fields.Many2one(
         "llm.provider",
