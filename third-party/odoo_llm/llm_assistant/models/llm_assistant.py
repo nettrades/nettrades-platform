@@ -75,7 +75,6 @@ class LLMAssistant(models.Model):
         ondelete="restrict",
         tracking=True,
         required=True,
-        auto_join=True,
         help="Prompt template to use for generating system prompts",
     )
 
