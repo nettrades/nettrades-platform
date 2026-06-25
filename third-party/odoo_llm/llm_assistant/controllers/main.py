@@ -3,7 +3,7 @@ from odoo.http import request
 
 
 class LLMAssistantController(http.Controller):
-    @http.route("/llm/thread/set_assistant", type="json", auth="user")
+    @http.route("/llm/thread/set_assistant", type="jsonrpc", auth="user")
     def set_thread_assistant(self, thread_id, assistant_id=False):
         """Set the assistant for a thread and return thread-specific evaluated default values
 
@@ -35,7 +35,7 @@ class LLMAssistantController(http.Controller):
         # Get assistant values with the thread context using the model method
         return assistant.get_assistant_values(thread)
 
-    @http.route("/llm/thread/get_assistant_values", type="json", auth="user")
+    @http.route("/llm/thread/get_assistant_values", type="jsonrpc", auth="user")
     def get_thread_assistant_values(self, thread_id, assistant_id):
         """Get thread-specific evaluated default values for an assistant
 
