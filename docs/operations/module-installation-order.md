@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the correct order for installing NETTRADES Odoo modules. Modules must be installed in this sequence to satisfy dependencies.
+This document outlines the correct order for installing NETTRADES Odoo modules. Modules must be installed in this sequence to satisfy dependencies .
 
 ## Installation Order
 
@@ -189,7 +189,7 @@ text
 | `Logical-Solution-Architecture-Diagram.md` | Add self-improving system modules and bridge module | High |
 | `LangGraph-Agent-State-Machine-Diagram.md` | Add bridge integration and self-improving loop nodes | Medium |
 | `deployment-perspective-CICD-pipeline-diagram.md` | Add Python dependency steps and correct module order | Medium |
-| `module-installation-order.md` | **New file** – complete installation guide | High |
+| `module-installation-order.md` | **New file** ï¿½ complete installation guide | High |
 
 ---
 
