@@ -45,7 +45,7 @@
         'nettrades_data_collection',  # Monitor phase
         'nettrades_trigger',          # Analyze phase
         'llm_training',               # Plan phase (Apexive)
-        'gpu_gpustack_adapter',       # Execute phase
+        'nettrades_gpustack_adapter',       # Execute phase
         'base',                       # Core Odoo
     ],
     'data': [

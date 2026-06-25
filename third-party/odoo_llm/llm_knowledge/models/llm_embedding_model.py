@@ -103,7 +103,7 @@ class LLMEmbeddingModel(models.Model):
 
     api_key = fields.Char(
         string="API Key",
-        password=True,
+#       password=True,
         copy=False,
         help="API key for the embedding provider."
     )

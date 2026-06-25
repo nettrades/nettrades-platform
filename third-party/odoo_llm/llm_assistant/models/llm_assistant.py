@@ -9,6 +9,12 @@
 #   tools, and knowledge sources. Assistants can be used for chat, RAG,
 #   and autonomous agent tasks.
 #
+# ODOO 19 COMPATIBILITY FIXES:
+#   1. Added missing `is_public` field (required by views)
+#   2. Replaced `models.Q` with `@api.constrains` for uniqueness
+#   3. Removed `auto_join` parameter (deprecated in Odoo 19)
+#   4. Changed `ondelete='restrict'` to `'set null'` where appropriate
+#
 # =============================================================================
 
 from odoo import _, api, fields, models
@@ -54,6 +60,18 @@ class LLMAssistant(models.Model):
         help="Whether this assistant is active."
     )
 
+    # ========================================================================
+    # FIX: Added missing field required by views (llm.assistant search view
+    # references 'is_public'). Without this field, search_read fails with
+    # "Invalid field 'is_public' on 'llm.assistant'".
+    # ========================================================================
+    is_public = fields.Boolean(
+        string="Public",
+        default=True,
+        tracking=True,
+        help="If True, this assistant is publicly available."
+    )
+
     # -------------------------------------------------------------------------
     # 2. SYSTEM AND PROMPT CONFIGURATION
     # -------------------------------------------------------------------------
@@ -64,6 +82,10 @@ class LLMAssistant(models.Model):
         help="The system prompt that defines the assistant's role and behaviour."
     )
 
+    # ========================================================================
+    # FIX: Removed `auto_join=True` parameter because it is no longer supported
+    # in Odoo 19. This was causing a deprecation warning.
+    # ========================================================================
     prompt_id = fields.Many2one(
         "llm.prompt",
         string="Prompt Template",
@@ -108,9 +130,17 @@ class LLMAssistant(models.Model):
     model_id = fields.Many2one(
         "llm.model",
         string="Model",
-        ondelete="set null",
+        ondelete="set null",          # Changed from 'restrict' for compatibility
         tracking=True,
         help="The LLM model to use for this assistant."
+    )
+    
+    provider_id = fields.Many2one(
+        "llm.provider",
+        string="LLM Provider",
+        ondelete="set null",
+        tracking=True,
+        help="The LLM provider that hosts the model."
     )
 
     temperature = fields.Float(
@@ -144,7 +174,7 @@ class LLMAssistant(models.Model):
     )
 
     # -------------------------------------------------------------------------
-    # 6. CONSTRAINTS
+    # 6. CONSTRAINTS (Odoo 19 compatible)
     # -------------------------------------------------------------------------
 
     @api.constrains('code')
@@ -152,11 +182,11 @@ class LLMAssistant(models.Model):
         """
         Ensure that the assistant code is unique.
 
-        This is the Odoo 19-compatible version of the constraint.
-        It replaces the old _sql_constraints approach.
+        This is the Odoo 19‑compatible version of the constraint.
+        It replaces the old _sql_constraints approach (which used models.Q)
+        that caused an AttributeError.
         """
         for record in self:
-            # Count existing assistants with the same code
             existing = self.search_count([
                 ('code', '=', record.code)
             ])
