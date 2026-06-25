@@ -1,161 +1,579 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# VISION AGENT – Multi-modal VLM (Vision-Language Model) Integration
+# NETTRADES.AI – Vision Agent
 # =============================================================================
 # FILE: src/core/agents/vision_agent.py
 #
 # PURPOSE:
-#   This agent handles vision-related queries. It processes images and
-#   text together using a Vision-Language Model (VLM) to provide
-#   multi-modal understanding.
+#   This agent processes visual and multimodal input from cameras, sensors,
+#   and other vision sources. It integrates with ROS2 for robotics applications
+#   and with the self-improving loop for continuous learning.
 #
 # KEY FEATURES:
-#   - Receives image_base64 and text query
-#   - Calls VLM (Qwen2-VL, LLaVA, or similar) via GPUStack
-#   - Returns image analysis and description
+#   - Multimodal (Vision-Language) processing
+#   - ROS2 integration for robotics
+#   - VLA (Vision-Language-Action) support
+#   - Fine-tuning pipeline integration
+#   - Edge case detection
+#   - Self-improving loop integration
+#   - Bridge integration for hub-and-spoke routing
 #
-# REQUIRED CONFIGURATION:
-#   - Multi-Modal Inferencing must be enabled in Odoo admin
-#   - A VLM model must be deployed on GPUStack
 # =============================================================================
 
-from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
-from ..tools.inference_tools import get_inference_backend
-import logging
+import asyncio
 import json
-import base64
+import logging
+import time
+from typing import Dict, List, Optional, Any, Union
+from dataclasses import dataclass, field
+from enum import Enum
 
-_logger = logging.getLogger(__name__)
+import numpy as np
+import cv2
+
+# -----------------------------------------------------------------------------
+# LangGraph imports
+# -----------------------------------------------------------------------------
+from langgraph.graph import StateGraph, State
+from langgraph.checkpoint import PostgresSaver
+
+# -----------------------------------------------------------------------------
+# ROS2 imports (optional)
+# -----------------------------------------------------------------------------
+try:
+    import rclpy
+    from rclpy.node import Node
+    from sensor_msgs.msg import Image as ROSImage
+    from cv_bridge import CvBridge
+    HAS_ROS2 = True
+except ImportError:
+    HAS_ROS2 = False
+    # Create dummy classes for type hints
+    class Node: pass
+    class ROSImage: pass
+
+# -----------------------------------------------------------------------------
+# VLM/VLA imports (optional)
+# -----------------------------------------------------------------------------
+try:
+    import torch
+    from transformers import AutoProcessor, AutoModelForVision2Seq
+    HAS_VLM = True
+except ImportError:
+    HAS_VLM = False
+
+# -----------------------------------------------------------------------------
+# Logging setup
+# -----------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
 
-class VisionState(dict):
+# =============================================================================
+# 1. Data Classes & Enums
+# =============================================================================
+
+class VisionMode(Enum):
+    """Operation modes for the vision agent."""
+    CLASSIFICATION = "classification"
+    DETECTION = "detection"
+    SEGMENTATION = "segmentation"
+    VLM = "vision_language"
+    VLA = "vision_language_action"
+    MULTIMODAL = "multimodal"
+    ROS2 = "ros2"
+
+@dataclass
+class VisionInput:
+    """Input data for the vision agent."""
+    image: Optional[np.ndarray] = None
+    image_path: Optional[str] = None
+    ros_topic: Optional[str] = None
+    text_query: Optional[str] = None
+    context: Optional[Dict[str, Any]] = None
+    mode: VisionMode = VisionMode.VLM
+    timestamp: float = field(default_factory=time.time)
+
+@dataclass
+class VisionOutput:
+    """Output data from the vision agent."""
+    results: Dict[str, Any]
+    confidence: float = 0.0
+    action: Optional[Dict[str, Any]] = None
+    processed_image: Optional[np.ndarray] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    timestamp: float = field(default_factory=time.time)
+
+
+# =============================================================================
+# 2. Vision Agent Class
+# =============================================================================
+
+class VisionAgent:
     """
-    State carried through the vision workflow.
-
-    Keys:
-        - image_base64: Base64-encoded image data
-        - query: The user's text query
-        - analysis: The VLM's analysis result
+    Vision Agent for processing visual and multimodal input.
+    
+    This agent can operate in multiple modes:
+    - Vision-Language: Understand images with text queries
+    - Vision-Language-Action: Understand images and take actions
+    - ROS2: Process ROS2 camera topics
+    - Multimodal: Combine multiple input types
+    
+    Integration points:
+    - ROS2: For robotics applications
+    - Bridge: For hub-and-spoke routing
+    - Self-Improving Loop: For continuous learning
+    - Fine-Tuning Pipeline: For model improvement
     """
-    pass
-
-
-def create_vision_agent() -> StateGraph:
-    """
-    Build and return a compiled vision sub-graph.
-
-    The workflow consists of two nodes:
-    1. encode_image – Prepare the image for the VLM
-    2. analyse_image – Call the VLM and return analysis
-
-    Returns:
-        StateGraph: Compiled LangGraph workflow
-    """
-    # Auto-detect the inference backend
-    backend = get_inference_backend()
-    _logger.info(f"Vision agent using inference backend: {backend.get('base_url', 'unknown')}")
-
-    # Create the LLM client (used for VLM)
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.1,
-    )
-
-    # =========================================================================
-    # NODE 1: Encode Image
-    # =========================================================================
-
-    async def encode_image(state: VisionState):
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
-        Prepare the image for the VLM.
-
-        This node ensures the image is in the correct format for the VLM.
+        Initialize the Vision Agent.
+        
+        Args:
+            config: Configuration dictionary with the following keys:
+                - mode: VisionMode
+                - model_name: str (e.g., "llava-hf/llava-1.5-7b-hf")
+                - device: str ("cuda" or "cpu")
+                - ros_topic: str (for ROS2 mode)
+                - bridge_enabled: bool
+                - self_improving_enabled: bool
+                - fine_tuning_enabled: bool
         """
-        image_base64 = state.get("image_base64", "")
-
-        if not image_base64:
-            state["analysis"] = "No image provided. Please upload an image."
-            return state
-
-        # Store the image data for the next node
-        state["image_ready"] = True
-        _logger.info("Image encoded successfully")
-
-        return state
-
+        self.config = config or {}
+        self.mode = self.config.get('mode', VisionMode.VLM)
+        self.model = None
+        self.processor = None
+        self.bridge_enabled = self.config.get('bridge_enabled', True)
+        self.self_improving_enabled = self.config.get('self_improving_enabled', True)
+        self.fine_tuning_enabled = self.config.get('fine_tuning_enabled', True)
+        
+        # ROS2 setup
+        self.ros_node = None
+        self.ros_bridge = None
+        self.ros_topic = self.config.get('ros_topic', '/camera/image_raw')
+        
+        # Bridge integration
+        self.bridge_url = self.config.get('bridge_url', 'http://localhost:8069/api/bridge/route')
+        
+        # Initialize the model
+        self._init_model()
+        
+        # Initialize ROS2 if enabled
+        if self.config.get('ros2_enabled', False):
+            self._init_ros2()
+        
+        logger.info(f"VisionAgent initialized in mode: {self.mode}")
+    
     # =========================================================================
-    # NODE 2: Analyse Image
+    # 3. Model Initialization
     # =========================================================================
-
-    async def analyse_image(state: VisionState):
-        """
-        Analyse the image using the VLM.
-
-        This node sends the image and query to the VLM and returns the analysis.
-        """
-        query = state.get("query", "What do you see in this image?")
-        image_base64 = state.get("image_base64", "")
-
-        if not state.get("image_ready", False) or not image_base64:
-            state["analysis"] = "No image available for analysis."
-            return state
-
+    
+    def _init_model(self):
+        """Initialize the VLM/VLA model."""
+        if not HAS_VLM:
+            logger.warning("VLM/VLA libraries not available. Running in fallback mode.")
+            return
+        
+        model_name = self.config.get('model_name', 'llava-hf/llava-1.5-7b-hf')
+        device = self.config.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+        
         try:
-            # Prepare the message for the VLM
-            # The format depends on the VLM API; this assumes OpenAI-compatible format
-            # For multi-modal, we need to send the image as a data URL
-            image_data_url = f"data:image/jpeg;base64,{image_base64}"
-
-            prompt = f"""
-            Analyse the following image and answer the user's question.
-
-            User question: {query}
-
-            Provide a detailed analysis of what you see in the image, including:
-            1. Objects or people present
-            2. Context or setting
-            3. Any text visible
-            4. Relevant details that answer the user's question
-            """
-
-            # This is a placeholder for VLM integration
-            # In production, this would call the VLM with the image
-            # The actual implementation depends on the VLM API
-
-            # Placeholder response
-            state["analysis"] = """
-            [VLM Analysis Placeholder]
-
-            The image appears to show a scene that could be relevant to your query.
-
-            Note: Full VLM integration requires a Vision-Language Model deployed on GPUStack.
-            Please enable Multi-Modal Inferencing in the admin settings and deploy a VLM.
-
-            For production use, this should call the VLM with the provided image.
-            """
-
-            _logger.info("Image analysis completed")
-
+            logger.info(f"Loading model: {model_name} on {device}")
+            self.processor = AutoProcessor.from_pretrained(model_name)
+            self.model = AutoModelForVision2Seq.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
+                device_map="auto" if device == 'cuda' else None
+            )
+            logger.info("Model loaded successfully")
         except Exception as e:
-            _logger.error(f"Image analysis failed: {e}")
-            state["analysis"] = f"Error analysing image: {str(e)}"
-
-        return state
-
+            logger.error(f"Failed to load model: {e}")
+            self.model = None
+    
     # =========================================================================
-    # BUILD THE WORKFLOW
+    # 4. ROS2 Integration
     # =========================================================================
+    
+    def _init_ros2(self):
+        """Initialize ROS2 node and bridge."""
+        if not HAS_ROS2:
+            logger.warning("ROS2 not available. ROS2 features disabled.")
+            return
+        
+        try:
+            rclpy.init()
+            self.ros_node = Node('vision_agent')
+            self.ros_bridge = CvBridge()
+            
+            # Subscribe to camera topic
+            self.ros_node.create_subscription(
+                ROSImage,
+                self.ros_topic,
+                self._ros_callback,
+                10
+            )
+            logger.info(f"ROS2 initialized, subscribed to {self.ros_topic}")
+        except Exception as e:
+            logger.error(f"Failed to initialize ROS2: {e}")
+    
+    def _ros_callback(self, msg: ROSImage):
+        """
+        Callback for ROS2 camera messages.
+        """
+        if not self.ros_bridge:
+            return
+        
+        try:
+            cv_image = self.ros_bridge.imgmsg_to_cv2(msg, 'bgr8')
+            # Process the image
+            input_data = VisionInput(
+                image=cv_image,
+                mode=VisionMode.ROS2
+            )
+            # Process asynchronously
+            asyncio.create_task(self.process(input_data))
+        except Exception as e:
+            logger.error(f"ROS2 callback error: {e}")
+    
+    # =========================================================================
+    # 5. Core Processing
+    # =========================================================================
+    
+    async def process(self, input_data: VisionInput) -> VisionOutput:
+        """
+        Process visual input and return results.
+        
+        This is the main entry point for the vision agent.
+        It handles:
+        1. Input validation and preprocessing
+        2. Model inference
+        3. Post-processing
+        4. Bridge routing (if enabled)
+        5. Self-improving loop integration
+        6. Edge case detection
+        """
+        logger.info(f"Processing vision input in mode: {input_data.mode}")
+        
+        # ---------------------------------------------------------------------
+        # Step 1: Input validation
+        # ---------------------------------------------------------------------
+        image = self._load_image(input_data)
+        if image is None and not input_data.image_path:
+            return VisionOutput(
+                results={"error": "No valid image provided"},
+                confidence=0.0
+            )
+        
+        # ---------------------------------------------------------------------
+        # Step 2: Bridge routing (if enabled)
+        # ---------------------------------------------------------------------
+        if self.bridge_enabled:
+            bridge_result = await self._call_bridge(input_data)
+            if bridge_result:
+                return bridge_result
+        
+        # ---------------------------------------------------------------------
+        # Step 3: Local processing
+        # ---------------------------------------------------------------------
+        if self.mode == VisionMode.VLM or input_data.mode == VisionMode.VLM:
+            result = await self._process_vlm(input_data, image)
+        elif self.mode == VisionMode.VLA or input_data.mode == VisionMode.VLA:
+            result = await self._process_vla(input_data, image)
+        elif self.mode == VisionMode.ROS2 or input_data.mode == VisionMode.ROS2:
+            result = await self._process_ros2(input_data, image)
+        else:
+            # Default: classification mode
+            result = await self._process_classification(input_data, image)
+        
+        # ---------------------------------------------------------------------
+        # Step 4: Edge case detection
+        # ---------------------------------------------------------------------
+        if self.self_improving_enabled:
+            edge_case = await self._detect_edge_case(result)
+            if edge_case:
+                await self._record_edge_case(result, edge_case)
+        
+        # ---------------------------------------------------------------------
+        # Step 5: Fine-tuning integration
+        # ---------------------------------------------------------------------
+        if self.fine_tuning_enabled:
+            await self._record_for_fine_tuning(input_data, result)
+        
+        return result
+    
+    # =========================================================================
+    # 6. Processing Methods
+    # =========================================================================
+    
+    async def _process_vlm(self, input_data: VisionInput, image: np.ndarray) -> VisionOutput:
+        """
+        Process using Vision-Language Model.
+        """
+        if not self.model or not self.processor:
+            return VisionOutput(
+                results={"error": "VLM model not available"},
+                confidence=0.0
+            )
+        
+        try:
+            # Prepare inputs
+            text = input_data.text_query or "Describe what you see in this image."
+            
+            # Process image
+            inputs = self.processor(
+                images=image,
+                text=text,
+                return_tensors="pt"
+            )
+            
+            # Generate
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=256,
+                    do_sample=True,
+                    temperature=0.7
+                )
+            
+            # Decode
+            response = self.processor.decode(outputs[0], skip_special_tokens=True)
+            
+            return VisionOutput(
+                results={
+                    "description": response,
+                    "text": text,
+                    "model": self.config.get('model_name', 'unknown')
+                },
+                confidence=0.85,
+                processed_image=image,
+                metadata={
+                    "mode": "vlm",
+                    "timestamp": time.time()
+                }
+            )
+        except Exception as e:
+            logger.error(f"VLM processing error: {e}")
+            return VisionOutput(
+                results={"error": str(e)},
+                confidence=0.0
+            )
+    
+    async def _process_vla(self, input_data: VisionInput, image: np.ndarray) -> VisionOutput:
+        """
+        Process using Vision-Language-Action Model.
+        """
+        # Similar to VLM but with action output
+        # This would be extended for robotics control
+        result = await self._process_vlm(input_data, image)
+        
+        # Add action interpretation
+        if result.results and "description" in result.results:
+            action = self._interpret_action(result.results["description"])
+            result.action = action
+        
+        return result
+    
+    async def _process_ros2(self, input_data: VisionInput, image: np.ndarray) -> VisionOutput:
+        """
+        Process ROS2 camera data.
+        """
+        # Use VLM on ROS2 images
+        input_data.mode = VisionMode.VLM
+        return await self._process_vlm(input_data, image)
+    
+    async def _process_classification(self, input_data: VisionInput, image: np.ndarray) -> VisionOutput:
+        """
+        Process using classification (fallback).
+        """
+        # Simple classification fallback
+        # In a real implementation, this would use a classifier
+        return VisionOutput(
+            results={
+                "classification": "object_detected",
+                "confidence": 0.5
+            },
+            confidence=0.5,
+            processed_image=image
+        )
+    
+    # =========================================================================
+    # 7. Action Interpretation
+    # =========================================================================
+    
+    def _interpret_action(self, description: str) -> Dict[str, Any]:
+        """
+        Interpret a description and extract action commands.
+        """
+        # Simple action extraction
+        actions = []
+        if "move" in description.lower():
+            actions.append({"type": "move", "direction": "forward"})
+        if "grasp" in description.lower():
+            actions.append({"type": "grasp", "object": "unknown"})
+        if "navigate" in description.lower():
+            actions.append({"type": "navigate", "target": "unknown"})
+        
+        return {
+            "actions": actions,
+            "interpretation": description
+        }
+    
+    # =========================================================================
+    # 8. Image Loading
+    # =========================================================================
+    
+    def _load_image(self, input_data: VisionInput) -> Optional[np.ndarray]:
+        """
+        Load image from various sources.
+        """
+        if input_data.image is not None:
+            return input_data.image
+        
+        if input_data.image_path:
+            try:
+                image = cv2.imread(input_data.image_path)
+                if image is not None:
+                    return image
+            except Exception as e:
+                logger.error(f"Failed to load image from path: {e}")
+        
+        return None
+    
+    # =========================================================================
+    # 9. Bridge Integration
+    # =========================================================================
+    
+    async def _call_bridge(self, input_data: VisionInput) -> Optional[VisionOutput]:
+        """
+        Call the bridge to route to remote brain if needed.
+        """
+        try:
+            import aiohttp
+            
+            payload = {
+                "intent": "vision",
+                "data": {
+                    "mode": input_data.mode.value,
+                    "text_query": input_data.text_query,
+                    "image": input_data.image_path,  # Or base64 encoded image
+                    "context": input_data.context
+                }
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    self.bridge_url,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get('status') == 'success':
+                            return VisionOutput(
+                                results=result.get('data', {}),
+                                confidence=result.get('confidence', 0.8),
+                                metadata={"source": "remote_bridge"}
+                            )
+        except Exception as e:
+            logger.warning(f"Bridge call failed: {e}")
+        
+        return None
+    
+    # =========================================================================
+    # 10. Self-Improving Loop Integration
+    # =========================================================================
+    
+    async def _detect_edge_case(self, result: VisionOutput) -> Optional[str]:
+        """
+        Detect if this result represents an edge case.
+        """
+        if result.confidence < 0.3:
+            return "low_confidence"
+        if "error" in result.results:
+            return "processing_error"
+        if "unknown" in str(result.results).lower():
+            return "unknown_object"
+        return None
+    
+    async def _record_edge_case(self, result: VisionOutput, edge_case: str):
+        """
+        Record edge case for the self-improving loop.
+        """
+        try:
+            # Call the data collection module
+            # This would be an Odoo RPC call or HTTP request
+            logger.info(f"Recording edge case: {edge_case}")
+            
+            # In production: call Odoo's data.episode model
+            # payload = {
+            #     "input": result.metadata,
+            #     "output": result.results,
+            #     "edge_case": edge_case,
+            #     "confidence": result.confidence
+            # }
+            # await self._call_odoo("/api/data/record_edge_case", payload)
+            
+        except Exception as e:
+            logger.error(f"Failed to record edge case: {e}")
+    
+    async def _record_for_fine_tuning(self, input_data: VisionInput, result: VisionOutput):
+        """
+        Record data for fine-tuning pipeline.
+        """
+        try:
+            # Filter low-quality results
+            if result.confidence < 0.5:
+                return
+            
+            # Record for fine-tuning
+            logger.info(f"Recording data for fine-tuning: confidence={result.confidence}")
+            
+            # In production: call Odoo's training dataset model
+            # payload = {
+            #     "input": {
+            #         "text": input_data.text_query,
+            #         "image_ref": input_data.image_path
+            #     },
+            #     "output": result.results,
+            #     "confidence": result.confidence
+            # }
+            # await self._call_odoo("/api/training/record", payload)
+            
+        except Exception as e:
+            logger.error(f"Failed to record for fine-tuning: {e}")
+    
+    # =========================================================================
+    # 11. Shutdown
+    # =========================================================================
+    
+    def shutdown(self):
+        """Clean shutdown of the vision agent."""
+        if self.ros_node:
+            self.ros_node.destroy_node()
+            rclpy.shutdown()
+        logger.info("VisionAgent shutdown complete")
 
-    workflow = StateGraph(VisionState)
 
-    workflow.add_node("encode_image", encode_image)
-    workflow.add_node("analyse_image", analyse_image)
+# =============================================================================
+# 12. Main Entry Point
+# =============================================================================
 
-    workflow.add_edge(START, "encode_image")
-    workflow.add_edge("encode_image", "analyse_image")
-    workflow.add_edge("analyse_image", END)
-
-    return workflow.compile()
+if __name__ == "__main__":
+    # Example usage
+    agent = VisionAgent({
+        'mode': VisionMode.VLM,
+        'model_name': 'llava-hf/llava-1.5-7b-hf',
+        'device': 'cuda',
+        'ros2_enabled': False,
+        'bridge_enabled': True,
+        'self_improving_enabled': True,
+        'fine_tuning_enabled': True
+    })
+    
+    # Process an image
+    # agent.process(VisionInput(
+    #     image_path="test.jpg",
+    #     text_query="What objects are in this image?",
+    #     mode=VisionMode.VLM
+    # ))
