@@ -108,24 +108,36 @@ graph TB
         Supervisor["Supervisor Agent"]
         Agents["Sub-Agents"]
         MCP["MCP-Odoo Bridge"]
+        Bridge["nettrades_bridge<br>Hub-and-Spoke Router"]
     end
 
-    subgraph AI["AI Layer"]
+    subgraph AI["AI Inference & Training Layer"]
         GPUStack["GPUStack Server"]
-        Workers["GPU Workers"]
-        FineTune["Fine-Tuning Jobs"]
+        Workers["GPU Workers (vLLM, llama.cpp)"]
+        FineTune["Fine-Tuning Jobs (Axolotl/Unsloth)"]
         External["External LLM APIs"]
+        Training["llm_training<br>Dataset & Job Management"]
+    end
+
+    subgraph SelfImproving["Self-Improving System Layer"]
+        DataCollection["nettrades_data_collection<br>Monitor Phase"]
+        Trigger["nettrades_trigger<br>Analyze Phase"]
+        Loop["nettrades_loop<br>Plan + Execute Phases"]
+        Config["nettrades_self_improving_config<br>Administration UI"]
     end
 
     subgraph Core["Core Layer (Odoo 19 CE)"]
         Odoo["Odoo 19 CE"]
-        Modules["Custom Modules"]
+        CoreModules["nettrades_core"]
+        GPUAdmin["nettrades_gpu_admin"]
+        GoodAnswer["nettrades_good_answer"]
+        AskSomeone["nettrades_ask_someone"]
     end
 
     subgraph Data["Data Layer"]
-        PG["PostgreSQL + pgvector"]
-        Valkey["Valkey"]
-        S3["Object Storage"]
+        PG["PostgreSQL 18 + pgvector"]
+        Valkey["Valkey 8"]
+        S3["MinIO / S3"]
     end
 
     subgraph Security["Security Layer"]
@@ -136,11 +148,20 @@ graph TB
 
     Frontend --> Core
     Frontend --> Integration
+    Integration --> Bridge --> Core
+    Integration --> Supervisor --> Agents
+    Integration --> MCP --> Core
     Integration --> AI
-    AI --> GPUStack
+    AI --> GPUStack --> Workers
+    AI --> FineTune
+    AI --> External
+    AI --> Training
     Core --> Data
     Core --> Security
     Security --> AI
+    Bridge --> SelfImproving
+    DataCollection --> Trigger --> Loop --> Config
+    Loop --> Training
     
 ```
 

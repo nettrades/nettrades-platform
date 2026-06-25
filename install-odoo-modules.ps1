@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Installs or updates all NETTRADES Odoo modules in the correct dependency order.
+    Installs all NETTRADES Odoo modules in the correct dependency order.
 .DESCRIPTION
     This script installs all NETTRADES Odoo modules and their third-party
     dependencies in the correct sequence to satisfy module dependencies.
@@ -14,6 +14,11 @@
     Batch 5: Additional modules
 
     Each batch is installed in order so that module dependencies are satisfied.
+
+    Before installing Odoo modules, the script ensures all required Python
+    packages are installed, including:
+        - torch, transformers, datasets, accelerate (for LLM training)
+        - All packages from third-party/odoo_llm/requirements.txt
 .PARAMETER OdooBin
     Path to the Odoo binary. Defaults to '.\third-party\odoo\odoo-bin'
 .PARAMETER ConfigFile
@@ -48,7 +53,7 @@ param(
     # Path to the Odoo configuration file
     [string]$ConfigFile = ".\deploy\docker\config\odoo.conf",
     # Comma-separated list of addons paths (including all third-party and custom modules)
-    [string]$AddonsPath = ".\third-party\odoo\addons,.\odoo-modules,.\third-party\odoo_llm,.\third-party\odoo_llm_compat,.\third-party\website_sale_marketplace,.\third-party\queue,.\third-party\queue\queue_job",
+    [string]$AddonsPath = ".\third-party\odoo\addons,.\odoo-modules,.\third-party\odoo_llm,.\third-party\odoo_llm_compat,.\third-party\website_sale_marketplace,.\third-party\queue-19",
     # Whether to stop the script if a module fails to install
     [bool]$StopOnError = $true,
     # Whether to skip modules that are already installed (saves time)
@@ -126,11 +131,101 @@ try {
 }
 
 # =============================================================================
-# 3. DEFINE MODULE BATCHES (in dependency order)
+# 3. INSTALL PYTHON DEPENDENCIES (Required for LLM modules)
 # =============================================================================
 
+Write-Info "=== Installing Python Dependencies ==="
+
+# =============================================================================
+# 3.1 Install torch, transformers, datasets, accelerate
+# These are required for the llm_training module and fine-tuning pipeline
+# =============================================================================
+Write-Info "Installing torch, transformers, datasets, accelerate..."
+
+$python_packages = @(
+    "torch",
+    "transformers",
+    "datasets",
+    "accelerate"
+)
+
+try {
+    # Check if packages are already installed before installing
+    $already_installed = @()
+    $to_install = @()
+    $pip_list = & "python" -m pip list 2>$null
+    foreach ($pkg in $python_packages) {
+        if ($pip_list -match $pkg) {
+            $already_installed += $pkg
+        } else {
+            $to_install += $pkg
+        }
+    }
+
+    if ($already_installed.Count -gt 0) {
+        Write-Info "Packages already installed: $($already_installed -join ', ')"
+    }
+
+    if ($to_install.Count -gt 0) {
+        Write-Info "Installing: $($to_install -join ', ')"
+        foreach ($pkg in $to_install) {
+            Write-Info "Installing $pkg..."
+            & "python" -m pip install $pkg
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Failed to install $pkg. Continuing anyway..."
+            }
+        }
+    } else {
+        Write-Success "All required Python packages are already installed."
+    }
+} catch {
+    Write-Warning "Error installing Python packages: $_"
+    Write-Warning "Continuing anyway..."
+}
+
+# =============================================================================
+# 3.2 Install oddo_llm requirements
+# =============================================================================
+$llm_requirements_path = "third-party/odoo_llm/requirements.txt"
+if (Test-Path $llm_requirements_path) {
+    Write-Info "Installing requirements from $llm_requirements_path..."
+    try {
+        # Convert Linux path to Windows path for WSL environments
+        if (Get-Command wslpath -ErrorAction SilentlyContinue) {
+            $win_path = wslpath -w $llm_requirements_path
+            & "python" -m pip install -r $win_path
+        } else {
+            & "python" -m pip install -r $llm_requirements_path
+        }
+        Write-Success "odoo_llm requirements installed successfully."
+    } catch {
+        Write-Warning "Failed to install odoo_llm requirements: $_"
+        Write-Warning "Continuing anyway..."
+    }
+} else {
+    Write-Warning "odoo_llm requirements file not found at: $llm_requirements_path"
+}
+
+# =============================================================================
+# 4. UPGRADE PIP (recommended)
+# =============================================================================
+Write-Info "Upgrading pip..."
+try {
+    & "python" -m pip install --upgrade pip
+    Write-Success "pip upgraded successfully."
+} catch {
+    Write-Warning "Failed to upgrade pip: $_"
+}
+
+# =============================================================================
+# 5. DEFINE MODULE BATCHES (in dependency order)
+# =============================================================================
+
+# =============================================================================
 # Batch 1: Foundation modules – required by everything else
-# queue_job is required by nettrades_core; llm modules are required by self-improving system
+# queue_job is required by nettrades_core; llm modules are required by
+# the self-improving system and nettrades modules.
+# =============================================================================
 $batch1 = @(
     "queue_job",
     "queue_job_batch",
@@ -146,12 +241,17 @@ $batch1 = @(
     "llm_training"
 )
 
+# =============================================================================
 # Batch 2: NETTRADES Core – the central business logic module
+# All other NETTRADES modules depend on this.
+# =============================================================================
 $batch2 = @(
     "nettrades_core"
 )
 
+# =============================================================================
 # Batch 3: Core NETTRADES modules – depend on nettrades_core
+# =============================================================================
 $batch3 = @(
     "nettrades_gpu_admin",
     "nettrades_gpustack_adapter",
@@ -164,8 +264,15 @@ $batch3 = @(
     "nettrades_chatbot"
 )
 
+# =============================================================================
 # Batch 4: Self-improving system modules – depend on nettrades_core and llm_training
-# These must be installed in order: bridge → data_collection → trigger → loop → config
+# These must be installed in order:
+#   1. nettrades_bridge       - Hub-and-spoke routing
+#   2. nettrades_data_collection - Data collection (Monitor phase)
+#   3. nettrades_trigger      - Trigger detection (Analyze phase)
+#   4. nettrades_loop         - Plan + Execute phases
+#   5. nettrades_self_improving_config - Administration interface
+# =============================================================================
 $batch4 = @(
     "nettrades_bridge",
     "nettrades_data_collection",
@@ -174,7 +281,10 @@ $batch4 = @(
     "nettrades_self_improving_config"
 )
 
-# Batch 5: Additional modules – depend on nettrades_core but not on self-improving system
+# =============================================================================
+# Batch 5: Additional modules – depend on nettrades_core but not on
+# the self-improving system.
+# =============================================================================
 $batch5 = @(
     "nettrades_fairness",
     "nettrades_onboarding",
@@ -187,7 +297,7 @@ $batch5 = @(
 $allModules = $batch1 + $batch2 + $batch3 + $batch4 + $batch5
 
 # =============================================================================
-# 4. HELPER FUNCTION: Get list of already installed modules
+# 6. HELPER FUNCTION: Get list of already installed modules
 # =============================================================================
 
 function Get-InstalledModules {
@@ -230,7 +340,7 @@ function Get-InstalledModules {
 }
 
 # =============================================================================
-# 5. HELPER FUNCTION: Install a single module
+# 7. HELPER FUNCTION: Install a single module
 # =============================================================================
 
 function Install-Module {
@@ -282,7 +392,7 @@ function Install-Module {
 }
 
 # =============================================================================
-# 6. HELPER FUNCTION: Install a batch of modules
+# 8. HELPER FUNCTION: Install a batch of modules
 # =============================================================================
 
 function Invoke-BatchInstall {
@@ -334,7 +444,7 @@ function Invoke-BatchInstall {
 }
 
 # =============================================================================
-# 7. MAIN EXECUTION
+# 9. MAIN EXECUTION
 # =============================================================================
 
 Write-Info "=== Starting Installation ==="
@@ -352,9 +462,11 @@ if ($SkipInstalled) {
 # Track all failed modules across batches
 $allFailed = @()
 
+# =============================================================================
 # Install each batch in order
 # The dependencies cascade: batch1 → batch2 → batch3 → batch4 → batch5
 # If a batch fails, we might still continue depending on StopOnError
+# =============================================================================
 
 # Batch 1: Foundation modules
 $allFailed += Invoke-BatchInstall -BatchName "Batch 1: Foundation (queue_job, llm modules)" -ModuleList $batch1 -OdooBin $OdooBin -ConfigFile $ConfigFile -AddonsPath $AddonsPath -StopOnError $StopOnError -ForceReinstall $ForceReinstall -InstalledModules $installedModules
@@ -392,7 +504,7 @@ if ($SkipInstalled) {
 $allFailed += Invoke-BatchInstall -BatchName "Batch 5: Additional modules" -ModuleList $batch5 -OdooBin $OdooBin -ConfigFile $ConfigFile -AddonsPath $AddonsPath -StopOnError $StopOnError -ForceReinstall $ForceReinstall -InstalledModules $installedModules
 
 # =============================================================================
-# 8. POST-INSTALLATION SUMMARY
+# 10. POST-INSTALLATION SUMMARY
 # =============================================================================
 
 Write-Info ""
@@ -430,9 +542,6 @@ Write-Info "  - nettrades_data_collection depends on: nettrades_core, nettrades_
 Write-Info "  - nettrades_trigger depends on: nettrades_data_collection"
 Write-Info "  - nettrades_loop depends on: nettrades_data_collection, nettrades_trigger, llm_training, gpu_gpustack_adapter"
 Write-Info "  - nettrades_self_improving_config depends on: nettrades_loop, nettrades_trigger, nettrades_data_collection"
-
-Write-Success "Script completed at $(Get-Date)"
-Write-Info "Log file saved to: $LogFile"
 
 # Exit with appropriate code (0 = success, 1 = some failures)
 if ($allFailed.Count -eq 0) {
