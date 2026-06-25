@@ -12,6 +12,9 @@
 #
 #   This is an OPTIONAL module. If it is not present, the supervisor will
 #   fall back to local-only processing using a dummy implementation.
+#   However, having it fully implemented enables the commercial hub-and-spoke
+#   model where companies can offload work to the central NETTRADES.AI
+#   platform.
 #
 # KEY FEATURES:
 #   - Routes requests to remote brain based on configuration

@@ -12,7 +12,9 @@
 #   triggers self-improvement cycles when enough data is collected.
 #
 #   This is an OPTIONAL module. If it is not present, the supervisor will
-#   fall back to a dummy implementation that does nothing.
+#   fall back to a dummy implementation that does nothing. However, having
+#   it fully implemented enables the continuous learning loop that makes
+#   the platform self-improving over time.
 #
 # KEY FEATURES:
 #   - Records interaction episodes (input → output → feedback)
