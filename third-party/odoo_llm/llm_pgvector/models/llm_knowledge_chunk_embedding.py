@@ -47,11 +47,14 @@ class LLMKnowledgeChunkEmbedding(models.Model):
         index=True,
     )
 
-    _sql_constraints = [
-        (
-            "unique_chunk_embedding_model",
-            "UNIQUE(chunk_id, embedding_model_id)",
-            "A chunk can only have one embedding per embedding model",
+# -------------------------------------------------------------------------
+# CONSTRAINTS
+# -------------------------------------------------------------------------
+    _constraints = [
+        models.Constraint(
+            'unique_chunk_embedding_model',
+            models.Q(('chunk_id', '=', models.Q()), ('embedding_model_id', '=', models.Q())),
+            'A chunk can only have one embedding per embedding model'
         ),
     ]
 

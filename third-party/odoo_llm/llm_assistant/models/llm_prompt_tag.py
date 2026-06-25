@@ -13,6 +13,13 @@ class LLMPromptTag(models.Model):
     name = fields.Char("Tag Name", required=True, translate=True)
     color = fields.Integer("Color", default=_get_default_color)
 
-    _sql_constraints = [
-        ("name_uniq", "unique (name)", "Tag name already exists!"),
+# -------------------------------------------------------------------------
+# CONSTRAINTS
+# -------------------------------------------------------------------------
+    _constraints = [
+        models.Constraint(
+            'name_uniq',
+            models.Q(('name', '=', models.Q())),
+            'Tag name already exists!'
+        ),
     ]

@@ -133,8 +133,15 @@ class LLMPrompt(models.Model):
         store=True,
     )
 
-    _sql_constraints = [
-        ("name_unique", "UNIQUE(name)", "The prompt name must be unique."),
+# -------------------------------------------------------------------------
+# CONSTRAINTS
+# -------------------------------------------------------------------------
+    _constraints = [
+        models.Constraint(
+            'name_unique',
+            models.Q(('name', '=', models.Q())),
+            'The prompt name must be unique.'
+        ),
     ]
 
     @api.model_create_multi

@@ -2,7 +2,7 @@ import logging
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
-from odoo.osv import expression
+from odoo.fields import Domain
 
 _logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class MailMessage(models.Model):
         if is_llm_thread:
             # Add LLM role filter for LLM threads - only show messages with llm_role
             llm_role_filter = [("llm_role", "!=", False)]
-            domain = expression.AND([domain, llm_role_filter])
+            domain = Domain.AND([domain, llm_role_filter])
 
         # Pass all arguments correctly to the super method
         return super()._message_fetch(

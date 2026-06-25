@@ -11,11 +11,15 @@ class LLMResource(models.Model):
     _description = "LLM Resource for Document Management"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "id desc"
-    _sql_constraints = [
-        (
-            "unique_resource_reference",
-            "UNIQUE(model_id, res_id)",
-            "A resource already exists for this record. Please use the existing resource.",
+    
+# -------------------------------------------------------------------------
+# CONSTRAINTS
+# -------------------------------------------------------------------------
+    _constraints = [
+        models.Constraint(
+            'unique_resource_reference',
+            models.Q(('model_id', '=', models.Q()), ('res_id', '=', models.Q())),
+            'A resource already exists for this record. Please use the existing resource.'
         ),
     ]
 

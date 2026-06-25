@@ -30,12 +30,15 @@ class LLMStoreCollection(models.AbstractModel):
 
     active = fields.Boolean(default=True, tracking=True)
 
-    _sql_constraints = [
-        (
-            "unique_name_per_store",
-            "UNIQUE(store_id, name)",
-            "Collection names must be unique per store.",
-        )
+# -------------------------------------------------------------------------
+# CONSTRAINTS
+# -------------------------------------------------------------------------
+    _constraints = [
+        models.Constraint(
+            'unique_name_per_store',
+            models.Q(('store_id', '=', models.Q()), ('name', '=', models.Q())),
+            'Collection names must be unique per store.'
+        ),
     ]
 
     def refresh_stats(self):

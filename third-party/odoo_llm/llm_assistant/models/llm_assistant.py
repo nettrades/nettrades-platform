@@ -162,8 +162,15 @@ class LLMAssistant(models.Model):
         help="Format of the template (text, yaml, json)",
     )
 
-    _sql_constraints = [
-        ("unique_code", "UNIQUE(code)", "Assistant code must be unique."),
+# -------------------------------------------------------------------------
+# CONSTRAINTS
+# -------------------------------------------------------------------------
+    _constraints = [
+        models.Constraint(
+            'unique_code',
+            models.Q(('code', '=', models.Q())),
+            'Assistant code must be unique.'
+        ),
     ]
 
     @api.depends("prompt_id", "default_values")

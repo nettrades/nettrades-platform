@@ -12,7 +12,7 @@ _logger = logging.getLogger(__name__)
 class LLMThreadController(http.Controller):
     @http.route(
         "/llm/thread/<int:thread_id>/update",
-        type="json",
+        type="jsonrpc",
         auth="user",
         methods=["POST"],
         csrf=True,
