@@ -408,8 +408,6 @@ flowchart TD
     
 ```
 
----
-
 | Section | Components Included |
 |-----------|----------|	
 | `External Access & Clients` | Web Browser (PWA), External API Client, Robotic/Edge Client, Mobile App |
