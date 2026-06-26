@@ -94,7 +94,7 @@ PURPOSE:
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – Odoo ACID transactions + LangGraph checkpointing.
 
-🌐 Hub-and-Spoke Architecture** – Companies run the open-source client software locally for internal operations which seamlessly call `NETTRADES.AI` for external recruitment, GPU overflow and global services.
+🌐 Hub-and-Spoke Architecture** – Companies run the open-source client software locally for internal operations which seamlessly calls `NETTRADES.AI` for external recruitment, GPU overflow and global services.
 
 ---
 
@@ -601,8 +601,7 @@ For detailed step-by-step instructions, see the [Full Documentation](docs/index.
 Full documentation is available at: [Full Documentation](docs/index.md).
 
 | Section | Description | Link |
-|---------|-------------|-----------|
-		
+|---------|-------------|-----------|		
 | `User Guide`	| For end-users – companies, freelancers, job-seekers	| `docs/user/index.md |
 | `Developer Guide`	| For developers extending the platform	| `docs/developer/index.md |
 | `Operations Guide`	| For system administrators and DevOps	| `docs/operations/index.md |
