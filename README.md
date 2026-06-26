@@ -401,34 +401,36 @@ flowchart LR
 ```
 
 ### 6. Technology Stack Table
-Layer	Component	Technology	Version	License	Notes
-Business Logic	ERP / CRM / HR	Odoo	19 CE	LGPL-3	Core business logic
-Job Queue	Async processing	OCA queue_job	19.0	LGPL-3	Background jobs
-Payments	Payment processing	OCA payment_stripe	19.0	LGPL-3	Stripe integration
-Database	Primary database	PostgreSQL + pgvector	18	PostgreSQL	Vector embeddings
-Cache	Session / Rate limiting	Valkey	8	BSD-3	High-performance cache
-Object Storage	Files / Models	MinIO / S3	Latest	AGPL-3	Model artifacts
-Agent Orchestration	Multi-agent framework	LangGraph	Latest	MIT	Stateful agents
-Agent State	Checkpointing	LangGraph Checkpoint Postgres	Latest	MIT	Durable workflows
-GPU Management	Cluster management	GPUStack	Latest	Apache-2.0	GPU orchestration
-Fine-Tuning	Model training	Unsloth / Axolotl	Latest	Apache-2.0	LLM fine-tuning
-Inference	LLM serving	vLLM, llama.cpp, SGLang	Latest	MIT	High-performance inference
-Ingress	Reverse proxy	Traefik	Latest	MIT	Dynamic routing
-Git / CI	Source control / CI	Forgejo	Latest	MIT	Self-hosted Git
-GitOps	Continuous delivery	Argo CD	Latest	Apache-2.0	Declarative deployments
-OS	Kubernetes OS	Talos Linux	Latest	MPL-2.0	Immutable, secure
-Orchestration	Container orchestration	Kubernetes	Latest	Apache-2.0	Container management
-CNI	Networking	Cilium	Latest	Apache-2.0	eBPF networking
-Storage	Persistent volumes	Longhorn	Latest	Apache-2.0	Distributed block storage
-Load Balancing	Bare-metal LB	MetalLB	Latest	Apache-2.0	Load balancing
-Certificates	TLS management	cert-manager	Latest	Apache-2.0	Automated certificates
-Database Operator	PostgreSQL operator	CloudNativePG	Latest	Apache-2.0	PostgreSQL management
-GPU Operator	NVIDIA GPU management	NVIDIA GPU Operator	Latest	Apache-2.0	GPU provisioning
-Distributed Computing	Ray on K8s	KubeRay	Latest	Apache-2.0	Distributed training
-VPN	Secure networking	WireGuard	Latest	GPL-2.0	Secure tunnels
-Sandboxing	Container isolation	gVisor	Latest	Apache-2.0	Secure containers
-Metrics	Monitoring	Prometheus	Latest	Apache-2.0	Metrics collection
-Dashboards	Visualisation	Grafana	Latest	AGPL-3.0	Monitoring dashboards
+
+| Layer | Component | Technology | Version | License | Notes |
+|---------|-------------|-------------|---------|-------------|-------------|
+| `Business Logic` | ERP / CRM / HR | Odoo | 19 CE | LGPL-3 | Core business logic |
+| `Job Queue` | Async processing | OCA queue_job | 19.0 | LGPL-3 | Background jobs |
+| `Payments` | Payment processing | OCA payment_stripe | 19.0 | LGPL-3 | Stripe integration |
+| `Database` | Primary database | PostgreSQL + pgvector | 18 | PostgreSQL | Vector embeddings |
+| `Cache` | Session / Rate limiting | Valkey | 8 | BSD-3 | High-performance cache |
+| `Object Storage` | Files / Models | MinIO / S3 | Latest | AGPL-3 | Model artifacts |
+| `Agent Orchestration` | Multi-agent framework | LangGraph | Latest | MIT | Stateful agents |
+| `Agent State` | Checkpointing | LangGraph Checkpoint Postgres | Latest | MIT | Durable workflows |
+| `GPU Management` | Cluster management | GPUStack | Latest	Apache-2.0 | GPU orchestration |
+| `Fine-Tuning` | Model training | Unsloth / Axolotl | Latest	Apache-2.0 | LLM fine-tuning |
+| `Inference` | LLM serving | vLLM, llama.cpp, SGLang | Latest	MIT | High-performance inference |
+| `Ingress` | Reverse proxy | Traefik | Latest | MIT | Dynamic routing |
+| `Git / CI` | Source control / CI | Forgejo | Latest	MIT | Self-hosted Git |
+| `GitOps` | Continuous delivery | Argo CD | Latest	Apache-2.0 | Declarative deployments |
+| `OS` | Kubernetes OS | Talos Linux	Latest	MPL-2.0	Immutable, secure |
+| `Orchestration` | Container orchestration | Kubernetes | Latest | Apache-2.0 | Container management |
+| `CNI` | Networking | Cilium | Latest | Apache-2.0 | eBPF networking |
+| `Storage` | Persistent volumes | Longhorn | Latest | Apache-2.0 | Distributed block storage |
+| `Load Balancing` | Bare-metal LB | MetalLB | Latest | Apache-2.0 | Load balancing |
+| `Certificates` | TLS management | cert-manager | Latest | Apache-2.0 | Automated certificates |
+| `Database Operator` | PostgreSQL operator | CloudNativePG | Latest | Apache-2.0 | PostgreSQL management |
+| `GPU Operator` | NVIDIA GPU management | NVIDIA GPU Operator | Latest | Apache-2.0 | GPU provisioning |
+| `Distributed Computing` | Ray on K8s | KubeRay | Latest | Apache-2.0 | Distributed training |
+| `VPN` | Secure networking | WireGuard | Latest | GPL-2.0 | Secure tunnels |
+| `Sandboxing` | Container isolation | gVisor | Latest | pache-2.0 | Secure containers |
+| `Metrics` | Monitoring | Prometheus | Latest | Apache-2.0 | Metrics collection |
+| `Dashboards` | Visualisation | Grafana | Latest | AGPL-3.0 | Monitoring dashboards |
 
 📖 Full architecture details are in the docs/developer/ folder.
 
