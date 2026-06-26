@@ -764,9 +764,9 @@ graph TD
     H --> M[Match with Projects]
     I --> N[Expert Consultation Flow]
 
-    L --> O{Local Talent Available?}
+    L --> O[Local Talent Available?]
     M --> O
-    N --> P{Expert Available?}
+    N --> P[Expert Available?]
 
     O -->|Yes| Q[Process Locally]
     O -->|No| R[Route to Hub nettrades_bridge]
@@ -782,14 +782,14 @@ graph TD
     R --> Y[Global Talent Pool]
     Y --> X
 
-    W --> Z{Good Answer Vote?}
+    W --> Z[Good Answer Vote?]
     X --> Z
     Z -->|Yes| AA[Vote Recorded]
     Z -->|No| AB[Session Ends]
 
     AA --> AC[nettrades_good_answer]
     AC --> AD[Reputation Updated]
-    AD --> AE{Karma Threshold Met?}
+    AD --> AE[Karma Threshold Met?]
     AE -->|Yes| AF[User Qualified]
     AE -->|No| AG[Continue]
 
