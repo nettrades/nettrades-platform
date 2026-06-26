@@ -1,9 +1,3 @@
-
----
-
-## 2. `docs/developer/LangGraph-Agent-State-Machine-Diagram.md`
-
-```markdown
 # LangGraph Agent State Machine Diagram
 
 ## 1. Overview
@@ -263,7 +257,7 @@ interface SupervisorState {
 All sub-agents are registered in src/core/agents/__init__.py.
 
 | Setting | Description | Default |
-|-----------|----------|-------------|	
+|-----------|----------|-------------|
 | `Agent` | Factory Function	Import Path |
 | `Recruitment` | create_recruitment_agent() | src.core.agents.recruitment_agent |
 | `Freelance` | create_freelance_agent() | src.core.agents.freelance_agent |
