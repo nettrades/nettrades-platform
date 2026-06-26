@@ -84,7 +84,7 @@ PURPOSE:
 
 ## What is NETTRADES?
 
-**NETTRADES is an open-source, autonomous enterprise platform** that connects companies, freelancers, job-seekers, researchers, partners and customers. It combines:
+**NETTRADES is an open-source, autonomous enterprise platform** that will power future AI startups, companies and smart cities. It connects companies, freelancers, job-seekers, researchers, partners and customers. It combines:
 
 - **AI-powered job matching & freelancing** – LangGraph agents analyse CVs, job postings, and projects, automatically creating leads. It combines the functionalities of LinkedIn, Fiverr, Upwork, and Freelancer with AI Matching and Git Collaboration.
 - **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
@@ -94,7 +94,11 @@ PURPOSE:
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – Odoo ACID transactions + LangGraph checkpointing.
 
-🌐 Hub-and-Spoke Architecture** – Companies run the open-source client software locally for internal operations which seamlessly calls `NETTRADES.AI` for external recruitment, GPU overflow and global services.
+🌐 Hub-and-Spoke Architecture** – Companies run the open-source autonomous enterprise platform client software locally for internal operations which can call `NETTRADES.AI` for external recruitment, GPU overflow and global services.
+
+The system is highly configurable and provides greater control and flexibility to the companies using it.  
+
+The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations. 
 
 ---
 
