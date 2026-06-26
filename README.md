@@ -100,7 +100,7 @@ PURPOSE:
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – Odoo ACID transactions + LangGraph checkpointing.
 
-> **🌐 Hub-and-Spoke Architecture** – Companies run the open-source `nettrades.com` software locally for internal operations, and seamlessly call `NETTRADES.AI` for external recruitment, GPU overflow, and global services.
+> **🌐 Hub-and-Spoke Architecture** – Companies run the open-source client software locally for internal operations, and seamlessly call `NETTRADES.AI` for external recruitment, GPU overflow, and global services.
 
 ---
 
@@ -208,7 +208,7 @@ graph TB
 
 2. The Hub-and-Spoke Model
 
-NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data sovereignty, and enable seamless scaling. Each spoke (company) runs its own instance of the nettrades.com software for internal operations, while the hub (NETTRADES.AI) provides global services like talent discovery, GPU overflow, and the self-improving loop.
+NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data sovereignty, and enable seamless scaling. Each spoke (company) runs its own client instance of the software for internal operations, while the hub (NETTRADES.AI) provides global services like talent discovery, GPU overflow, and the self-improving loop.
 
 Companies can use `Local Internal Shell` internally for their operations and connect to `NETTRADES.AI` when they need external talent, researchers, partners, or additional GPU capacity.
 
