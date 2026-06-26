@@ -1219,7 +1219,7 @@ sequenceDiagram
         Loop->>GPUStack: Submit training
         GPUStack-->>Loop: Job submitted
         Loop->>Loop: Deploy improved model
-    end
+    
 ```
 
 Detailed Explanation of Each Step
