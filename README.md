@@ -596,48 +596,54 @@ For detailed step-by-step instructions, see the [Full Documentation](docs/index.
 
 ## 📚 Documentation
 
-Full documentation is available at: Full Documentation.
-Section	Description	Link
-User Guide	For end-users – companies, freelancers, job-seekers	docs/user/index.md
-Developer Guide	For developers extending the platform	docs/developer/index.md
-Operations Guide	For system administrators and DevOps	docs/operations/index.md
-API Reference	Complete API documentation	docs/developer/api-reference.md
-Architecture Overview	System architecture diagrams and explanations	docs/developer/architecture.md
-Core Models	Reference for all custom Odoo models	docs/developer/core-models.md
-Database Schema	Complete database schema	docs/appendix/database-schema.md
-Glossary	Key terms and definitions	docs/appendix/glossary.md
-Contributing Guide	How to contribute to the project	docs/governance/contributing.md
-Roadmap	Project roadmap and milestones	docs/governance/roadmap
+Full documentation is available at: [Full Documentation](docs/index.md).
+
+| Section | Description | Link |
+|---------|-------------|-----------|
+		
+| `User Guide`	| For end-users – companies, freelancers, job-seekers	| `docs/user/index.md |
+| `Developer Guide`	| For developers extending the platform	| `docs/developer/index.md |
+| `Operations Guide`	| For system administrators and DevOps	| `docs/operations/index.md |
+| `API Reference`	| Complete API documentation	| `docs/developer/api-reference.md |
+| `Architecture Overview`	| System architecture diagrams and explanations	| `docs/developer/architecture.md |
+| `Core Models`	| Reference for all custom Odoo models	| `docs/developer/core-models.md |
+| `Database Schema`	| Complete database schema	| `docs/appendix/database-schema.md |
+| `Glossary`	| Key terms and definitions	| `docs/appendix/glossary.md |
+| `Contributing Guide`	| How to contribute to the project	| `docs/governance/contributing.md |
+| `Roadmap`	| Project roadmap and milestones	| `docs/governance/roadmap |
 
 ## 🤝 Community & Support
 
 NETTRADES has a growing community of developers, enterprises, and researchers. We welcome you to join us!
 💬 Get Help
-Channel	Purpose	Link
-GitHub Issues	Report bugs, request features, or ask technical questions	Issues
-GitHub Discussions	Ask questions, share ideas, and get community support	Discussions
-Twitter / X	Follow for project updates and announcements	@nettrades_ai
+
+| Channel | Purpose | Link |
+|---------|-------------|-----------|
+| `GitHub Issues`	| Report bugs, request features, or ask technical questions	| [Issues](https://github.com/nettrades/nettrades-platform/issues) |
+| `GitHub Discussions`	| Ask questions, share ideas, and get community support	| [Discussions](https://github.com/nettrades/nettrades-platform/discussions) |
+| `Twitter / X`	| Follow for project updates and announcements	| [@nettrades_ai](https://twitter.com/nettrades) |
 
 ## 📖 Learn More
 
-* Developer Documentation – In-depth architecture, agent diagrams, and API references.
+* [Developer Documentation](docs/developer/index.md) – In-depth architecture, agent diagrams, and API references.
 
-* Operations Guide – Deployment, CI/CD, and Kubernetes configuration.
+* [Operations Guide](docs/operations/index.md) – Deployment, CI/CD, and Kubernetes configuration.
 
-* Installation Guide – Step-by-step module installation.
+* [Installation Guide](docs/operations/module-installation-order.md) – Step-by-step module installation.
 
 ## 🌟 Community Highlights
 
-* Contributors: We welcome contributions from developers of all skill levels. See our Contributing Guide.
+* Contributors: We welcome contributions from developers of all skill levels. See our [Contributing Guide](contributing.md).
 
-* Adopters: Companies using NETTRADES in production – add your logo!
+* Adopters: Companies using NETTRADES in production – [add your logo!](https://github.com/nettrades/nettrades-platform/discussions)
 
 * Events: Join our monthly community calls (details in Discussions).
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read our Contributing Guide before submitting PRs.
-Quick Steps
+We welcome contributions! Please read our [Contributing Guide](contributing.md) before submitting PRs.
+
+### Quick Steps
 
 🍴 Fork the repository
 
@@ -653,52 +659,56 @@ Quick Steps
 
 ## ⭐ Star Us!
 
-If you find NETTRADES.AI useful, please consider giving us a ⭐ on GitHub – it helps others discover the project and supports our work.
-📄 License
+If you find [NETTRADES.AI](https://nettrades.ai/) useful, please consider giving us a ⭐ on GitHub – it helps others discover the project and supports our work.
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) – see the LICENSE.txt file for details.
-Component	License
-src/ (core orchestrator, agent, training scripts)	AGPL-3.0
-odoo-modules/ (custom Odoo plugins)	AGPL-3.0
-third-party/	Original licenses (LGPL, MIT, Apache-2.0)
-deploy/	AGPL-3.0
-scripts/	MIT
 
-Please agree to the Contributor License Agreement (CLA) before contributing.
+## 📄 License
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) – see the [LICENSE.txt](LICENSE.txt) file for details.
+
+| Component | License |
+|---------|-------------|
+| src/ (core orchestrator, agent, training scripts) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
+| odoo-modules/ (custom Odoo plugins) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
+| third-party/ | Original licenses (LGPL, MIT, Apache-2.0) |
+| deploy/ | AGPL-3.0 |
+| scripts/ | MIT |
+
+Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing.
 
 ## 🙏 Acknowledgements
 
 NETTRADES builds on the shoulders of many amazing open-source projects:
 
-* Odoo – Open-source ERP
+* [Odoo](https://www.odoo.com/) – Open-source ERP
 
-* LangGraph – Stateful agent orchestration
+* [LangGraph](https://github.com/langchain-ai/langgraph) – Stateful agent orchestration
 
-* GPUStack – GPU cluster management
+* [GPUStack](https://gpustack.ai/) – GPU cluster management
 
-* Kubernetes – Container orchestration
+* [Kubernetes](https://kubernetes.io/) – Container orchestration
 
-* PostgreSQL + pgvector – Vector database
+* [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) – Vector database
 
-* Valkey – High-performance cache
+* [Valkey](https://valkey.io/) – High-performance cache
 
-* Traefik – Cloud-native reverse proxy
+* [Traefik](https://traefik.io/) – Cloud-native reverse proxy
 
-* Forgejo – Self-hosted Git
+* [Forgejo](https://forgejo.org/) – Self-hosted Git
 
-* Argo CD – GitOps continuous delivery
+* [Argo CD](https://argo-cd.readthedocs.io/) – GitOps continuous delivery
 
-* Talos Linux – Kubernetes-native OS
+* [Talos Linux](https://www.talos.dev/) – Kubernetes-native OS
 
-* Cilium – eBPF networking
+* [Cilium](https://cilium.io/) – eBPF networking
 
-* Longhorn – Distributed block storage
+* [Longhorn](https://longhorn.io/) – Distributed block storage
 
-* Unsloth – Efficient fine-tuning
+* [Unsloth](https://unsloth.ai/) – Efficient fine-tuning
 
-* Axolotl – Multi-GPU fine-tuning
+* [Axolotl](https://github.com/OpenAccess-AI-Collective/axolotl) – Multi-GPU fine-tuning
 
-* Prometheus & Grafana – Monitoring
+* [Prometheus](https://prometheus.io/) & [Grafana](https://grafana.com/) – Monitoring
 
 
 
@@ -1274,7 +1284,7 @@ graph TB
 
 ## 9. File Locations Summary
 
-| Component | File Pat |
+| Component | File Path |
 |---------|-------------|
 | Supervisor Agent | src/core/supervisor.py |
 | Bridge Integration | src/core/bridge_integration.py |
@@ -1297,12 +1307,13 @@ graph TB
 
 ## 10. Summary of Workflows
 
-Workflow	Key Modules	Key Features
-Ask Someone	nettrades_ask_someone, nettrades_bridge, Stripe	Expert consultation, escrow payments, reputation
-Good Answer Voting	nettrades_good_answer, nettrades_core, nettrades_data_collection	User feedback, karma, qualification
-GPU Sharing	nettrades_gpu_admin, nettrades_gpustack_adapter, GPUStack	GPU marketplace, token economy
-Self-Improving Loop	nettrades_data_collection, nettrades_trigger, nettrades_loop	Continuous learning, fine-tuning, deployment
-Agent Routing	nettrades_bridge, LangGraph Agents	Hub-and-spoke, local/remote routing, overflow   
+| Workflow | Key Modules  | Key Features |
+|---------|----------|-------------|
+| `Ask Someone` | `nettrades_ask_someone, nettrades_bridge, Stripe` | Expert consultation, escrow payments, reputation |
+| `Good Answer Voting` | `nettrades_good_answer, nettrades_core, nettrades_data_collection` | User feedback, karma, qualification |
+| `GPU Sharing` | `nettrades_gpu_admin, nettrades_gpustack_adapter, GPUStack` | GPU marketplace, token economy |
+| `Self-Improving Loop` | `nettrades_data_collection, nettrades_trigger, nettrades_loop` | Continuous learning, fine-tuning, deployment |
+| `Agent Routing` | `nettrades_bridge, LangGraph Agents` | Hub-and-spoke, local/remote routing, overflow |
 
 
 ## 11. Top-Level System Architecture
