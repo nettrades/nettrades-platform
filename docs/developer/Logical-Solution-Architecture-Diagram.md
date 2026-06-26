@@ -424,6 +424,7 @@ flowchart TD
 ## 2. High-Level Architecture Diagram
 
 ```mermaid
+
 graph TB
     subgraph Frontend["Frontend Layer"]
         Web["Odoo Website / Portal"]
@@ -433,69 +434,94 @@ graph TB
         API["REST API / GraphQL"]
     end
 
+    subgraph Ingress["Ingress / Reverse Proxy"]
+        Traefik["Traefik\n━━━━━━━━━━━━━━━━\n• SSL Termination\n• Path-based routing\n• Load balancing"]
+    end
+
     subgraph Integration["Orchestration Layer (LangGraph)"]
-        Supervisor["Supervisor Agent\n━━━━━━━━━━━━━━━━\n• Intent classification\n• Medical/legal screening\n• Multi-agent coordination\n• State management"]
+        Supervisor["Supervisor Agent\n━━━━━━━━━━━━━━━━\n• Intent classification\n• Medical/legal screening\n• Multi-agent coordination"]
         Agents["Sub-Agents\n━━━━━━━━━━━━━━━━\n• Recruitment\n• Freelance\n• Lead Gen\n• GPU Management\n• Vision\n• Action"]
         MCP["MCP-Odoo Bridge\n━━━━━━━━━━━━━━━━\n• Tool execution\n• Data access\n• Odoo integration"]
-        Bridge["nettrades_bridge\n━━━━━━━━━━━━━━━━\n• Hub-and-Spoke Router\n• Intent-based routing\n• GPU overflow detection\n• Local ↔ Remote decision"]
+        Bridge["nettrades_bridge\n━━━━━━━━━━━━━━━━\n• Hub-and-Spoke Router\n• Intent-based routing\n• GPU overflow detection"]
+    end
+
+    subgraph Persistence["Persistence Layer"]
+        LangGraphCheckpoint["LangGraph Checkpoint\n━━━━━━━━━━━━━━━━\n• PostgresSaver\n• State persistence\n• Workflow recovery"]
     end
 
     subgraph SelfImproving["Self-Improving System Layer"]
-        DataCollection["nettrades_data_collection\nMonitor Phase\n━━━━━━━━━━━━━━━━\n• data.episode\n• data.annotation\n• data.dataset\n• Edge case detection"]
-        Trigger["nettrades_trigger\nAnalyze Phase\n━━━━━━━━━━━━━━━━\n• trigger.config\n• Quality triggers\n• Data volume triggers\n• Cron evaluation"]
-        Loop["nettrades_loop\nPlan + Execute Phases\n━━━━━━━━━━━━━━━━\n• self_improving.loop\n• Training orchestration\n• Model deployment\n• Performance metrics"]
-        Config["nettrades_self_improving_config\nAdministration UI\n━━━━━━━━━━━━━━━━\n• Loop enable/disable\n• Quality thresholds\n• A/B testing\n• Auto-deploy settings"]
+        DataCollection["nettrades_data_collection\nMonitor Phase"]
+        Trigger["nettrades_trigger\nAnalyze Phase"]
+        Loop["nettrades_loop\nPlan + Execute Phases"]
+        Config["nettrades_self_improving_config\nAdministration UI"]
     end
 
     subgraph Training["AI Inference & Training Layer"]
-        GPUStack["GPUStack Server\n━━━━━━━━━━━━━━━━\n• Cluster management\n• Resource scheduling\n• Health monitoring"]
-        Workers["GPU Workers\n━━━━━━━━━━━━━━━━\n• vLLM\n• llama.cpp\n• SGLang\n• Ascend MindIE"]
-        FineTune["Fine-Tuning Jobs\n━━━━━━━━━━━━━━━━\n• Unsloth/Axolotl\n• Dataset management\n• Job orchestration"]
-        External["External LLM APIs\n━━━━━━━━━━━━━━━━\n• OpenAI\n• Anthropic\n• Ollama (Local)\n• Replicate"]
-        TrainingMgmt["llm_training\n━━━━━━━━━━━━━━━━\n• Dataset management\n• Training job orchestration\n• Model lifecycle\n• Cost tracking"]
+        GPUStack["GPUStack\n━━━━━━━━━━━━━━━━\n• Cluster management\n• Resource scheduling\n• Health monitoring"]
+        Workers["GPU Workers\n━━━━━━━━━━━━━━━━\n• vLLM\n• llama.cpp\n• SGLang"]
+        FineTune["Fine-Tuning Jobs\n━━━━━━━━━━━━━━━━\n• Unsloth\n• Axolotl"]
+        External["External LLM APIs\n━━━━━━━━━━━━━━━━\n• OpenAI\n• Anthropic\n• Ollama (Local)"]
+        TrainingMgmt["llm_training\n━━━━━━━━━━━━━━━━\n• Dataset management\n• Training job orchestration"]
     end
 
     subgraph Core["Core Layer (Odoo 19 CE)"]
         Odoo["Odoo 19 CE\n━━━━━━━━━━━━━━━━\n• Business logic\n• ORM\n• Security\n• Multi-worker"]
-        CoreModules["nettrades_core\n━━━━━━━━━━━━━━━━\n• Users & companies\n• Karma & reputation\n• Qualification rules\n• Worker agent config"]
-        GPUAdmin["nettrades_gpu_admin\n━━━━━━━━━━━━━━━━\n• GPU node registry\n• Utilisation monitoring\n• Pool assignment"]
-        GoodAnswer["nettrades_good_answer\n━━━━━━━━━━━━━━━━\n• Vote collection\n• Reputation decay\n• Dataset eligibility"]
-        AskSomeone["nettrades_ask_someone\n━━━━━━━━━━━━━━━━\n• Expert sessions\n• Stripe escrow\n• Consultation management"]
-        JobMatching["nettrades_job_matching\n━━━━━━━━━━━━━━━━\n• CV parsing\n• Candidate scoring\n• Shortlist generation"]
-        LeadScoring["nettrades_lead_scoring\n━━━━━━━━━━━━━━━━\n• Lead generation\n• Quality scoring"]
-        Chatbot["nettrades_chatbot\n━━━━━━━━━━━━━━━━\n• Conversation state\n• AI responses"]
-        Notifications["nettrades_notifications\n━━━━━━━━━━━━━━━━\n• Real-time alerts\n• Email notifications"]
+        CoreModules["nettrades_core\n━━━━━━━━━━━━━━━━\n• Users & companies\n• Karma & reputation"]
+        GPUAdmin["nettrades_gpu_admin\n━━━━━━━━━━━━━━━━\n• GPU node registry\n• Utilisation monitoring"]
+        GoodAnswer["nettrades_good_answer\n━━━━━━━━━━━━━━━━\n• Vote collection\n• Reputation decay"]
+        AskSomeone["nettrades_ask_someone\n━━━━━━━━━━━━━━━━\n• Expert sessions\n• Stripe escrow"]
+        Queue["OCA queue_job\n━━━━━━━━━━━━━━━━\n• Async job queue\n• Batch processing"]
+        Payments["OCA payment_stripe\n━━━━━━━━━━━━━━━━\n• Stripe integration\n• Escrow management"]
     end
 
     subgraph Data["Data Layer"]
-        PG["PostgreSQL 18 + pgvector\n━━━━━━━━━━━━━━━━\n• Structured data\n• Vector embeddings\n• LangGraph checkpoints"]
+        PG["PostgreSQL + pgvector\n━━━━━━━━━━━━━━━━\n• Structured data\n• Vector embeddings\n• LangGraph checkpoints"]
         Valkey["Valkey 8\n━━━━━━━━━━━━━━━━\n• Session cache\n• Rate limiting\n• Pub/Sub"]
         S3["MinIO / S3\n━━━━━━━━━━━━━━━━\n• File storage\n• Dataset storage\n• Model artifacts"]
     end
 
     subgraph Security["Security Layer"]
-        WG["WireGuard VPN"]
+        WireGuard["WireGuard VPN"]
         gVisor["gVisor Sandbox"]
         TEE["TEE / Confidential Computing"]
         RBAC["RBAC / Access Control"]
     end
 
-    Frontend --> Core
-    Frontend --> Integration
-    Integration --> Bridge --> SelfImproving
-    Integration --> Supervisor --> Agents
-    Integration --> MCP --> Core
-    Integration --> Training
+    subgraph K8s["Kubernetes Cluster (Talos Linux)"]
+        Networking["Cilium CNI"]
+        Storage["Longhorn Storage"]
+        LoadBalancer["MetalLB"]
+        Certs["cert-manager"]
+        DatabaseOp["CloudNativePG"]
+        GPUOp["NVIDIA GPU Operator"]
+        Ray["KubeRay"]
+    end
+
+    subgraph GitOps["GitOps"]
+        Forgejo["Forgejo\n━━━━━━━━━━━━━━━━\n• Git repository\n• CI/CD (Forgejo Actions)"]
+        ArgoCD["Argo CD\n━━━━━━━━━━━━━━━━\n• GitOps continuous delivery\n• Auto-sync"]
+    end
+
+    subgraph Monitoring["Monitoring & Observability"]
+        Prometheus["Prometheus"]
+        Grafana["Grafana"]
+    end
+
+    Frontend --> Traefik --> Core
+    Integration --> LangGraphCheckpoint --> PG
+    SelfImproving --> Training
     Training --> GPUStack --> Workers
     Training --> FineTune
-    Training --> External
-    Training --> TrainingMgmt
     Core --> Data
     Core --> Security
-    Security --> Training
-    SelfImproving --> Training
-    DataCollection --> Trigger --> Loop --> Config
-    Loop --> TrainingMgmt
+    Core --> Queue
+    Core --> Payments
+    K8s --> Core
+    K8s --> Data
+    K8s --> Security
+    GitOps --> K8s
+    Monitoring --> K8s
+    Monitoring --> Core
     
 ```
     
@@ -713,9 +739,10 @@ graph LR
 ## 8. Deployment Architecture
 
 ```mermaid
+
 graph TB
-    subgraph LoadBalancer["Load Balancer (Nginx/HAProxy)"]
-        LB["SSL Termination\nLoad Balancing\nRate Limiting"]
+    subgraph LoadBalancer["Load Balancer"]
+        Traefik["Traefik\n━━━━━━━━━━━━━━━━\n• SSL Termination\n• Path-based routing"]
     end
 
     subgraph FrontendServices["Frontend Services"]
@@ -729,44 +756,81 @@ graph TB
         Worker2["Worker 2\n(HTTP)"]
         WorkerN["Worker N\n(HTTP)"]
         Cron["Cron Worker"]
-        Queue["Queue Worker"]
+        QueueWorker["Queue Worker"]
     end
 
     subgraph AgentServices["Agent Services"]
         LangGraph["LangGraph Supervisor"]
         SubAgents["LangGraph Sub-Agents"]
         MCP["MCP-Odoo Bridge"]
+        Checkpoint["LangGraph Checkpoint\n(PostgresSaver)"]
     end
 
     subgraph GPUCluster["GPU Cluster (GPUStack)"]
         GPU1["GPU Worker 1\n(NVIDIA RTX)"]
         GPU2["GPU Worker 2\n(NVIDIA RTX)"]
         GPUN["GPU Worker N\n(NVIDIA RTX)"]
+        GPUOp["NVIDIA GPU Operator"]
+        Ray["KubeRay"]
     end
 
     subgraph Storage["Storage"]
-        PG["PostgreSQL\n(Read/Write)"]
+        PG["PostgreSQL + pgvector\n(CloudNativePG)"]
         PGR["PostgreSQL\n(Read Replicas)"]
         Valkey["Valkey Cache"]
-        S3["MinIO/S3"]
+        S3["MinIO/S3\n(Longhorn)"]
     end
 
-    LB --> Web
+    subgraph K8sInfra["Kubernetes Infrastructure"]
+        Talos["Talos Linux"]
+        Cilium["Cilium CNI"]
+        Longhorn["Longhorn Storage"]
+        MetalLB["MetalLB"]
+        certmgr["cert-manager"]
+    end
+
+    subgraph GitOps["GitOps"]
+        Forgejo["Forgejo"]
+        ArgoCD["Argo CD"]
+    end
+
+    subgraph Monitoring["Monitoring"]
+        Prometheus["Prometheus"]
+        Grafana["Grafana"]
+    end
+
+    subgraph Security["Security"]
+        WireGuard["WireGuard"]
+        gVisor["gVisor"]
+    end
+
+    Traefik --> Web
     Web --> Worker1
     Web --> Worker2
     Web --> WorkerN
-    Web --> Cron
-    Web --> Queue
     Worker1 --> LangGraph
     LangGraph --> SubAgents
     SubAgents --> MCP
-    MCP --> Worker1
+    LangGraph --> Checkpoint
     LangGraph --> GPU1
     GPU1 --> PG
     GPU1 --> S3
     Worker1 --> PG
     Worker1 --> Valkey
     PG --> PGR
+    Talos --> Cilium
+    Talos --> Longhorn
+    Talos --> MetalLB
+    Talos --> certmgr
+    Forgejo --> ArgoCD
+    ArgoCD --> Talos
+    Prometheus --> Talos
+    Grafana --> Prometheus
+    WireGuard --> Talos
+    gVisor --> Talos
+    GPUOp --> GPU1
+    Ray --> GPU1
+
 ```
 
 ## 9. Key Integration Points

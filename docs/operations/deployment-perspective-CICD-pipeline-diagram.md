@@ -16,62 +16,50 @@ Both paths deliver the same result: a fully deployed NETTRADES platform running 
 This diagram shows both deployment paths. The platform can use either GitHub or Forgejo as the source control and CI system, with Argo CD as the GitOps deployment tool for Kubernetes.
 
 ```mermaid
+
 flowchart LR
     subgraph Dev["Developer Workstation"]
         Code["Write Code"]
         Commit["git commit & push"]
     end
 
-    subgraph SCM["Source Control & CI (Choose One)"]
-        direction LR
-
-        subgraph GitHubPath["Path 1: GitHub + GitHub Actions"]
-            GitHubRepo["GitHub Repository\n━━━━━━━━━━━━━━━━━\n• nettrades-platform\n• Public/Private"]
-            GitHubActions["GitHub Actions\n━━━━━━━━━━━━━━━━━\n• CI Runner\n• Build & Test\n• Push to Registry"]
-        end
-
-        subgraph ForgejoPath["Path 2: Forgejo + Argo CD"]
-            ForgejoRepo["Forgejo Repository\n━━━━━━━━━━━━━━━━━\n• Self-Hosted\n• Open Source"]
-            ForgejoActions["Forgejo Actions\n━━━━━━━━━━━━━━━━━\n• CI Runner\n• Build & Test\n• Push to Registry"]
-        end
+    subgraph Forgejo["Forgejo (Self‑Hosted Git)"]
+        Repo["Repository\n━━━━━━━━━━━━━━━━━\n• nettrades-platform\n• nettrades-odoo-modules"]
+        Actions["Forgejo Actions\n━━━━━━━━━━━━━━━━━\n• CI Runner\n• Lint & Test\n• Build & Push"]
     end
 
     subgraph Registry["Container Registry"]
         Images["Stored Images\n━━━━━━━━━━━━━━━━━\n• odoo:latest\n• langgraph:latest\n• gpustack:latest"]
     end
 
-    subgraph GitOps["GitOps Deployment"]
-        direction LR
-
-        subgraph ArgoCDPath["Argo CD (Deployment Tool)"]
-            Manifests["K8s Manifests\n━━━━━━━━━━━━━━━━━\n• deployments/\n• services/\n• configmaps/"]
-            ArgoCD["Argo CD\n━━━━━━━━━━━━━━━━━\n• Sync every 3min\n• Auto-apply"]
-        end
+    subgraph GitOps["GitOps (Argo CD)"]
+        Manifests["K8s Manifests\n━━━━━━━━━━━━━━━━━\n• deployments/\n• services/\n• configmaps/\n• secrets/"]
+        ArgoCD["Argo CD\n━━━━━━━━━━━━━━━━━\n• Sync every 3min\n• Auto-apply"]
     end
 
-    subgraph K8s["Kubernetes Cluster"]
-        Pods["Running Pods\n━━━━━━━━━━━━━━━━━\n• Odoo Pod\n• LangGraph Pod\n• GPUStack Pod\n• PostgreSQL Pod"]
+    subgraph K8s["Kubernetes Cluster (Talos Linux)"]
+        Pods["Running Pods\n━━━━━━━━━━━━━━━━━\n• Odoo Pod\n• LangGraph Pod\n• GPUStack Pod\n• PostgreSQL Pod\n• Valkey Pod"]
+        Networking["Cilium CNI"]
+        Storage["Longhorn Storage"]
+        LB["MetalLB"]
+        Certs["cert-manager"]
+    end
+
+    subgraph Monitoring["Monitoring"]
+        Prometheus["Prometheus"]
+        Grafana["Grafana"]
     end
 
     Code --> Commit
-    Commit -->|"git push"| SCM
-
-    GitHubPath -->|"Uses"| GitHubActions
-    ForgejoPath -->|"Uses"| ForgejoActions
-
-    GitHubActions -->|"Build & Push"| Registry
-    ForgejoActions -->|"Build & Push"| Registry
-
-    SCM -->|"Stores Manifests"| GitOps
-    Registry -->|"Pulls Images"| GitOps
-
-    ArgoCD -->|"Pulls Manifests"| Manifests
-    ArgoCD -->|"Pulls Images"| Registry
+    Commit -->|"git push"| Repo
+    Repo -->|"Triggers"| Actions
+    Actions -->|"Build & Push"| Registry
+    Repo -->|"Stores"| Manifests
+    ArgoCD -->|"Pulls"| Manifests
+    ArgoCD -->|"Pulls"| Registry
     ArgoCD -->|"Deploys"| Pods
-
-    style GitHubPath fill:#e3f2fd,stroke:#1565c0
-    style ForgejoPath fill:#fff3e0,stroke:#e65100
-    style ArgoCDPath fill:#fce4ec,stroke:#c62828
+    Prometheus -->|"Scrapes"| Pods
+    Grafana -->|"Visualises"| Prometheus
     
 ```
 
