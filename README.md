@@ -210,7 +210,7 @@ NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data so
 
 Companies can use `Local Internal Shell` internally for their operations and connect to `NETTRADES.AI` when they need external talent, researchers, partners, or additional GPU capacity.
 
-`Local Internal Shell (Self-hosted, LGPL-3.0) `
+`Local Internal Shell`
                                                 
 • Internal job adverts and collaboration 
 • CRM, ERP, eCommerce   
@@ -219,7 +219,7 @@ Companies can use `Local Internal Shell` internally for their operations and con
 • Fine-tune AI on your internal data 
 
 
-`NETTRADES.AI (The Brain) (Cloud-based, Commercial)`
+`NETTRADES.AI (The Brain) (Cloud-based)`
                                       
 • Global talent pool (external recruitment)
 • Global GPU marketplace    
