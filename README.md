@@ -1222,64 +1222,55 @@ sequenceDiagram
     Trainer->>Portal: Deploy new model
 ```
 
-Detailed Explanation of Each Step
-Phase 1: User Interaction
-Step	Description	Component
-1	User views an answer in a thread	Odoo Portal
-2	User clicks "Good Answer" button	Odoo Portal
-3	Vote is submitted to the system	nettrades_good_answer
-Phase 2: Vote Processing
-Step	Description	Component
-4	Validate user can vote (check permissions)	nettrades_good_answer
-5	Check if user already voted on this answer	nettrades_good_answer
-6	Record vote in database	nettrades_good_answer
-Phase 3: Reputation & Karma Update
-Step	Description	Component
-7	Update answerer's Karma score	nettrades_core
-8	Recalculate reputation score	nettrades_core
-Phase 4: Data Collection
-Step	Description	Component
-9	Create data.episode record	nettrades_data_collection
-10	Store input → output → feedback	nettrades_data_collection
-11	Calculate quality_score	nettrades_data_collection
-Phase 5: Trigger Detection
-Step	Description	Component
-12	Evaluate quality threshold	nettrades_trigger
-13	Check data volume for training	nettrades_trigger
-Phase 6: Training & Deployment
-Step	Description	Component
-14	Initiate self-improving loop	nettrades_loop
-15	Prepare training dataset	nettrades_loop
-16	Submit fine-tuning job to GPUStack	GPUStack
-17	Run Unsloth/Axolotl training	GPUStack
-18	A/B test new model	nettrades_loop
-19	Deploy or rollback model	nettrades_loop
-Phase 7: Autonomous Administration
-Step	Description	Component
-20	Apply reputation decay (1% daily)	Autonomous Administration
-21	Check qualification threshold	Autonomous Administration
-22	Update GPU reputation	Autonomous Administration
-Phase 8: Audit & Statistics
-Step	Description	Component
-23	Log vote in audit trail	nettrades_good_answer
-24	Update vote statistics	nettrades_good_answer
-Key Decision Points
-Decision Point	Condition	Action
-Quality Score Check	Quality Score > Threshold	Episode qualified for training
-Quality Score Check	Quality Score < Threshold	Episode rejected (no training)
-Training Result	Model Improved	Deploy updated model
-Training Result	Model Not Improved	Rollback to previous model
-Qualification Check	Karma > Threshold	User qualified as Expert
-Qualification Check	Karma < Threshold	User remains unqualified
-Related Code Files
-Component	File Path
-Good Answer Model	odoo-modules/nettrades_good_answer/models/good_answer_vote.py
-Core Model (Karma)	odoo-modules/nettrades_core/models/res_partner.py
-Data Collection	odoo-modules/nettrades_data_collection/models/data_episode.py
-Trigger Evaluation	odoo-modules/nettrades_trigger/models/trigger_config.py
-Self-Improving Loop	odoo-modules/nettrades_loop/models/self_improving_loop.py
-Autonomous Admin	odoo-modules/nettrades_core/models/autonomous_admin.py
+```mermaid
 
+graph TB
+    START([User views answer]) --> A[Portal displays answer]
+    A --> B[User clicks Good Answer button]
+    B --> C[Portal submits vote]
+
+    C --> D[Vote Module validates user]
+    D --> E[Vote Module checks for duplicates]
+    E --> F[Vote Module records vote]
+
+    F --> G[Update Karma in Core Module]
+    G --> H[Core Module recalculates reputation]
+    H --> I[Karma updated]
+
+    I --> J[Create data.episode in Data Module]
+    J --> K[Data Module calculates quality_score]
+
+    K --> L[Trigger Module checks triggers]
+    L --> M{Trigger Module evaluates quality}
+
+    M -->|Quality Good| N[Mark episode as qualified]
+    M -->|Quality Poor| O[Mark episode as rejected]
+
+    N --> P[Trigger Module starts self-improvement loop]
+    P --> Q[Loop Module prepares training dataset]
+    Q --> R[Loop Module submits fine-tuning job]
+
+    R --> S[GPUStack allocates GPU resources]
+    S --> T[GPUStack runs Unsloth/Axolotl training]
+    T --> U[GPUStack validates model]
+
+    U --> V[Loop Module A/B tests new model]
+    V --> W{Model improved?}
+
+    W -->|Yes| X[Loop Module deploys improved model]
+    W -->|No| Y[Loop Module rolls back]
+
+    X --> Z[Portal displays improved responses]
+    O --> END1([End - Rejected])
+    Y --> END2([End - Rollback])
+
+    style START fill:#4CAF50,color:white
+    style END1 fill:#f44336,color:white
+    style END2 fill:#ff9800,color:black
+    style M fill:#2196F3,color:white
+    style W fill:#2196F3,color:white
+
+```
 
 ## 9. File Locations Summary
 
@@ -1312,3 +1303,220 @@ Good Answer Voting	nettrades_good_answer, nettrades_core, nettrades_data_collect
 GPU Sharing	nettrades_gpu_admin, nettrades_gpustack_adapter, GPUStack	GPU marketplace, token economy
 Self-Improving Loop	nettrades_data_collection, nettrades_trigger, nettrades_loop	Continuous learning, fine-tuning, deployment
 Agent Routing	nettrades_bridge, LangGraph Agents	Hub-and-spoke, local/remote routing, overflow   
+
+
+## 11. Top-Level System Architecture
+
+```mermaid
+
+graph TB
+    subgraph Frontend["Frontend Layer"]
+        User[User / Browser]
+        Portal[Odoo Website / Portal]
+        PWA[Mobile PWA]
+        Chat[AI Chatbot Widget]
+        VSCode[VS Code Extension]
+        API[REST / GraphQL]
+    end
+
+    subgraph Ingress["Ingress Layer"]
+        Traefik[Traefik Reverse Proxy]
+    end
+
+    subgraph Orchestration["Orchestration Layer (LangGraph)"]
+        MCP[MCP-Odoo Bridge]
+        Supervisor[Supervisor Agent]
+        SubAgents[Sub-Agents]
+        Bridge[nettrades_bridge]
+        LocalBrain[Local Brain]
+        RemoteBrain[Remote Brain]
+    end
+
+    subgraph SelfImproving["Self-Improving System"]
+        DataCollect[nettrades_data_collection]
+        Trigger[nettrades_trigger]
+        Loop[nettrades_loop]
+        Config[nettrades_self_improving_config]
+    end
+
+    subgraph Training["AI Inference & Training"]
+        GPUStack[GPUStack]
+        Workers[GPU Workers vLLM]
+        FineTune[Unsloth / Axolotl]
+        External[External LLM APIs]
+        LLMTraining[llm_training]
+    end
+
+    subgraph Core["Core Layer (Odoo 19 CE)"]
+        Odoo[Odoo 19 CE]
+        Modules[Custom Odoo Modules]
+        Queue[OCA queue_job]
+        Payments[OCA payment_stripe]
+    end
+
+    subgraph Data["Data Layer"]
+        PG[PostgreSQL + pgvector]
+        Valkey[Valkey 8]
+        MinIO[MinIO / S3]
+    end
+
+    subgraph K8s["Kubernetes Infrastructure"]
+        K8sCluster[Kubernetes (Talos Linux)]
+        Cilium[Cilium CNI]
+        Longhorn[Longhorn Storage]
+        MetalLB[MetalLB]
+        CertMgr[cert-manager]
+        CloudNativePG[CloudNativePG]
+        GPUOp[NVIDIA GPU Operator]
+        KubeRay[KubeRay]
+    end
+
+    subgraph GitOps["GitOps Layer"]
+        Forgejo[Forgejo]
+        ArgoCD[Argo CD]
+    end
+
+    subgraph Monitoring["Monitoring Layer"]
+        Prometheus[Prometheus]
+        Grafana[Grafana]
+    end
+
+    subgraph Security["Security Layer"]
+        WireGuard[WireGuard VPN]
+        gVisor[gVisor Sandbox]
+    end
+
+    User --> Traefik
+    Portal --> Traefik
+    PWA --> Traefik
+    Chat --> Traefik
+    VSCode --> Traefik
+    API --> Traefik
+
+    Traefik --> Odoo
+
+    Odoo --> Modules
+    Odoo --> Queue
+    Odoo --> Payments
+    Odoo --> MCP
+
+    MCP --> Supervisor
+    Supervisor --> SubAgents
+    SubAgents --> Bridge
+    Bridge -->|Local| LocalBrain
+    Bridge -->|Remote| RemoteBrain
+    Bridge -->|GPU Overflow| GPUStack
+
+    Odoo --> DataCollect
+    DataCollect --> Trigger
+    Trigger --> Loop
+    Loop --> Config
+    Loop --> LLMTraining
+
+    LLMTraining --> GPUStack
+    GPUStack --> Workers
+    GPUStack --> FineTune
+    GPUStack --> External
+
+    Odoo --> PG
+    Odoo --> Valkey
+    Odoo --> MinIO
+
+    GPUStack --> PG
+
+    K8sCluster --> Odoo
+    K8sCluster --> MCP
+    K8sCluster --> GPUStack
+    K8sCluster --> PG
+    K8sCluster --> Valkey
+    K8sCluster --> MinIO
+
+    Cilium --> K8sCluster
+    Longhorn --> PG
+    MetalLB --> Traefik
+    CertMgr --> Traefik
+    CloudNativePG --> PG
+    GPUOp --> GPUStack
+    KubeRay --> GPUStack
+
+    Forgejo --> ArgoCD
+    ArgoCD --> K8sCluster
+
+    Prometheus --> Odoo
+    Prometheus --> GPUStack
+    Prometheus --> PG
+    Grafana --> Prometheus
+
+    WireGuard --> K8sCluster
+    gVisor --> K8sCluster
+
+    style Frontend fill:#e3f2fd,stroke:#1565c0
+    style Ingress fill:#fff3e0,stroke:#e65100
+    style Orchestration fill:#f3e5f5,stroke:#6a1b9a
+    style SelfImproving fill:#e8eaf6,stroke:#283593
+    style Training fill:#e8f5e9,stroke:#2e7d32
+    style Core fill:#fce4ec,stroke:#c62828
+    style Data fill:#ede7f6,stroke:#4527a0
+    style K8s fill:#f5f5f5,stroke:#424242
+    style GitOps fill:#fff8e1,stroke:#f57f17
+    style Monitoring fill:#f1f8e9,stroke:#33691e
+    style Security fill:#ffebee,stroke:#b71c1c
+
+```
+
+
+#### Step-by-Step flow
+
+| Step | From | To | Description |
+|---------|--------|---------|-------------|
+| 1 | User | Traefik | User request enters via browser, mobile, chat, VS Code, or API. |
+| 2 | Traefik | Odoo 19 CE | Traefik routes requests to Odoo with SSL termination. |
+| 3 | Odoo | Custom Odoo Modules | Odoo processes business logic via custom modules. |
+| 4 | Odoo | OCA queue_job | Long-running tasks are queued. |
+| 5 | Odoo | OCA payment_stripe | Payment processing for expert consultations. |
+| 6 | Odoo | MCP-Odoo Bridge | Odoo communicates with LangGraph via the bridge. |
+| 7 | MCP-Odoo Bridge | Supervisor Agent | The bridge forwards to the supervisor for intent classification. |
+| 8 | Supervisor | Sub-Agents | Supervisor routes to specialised sub-agents (Recruitment, Freelance, GPU Management, Vision, Action). |
+| 9 | Sub-Agents | nettrades_bridge | Sub-agents use the bridge to decide local vs remote routing. |
+| 10 | nettrades_bridge | Local Brain | If local processing is chosen, the request is processed by local LangGraph agents. |
+| 11 | nettrades_bridge | Remote Brain | If remote processing is chosen, the request is forwarded to NETTRADES.AI. |
+| 12 | nettrades_bridge | GPUStack | If local GPU capacity is exceeded, requests overflow to GPUStack. |
+| 13 | Odoo | nettrades_data_collection | All interactions are recorded as data episodes. |
+| 14 | data_collection | nettrades_trigger | Trigger module evaluates quality scores and data volume. |
+| 15 | nettrades_trigger | nettrades_loop | If triggers fire, the loop initiates self-improvement. |
+| 16 | nettrades_loop | llm_training | Training jobs are prepared and submitted. |
+| 17 | llm_training | GPUStack | Training jobs are executed on GPUStack. |
+| 18 | GPUStack | GPU Workers (vLLM) | Inference workloads run on vLLM. |
+| 19 | GPUStack | Fine-Tune (Unsloth/Axolotl) | Fine-tuning runs on Unsloth/Axolotl. |
+| 20 | GPUStack | External LLM APIs | Optionally route to external providers. |
+| 21 | Odoo | PostgreSQL + pgvector | All transaction data and embeddings are persisted. |
+| 22 | Odoo | Valkey 8 | Session caching and rate limiting. |
+| 23 | Odoo | MinIO / S3 | File attachments and model artifacts are stored. |
+| 24 | GPUStack | PostgreSQL + pgvector | Embeddings and training metadata are stored. |
+| 25 | Kubernetes | All Services | All services run as Kubernetes pods. |
+| 26 | Cilium | Kubernetes | Cilium provides eBPF networking. |
+| 27 | Longhorn | PostgreSQL | Longhorn provides persistent block storage. |
+| 28 | MetalLB | Traefik | MetalLB provides load balancing for Traefik. |
+| 29 | cert-manager | Traefik | Automates TLS certificate provisioning. |
+| 30 | CloudNativePG | PostgreSQL | Manages PostgreSQL clustering and failover. |
+| 31 | NVIDIA GPU Operator | GPUStack | Provisions and manages GPU resources. |
+| 32 | KubeRay | GPUStack | Enables distributed training via Ray. |
+| 33 | Forgejo | Argo CD | Git repository triggers Argo CD for GitOps. |
+| 34 | Argo CD | Kubernetes | Argo CD syncs manifests and applies changes. |
+| 35 | Prometheus | Odoo, GPUStack, PostgreSQL | Scrapes metrics from all services. |
+| 36 | Grafana | Prometheus | Visualises metrics on dashboards. |
+| 37 | WireGuard | Kubernetes | Provides secure VPN access. |
+| 38 | gVisor | Containers | Sandboxes containers for enhanced security. |
+
+
+
+#### Summary of Flow Paths
+
+
+| Path | Steps | Description |
+|---------|-------------|-------------|
+|` User → Local Processing` |	1-3, 6-10 |	User request → Odoo → LangGraph → Local Brain |
+|` User → Remote Processing` |	1-3, 6-9, 11 |	User request → Odoo → LangGraph → Remote Brain |
+|` Self-Improving Loop` | 13-17, 19 |	User interaction → data_episode → trigger → loop → fine-tuning |
+|` GPU Inference` | 12, 18, 20 |	Bridge → GPUStack → vLLM / External APIs |
+|` Data Persistence` | 21-24 |	Odoo → PostgreSQL, Valkey, MinIO; GPUStack → PostgreSQL |
