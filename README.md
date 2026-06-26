@@ -88,8 +88,8 @@ PURPOSE:
 
 - **AI-powered job matching & freelancing** – LangGraph agents analyse CVs, job postings, and projects, automatically creating leads. It combines the functionalities of LinkedIn, Fiverr, Upwork, and Freelancer with AI Matching and Git Collaboration.
 - **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
-- **Expert marketplace (“Ask Someone”)** – Users can request paid help from verified professionals with Stripe escrow.
-- **Self-improving AI** – A “Good Answer” voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) that continuously improves field-specific models.
+- **Expert marketplace - “Ask Someone” ** – Users can request paid help from verified professionals with Stripe escrow.
+- **Self-improving AI – A “Good Answer” ** voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) that continuously improves field-specific models.
 - **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – Odoo ACID transactions + LangGraph checkpointing.
