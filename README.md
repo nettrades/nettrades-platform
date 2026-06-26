@@ -1194,7 +1194,6 @@ sequenceDiagram
 #### 8.3 Good Answer Flow
 
 ```mermaid
-
 sequenceDiagram
     participant User
     participant Portal as Odoo Portal
@@ -1217,8 +1216,7 @@ sequenceDiagram
         Trigger->>Loop: Create training job
         Loop->>GPUStack: Submit training
         GPUStack-->>Loop: Job submitted
-        Loop->>Loop: Deploy improved model
-    
+        Loop->>Loop: Deploy improved model    
 ```
 
 Detailed Explanation of Each Step
