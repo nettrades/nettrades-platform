@@ -626,7 +626,7 @@ Twitter / X	Follow for project updates and announcements	@nettrades_ai
 
 * Installation Guide – Step-by-step module installation.
 
-🌟 Community Highlights
+## 🌟 Community Highlights
 
 * Contributors: We welcome contributions from developers of all skill levels. See our Contributing Guide.
 
@@ -745,7 +745,6 @@ graph TB
 ### 2. Complete End-to-End Workflow
 
 ```mermaid
-
 graph TD
     START([User Logs In]) --> A{User Type?}
 
@@ -817,7 +816,6 @@ graph TD
     AW --> AX[Trigger Detection]
     AX --> AY[New Cycle]
     AY --> AR
-
 ```
 
 ### 3. Detailed Ask Someone Workflow
