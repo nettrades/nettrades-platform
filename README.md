@@ -1212,11 +1212,12 @@ sequenceDiagram
     Data->>Data: Calculate quality score
     Data->>Trigger: Check triggers
     Trigger->>Trigger: Evaluate threshold
+    
     alt Trigger Fired
-        Trigger->>Loop: Create training job
-        Loop->>GPUStack: Submit training
-        GPUStack-->>Loop: Job submitted
-        Loop->>Loop: Deploy improved model    
+    Trigger->>Loop: Create training job
+    Loop->>GPUStack: Submit training
+    GPUStack-->>Loop: Job submitted
+    Loop->>Loop: Deploy improved model    
 ```
 
 Detailed Explanation of Each Step
