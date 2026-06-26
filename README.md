@@ -1201,7 +1201,7 @@ sequenceDiagram
     participant Core
     participant Data
     participant Trigger
-    participant Loop
+    participant Trainer
     participant GPU
 
     User->>Portal: Views answer
@@ -1216,10 +1216,10 @@ sequenceDiagram
     Data->>Trigger: Check triggers
     Trigger->>Trigger: Evaluate quality
     Trigger->>Data: Mark episode
-    Trigger->>Loop: Start improvement
-    Loop->>GPU: Submit training
-    GPU-->>Loop: Training done
-    Loop->>Portal: Deploy new model
+    Trigger->>Trainer: Start improvement
+    Trainer->>GPU: Submit training
+    GPU-->>Trainer: Training done
+    Trainer->>Portal: Deploy new model
 ```
 
 Detailed Explanation of Each Step
