@@ -408,9 +408,10 @@ flowchart TD
     
 ```
 
+---
 
 | Section | Components Included |
-|-----------|----------|-------------|	
+|-----------|----------|	
 | `External Access & Clients` | Web Browser (PWA), External API Client, Robotic/Edge Client, Mobile App |
 | `API Gateway & Edge Security` | TLS Termination, Authentication/Authorization, Rate Limiting & Routing, Web Application Firewall |
 | `Application Services` | Odoo 19 CE (Web Controllers, API Controllers, Odoo ORM Models), LangGraph Agent Orchestration (Supervisor, Sub-Agents, MCP-Odoo Bridge) |
@@ -420,7 +421,7 @@ flowchart TD
 | `Security Layer` | WireGuard VPN, gVisor Sandbox, TEE / Confidential Computing, RBAC / Access Control |
 
 
----
+
 
 ## 2. High-Level Architecture Diagram
 
