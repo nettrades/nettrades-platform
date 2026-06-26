@@ -1194,31 +1194,32 @@ sequenceDiagram
 #### 8.3 Good Answer Flow
 
 ```mermaid
-
 sequenceDiagram
     participant User
-    participant Portal as Odoo Portal
-    participant Vote as nettrades_good_answer
-    participant Core as nettrades_core
-    participant Data as nettrades_data_collection
-    participant Trigger as nettrades_trigger
-    participant Loop as nettrades_loop
-    participant GPUStack
+    participant Portal
+    participant Vote
+    participant Core
+    participant Data
+    participant Trigger
+    participant Loop
+    participant GPU
 
-    User->>Portal: Mark answer as good
-    Portal->>Vote: Record vote
+    User->>Portal: Views answer
+    Portal->>User: Displays answer
+    User->>Portal: Clicks "Good Answer"
+    Portal->>Vote: Submit vote
+    Vote->>Vote: Validate & record
     Vote->>Core: Update Karma
     Core-->>Vote: Karma updated
     Vote->>Data: Create episode
-    Data->>Data: Calculate quality score
+    Data->>Data: Calculate quality
     Data->>Trigger: Check triggers
-    Trigger->>Trigger: Evaluate threshold
-    alt Trigger Fired
-        Trigger->>Loop: Create training job
-        Loop->>GPUStack: Submit training
-        GPUStack-->>Loop: Job submitted
-        Loop->>Loop: Deploy improved model
-    end    
+    Trigger->>Trigger: Evaluate quality
+    Trigger->>Data: Mark episode
+    Trigger->>Loop: Start improvement
+    Loop->>GPU: Submit training
+    GPU-->>Loop: Training done
+    Loop->>Portal: Deploy new model
 ```
 
 Detailed Explanation of Each Step
