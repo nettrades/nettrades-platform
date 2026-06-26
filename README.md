@@ -594,7 +594,7 @@ All services are secured with Let's Encrypt TLS.
 For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
 
 
-📚 Documentation
+## 📚 Documentation
 
 Full documentation is available at: Full Documentation.
 Section	Description	Link
@@ -609,7 +609,7 @@ Glossary	Key terms and definitions	docs/appendix/glossary.md
 Contributing Guide	How to contribute to the project	docs/governance/contributing.md
 Roadmap	Project roadmap and milestones	docs/governance/roadmap
 
-🤝 Community & Support
+## 🤝 Community & Support
 
 NETTRADES has a growing community of developers, enterprises, and researchers. We welcome you to join us!
 💬 Get Help
@@ -618,7 +618,7 @@ GitHub Issues	Report bugs, request features, or ask technical questions	Issues
 GitHub Discussions	Ask questions, share ideas, and get community support	Discussions
 Twitter / X	Follow for project updates and announcements	@nettrades_ai
 
-📖 Learn More
+## 📖 Learn More
 
 * Developer Documentation – In-depth architecture, agent diagrams, and API references.
 
@@ -634,7 +634,7 @@ Twitter / X	Follow for project updates and announcements	@nettrades_ai
 
 * Events: Join our monthly community calls (details in Discussions).
 
-🤝 Contributing
+## 🤝 Contributing
 
 We welcome contributions! Please read our Contributing Guide before submitting PRs.
 Quick Steps
@@ -651,7 +651,7 @@ Quick Steps
 
 🚀 Push and open a Pull Request
 
-⭐ Star Us!
+## ⭐ Star Us!
 
 If you find NETTRADES.AI useful, please consider giving us a ⭐ on GitHub – it helps others discover the project and supports our work.
 📄 License
@@ -665,7 +665,8 @@ deploy/	AGPL-3.0
 scripts/	MIT
 
 Please agree to the Contributor License Agreement (CLA) before contributing.
-🙏 Acknowledgements
+
+## 🙏 Acknowledgements
 
 NETTRADES builds on the shoulders of many amazing open-source projects:
 
