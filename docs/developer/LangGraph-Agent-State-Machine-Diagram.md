@@ -1,179 +1,378 @@
-# LangGraph Agent State Machine Diagram
-
-The diagram covers the main Supervisor graph, all sub-agents, their internal states, and the overall flow.
-
-```mermaid
-graph TB
-    subgraph Frontend["Frontend Layer"]
-        Web["Odoo Website / Portal"]
-        PWA["Mobile PWA"]
-        ChatWidget["AI Chatbot Widget"]
-        VSCode["VS Code Extension"]
-    end
-
-    subgraph Integration["Integration & Orchestration Layer"]
-        Supervisor["LangGraph Supervisor Agent"]
-        Agents["Specialised Sub-Agents"]
-        MCP["MCP-Odoo Bridge"]
-    end
-
-    subgraph AI["AI Inference & Training Layer"]
-        Router["Provider Router Logic"]
-        GPUStack["GPUStack Server(s)"]
-        Workers["GPUStack Workers (vLLM, llama.cpp)"]
-        FineTune["Fine-Tuning Jobs (Axolotl/Unsloth)"]
-        External["External LLM APIs"]
-    end
-
-    subgraph Core["Core Odoo 19 CE Layer"]
-        Odoo["Odoo 19 CE Instance"]
-        Modules["Custom NETTRADES Modules"]
-    end
-
-    subgraph Data["Data Layer"]
-        PG["PostgreSQL 18 + pgvector"]
-        Valkey["Valkey 8"]
-        S3["MinIO / S3 (Models & Backups)"]
-    end
-
-    subgraph Security["Security & Network Layer"]
-        WG["WireGuard Mesh/Hub-Spoke"]
-        gVisor["gVisor Container Runtime"]
-        TEE["TEE / Confidential Computing"]
-    end
-
-    Frontend --> Core
-    Frontend -->|Direct API Call| Integration
-    Integration --> MCP --> Core
-    Integration --> Router --> AI
-    AI --> GPUStack --> Workers
-    AI --> FineTune
-    AI --> External
-    Core --> Data
-    Core -. Orchestrates .-> Security
-    Security -. Secures .-> AI
-    
-```
-
-##  Detailed Explanation of the State Machine
-## 1. Supervisor Graph (The Orchestrator)
-    
-The supervisor is the core entry point for all user requests. It is built in src/core/supervisor.py and compiled in src/core/app.py with a durable PostgresSaver checkpointer.
-Node	Function	Key Logic
-classify	Intent Classification	Extracts the last user message, checks for an uploaded image (image_base64), and calls an LLM to classify the intent into one of: recruitment, freelance, lead_gen, gpu_management, medical, legal, action, vision, or general.
-medical_screening	Clinical/Legal Screening	Only triggered for medical or legal intents. Uses a follow-up counter (MAX_FOLLOWUP_ROUNDS = 3) to ask clarifying questions about comorbidities or medication interactions before deciding if enough information is present to answer safely.
-route	Intent Router	Dispatches to the appropriate sub-agent based on state['intent']. If screening_done is False, it loops back. Otherwise, it routes to the matching agent or falls back to a general LLM.
-    
-State Object (SupervisorState): A Python dict that carries:
-    
-messages: List of conversation messages
-    
-intent: Classified intent string
-    
-followup_count: Number of screening follow-ups
-    
-screening_done: Boolean flag
-    
-image_base64: Base64-encoded image (if any)
-    
-Results from sub-agents (e.g., analysis, action_plan)
-    
-## 2. Sub-Agents (Business Logic)
-    
-Each sub-agent is a LangGraph sub-graph that handles a specific domain.
-Agent	File	Purpose
-Recruitment Agent	src/core/agents/recruitment_agent.py	Analyzes CVs against job postings, computes match scores, and generates candidate shortlists.
-Freelance Agent	src/core/agents/freelance_agent.py	Matches freelancers to projects based on skills, availability, and rates.
-Lead Gen Agent	src/core/agents/lead_gen_agent.py	Scans job postings and projects to automatically create and score lead records.
-GPU Management Agent	src/core/agents/gpu_management_agent.py	Manages GPU cluster health, node registration, pool assignments, and token economics.
-Vision Agent	src/core/agents/vision_agent.py	Handles image + text queries via a Vision-Language Model (VLM) like Qwen2-VL or LLaVA. Requires "Multi-Modal Inferencing" to be enabled in admin. Sends the image as a base64 data URL and returns analysis in state['analysis'].
-Action Agent	src/core/agents/action_agent.py	Translates natural language commands into robotic actions. Uses a Vision-Language-Action (VLA) model to generate a JSON action plan (move_arm, navigate, grasp, release, speak) and dispatches via ROS 2 or an MCP-Robotics bridge. Two nodes: plan_action ? dispatch.
-
-## 3. GPU Node Agent (Per-Node Daemon)
-    
-The GPU Node Agent runs on every GPU machine in the cluster. It is a standalone script (src/agent/agent.py) that performs the following steps:
-    
-ensure_wireguard() – Auto-installs WireGuard if missing (supports Ubuntu/Debian/CentOS/RHEL).
-    
-get_or_create_node_id() – Generates a hardware-bound node ID, preferring TPM Endorsement Key (EK) hash, falling back to MAC address hash.
-    
-get_gpu_info() – Detects NVIDIA GPUs via nvidia-smi.
-    
-get_tee_summary() – Detects TEE capabilities (NVIDIA CC, Intel SGX, AMD SEV).
-    
-get_edge_device_info() – Detects edge devices (Jetson, Raspberry Pi, Coral TPU).
-    
-register_with_odoo() – Registers with Odoo via POST /api/v1/gpu/register with retries and exponential backoff.
-    
-apply_wireguard_config() – Writes wg0.conf and brings up the WireGuard interface.
-    
-start_gpustack_worker() – Launches the GPUStack worker: uses gVisor for public pools (syscall-level isolation) and Docker directly for internal pools.
-    
-start_dns_watchdog() – Starts a daemon thread that keeps the WireGuard tunnel alive when the ISP changes the IP.
-    
-Token Refresh Loop – Every 600 seconds, refreshes the GPUStack worker token and restarts the worker.
-    
-## 4. Inference Backend Auto-Detection
-    
-The get_inference_backend() function in src/core/tools/inference_tools.py auto-detects the available inference backend with the following priority:
-Priority	Backend	Environment Variable	Endpoint
-1	GPUStack	GPUSTACK_SERVER_URL	{url}/v1-openai
-2	vLLM	VLLM_BASE_URL	{url}/v1
-3	llama.cpp (fallback)	LLM_BASE_URL	http://llama-cpp:8080/v1
-    
-All backends expose an OpenAI-compatible API, allowing LangChain's ChatOpenAI to work seamlessly.
-## 5. Infrastructure & Persistence
-    
-FastAPI Application (src/core/app.py): Exposes /invoke (authenticated inference), /health (liveness probe), and /metrics (Prometheus) endpoints.
-    
-PostgresSaver: Provides durable checkpointing. Every node state is saved to PostgreSQL, so if a machine crashes during training or inference, the workflow resumes from the last checkpoint without duplicating work.
-    
-Prometheus Metrics: Tracks langgraph_requests_total (by intent) and langgraph_request_duration_seconds.
-    
-## 6. Odoo Integration
-    
-The platform is built on Odoo 19 Community Edition. Key Odoo models include:
-Model	File	Purpose
-nettrades.field	odoo-modules/nettrades_core/models/nettrades_field.py	Configures professional fields: qualification rules, voting weights, fine-tuning hyperparameters, Data-Juicer quality filters, DEITA LLM-as-Judge scoring.
-gpu.node	odoo-modules/nettrades_gpu_admin/models/gpu_node.py	Represents registered GPU/edge machines: WireGuard identity, GPU inventory, pool assignment, TEE capabilities, edge device info, status, token accounting.
-ft.dataset	odoo-modules/nettrades_good_answer/models/ft_dataset.py	Fine-tuning dataset with quality pipeline: export_to_jsonl(), Data-Juicer, DEITA scoring, and action_trigger_finetune().
-user_field_reputation	odoo-modules/nettrades_good_answer/models/user_field_reputation.py	Cron jobs: daily 1% reputation decay for inactive experts, hourly auto-qualification by karma, auto-adjustment of voting weights.
-
-## 7. Complete Request Flow
-    
-User sends a message (optionally with an image) to /invoke.
-    
-FastAPI receives the request, tracks metrics, and passes it to the compiled Supervisor graph.
-    
-The classify node determines the intent.
-    
-If the intent is medical or legal, the medical_screening node engages in a multi-turn dialogue (up to 3 rounds) to gather sufficient context.
-    
-The route node dispatches to the appropriate sub-agent:
-    
-recruitment ? Recruitment Agent
-    
-freelance ? Freelance Agent
-    
-lead_gen ? Lead Gen Agent
-    
-gpu ? GPU Management Agent
-    
-vision (if image present) ? Vision Agent
-    
-action ? Action Agent
-    
-medical/legal (after screening) ? General LLM
-    
-general ? General LLM
-    
-The sub-agent processes the request and returns a result.
-    
-The response is sent back to the user.
-    
-All state transitions are checkpointed to PostgreSQL for durability.
 
 ---
 
-##  LangGraph Agent State Machine Diagram
+## 2. `docs/developer/LangGraph-Agent-State-Machine-Diagram.md`
 
+```markdown
+# LangGraph Agent State Machine Diagram
+
+## 1. Overview
+
+The NETTRADES platform uses LangGraph to orchestrate a **multi-agent state machine** that handles all user interactions, intent classification, medical/legal screening, and routing to specialised sub-agents. The supervisor agent is the central orchestrator.
+
+The architecture includes:
+- **Intent classification** using LLM
+- **Medical/Legal screening** with multi-turn follow-up
+- **Bridge integration** for hub-and-spoke routing
+- **Self-improving loop** integration for continuous learning
+- **Sub-agent routing** for specialised tasks
+
+---
+
+## 2. Complete Supervisor State Machine
+
+```mermaid
+graph TD
+    START([Start]) --> CLASSIFY["classify\n━━━━━━━━━━━━━━━━\nIntent Classification\n• Extract user message\n• Check for image\n• LLM classification\n• Set intent"]
+
+    CLASSIFY --> MEDICAL["medical_screening\n━━━━━━━━━━━━━━━━\nMedical/Legal Screening\n• Check if medical/legal\n• Multi-turn follow-up\n• Max 3 rounds\n• Set screening_done"]
+
+    MEDICAL --> BRIDGE["bridge_route\n━━━━━━━━━━━━━━━━\nBridge Routing\n• Get company_id\n• Call bridge service\n• Set route_source\n• Store bridge_response"]
+
+    BRIDGE --> ROUTE["route\n━━━━━━━━━━━━━━━━\nRoute to Sub-Agent\n• Check screening_done\n• Check bridge response\n• Route by intent:\n  - recruitment\n  - freelance\n  - lead_gen\n  - gpu_management\n  - vision\n  - action\n  - general"]
+
+    ROUTE --> POST["post_process\n━━━━━━━━━━━━━━━━\nSelf-Improving Loop\n• Record episode\n• Calculate quality_score\n• Check triggers\n• Store for training"]
+
+    POST --> END([End])
+
+    MEDICAL -->|"screening_done = False"| MEDICAL
+    MEDICAL -->|"screening_done = True"| BRIDGE
+
+    BRIDGE -->|"route_source = 'remote'"| ROUTE
+    BRIDGE -->|"route_source = 'local'"| ROUTE
+
+    ROUTE -->|"Bridge handled"| POST
+    ROUTE -->|"Error"| ERROR["error_handler\n━━━━━━━━━━━━━━━━\nError Handling\n• Increment retry\n• Check max retries\n• Fallback to general"]
+
+    ERROR -->|"retry_count < max"| CLASSIFY
+    ERROR -->|"retry_count >= max"| END
+
+    style START fill:#4CAF50,color:white
+    style END fill:#f44336,color:white
+    style ERROR fill:#ff9800,color:black
+```
+
+## 3. Node-by-Node Explanation
+
+### 3.1 classify – Intent Classification
+
+
+
+| Field | Description |
+|-----------|----------|
+| `Input` | messages (last user message), image_base64 (optional) |
+| `Logic` | Calls an LLM to classify the intent into one of: recruitment, freelance, lead_gen, gpu_management, medical, legal, action, vision, or general. If an image is present, it forces vision. |
+| `Output` | intent, followup_count = 0 |
+| `File` | src/core/supervisor.py |
+
+### 3.2 medical_screening – Clinical/Legal Screening
+
+
+| Field | Description |
+|-----------|----------|
+| `Trigger` | Only when intent is medical or legal |
+| `Logic` | Engages in a multi-turn dialogue (up to 3 rounds) to ask clarifying questions about comorbidities or medication interactions. If the LLM responds with SUFFICIENT, screening is marked done. |
+| `Output` | screening_done (boolean), updated messages |
+| `File` | src/core/supervisor.py |
+
+### 3.3 bridge_route – Hub-and-Spoke Routing (NEW)
+
+| Field | Description |
+|-----------|----------|
+| `Input` | intent, company_id, current state |
+| `Logic` | Calls the nettrades_bridge service to decide whether to process the request locally or forward it to the remote NETTRADES.AI brain. The decision considers: company-specific feature flags, GPU overflow threshold (for GPU intents), and the global bridge mode (local, remote, or hybrid). |
+| `Output` | route_source (local / remote), bridge_response (if remote) |
+| `File` | src/core/bridge_integration.py |
+
+### 3.4 route – Intent Router
+
+| Field | Description |
+|-----------|----------|
+| `Input` | intent, screening_done, bridge_response |
+| `Logic` | If the bridge already handled the request remotely, it uses the bridge_response directly. Otherwise, it dispatches to the appropriate sub-agent based on intent. If no matching agent is found, it falls back to a general LLM. |
+| `Output` | Result from the sub-agent (e.g., analysis, action_plan) |
+| `File` | src/core/supervisor.py |
+
+### 3.5 post_process – Self-Improving Loop (NEW)
+
+| Field | Description |
+|-----------|----------|
+| `Input` | Entire state (includes intent, messages, output) |
+| `Logic` | Skips if route_source == 'remote'. Calculates a quality_score (from confidence or analysis length). Extracts input_text and output_text, then calls SelfImprovingService.record_episode() to create a data.episode record in Odoo. If trigger conditions are met (e.g., quality drop, data volume threshold), it initiates a fine-tuning job via llm_training and GPUStack. |
+| `Output` | None (episode recorded asynchronously) |
+| `File` | src/core/self_improving_integration.py |
+
+### 3.6 error_handler – Retry & Fallback
+
+| Field | Description |
+|-----------|----------|
+| `Input` | error, retry_count |
+| `Logic` | Logs the error, increments retry_count. If retry_count < 3, clears the error and returns to classify. Otherwise, falls back to a general LLM response. |
+| `Output` | Cleared error or final fallback |
+| `File` | src/core/supervisor.py |
+
+## 4. Sub-Agents (Business Logic)
+
+Each sub-agent is a self-contained LangGraph sub-graph that handles a specific domain.
+
+### 4.1 Recruitment Agent
+
+```mermaid
+graph LR
+    START --> fetch_job["fetch_job\n━━━━━━━━━━━━━━━━\nFetch Job from Odoo"]
+    fetch_job --> search_candidates["search_candidates\n━━━━━━━━━━━━━━━━\nSearch Freelancers & Candidates"]
+    search_candidates --> rank_candidates["rank_candidates\n━━━━━━━━━━━━━━━━\nRank by Skills & Experience"]
+    rank_candidates --> create_leads["create_leads\n━━━━━━━━━━━━━━━━\nCreate CRM Leads"]
+    create_leads --> END
+```
+
+| Node | Description |
+|-----------|----------|
+| `fetch_job` | Retrieves the job posting from Odoo (hr.job or nettrades.job).
+| `search_candidates` | Queries the candidate pool (freelancers, job seekers) using skill-based filters.
+| `rank_candidates` | Uses an LLM to rank candidates by match score.
+| `create_leads` | Creates CRM leads for the top candidates.
+| `File` | src/core/agents/recruitment_agent.py
+
+### 4.2 Freelance Agent
+
+```mermaid
+graph LR
+    START --> fetch_project["fetch_project\n━━━━━━━━━━━━━━━━\nFetch Project from Odoo"]
+    fetch_project --> search_freelancers["search_freelancers\n━━━━━━━━━━━━━━━━\nSearch Freelancers by Skills"]
+    search_freelancers --> rank_freelancers["rank_freelancers\n━━━━━━━━━━━━━━━━\nRank by Match Score"]
+    rank_freelancers --> create_matches["create_matches\n━━━━━━━━━━━━━━━━\nCreate Project Matches"]
+    create_matches --> END
+```
+
+| Node | Description |
+|-----------|----------|
+| `fetch_project` | Retrieves the project from Odoo (project.project). |
+| `search_freelancers` | Searches the freelancer pool using skill, availability, and rate filters. |
+| `rank_freelancers` | Uses an LLM to rank freelancers by overall match. |
+| `create_matches` | Creates project-freelancer match records in Odoo. |
+| `File` | src/core/agents/freelance_agent.py |
+
+### 4.3 Lead Gen Agent
+
+```mermaid
+graph LR
+    START --> fetch_source["fetch_source\n━━━━━━━━━━━━━━━━\nFetch Job or Project Source"]
+    fetch_source --> generate_leads["generate_leads\n━━━━━━━━━━━━━━━━\nGenerate Leads using LLM"]
+    generate_leads --> create_leads["create_leads\n━━━━━━━━━━━━━━━━\nCreate Leads in Odoo CRM"]
+    create_leads --> END
+```
+
+| Node | Description |
+|-----------|----------|
+| `fetch_source` | Retrieves job postings or projects from external feeds or Odoo. |
+| `generate_leads` | Uses an LLM to identify potential leads from the source data. |
+| `create_leads` | Creates lead records in Odoo CRM. |
+| `File` | src/core/agents/lead_gen_agent.py |
+
+### 4.4 GPU Management Agent
+
+```mermaid
+graph LR
+    START --> fetch_cluster["fetch_cluster\n━━━━━━━━━━━━━━━━\nFetch GPU Cluster from Odoo"]
+    fetch_cluster --> check_health["check_health\n━━━━━━━━━━━━━━━━\nCheck Node Health & Utilisation"]
+    check_health --> generate_recommendations["generate_recommendations\n━━━━━━━━━━━━━━━━\nGenerate Scaling Recommendations"]
+    generate_recommendations --> END
+```
+
+| Node | Description |
+|-----------|----------|
+| `fetch_cluster` | Retrieves the GPU cluster configuration from nettrades_gpu_admin. |
+| `check_health` | Queries each GPU node for health status and utilisation. |
+| `generate_recommendations` | Uses an LLM to suggest scaling or rebalancing actions. |
+| `File` | src/core/agents/gpu_management_agent.py |
+
+### 4.5 Vision Agent (VLM)
+
+```mermaid
+graph LR
+    START --> load_image["load_image\n━━━━━━━━━━━━━━━━\nLoad Image from Source"]
+    load_image --> call_bridge["call_bridge\n━━━━━━━━━━━━━━━━\nCheck Bridge (Vision)"]
+    call_bridge -->|Remote| process_remote["process_remote\n━━━━━━━━━━━━━━━━\nUse Remote Brain"]
+    call_bridge -->|Local| process_vlm["process_vlm\n━━━━━━━━━━━━━━━━\nProcess with VLM Model"]
+    process_vlm --> detect_edge_case["detect_edge_case\n━━━━━━━━━━━━━━━━\nDetect Edge Cases"]
+    detect_edge_case --> record_for_training["record_for_training\n━━━━━━━━━━━━━━━━\nRecord for Fine-Tuning"]
+    process_remote --> END
+    record_for_training --> END
+```
+
+| Node | Description |
+|-----------|----------|
+| `load_image` | Loads the image from a path, URL, or base64 data. |
+| `call_bridge` | Checks if the vision request should be routed remotely (via nettrades_bridge). |
+| `process_vlm` | Runs the image through a Vision-Language Model (Qwen2-VL, LLaVA, etc.). |
+| `detect_edge_case` | Flags low-confidence or unusual results for the self-improving loop. |
+| `record_for_training` | Stores the image-text pair for future fine-tuning. |
+| `File` | src/core/agents/vision_agent.py |
+
+### 4.6 Action Agent (VLA)
+
+```mermaid
+graph LR
+    START --> plan_action["plan_action\n━━━━━━━━━━━━━━━━\nGenerate JSON Action Plan"]
+    plan_action --> dispatch["dispatch\n━━━━━━━━━━━━━━━━\nDispatch via ROS 2 or MCP Bridge"]
+    dispatch --> END
+```
+
+| Node | Description |
+|-----------|----------|
+| `plan_action` | Uses a Vision-Language-Action (VLA) model to translate natural language into a structured action plan (e.g., {"action": "move_arm", "params": {...}}). |
+| `dispatch` | Sends the action to the robot via ROS 2 or the MCP-Robotics bridge. |
+| `File` | src/core/agents/action_agent.py |
+
+## 5. State Schema (SupervisorState)
+
+typescript
+
+interface SupervisorState {
+    // Core conversation
+    messages: Message[];
+    intent: string;
+    input_data: Record<string, any>;
+    output_data: Record<string, any>;
+
+    // Screening
+    screening_done: boolean;
+    followup_count: number;
+
+    // Bridge routing
+    route_source: 'local' | 'remote' | 'bridge';
+    bridge_response: Record<string, any> | null;
+
+    // Self-improving loop
+    self_improving_data: Record<string, any> | null;
+
+    // Error handling
+    error: string | null;
+    retry_count: number;
+    max_retries: number;
+
+    // Context
+    company_id: number | null;
+    user_id: number | null;
+    image_base64?: string;
+}
+
+## 6. Sub-Agent Registration
+
+All sub-agents are registered in src/core/agents/__init__.py.
+
+| Setting | Description | Default |
+|-----------|----------|-------------|	
+| `Agent` | Factory Function	Import Path |
+| `Recruitment` | create_recruitment_agent() | src.core.agents.recruitment_agent |
+| `Freelance` | create_freelance_agent() | src.core.agents.freelance_agent |
+| `Lead Generation` | create_lead_gen_agent() | src.core.agents.lead_gen_agent |
+| `GPU Management` | create_gpu_management_agent() | src.core.agents.gpu_management_agent |
+| `Vision` | create_vision_agent() | src.core.agents.vision_agent |
+| `Action` | create_action_agent() | src.core.agents.action_agent |
+
+## 7. Bridge Integration (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant Bridge
+    participant RemoteBrain
+    participant LocalAgent
+
+    User->>Supervisor: Request
+    Supervisor->>Supervisor: classify(intent)
+    Supervisor->>Bridge: route_request(intent, company_id)
+    alt Remote
+        Bridge->>RemoteBrain: Forward Request
+        RemoteBrain-->>Bridge: Response
+        Bridge-->>Supervisor: bridge_response
+        Supervisor->>User: Response
+    else Local
+        Bridge-->>Supervisor: route_source = 'local'
+        Supervisor->>LocalAgent: Process Request
+        LocalAgent-->>Supervisor: Result
+        Supervisor->>Supervisor: post_process()
+        Supervisor->>User: Response
+    end
+```
+
+## 8. Self-Improving Loop Integration (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant SelfImproving
+    participant Odoo
+    participant GPUStack
+
+    User->>Supervisor: Request
+    Supervisor->>Supervisor: process()
+    Supervisor->>SelfImproving: record_episode()
+    SelfImproving->>Odoo: Create data.episode
+    Odoo-->>SelfImproving: Episode ID
+    SelfImproving->>SelfImproving: check_trigger()
+    alt Trigger Fired
+        SelfImproving->>Odoo: Create llm_training.job
+        Odoo-->>SelfImproving: Job ID
+        SelfImproving->>GPUStack: Submit Training
+        GPUStack-->>SelfImproving: Job Submitted
+    end
+```
+
+## 9. Complete Request Flow (End-to-End)
+text
+
+1. User sends a message (optionally with an image) to /invoke
+2. FastAPI receives the request, tracks metrics, and passes it to the Supervisor graph
+3. classify node determines the intent (or forces vision if an image is present)
+4. If medical or legal → medical_screening node engages in multi-turn dialogue (up to 3 rounds)
+5. bridge_route node decides local vs. remote execution (with GPU overflow detection)
+6. route node dispatches to the appropriate sub-agent (or uses bridge_response)
+7. Sub-agent processes the request and returns a result
+8. post_process node records the episode for the self-improving loop
+9. The final response is sent back to the user
+10. All state transitions are checkpointed to PostgreSQL via PostgresSaver
+
+## 10. Infrastructure & Persistence
+
+| Component | Description |
+|-----------|----------|
+| `FastAPI Application (src/core/app.py)` | Exposes /invoke, /health, /metrics endpoints. |
+| `PostgresSaver` | Provides durable checkpointing for every node state. |
+| `Prometheus Metrics` | Tracks langgraph_requests_total (by intent) and langgraph_request_duration_seconds. |
+| `Inference Backend Auto-Detection` | get_inference_backend() in src/core/tools/inference_tools.py auto-selects GPUStack, vLLM, or llama.cpp. |
+
+11. File Locations
+
+| Component | File Path |
+|-----------|----------|
+| `Supervisor` | src/core/supervisor.py |
+| `Bridge Integration` | src/core/bridge_integration.py |
+| `Self-Improving Integration` | src/core/self_improving_integration.py |
+| `Recruitment Agent` | src/core/agents/recruitment_agent.py |
+| `Freelance Agent` | src/core/agents/freelance_agent.py |
+| `Lead Gen Agent` | src/core/agents/lead_gen_agent.py |
+| `GPU Management Agent` | src/core/agents/gpu_management_agent.py |
+| `Vision Agent` | src/core/agents/vision_agent.py |
+| `Action Agent` | src/core/agents/action_agent.py |
+| `FastAPI App` | src/core/app.py |
+| `Inference Tools` | src/core/tools/inference_tools.py |
+
+12.  Error Handling Flow
+
+```mermaid
+graph TD
+    START([Start]) --> TRY["Try Processing"]
+    TRY -->|Success| END([End])
+    TRY -->|Error| LOG["Log Error"]
+    LOG --> INC["Increment Retry Count"]
+    INC --> CHECK["Check Retry Count"]
+    CHECK -->|"< Max"| RETRY["Retry Processing"]
+    CHECK -->|">= Max"| FALLBACK["Fallback to General"]
+    RETRY --> TRY
+    FALLBACK --> END
+```
