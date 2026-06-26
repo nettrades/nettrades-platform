@@ -1194,6 +1194,7 @@ sequenceDiagram
 #### 8.3 Good Answer Flow
 
 ```mermaid
+
 sequenceDiagram
     participant User
     participant Portal as Odoo Portal
@@ -1212,12 +1213,12 @@ sequenceDiagram
     Data->>Data: Calculate quality score
     Data->>Trigger: Check triggers
     Trigger->>Trigger: Evaluate threshold
-    
     alt Trigger Fired
-    Trigger->>Loop: Create training job
-    Loop->>GPUStack: Submit training
-    GPUStack-->>Loop: Job submitted
-    Loop->>Loop: Deploy improved model    
+        Trigger->>Loop: Create training job
+        Loop->>GPUStack: Submit training
+        GPUStack-->>Loop: Job submitted
+        Loop->>Loop: Deploy improved model
+    end    
 ```
 
 Detailed Explanation of Each Step
