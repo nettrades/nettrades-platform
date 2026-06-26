@@ -769,7 +769,7 @@ graph TD
     N --> P{Expert Available?}
 
     O -->|Yes| Q[Process Locally]
-    O -->|No| R[Route to Hub (nettrades_bridge)]
+    O -->|No| R[Route to Hub nettrades_bridge]
 
     P -->|Yes| S[Connect with Expert]
     P -->|No| T[Search Global Experts]
