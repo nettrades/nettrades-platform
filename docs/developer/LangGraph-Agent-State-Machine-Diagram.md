@@ -340,7 +340,7 @@ text
 | `Prometheus Metrics` | Tracks langgraph_requests_total (by intent) and langgraph_request_duration_seconds. |
 | `Inference Backend Auto-Detection` | get_inference_backend() in src/core/tools/inference_tools.py auto-selects GPUStack, vLLM, or llama.cpp. |
 
-11. File Locations
+## 11. File Locations
 
 | Component | File Path |
 |-----------|----------|
@@ -356,7 +356,7 @@ text
 | `FastAPI App` | src/core/app.py |
 | `Inference Tools` | src/core/tools/inference_tools.py |
 
-12.  Error Handling Flow
+## 12.  Error Handling Flow
 
 ```mermaid
 graph TD
