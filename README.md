@@ -49,17 +49,11 @@ PURPOSE:
   <a href="https://codecov.io/gh/nettrades/nettrades-platform">
     <img src="https://codecov.io/gh/nettrades/nettrades-platform/branch/main/graph/badge.svg" alt="codecov">
   </a>
-  <a href="https://bestpractices.coreinfrastructure.org/projects/xxxx">
-    <img src="https://bestpractices.coreinfrastructure.org/projects/xxxx/badge" alt="CII Best Practices">
-  </a>
-  <a href="https://goreportcard.com/report/github.com/nettrades/nettrades-platform">
+  <a href="https://github.com/nettrades/nettrades-platform/issues">
     <img src="https://goreportcard.com/badge/github.com/nettrades/nettrades-platform" alt="Go Report Card">
   </a>
   <a href="https://github.com/nettrades/nettrades-platform/stargazers">
     <img src="https://img.shields.io/github/stars/nettrades/nettrades-platform?style=social" alt="GitHub Stars">
-  </a>
-  <a href="https://github.com/nettrades/nettrades-platform/forks">
-    <img src="https://img.shields.io/github/forks/nettrades/nettrades-platform?style=social" alt="GitHub Forks">
   </a>
   <a href="https://github.com/nettrades/nettrades-platform/issues">
     <img src="https://img.shields.io/github/issues/nettrades/nettrades-platform" alt="GitHub Issues">
@@ -88,19 +82,19 @@ PURPOSE:
 [![GitHub Stars](https://img.shields.io/github/stars/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/issues)
 
-## 🚀 What is NETTRADES?
+## What is NETTRADES?
 
 **NETTRADES is an open-source, autonomous enterprise platform** that connects companies, freelancers, job-seekers, researchers, partners, and customers. It combines:
 
 - **AI-powered job matching & freelancing** – LangGraph agents analyse CVs, job postings, and projects, automatically creating leads. It combines the functionalities of LinkedIn, Fiverr, Upwork, and Freelancer with AI Matching and Git Collaboration.
 - **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
-- **Self-improving AI** – A “Good Answer” voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) that continuously improves field-specific models.
 - **Expert marketplace (“Ask Someone”)** – Users can request paid help from verified professionals with Stripe escrow.
+- **Self-improving AI** – A “Good Answer” voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) that continuously improves field-specific models.
 - **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – Odoo ACID transactions + LangGraph checkpointing.
 
-> **🌐 Hub-and-Spoke Architecture** – Companies run the open-source client software locally for internal operations, and seamlessly call `NETTRADES.AI` for external recruitment, GPU overflow, and global services.
+🌐 Hub-and-Spoke Architecture** – Companies run the open-source client software locally for internal operations, and seamlessly call `NETTRADES.AI` for external recruitment, GPU overflow, and global services.
 
 ---
 
@@ -108,16 +102,16 @@ PURPOSE:
 
 | Feature | Description |
 |---------|-------------|
-| **🤖 Agentic AI** | LangGraph-based multi-agent system for recruitment, freelancing, lead generation, GPU management, vision, and action. |
-| **🖥️ GPU Marketplace** | Distributed GPU sharing with token-based economy. Earn tokens by sharing idle GPUs; spend tokens on inference and fine-tuning. |
-| **🔄 Self-Improving AI** | “Good Answer” voting + Unsloth/Axolotl fine-tuning pipeline. Models continuously improve from user feedback. |
+| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system for recruitment, freelancing, lead generation, GPU management, vision, and action. |
+| **🖥️ [GPU Marketplace](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing with token-based economy. Earn tokens by sharing idle GPUs; spend tokens on inference and fine-tuning. |
+| **🔄 [Self-Improving AI](docs/developer/self-improving.md)** | “Good Answer” voting + Unsloth/Axolotl fine-tuning pipeline. Models continuously improve from user feedback. |
 | **🧠 Vision-Language-Action** | VLM (Vision-Language Models) and VLA (Vision-Language-Action) support for multimodal and robotics applications. |
-| **🔌 Hub-and-Spoke Routing** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
+| **🔌 [Hub-and-Spoke Routing](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
 | **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
 | **💬 Expert Marketplace** | “Ask Someone” – paid expert consultations with Stripe escrow. |
 | **🔐 Secure & Sovereign** | WireGuard VPN, gVisor isolation, and full on-premise deployment options. |
 | **📱 Mobile PWA** | Progressive Web App with offline support. |
-| **🔗 Git Collaboration** | Forgejo Git integration for project collaboration. |
+| **🔗 [Git Collaboration](docs/operations/deployment-perspective-CICD-pipeline-diagram.md)** | Forgejo Git integration for project collaboration. |
 
 ---
 
@@ -204,9 +198,9 @@ graph TB
 ```
 
 
-    📖 Detailed architecture diagrams are available in the docs/developer/ folder.
+Detailed architecture diagrams are available in the [docs/developer/](docs/developer/index.md) folder.
 
-2. The Hub-and-Spoke Model
+### 2. The Hub-and-Spoke Model
 
 NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data sovereignty, and enable seamless scaling. Each spoke (company) runs its own client instance of the software for internal operations, while the hub (NETTRADES.AI) provides global services like talent discovery, GPU overflow, and the self-improving loop.
 
@@ -282,7 +276,7 @@ graph TB
 
 ```
 
-Routing Logic:
+### Routing Logic:
 
 ```mermaid
 
@@ -306,7 +300,7 @@ flowchart TD
 
 ```
 
-3. Self-Improving AI Loop
+### 3. Self-Improving AI Loop
 
 The platform continuously learns from user interactions and improves its models. This closed-loop system is the engine of NETTRADES’ self-improvement capability.
 
@@ -347,7 +341,7 @@ graph TD
 
 ```
 
-4. LangGraph Agent State Machine (Simplified)
+### 4. LangGraph Agent State Machine (Simplified)
 
 The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks.
 
@@ -365,7 +359,7 @@ graph TD
 
 ```
 
-5. CI/CD Pipeline
+### 5. CI/CD Pipeline
 
 The platform uses Forgejo Actions for CI and Argo CD for GitOps deployment on Kubernetes.
 
@@ -406,7 +400,7 @@ flowchart LR
 
 ```
 
-6. Technology Stack Table
+### 6. Technology Stack Table
 Layer	Component	Technology	Version	License	Notes
 Business Logic	ERP / CRM / HR	Odoo	19 CE	LGPL-3	Core business logic
 Job Queue	Async processing	OCA queue_job	19.0	LGPL-3	Background jobs
@@ -436,7 +430,7 @@ Sandboxing	Container isolation	gVisor	Latest	Apache-2.0	Secure containers
 Metrics	Monitoring	Prometheus	Latest	Apache-2.0	Metrics collection
 Dashboards	Visualisation	Grafana	Latest	AGPL-3.0	Monitoring dashboards
 
-    📖 Full architecture details are in the docs/developer/ folder.
+📖 Full architecture details are in the docs/developer/ folder.
 
 🚀 Quick Start
 
@@ -462,7 +456,7 @@ curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/de
 
 The installer auto-detects your hardware, asks for your domain, generates secure passwords, and starts all services.
 Manual Installation
-1. Clone the Repository
+#### 1. Clone the Repository
 
 ```bash
 
@@ -471,7 +465,7 @@ cd nettrades-platform
 
 ```
 
-2. Set Up Python Virtual Environment
+#### 2. Set Up Python Virtual Environment
 
 ```bash
 
@@ -480,7 +474,7 @@ source venv/bin/activate  # or .\venv\Scripts\activate on Windows
 
 ```
 
-3. Install Dependencies
+#### 3. Install Dependencies
 
 ```bash
 
@@ -495,11 +489,11 @@ pip install --upgrade "starlette>=1.0.1"
 
 ```
 
-4. Install Odoo Modules (in the correct order)
+### 4. Install Odoo Modules (in the correct order)
 
     ⚠️ Important: Modules must be installed in this order to satisfy dependencies.
 
-Batch 1: Foundation Modules
+#### Batch 1: Foundation Modules
 
 ```bash
 
@@ -510,7 +504,7 @@ python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
 
 ```
 
-Batch 2: NETTRADES Core
+#### Batch 2: NETTRADES Core
 
 ```bash
 
@@ -521,7 +515,7 @@ python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
 
 ```
 
-Batch 3: Core NETTRADES Modules
+#### Batch 3: Core NETTRADES Modules
 
 ```bash
 
@@ -532,7 +526,7 @@ python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
 
 ```
 
-Batch 4: Self-improving System Modules
+#### Batch 4: Self-improving System Modules
 
 ```bash
 
@@ -543,7 +537,7 @@ python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
 
 ```
 
-Batch 5: Additional Modules
+#### Batch 5: Additional Modules
 
 ```bash
 
@@ -556,7 +550,7 @@ python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
 
     📖 See the full installation guide in docs/operations/module-installation-order.md.
 
-5. Start Odoo
+### 5. Start Odoo
 
 ```bash
 
@@ -750,6 +744,7 @@ graph TB
 ### 2. Complete End-to-End Workflow
 
 ```mermaid
+
 graph TD
     START([User Logs In]) --> A{User Type?}
 
@@ -821,6 +816,7 @@ graph TD
     AW --> AX[Trigger Detection]
     AX --> AY[New Cycle]
     AY --> AR
+
 ```
 
 ### 3. Detailed Ask Someone Workflow
@@ -1160,36 +1156,8 @@ sequenceDiagram
     Ask->>GPUStack: Record for training
 ```
 
-#### 8.2 Good Answer Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Portal as Odoo Portal
-    participant Vote as nettrades_good_answer
-    participant Core as nettrades_core
-    participant Data as nettrades_data_collection
-    participant Trigger as nettrades_trigger
-    participant Loop as nettrades_loop
-    participant GPUStack
-
-    User->>Portal: Mark answer as good
-    Portal->>Vote: Record vote
-    Vote->>Core: Update Karma
-    Core-->>Vote: Karma updated
-    Vote->>Data: Create episode
-    Data->>Data: Calculate quality score
-    Data->>Trigger: Check triggers
-    Trigger->>Trigger: Evaluate threshold
-    alt Trigger Fired
-        Trigger->>Loop: Create training job
-        Loop->>GPUStack: Submit training
-        GPUStack-->>Loop: Job submitted
-        Loop->>Loop: Deploy improved model
-    end
-```
-
-#### 8.3 GPU Sharing & Inference Flow
+#### 8.2 GPU Sharing & Inference Flow
 
 ```mermaid
 sequenceDiagram
@@ -1223,6 +1191,95 @@ sequenceDiagram
     end
     Bridge-->>User: Return result
 ```
+
+#### 8.3 Good Answer Flow
+
+```mermaid
+
+sequenceDiagram
+    participant User
+    participant Portal as Odoo Portal
+    participant Vote as nettrades_good_answer
+    participant Core as nettrades_core
+    participant Data as nettrades_data_collection
+    participant Trigger as nettrades_trigger
+    participant Loop as nettrades_loop
+    participant GPUStack
+
+    User->>Portal: Mark answer as good
+    Portal->>Vote: Record vote
+    Vote->>Core: Update Karma
+    Core-->>Vote: Karma updated
+    Vote->>Data: Create episode
+    Data->>Data: Calculate quality score
+    Data->>Trigger: Check triggers
+    Trigger->>Trigger: Evaluate threshold
+    alt Trigger Fired
+        Trigger->>Loop: Create training job
+        Loop->>GPUStack: Submit training
+        GPUStack-->>Loop: Job submitted
+        Loop->>Loop: Deploy improved model
+    end
+```
+
+Detailed Explanation of Each Step
+Phase 1: User Interaction
+Step	Description	Component
+1	User views an answer in a thread	Odoo Portal
+2	User clicks "Good Answer" button	Odoo Portal
+3	Vote is submitted to the system	nettrades_good_answer
+Phase 2: Vote Processing
+Step	Description	Component
+4	Validate user can vote (check permissions)	nettrades_good_answer
+5	Check if user already voted on this answer	nettrades_good_answer
+6	Record vote in database	nettrades_good_answer
+Phase 3: Reputation & Karma Update
+Step	Description	Component
+7	Update answerer's Karma score	nettrades_core
+8	Recalculate reputation score	nettrades_core
+Phase 4: Data Collection
+Step	Description	Component
+9	Create data.episode record	nettrades_data_collection
+10	Store input → output → feedback	nettrades_data_collection
+11	Calculate quality_score	nettrades_data_collection
+Phase 5: Trigger Detection
+Step	Description	Component
+12	Evaluate quality threshold	nettrades_trigger
+13	Check data volume for training	nettrades_trigger
+Phase 6: Training & Deployment
+Step	Description	Component
+14	Initiate self-improving loop	nettrades_loop
+15	Prepare training dataset	nettrades_loop
+16	Submit fine-tuning job to GPUStack	GPUStack
+17	Run Unsloth/Axolotl training	GPUStack
+18	A/B test new model	nettrades_loop
+19	Deploy or rollback model	nettrades_loop
+Phase 7: Autonomous Administration
+Step	Description	Component
+20	Apply reputation decay (1% daily)	Autonomous Administration
+21	Check qualification threshold	Autonomous Administration
+22	Update GPU reputation	Autonomous Administration
+Phase 8: Audit & Statistics
+Step	Description	Component
+23	Log vote in audit trail	nettrades_good_answer
+24	Update vote statistics	nettrades_good_answer
+Key Decision Points
+Decision Point	Condition	Action
+Quality Score Check	Quality Score > Threshold	Episode qualified for training
+Quality Score Check	Quality Score < Threshold	Episode rejected (no training)
+Training Result	Model Improved	Deploy updated model
+Training Result	Model Not Improved	Rollback to previous model
+Qualification Check	Karma > Threshold	User qualified as Expert
+Qualification Check	Karma < Threshold	User remains unqualified
+Related Code Files
+Component	File Path
+Good Answer Model	odoo-modules/nettrades_good_answer/models/good_answer_vote.py
+Core Model (Karma)	odoo-modules/nettrades_core/models/res_partner.py
+Data Collection	odoo-modules/nettrades_data_collection/models/data_episode.py
+Trigger Evaluation	odoo-modules/nettrades_trigger/models/trigger_config.py
+Self-Improving Loop	odoo-modules/nettrades_loop/models/self_improving_loop.py
+Autonomous Admin	odoo-modules/nettrades_core/models/autonomous_admin.py
+
 
 ## 9. File Locations Summary
 
