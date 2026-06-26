@@ -1308,82 +1308,81 @@ Agent Routing	nettrades_bridge, LangGraph Agents	Hub-and-spoke, local/remote rou
 ## 11. Top-Level System Architecture
 
 ```mermaid
-
 graph TB
     subgraph Frontend["Frontend Layer"]
-        User[User / Browser]
-        Portal[Odoo Website / Portal]
-        PWA[Mobile PWA]
-        Chat[AI Chatbot Widget]
-        VSCode[VS Code Extension]
-        API[REST / GraphQL]
+        User["User / Browser"]
+        Portal["Odoo Website / Portal"]
+        PWA["Mobile PWA"]
+        Chat["AI Chatbot Widget"]
+        VSCode["VS Code Extension"]
+        API["REST / GraphQL"]
     end
 
     subgraph Ingress["Ingress Layer"]
-        Traefik[Traefik Reverse Proxy]
+        Traefik["Traefik Reverse Proxy"]
     end
 
     subgraph Orchestration["Orchestration Layer (LangGraph)"]
-        MCP[MCP-Odoo Bridge]
-        Supervisor[Supervisor Agent]
-        SubAgents[Sub-Agents]
-        Bridge[nettrades_bridge]
-        LocalBrain[Local Brain]
-        RemoteBrain[Remote Brain]
+        MCP["MCP-Odoo Bridge"]
+        Supervisor["Supervisor Agent"]
+        SubAgents["Sub-Agents"]
+        Bridge["nettrades_bridge"]
+        LocalBrain["Local Brain"]
+        RemoteBrain["Remote Brain"]
     end
 
     subgraph SelfImproving["Self-Improving System"]
-        DataCollect[nettrades_data_collection]
-        Trigger[nettrades_trigger]
-        Loop[nettrades_loop]
-        Config[nettrades_self_improving_config]
+        DataCollect["nettrades_data_collection"]
+        Trigger["nettrades_trigger"]
+        Loop["nettrades_loop"]
+        Config["nettrades_self_improving_config"]
     end
 
     subgraph Training["AI Inference & Training"]
-        GPUStack[GPUStack]
-        Workers[GPU Workers vLLM]
-        FineTune[Unsloth / Axolotl]
-        External[External LLM APIs]
-        LLMTraining[llm_training]
+        GPUStack["GPUStack"]
+        Workers["GPU Workers (vLLM)"]
+        FineTune["Unsloth / Axolotl"]
+        External["External LLM APIs"]
+        LLMTraining["llm_training"]
     end
 
     subgraph Core["Core Layer (Odoo 19 CE)"]
-        Odoo[Odoo 19 CE]
-        Modules[Custom Odoo Modules]
-        Queue[OCA queue_job]
-        Payments[OCA payment_stripe]
+        Odoo["Odoo 19 CE"]
+        Modules["Custom Odoo Modules"]
+        Queue["OCA queue_job"]
+        Payments["OCA payment_stripe"]
     end
 
     subgraph Data["Data Layer"]
-        PG[PostgreSQL + pgvector]
-        Valkey[Valkey 8]
-        MinIO[MinIO / S3]
+        PG["PostgreSQL + pgvector"]
+        Valkey["Valkey 8"]
+        MinIO["MinIO / S3"]
     end
 
     subgraph K8s["Kubernetes Infrastructure"]
-        K8sCluster[Kubernetes (Talos Linux)]
-        Cilium[Cilium CNI]
-        Longhorn[Longhorn Storage]
-        MetalLB[MetalLB]
-        CertMgr[cert-manager]
-        CloudNativePG[CloudNativePG]
-        GPUOp[NVIDIA GPU Operator]
-        KubeRay[KubeRay]
+        K8sCluster["Kubernetes (Talos Linux)"]
+        Cilium["Cilium CNI"]
+        Longhorn["Longhorn Storage"]
+        MetalLB["MetalLB"]
+        CertMgr["cert-manager"]
+        CloudNativePG["CloudNativePG"]
+        GPUOp["NVIDIA GPU Operator"]
+        KubeRay["KubeRay"]
     end
 
     subgraph GitOps["GitOps Layer"]
-        Forgejo[Forgejo]
-        ArgoCD[Argo CD]
+        Forgejo["Forgejo"]
+        ArgoCD["Argo CD"]
     end
 
     subgraph Monitoring["Monitoring Layer"]
-        Prometheus[Prometheus]
-        Grafana[Grafana]
+        Prometheus["Prometheus"]
+        Grafana["Grafana"]
     end
 
     subgraph Security["Security Layer"]
-        WireGuard[WireGuard VPN]
-        gVisor[gVisor Sandbox]
+        WireGuard["WireGuard VPN"]
+        gVisor["gVisor Sandbox"]
     end
 
     User --> Traefik
@@ -1461,7 +1460,6 @@ graph TB
     style GitOps fill:#fff8e1,stroke:#f57f17
     style Monitoring fill:#f1f8e9,stroke:#33691e
     style Security fill:#ffebee,stroke:#b71c1c
-
 ```
 
 
