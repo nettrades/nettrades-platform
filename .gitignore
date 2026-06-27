@@ -53,7 +53,7 @@ Thumbs.db
 *.log
 *.pid
 odoo-bin
-odoo.conf
+# odoo.conf
 odoo.addons
 odoo.cache
 .odoo/run
