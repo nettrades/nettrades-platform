@@ -11,19 +11,21 @@
 #   handles error recovery, and integrates with the bridge and self-improving
 #   systems.
 #
-# EXISTING FUNCTIONALITY (PRESERVED):
+# KEY FUNCTIONALITY:
 #   1. Intent classification (recruitment, freelance, lead_gen, gpu_management,
 #      medical, legal, action, vision, general)
 #   2. Medical/legal multi-turn screening with follow-up questions
 #   3. Routing to sub-agents (recruitment_agent, freelance_agent, etc.)
-#   4. LangGraph workflow with conditional edges
+#   4. Bridge integration for hub-and-spoke routing
+#   5. Self-improving loop integration for continuous learning
+#   6. Episode recording for training data
+#   7. Post-processing for self-improving loop after routing
 #
-# NEW FUNCTIONALITY (ADDED):
-#   1. Bridge integration for hub-and-spoke routing
-#   2. Self-improving loop integration for continuous learning
-#   3. Episode recording for training data
-#   4. Bridge route decision before local processing
-#   5. Post-processing for self-improving loop after routing
+# INTEGRATION POINTS:
+#   - Odoo: Reads company-specific LLM configuration via LLMFactory
+#   - Bridge: Routes requests to local or remote brain based on company settings
+#   - Self-Improving: Records episodes for fine-tuning models
+#   - GPUStack: Uses configured LLM provider (OpenAI, Anthropic, DeepSeek, Ollama, NETTRADES.AI)
 #
 # =============================================================================
 
@@ -32,13 +34,12 @@ import json
 import logging
 import time
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
 
 from langgraph.graph import StateGraph, START
-from langgraph.checkpoint import PostgresSaver
+from langgraph.checkpoint.postgres import PostgresSaver
 
 # -----------------------------------------------------------------------------
-# Import sub-agent creators (EXISTING – all agent files exist)
+# Import sub-agent creators
 # -----------------------------------------------------------------------------
 from .agents.recruitment_agent import create_recruitment_agent
 from .agents.freelance_agent import create_freelance_agent
@@ -48,12 +49,12 @@ from .agents.vision_agent import create_vision_agent
 from .agents.action_agent import create_action_agent
 
 # -----------------------------------------------------------------------------
-# Import LLM for intent classification and medical screening
+# Import LLM Factory for dynamic provider selection
 # -----------------------------------------------------------------------------
-from langgraph.llm import create_llm
+from .tools.llm_factory import get_llm
 
 # -----------------------------------------------------------------------------
-# Import bridge integration (NEW)
+# Import bridge integration (hub-and-spoke routing)
 # -----------------------------------------------------------------------------
 try:
     from .bridge_integration import BridgeService
@@ -64,14 +65,15 @@ except ImportError:
             return None
 
 # -----------------------------------------------------------------------------
-# Import self-improving integration (NEW)
+# Import self-improving integration (continuous learning)
 # -----------------------------------------------------------------------------
 try:
     from .self_improving_integration import SelfImprovingService
 except ImportError:
     # Fallback if the module doesn't exist yet
     class SelfImprovingService:
-        async def record_episode(self, intent, input_data, output_data, quality_score=0.5, feedback=None):
+        async def record_episode(self, intent, input_data, output_data,
+                                  quality_score=0.5, feedback=None):
             pass
 
 # -----------------------------------------------------------------------------
@@ -80,17 +82,18 @@ except ImportError:
 _logger = logging.getLogger(__name__)
 
 # Maximum follow-up rounds for medical/legal screening
+# This prevents infinite loops when the user is not providing enough information.
 MAX_FOLLOWUP_ROUNDS = 3
 
-# -----------------------------------------------------------------------------
-# Create the LLM for intent classification and medical screening
-# -----------------------------------------------------------------------------
-llm = create_llm(provider="openai", model="gpt-4o-mini")
-
 
 # =============================================================================
-# CREATE SUB-AGENTS (EXISTING – all files exist and are complete)
+# CREATE SUB-AGENTS (Each is a compiled LangGraph sub-graph)
 # =============================================================================
+
+# The supervisor uses these sub-agents to handle specific business domains.
+# Each sub-agent is created by its factory function and returns a compiled
+# graph with an .ainvoke() method.
+
 recruitment_agent = create_recruitment_agent()
 freelance_agent = create_freelance_agent()
 lead_gen_agent = create_lead_gen_agent()
@@ -102,38 +105,66 @@ _logger.info("✅ All sub-agents loaded successfully")
 
 
 # =============================================================================
-# NODE 1: CLASSIFY INTENT (EXISTING – PRESERVED)
+# NODE 1: CLASSIFY INTENT
 # =============================================================================
 
 async def classify(state: dict) -> dict:
     """
-    Classify the user's intent using an LLM.
+    Classify the user's intent using the company's configured LLM.
 
     This node:
     1. Extracts the last user message from the state
     2. Checks if an image was uploaded (for vision agent)
-    3. Constructs a prompt for intent classification
-    4. Calls the LLM to classify the intent
-    5. Stores the intent and initialises followup_count in the state
+    3. Gets the company-specific LLM from the factory
+    4. Constructs a prompt for intent classification
+    5. Calls the LLM to classify the intent
+    6. Stores the intent and initialises followup_count in the state
+
+    The possible intents are:
+        - recruitment: job recruitment and candidate search
+        - freelance: freelance project matching
+        - lead_gen: lead generation from external feeds
+        - gpu_management: GPU cluster management
+        - medical: medical consultation (requires screening)
+        - legal: legal consultation (requires screening)
+        - action: robotic action control (VLA)
+        - vision: image analysis (VLM)
+        - general: general conversation (fallback)
+
+    If an image is present, the intent is forced to 'vision' without calling the LLM.
 
     Returns:
         dict: Updated state with 'intent' and 'followup_count' keys.
     """
-    # Get the last user message
+    # Get the last user message from the conversation history
+    # The state['messages'] list contains all messages in the conversation.
     user_msg = state.get("messages", [{}])[-1].get("content", "")
 
-    # Check if an image was uploaded (from the chat UI)
+    # Check if an image was uploaded (from the chat UI via base64 encoding)
     has_image = bool(state.get("image_base64", ""))
 
-    # If an image is present, route directly to the vision agent
+    # If an image is present, route directly to the vision agent without classification
     if has_image:
         state["intent"] = "vision"
         state["followup_count"] = 0
         _logger.info("Image detected – routing to vision agent")
         return state
 
-    # Construct the classification prompt
-    # The LLM must choose from a predefined set of intents
+    # Retrieve the company-specific LLM using the LLMFactory.
+    # The LLM is selected based on the company's configuration in Odoo.
+    company_id = state.get("company_id", 1)  # Default to ID 1 if not provided
+    llm = get_llm(company_id=company_id, intent="classification")
+
+    # If no LLM is available, fallback to general intent.
+    if not llm:
+        _logger.error(f"No LLM available for company {company_id}")
+        state["intent"] = "general"
+        state["followup_count"] = 0
+        state["screening_done"] = True
+        return state
+
+    # Build the classification prompt
+    # The LLM must choose from a predefined set of intents.
     prompt = (
         f"Classify the intent of the following message into one of: "
         f"recruitment, freelance, lead_gen, gpu_management, medical, legal, "
@@ -141,11 +172,11 @@ async def classify(state: dict) -> dict:
         f"Message: {user_msg}"
     )
 
-    # Call the LLM for classification
+    # Call the LLM with the prompt and extract the intent.
     try:
         response = await llm.ainvoke(prompt)
         intent = response.content.strip().lower()
-        _logger.info(f"Classified intent: {intent}")
+        _logger.info(f"Classified intent: {intent} (using company {company_id} LLM)")
         state["intent"] = intent
     except Exception as e:
         _logger.error(f"Intent classification failed: {e}")
@@ -159,23 +190,26 @@ async def classify(state: dict) -> dict:
 
 
 # =============================================================================
-# NODE 2: MEDICAL SCREENING (EXISTING – PRESERVED)
+# NODE 2: MEDICAL SCREENING
 # =============================================================================
 
 async def medical_screening(state: dict) -> dict:
     """
     Conduct medical/legal screening with follow-up questions.
 
-    This node:
-    1. Checks if the intent is medical or legal
-    2. If not, returns the state unchanged
-    3. If the follow-up count has reached the maximum, marks screening as done
-    4. Otherwise, asks the user a follow-up question if more information is needed
-    5. If the question is complete, marks screening as done
+    This node handles multi-turn screening for medical and legal intents.
+    It asks clarifying questions to ensure the user has provided enough
+    information to give a safe and accurate response.
 
-    The screening is multi-turn: if the LLM determines that more information
-    is needed, it asks a follow-up question and the graph loops back to
-    this node (via a conditional edge in the graph).
+    The screening process:
+    1. Check if the intent is medical or legal; if not, mark screening as done.
+    2. Check if the maximum follow-up rounds (3) have been reached.
+    3. Construct a prompt to determine if sufficient information is present.
+    4. If the LLM responds with 'SUFFICIENT', mark screening as done.
+    5. Otherwise, ask a follow-up question and increment the follow-up count.
+
+    The graph loops back to this node when a follow-up is needed (via the
+    conditional edge `should_continue_screening`).
 
     Returns:
         dict: Updated state with 'screening_done' and possibly a follow-up message.
@@ -187,7 +221,7 @@ async def medical_screening(state: dict) -> dict:
         state["screening_done"] = True
         return state
 
-    # Check if we've reached the maximum follow-up rounds
+    # Check if we've reached the maximum allowed follow-up rounds
     followup_count = state.get("followup_count", 0)
     if followup_count >= MAX_FOLLOWUP_ROUNDS:
         state["screening_done"] = True
@@ -197,7 +231,18 @@ async def medical_screening(state: dict) -> dict:
     # Get the last user message for screening
     user_msg = state["messages"][-1]["content"]
 
+    # Get the company-specific LLM for screening
+    company_id = state.get("company_id", 1)
+    llm = get_llm(company_id=company_id, intent="screening")
+
+    if not llm:
+        _logger.error(f"No LLM available for company {company_id}")
+        state["screening_done"] = True
+        return state
+
     # Construct the screening prompt
+    # The LLM is asked to determine if the user's question is complete enough.
+    # If not, it should ask a follow-up question about comorbidities or interactions.
     prompt = (
         f"You are a clinical screening assistant. The user has asked: '{user_msg}'.\n"
         f"Determine whether enough information is present to provide a safe answer. "
@@ -216,6 +261,7 @@ async def medical_screening(state: dict) -> dict:
             _logger.info("Medical screening complete – sufficient information")
         else:
             # More information is needed; ask a follow-up question
+            # Append the assistant's follow-up message to the conversation
             state["messages"].append({
                 "role": "assistant",
                 "content": answer
@@ -233,18 +279,24 @@ async def medical_screening(state: dict) -> dict:
 
 
 # =============================================================================
-# NODE 3: BRIDGE ROUTE (NEW – ADDED AFTER CLASSIFY)
+# NODE 3: BRIDGE ROUTE (Hub-and-Spoke Routing)
 # =============================================================================
 
 async def bridge_route(state: dict) -> dict:
     """
     Check if the request should be routed to the remote brain via the bridge.
 
-    This node:
-    1. Gets the company ID from the state
-    2. Calls the bridge service to determine routing
-    3. If the bridge decides to route remotely, it stores the response
-    4. If not, it marks the request for local processing
+    This node integrates the nettrades_bridge module, which decides whether
+    the current request should be processed locally (by the company's own
+    LangGraph agents) or forwarded to the remote NETTRADES.AI brain.
+
+    The decision is based on:
+        - Company-specific feature flags (e.g., enable_remote_recruitment)
+        - GPU overflow detection (local GPU utilisation > threshold)
+        - Bridge mode (local, remote, hybrid)
+
+    If the bridge decides to route remotely, it returns a bridge_response
+    that is used directly by the route node, bypassing local sub-agents.
 
     Returns:
         dict: Updated state with 'bridge_response' and 'route_source' keys.
@@ -252,11 +304,11 @@ async def bridge_route(state: dict) -> dict:
     intent = state.get("intent", "general")
     company_id = state.get("company_id")
 
-    # Get the bridge service
+    # Instantiate the bridge service (fallback if module not found)
     bridge = BridgeService()
 
     try:
-        # Call the bridge to determine routing
+        # Call the bridge service to determine routing
         bridge_result = await bridge.route_request(intent, state, company_id)
 
         if bridge_result and bridge_result.get('source') != 'local':
@@ -271,7 +323,7 @@ async def bridge_route(state: dict) -> dict:
             _logger.info(f"Request routed locally for intent: {intent}")
 
     except Exception as e:
-        # If bridge fails, fallback to local
+        # If bridge fails, fallback to local processing
         _logger.warning(f"Bridge route failed: {e}. Falling back to local.")
         state["route_source"] = "local"
         state["bridge_response"] = None
@@ -280,23 +332,35 @@ async def bridge_route(state: dict) -> dict:
 
 
 # =============================================================================
-# NODE 4: ROUTE (EXISTING – MODIFIED TO HANDLE BRIDGE RESPONSE)
+# NODE 4: ROUTE (Dispatch to Sub-Agent)
 # =============================================================================
 
 async def route(state: dict) -> dict:
     """
     Route the request to the appropriate sub-agent based on intent.
 
-    This node:
-    1. Checks if screening is complete (for medical/legal)
-    2. If not, returns the state unchanged (the graph will loop back)
-    3. If the bridge already handled the request, uses the bridge response
-    4. Otherwise, dispatches to the appropriate sub-agent
+    This node is the main dispatcher. It checks:
+    1. If screening is complete (for medical/legal intents)
+    2. If the bridge already handled the request (use bridge_response)
+    3. If not, it dispatches to the appropriate sub-agent based on intent
+
+    The mapping of intents to sub-agents is:
+        - recruitment    → Recruitment Agent
+        - freelance      → Freelance Agent
+        - lead_gen       → Lead Generation Agent
+        - gpu_management → GPU Management Agent
+        - vision         → Vision Agent
+        - action         → Action Agent
+        - medical/legal  → General LLM (after screening)
+        - general        → General LLM (fallback)
+
+    If the bridge already provided a response, it is used directly without
+    calling a sub-agent.
 
     Returns:
-        dict: Updated state with the result from the sub-agent.
+        dict: Updated state with the result from the sub-agent or bridge.
     """
-    # If screening is not complete, don't route yet
+    # If screening is not complete, don't route yet (graph will loop back)
     if not state.get("screening_done", True):
         return state
 
@@ -310,7 +374,7 @@ async def route(state: dict) -> dict:
     _logger.info(f"Routing intent: {intent}")
 
     try:
-        # Route to the appropriate sub-agent based on intent
+        # Dispatch to the appropriate sub-agent based on intent
         if "recruit" in intent:
             result = await recruitment_agent.ainvoke(state)
         elif "freelance" in intent or "project" in intent:
@@ -324,11 +388,15 @@ async def route(state: dict) -> dict:
         elif "action" in intent:
             result = await action_agent.ainvoke(state)
         else:
-            # Fallback to the general LLM for unclassified intents
-            _logger.info(f"General intent fallback for: {intent}")
-            user_msg = state.get("messages", [{}])[-1].get("content", "")
-            response = await llm.ainvoke(user_msg)
-            result = {"analysis": response.content}
+            # Fallback to the company-specific LLM for unclassified intents
+            company_id = state.get("company_id", 1)
+            llm = get_llm(company_id=company_id, intent="general")
+            if llm:
+                user_msg = state.get("messages", [{}])[-1].get("content", "")
+                response = await llm.ainvoke(user_msg)
+                result = {"analysis": response.content}
+            else:
+                result = {"analysis": "I'm sorry, I couldn't process your request."}
 
         # Merge the result into the state
         state.update(result)
@@ -343,29 +411,35 @@ async def route(state: dict) -> dict:
 
 
 # =============================================================================
-# NODE 5: POST-PROCESS (NEW – FOR SELF-IMPROVING LOOP)
+# NODE 5: POST-PROCESS (Self-Improving Loop Integration)
 # =============================================================================
 
 async def post_process(state: dict) -> dict:
     """
     Post-process the response and record for the self-improving loop.
 
-    This node:
-    1. Extracts the intent and input/output data from the state
-    2. Calculates a quality score (if not already present)
-    3. Records the episode for the self-improving loop
+    This node records every interaction episode for the self-improving loop.
+    It:
+    1. Skips recording if the request was handled remotely (no local data)
+    2. Calculates a quality score based on confidence or analysis length
+    3. Records the episode via SelfImprovingService
+
+    The recorded episodes are used to:
+        - Build training datasets for fine-tuning
+        - Detect edge cases and low-quality responses
+        - Trigger the self-improving loop when thresholds are met
 
     Returns:
-        dict: Updated state (unchanged, but episode is recorded).
+        dict: Updated state (unchanged, but episode is recorded asynchronously).
     """
-    # Only record local requests for self-improving
+    # Only record local requests for self-improving (remote requests are recorded at the hub)
     if state.get("route_source") == "remote":
         _logger.info("Skipping self-improving recording for remote request")
         return state
 
     intent = state.get("intent", "general")
 
-    # Calculate a quality score (simplified)
+    # Calculate a quality score (simplified heuristic)
     quality_score = 0.5  # Default
     if "confidence" in state:
         quality_score = state.get("confidence", 0.5)
@@ -383,6 +457,7 @@ async def post_process(state: dict) -> dict:
     self_improving = SelfImprovingService()
 
     try:
+        # Record the episode asynchronously
         await self_improving.record_episode(
             intent=intent,
             input_data=state.get("messages", [{}])[-1],
@@ -402,29 +477,30 @@ async def post_process(state: dict) -> dict:
 
 
 # =============================================================================
-# CONDITIONAL EDGE FOR MEDICAL SCREENING (EXISTING – PRESERVED)
+# CONDITIONAL EDGE FOR MEDICAL SCREENING
 # =============================================================================
 
 def should_continue_screening(state: dict) -> str:
     """
     Determine whether to continue medical screening or proceed to routing.
 
-    This conditional edge is used to loop back to medical_screening
-    when follow-up is needed, or proceed to route when screening is done.
+    This conditional edge is used by the LangGraph workflow to decide
+    whether to loop back to medical_screening (if more information is needed)
+    or proceed to bridge_route (if screening is complete).
+
+    Args:
+        state: The current state dictionary.
 
     Returns:
-        str: 'medical_screening' to continue screening, or 'route' to proceed.
+        str: 'medical_screening' to continue screening, or 'bridge_route' to proceed.
     """
-    # If screening is done, proceed to bridge_route
     if state.get("screening_done", True):
         return "bridge_route"
-
-    # If we're still screening, loop back
     return "medical_screening"
 
 
 # =============================================================================
-# BUILD THE WORKFLOW (EXISTING + NEW NODES)
+# BUILD THE WORKFLOW
 # =============================================================================
 
 def build_supervisor_workflow():
@@ -434,25 +510,28 @@ def build_supervisor_workflow():
     The workflow flow:
     1. classify → classify the user's intent
     2. medical_screening → multi-turn screening for medical/legal (loops back if needed)
-    3. bridge_route → check if request should go remote (NEW)
+    3. bridge_route → check if request should go remote (hub-and-spoke routing)
     4. route → route to appropriate sub-agent
-    5. post_process → record for self-improving loop (NEW)
+    5. post_process → record for self-improving loop
+
+    The graph uses a conditional edge from medical_screening to either
+    loop back (follow-up) or proceed to bridge_route.
 
     Returns:
-        StateGraph: The compiled LangGraph workflow.
+        StateGraph: The compiled LangGraph workflow (uncompiled graph).
     """
-    # Create the state graph
+    # Create a state graph with a dictionary state schema
     workflow = StateGraph(dict)
 
     # Add nodes
     workflow.add_node("classify", classify)
     workflow.add_node("medical_screening", medical_screening)
-    workflow.add_node("bridge_route", bridge_route)  # NEW
+    workflow.add_node("bridge_route", bridge_route)
     workflow.add_node("route", route)
-    workflow.add_node("post_process", post_process)  # NEW
+    workflow.add_node("post_process", post_process)
 
     # Add edges
-    workflow.add_edge(START, "classify")
+    workflow.add_edge(START, "classify")           # Start at classify
     workflow.add_edge("classify", "medical_screening")
 
     # Add conditional edge from medical_screening
@@ -461,58 +540,71 @@ def build_supervisor_workflow():
         should_continue_screening,
         {
             "medical_screening": "medical_screening",  # Loop back for follow-up
-            "bridge_route": "bridge_route",  # Proceed to bridge when done (UPDATED)
+            "bridge_route": "bridge_route",            # Proceed to bridge when done
         }
     )
 
-    # Add edges from bridge_route
+    # Add edges from bridge_route → route → post_process → end
     workflow.add_edge("bridge_route", "route")
-
-    # Add edge from route to post_process
     workflow.add_edge("route", "post_process")
-
-    # Add edge from post_process to END
     workflow.add_edge("post_process", "__end__")
 
     return workflow
 
 
 # =============================================================================
-# CREATE THE SUPERVISOR AGENT
+# CREATE THE SUPERVISOR AGENT (Entry Point for app.py)
 # =============================================================================
 
-def create_supervisor_agent():
+def build_supervisor():
     """
     Create and compile the supervisor agent.
 
+    This is the function that app.py imports and calls.
+    It builds the workflow and compiles it with checkpointing for persistence.
+
+    In production, a PostgresSaver checkpointer should be attached.
+    For development, we compile without a checkpointer.
+
     Returns:
-        CompiledGraph: The compiled LangGraph workflow with checkpointing.
+        CompiledGraph: The compiled LangGraph workflow.
     """
     workflow = build_supervisor_workflow()
 
     # Compile with checkpointing for persistence
-    # In production, this would use a real PostgreSQL connection
-    # For development, we use the PostgresSaver with a connection string
-    # app = workflow.compile(checkpointer=PostgresSaver())
-
-    # For now, compile without checkpointing for simplicity
+    # In production, this would use a real PostgreSQL connection string:
+    # app = workflow.compile(checkpointer=PostgresSaver.from_conn_string(db_uri))
+    # For development, compile without checkpointing
     app = workflow.compile()
 
     return app
 
 
+def create_supervisor_agent():
+    """
+    Create and compile the supervisor agent (backwards compatibility).
+
+    This is an alias for build_supervisor() to maintain compatibility
+    with older code that may expect this function name.
+
+    Returns:
+        CompiledGraph: The compiled LangGraph workflow.
+    """
+    return build_supervisor()
+
+
 # =============================================================================
-# MAIN ENTRY POINT
+# MAIN ENTRY POINT (for testing)
 # =============================================================================
 
 if __name__ == "__main__":
-    # Example usage
+    # Simple test to verify the supervisor can be built and invoked.
     import asyncio
 
     async def main():
-        supervisor = create_supervisor_agent()
+        supervisor = build_supervisor()
 
-        # Test request
+        # Test state with a recruitment request
         state = {
             "messages": [
                 {"role": "user", "content": "I need a Python developer for a project"}
@@ -520,6 +612,7 @@ if __name__ == "__main__":
             "company_id": 1
         }
 
+        # Invoke the supervisor graph
         result = await supervisor.ainvoke(state)
         print(json.dumps(result, indent=2))
 
