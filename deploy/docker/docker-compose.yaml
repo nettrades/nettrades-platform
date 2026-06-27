@@ -332,6 +332,28 @@ services:
     security_opt:
       - no-new-privileges:true
 
+# ---------------------------------------------------------------------------
+# Odoo Proxy Service (FastAPI)
+# This service acts as a stateless HTTP JSON-RPC shim that forwards tool calls to the Odoo server, using an API key for authentication. It is lightweight, secure, and easy to deploy.
+# ---------------------------------------------------------------------------
+
+    odoo-proxy:
+      build:
+        context: src/core/odoo_proxy
+        dockerfile: Dockerfile
+      container_name: odoo-proxy
+      restart: unless-stopped
+      environment:
+        - ODOO_URL=http://odoo:8069
+        - ODOO_API_KEY=${ODOO_API_KEY:-change_me_in_production}
+        - PROXY_API_KEY=${PROXY_API_KEY:-change_me_in_production}
+      ports:
+        - "3000:3000"
+      networks:
+        - nettrades-network
+      depends_on:
+      - odoo
+
 networks:
   web:
   internal:
