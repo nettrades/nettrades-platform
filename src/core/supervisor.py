@@ -26,7 +26,6 @@
 #   - Bridge: Routes requests to local or remote brain based on company settings
 #   - Self-Improving: Records episodes for fine-tuning models
 #   - GPUStack: Uses configured LLM provider (OpenAI, Anthropic, DeepSeek, Ollama, NETTRADES.AI)
-#
 # =============================================================================
 
 import asyncio
@@ -85,11 +84,9 @@ _logger = logging.getLogger(__name__)
 # This prevents infinite loops when the user is not providing enough information.
 MAX_FOLLOWUP_ROUNDS = 3
 
-
 # =============================================================================
 # CREATE SUB-AGENTS (Each is a compiled LangGraph sub-graph)
 # =============================================================================
-
 # The supervisor uses these sub-agents to handle specific business domains.
 # Each sub-agent is created by its factory function and returns a compiled
 # graph with an .ainvoke() method.
@@ -103,11 +100,9 @@ action_agent = create_action_agent()
 
 _logger.info("✅ All sub-agents loaded successfully")
 
-
 # =============================================================================
 # NODE 1: CLASSIFY INTENT
 # =============================================================================
-
 async def classify(state: dict) -> dict:
     """
     Classify the user's intent using the company's configured LLM.
@@ -121,15 +116,15 @@ async def classify(state: dict) -> dict:
     6. Stores the intent and initialises followup_count in the state
 
     The possible intents are:
-        - recruitment: job recruitment and candidate search
-        - freelance: freelance project matching
-        - lead_gen: lead generation from external feeds
-        - gpu_management: GPU cluster management
-        - medical: medical consultation (requires screening)
-        - legal: legal consultation (requires screening)
-        - action: robotic action control (VLA)
-        - vision: image analysis (VLM)
-        - general: general conversation (fallback)
+    - recruitment: job recruitment and candidate search
+    - freelance: freelance project matching
+    - lead_gen: lead generation from external feeds
+    - gpu_management: GPU cluster management
+    - medical: medical consultation (requires screening)
+    - legal: legal consultation (requires screening)
+    - action: robotic action control (VLA)
+    - vision: image analysis (VLM)
+    - general: general conversation (fallback)
 
     If an image is present, the intent is forced to 'vision' without calling the LLM.
 
@@ -185,14 +180,11 @@ async def classify(state: dict) -> dict:
     # Initialise follow-up count for medical/legal screening
     state["followup_count"] = 0
     state["screening_done"] = False
-
     return state
-
 
 # =============================================================================
 # NODE 2: MEDICAL SCREENING
 # =============================================================================
-
 async def medical_screening(state: dict) -> dict:
     """
     Conduct medical/legal screening with follow-up questions.
@@ -244,7 +236,7 @@ async def medical_screening(state: dict) -> dict:
     # The LLM is asked to determine if the user's question is complete enough.
     # If not, it should ask a follow-up question about comorbidities or interactions.
     prompt = (
-        f"You are a clinical screening assistant. The user has asked: '{user_msg}'.\n"
+        f"You are a clinical screening assistant. The user has asked: '{user_msg}'\n"
         f"Determine whether enough information is present to provide a safe answer. "
         f"If comorbidities or medication interactions might be relevant, ask the user "
         f"about them. If the question is clear and complete, respond with 'SUFFICIENT'."
@@ -269,7 +261,6 @@ async def medical_screening(state: dict) -> dict:
             state["followup_count"] = followup_count + 1
             state["screening_done"] = False
             _logger.info(f"Medical screening follow-up {state['followup_count']}")
-
     except Exception as e:
         _logger.error(f"Medical screening failed: {e}")
         # On error, mark screening as done to avoid infinite loops
@@ -277,26 +268,24 @@ async def medical_screening(state: dict) -> dict:
 
     return state
 
-
 # =============================================================================
 # NODE 3: BRIDGE ROUTE (Hub-and-Spoke Routing)
 # =============================================================================
-
 async def bridge_route(state: dict) -> dict:
     """
     Check if the request should be routed to the remote brain via the bridge.
 
-    This node integrates the nettrades_bridge module, which decides whether
-    the current request should be processed locally (by the company's own
-    LangGraph agents) or forwarded to the remote NETTRADES.AI brain.
+    This node integrates the nettrades_bridge module, which decides whether the
+    current request should be processed locally (by the company's own LangGraph
+    agents) or forwarded to the remote NETTRADES.AI brain.
 
     The decision is based on:
-        - Company-specific feature flags (e.g., enable_remote_recruitment)
-        - GPU overflow detection (local GPU utilisation > threshold)
-        - Bridge mode (local, remote, hybrid)
+    - Company-specific feature flags (e.g., enable_remote_recruitment)
+    - GPU overflow detection (local GPU utilisation > threshold)
+    - Bridge mode (local, remote, hybrid)
 
-    If the bridge decides to route remotely, it returns a bridge_response
-    that is used directly by the route node, bypassing local sub-agents.
+    If the bridge decides to route remotely, it returns a bridge_response that is
+    used directly by the route node, bypassing local sub-agents.
 
     Returns:
         dict: Updated state with 'bridge_response' and 'route_source' keys.
@@ -321,7 +310,6 @@ async def bridge_route(state: dict) -> dict:
             state["route_source"] = "local"
             state["bridge_response"] = None
             _logger.info(f"Request routed locally for intent: {intent}")
-
     except Exception as e:
         # If bridge fails, fallback to local processing
         _logger.warning(f"Bridge route failed: {e}. Falling back to local.")
@@ -330,11 +318,9 @@ async def bridge_route(state: dict) -> dict:
 
     return state
 
-
 # =============================================================================
 # NODE 4: ROUTE (Dispatch to Sub-Agent)
 # =============================================================================
-
 async def route(state: dict) -> dict:
     """
     Route the request to the appropriate sub-agent based on intent.
@@ -345,14 +331,14 @@ async def route(state: dict) -> dict:
     3. If not, it dispatches to the appropriate sub-agent based on intent
 
     The mapping of intents to sub-agents is:
-        - recruitment    → Recruitment Agent
-        - freelance      → Freelance Agent
-        - lead_gen       → Lead Generation Agent
-        - gpu_management → GPU Management Agent
-        - vision         → Vision Agent
-        - action         → Action Agent
-        - medical/legal  → General LLM (after screening)
-        - general        → General LLM (fallback)
+    - recruitment → Recruitment Agent
+    - freelance → Freelance Agent
+    - lead_gen → Lead Generation Agent
+    - gpu_management → GPU Management Agent
+    - vision → Vision Agent
+    - action → Action Agent
+    - medical/legal → General LLM (after screening)
+    - general → General LLM (fallback)
 
     If the bridge already provided a response, it is used directly without
     calling a sub-agent.
@@ -409,30 +395,28 @@ async def route(state: dict) -> dict:
 
     return state
 
-
 # =============================================================================
 # NODE 5: POST-PROCESS (Self-Improving Loop Integration)
 # =============================================================================
-
 async def post_process(state: dict) -> dict:
     """
     Post-process the response and record for the self-improving loop.
 
-    This node records every interaction episode for the self-improving loop.
-    It:
+    This node records every interaction episode for the self-improving loop. It:
     1. Skips recording if the request was handled remotely (no local data)
     2. Calculates a quality score based on confidence or analysis length
     3. Records the episode via SelfImprovingService
 
     The recorded episodes are used to:
-        - Build training datasets for fine-tuning
-        - Detect edge cases and low-quality responses
-        - Trigger the self-improving loop when thresholds are met
+    - Build training datasets for fine-tuning
+    - Detect edge cases and low-quality responses
+    - Trigger the self-improving loop when thresholds are met
 
     Returns:
         dict: Updated state (unchanged, but episode is recorded asynchronously).
     """
-    # Only record local requests for self-improving (remote requests are recorded at the hub)
+    # Only record local requests for self-improving
+    # (remote requests are recorded at the hub)
     if state.get("route_source") == "remote":
         _logger.info("Skipping self-improving recording for remote request")
         return state
@@ -475,18 +459,16 @@ async def post_process(state: dict) -> dict:
 
     return state
 
-
 # =============================================================================
 # CONDITIONAL EDGE FOR MEDICAL SCREENING
 # =============================================================================
-
 def should_continue_screening(state: dict) -> str:
     """
     Determine whether to continue medical screening or proceed to routing.
 
-    This conditional edge is used by the LangGraph workflow to decide
-    whether to loop back to medical_screening (if more information is needed)
-    or proceed to bridge_route (if screening is complete).
+    This conditional edge is used by the LangGraph workflow to decide whether
+    to loop back to medical_screening (if more information is needed) or
+    proceed to bridge_route (if screening is complete).
 
     Args:
         state: The current state dictionary.
@@ -498,11 +480,9 @@ def should_continue_screening(state: dict) -> str:
         return "bridge_route"
     return "medical_screening"
 
-
 # =============================================================================
 # BUILD THE WORKFLOW
 # =============================================================================
-
 def build_supervisor_workflow():
     """
     Build the complete LangGraph workflow for the supervisor.
@@ -514,13 +494,12 @@ def build_supervisor_workflow():
     4. route → route to appropriate sub-agent
     5. post_process → record for self-improving loop
 
-    The graph uses a conditional edge from medical_screening to either
-    loop back (follow-up) or proceed to bridge_route.
+    The graph uses a conditional edge from medical_screening to either loop back
+    (follow-up) or proceed to bridge_route.
 
     Returns:
-        StateGraph: The compiled LangGraph workflow (uncompiled graph).
+        StateGraph: The compiled LangGraph workflow.
     """
-    # Create a state graph with a dictionary state schema
     workflow = StateGraph(dict)
 
     # Add nodes
@@ -530,90 +509,69 @@ def build_supervisor_workflow():
     workflow.add_node("route", route)
     workflow.add_node("post_process", post_process)
 
-    # Add edges
-    workflow.add_edge(START, "classify")           # Start at classify
+    # Set entry point
+    workflow.add_edge(START, "classify")
+
+    # classify → medical_screening
     workflow.add_edge("classify", "medical_screening")
 
-    # Add conditional edge from medical_screening
+    # medical_screening conditional: continue or done
     workflow.add_conditional_edges(
         "medical_screening",
         should_continue_screening,
         {
-            "medical_screening": "medical_screening",  # Loop back for follow-up
-            "bridge_route": "bridge_route",            # Proceed to bridge when done
+            "medical_screening": "medical_screening",
+            "bridge_route": "bridge_route",
         }
     )
 
-    # Add edges from bridge_route → route → post_process → end
+    # bridge_route → route
     workflow.add_edge("bridge_route", "route")
+
+    # route → post_process
     workflow.add_edge("route", "post_process")
+
+    # post_process → END
     workflow.add_edge("post_process", "__end__")
 
-    return workflow
-
+    return workflow.compile()
 
 # =============================================================================
-# CREATE THE SUPERVISOR AGENT (Entry Point for app.py)
+# PUBLIC API: build_supervisor (for app.py)
 # =============================================================================
-
 def build_supervisor():
     """
-    Create and compile the supervisor agent.
+    Public API for building the supervisor.
 
-    This is the function that app.py imports and calls.
-    It builds the workflow and compiles it with checkpointing for persistence.
-
-    In production, a PostgresSaver checkpointer should be attached.
-    For development, we compile without a checkpointer.
+    This is the main entry point used by app.py to create the supervisor graph.
 
     Returns:
-        CompiledGraph: The compiled LangGraph workflow.
+        StateGraph: The compiled supervisor workflow.
     """
-    workflow = build_supervisor_workflow()
-
-    # Compile with checkpointing for persistence
-    # In production, this would use a real PostgreSQL connection string:
-    # app = workflow.compile(checkpointer=PostgresSaver.from_conn_string(db_uri))
-    # For development, compile without checkpointing
-    app = workflow.compile()
-
-    return app
-
-
-def create_supervisor_agent():
-    """
-    Create and compile the supervisor agent (backwards compatibility).
-
-    This is an alias for build_supervisor() to maintain compatibility
-    with older code that may expect this function name.
-
-    Returns:
-        CompiledGraph: The compiled LangGraph workflow.
-    """
-    return build_supervisor()
-
+    return build_supervisor_workflow()
 
 # =============================================================================
 # MAIN ENTRY POINT (for testing)
 # =============================================================================
-
 if __name__ == "__main__":
-    # Simple test to verify the supervisor can be built and invoked.
     import asyncio
 
-    async def main():
-        supervisor = build_supervisor()
+    async def test_supervisor():
+        """Test the supervisor with a sample request."""
+        # Build the supervisor
+        graph = build_supervisor()
 
-        # Test state with a recruitment request
+        # Test state
         state = {
             "messages": [
-                {"role": "user", "content": "I need a Python developer for a project"}
+                {"role": "user", "content": "Find me a Python developer with 5 years experience"}
             ],
-            "company_id": 1
+            "company_id": 1,
+            "user_id": 1,
         }
 
-        # Invoke the supervisor graph
-        result = await supervisor.ainvoke(state)
+        # Invoke the graph
+        result = await graph.ainvoke(state)
         print(json.dumps(result, indent=2))
 
-    asyncio.run(main())
+    asyncio.run(test_supervisor())

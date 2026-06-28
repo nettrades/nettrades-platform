@@ -18,7 +18,6 @@
 #   - Edge case detection
 #   - Self-improving loop integration
 #   - Bridge integration for hub-and-spoke routing
-#
 # =============================================================================
 
 import asyncio
@@ -35,8 +34,10 @@ import cv2
 # -----------------------------------------------------------------------------
 # LangGraph imports
 # -----------------------------------------------------------------------------
-from langgraph.graph import StateGraph, START  # FIXED: State removed (not needed)
-from langgraph.checkpoint.postgres import PostgresSaver  # FIXED: Correct import path
+from langgraph.graph import StateGraph, START
+# FIXED: State removed (not needed)
+from langgraph.checkpoint.postgres import PostgresSaver
+# FIXED: Correct import path
 
 # -----------------------------------------------------------------------------
 # ROS2 imports (optional)
@@ -68,7 +69,6 @@ except ImportError:
 # -----------------------------------------------------------------------------
 logger = logging.getLogger(__name__)
 
-
 # =============================================================================
 # 1. Data Classes & Enums
 # =============================================================================
@@ -83,6 +83,7 @@ class VisionMode(Enum):
     MULTIMODAL = "multimodal"
     ROS2 = "ros2"
 
+
 @dataclass
 class VisionInput:
     """Input data for the vision agent."""
@@ -94,6 +95,7 @@ class VisionInput:
     mode: VisionMode = VisionMode.VLM
     timestamp: float = field(default_factory=time.time)
 
+
 @dataclass
 class VisionOutput:
     """Output data from the vision agent."""
@@ -103,7 +105,6 @@ class VisionOutput:
     processed_image: Optional[np.ndarray] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
-
 
 # =============================================================================
 # 2. Vision Agent Class
@@ -218,9 +219,7 @@ class VisionAgent:
             logger.error(f"Failed to initialize ROS2: {e}")
 
     def _ros_callback(self, msg: ROSImage):
-        """
-        Callback for ROS2 camera messages.
-        """
+        """Callback for ROS2 camera messages."""
         if not self.ros_bridge:
             return
 
@@ -244,8 +243,7 @@ class VisionAgent:
         """
         Process visual input and return results.
 
-        This is the main entry point for the vision agent.
-        It handles:
+        This is the main entry point for the vision agent. It handles:
         1. Input validation and preprocessing
         2. Model inference
         3. Post-processing
@@ -307,9 +305,7 @@ class VisionAgent:
     # =========================================================================
 
     async def _process_vlm(self, input_data: VisionInput, image: np.ndarray) -> VisionOutput:
-        """
-        Process using Vision-Language Model.
-        """
+        """Process using Vision-Language Model."""
         if not self.model or not self.processor:
             return VisionOutput(
                 results={"error": "VLM model not available"},
@@ -319,14 +315,12 @@ class VisionAgent:
         try:
             # Prepare inputs
             text = input_data.text_query or "Describe what you see in this image."
-
             # Process image
             inputs = self.processor(
                 images=image,
                 text=text,
                 return_tensors="pt"
             )
-
             # Generate
             with torch.no_grad():
                 outputs = self.model.generate(
@@ -335,7 +329,6 @@ class VisionAgent:
                     do_sample=True,
                     temperature=0.7
                 )
-
             # Decode
             response = self.processor.decode(outputs[0], skip_special_tokens=True)
 
@@ -360,31 +353,23 @@ class VisionAgent:
             )
 
     async def _process_vla(self, input_data: VisionInput, image: np.ndarray) -> VisionOutput:
-        """
-        Process using Vision-Language-Action Model.
-        """
+        """Process using Vision-Language-Action Model."""
         # Similar to VLM but with action output
         result = await self._process_vlm(input_data, image)
-
         # Add action interpretation
         if result.results and "description" in result.results:
             action = self._interpret_action(result.results["description"])
             result.action = action
-
         return result
 
     async def _process_ros2(self, input_data: VisionInput, image: np.ndarray) -> VisionOutput:
-        """
-        Process ROS2 camera data.
-        """
+        """Process ROS2 camera data."""
         # Use VLM on ROS2 images
         input_data.mode = VisionMode.VLM
         return await self._process_vlm(input_data, image)
 
     async def _process_classification(self, input_data: VisionInput, image: np.ndarray) -> VisionOutput:
-        """
-        Process using classification (fallback).
-        """
+        """Process using classification (fallback)."""
         # Simple classification fallback
         # In a real implementation, this would use a classifier
         return VisionOutput(
@@ -403,9 +388,19 @@ class VisionAgent:
     def _interpret_action(self, description: str) -> Dict[str, Any]:
         """
         Interpret a description and extract action commands.
+
+        This method parses the VLM output to extract actionable commands
+        for robotics or automation.
+
+        Args:
+            description: The text description from the VLM.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing extracted actions.
         """
         # Simple action extraction
         actions = []
+
         if "move" in description.lower():
             actions.append({"type": "move", "direction": "forward"})
         if "grasp" in description.lower():
@@ -423,9 +418,7 @@ class VisionAgent:
     # =========================================================================
 
     def _load_image(self, input_data: VisionInput) -> Optional[np.ndarray]:
-        """
-        Load image from various sources.
-        """
+        """Load image from various sources."""
         if input_data.image is not None:
             return input_data.image
 
@@ -436,6 +429,7 @@ class VisionAgent:
                     return image
             except Exception as e:
                 logger.error(f"Failed to load image from path: {e}")
+                return None
 
         return None
 
@@ -446,10 +440,16 @@ class VisionAgent:
     async def _call_bridge(self, input_data: VisionInput) -> Optional[VisionOutput]:
         """
         Call the bridge to route to remote brain if needed.
+
+        This method sends the vision request to the remote NETTRADES.AI brain
+        via the bridge service. If the bridge returns a successful response,
+        it is used directly.
+
+        Returns:
+            Optional[VisionOutput]: The bridge response, or None if not routed.
         """
         try:
             import aiohttp
-
             payload = {
                 "intent": "vision",
                 "data": {
@@ -486,6 +486,15 @@ class VisionAgent:
     async def _detect_edge_case(self, result: VisionOutput) -> Optional[str]:
         """
         Detect if this result represents an edge case.
+
+        Edge cases are flagged for the self-improving loop to trigger
+        fine-tuning or model updates.
+
+        Args:
+            result: The vision output to evaluate.
+
+        Returns:
+            Optional[str]: The edge case type, or None if not an edge case.
         """
         if result.confidence < 0.3:
             return "low_confidence"
@@ -498,12 +507,18 @@ class VisionAgent:
     async def _record_edge_case(self, result: VisionOutput, edge_case: str):
         """
         Record edge case for the self-improving loop.
+
+        This sends the edge case data to the data collection module for
+        later analysis and fine-tuning.
+
+        Args:
+            result: The vision output that triggered the edge case.
+            edge_case: The type of edge case detected.
         """
         try:
             # Call the data collection module
             # This would be an Odoo RPC call or HTTP request
             logger.info(f"Recording edge case: {edge_case}")
-
             # In production: call Odoo's data.episode model
             # payload = {
             #     "input": result.metadata,
@@ -512,13 +527,19 @@ class VisionAgent:
             #     "confidence": result.confidence
             # }
             # await self._call_odoo("/api/data/record_edge_case", payload)
-
         except Exception as e:
             logger.error(f"Failed to record edge case: {e}")
 
     async def _record_for_fine_tuning(self, input_data: VisionInput, result: VisionOutput):
         """
         Record data for fine-tuning pipeline.
+
+        This collects high-quality vision data for the fine-tuning pipeline
+        to improve model performance.
+
+        Args:
+            input_data: The original vision input.
+            result: The vision output.
         """
         try:
             # Filter low-quality results
@@ -527,7 +548,6 @@ class VisionAgent:
 
             # Record for fine-tuning
             logger.info(f"Recording data for fine-tuning: confidence={result.confidence}")
-
             # In production: call Odoo's training dataset model
             # payload = {
             #     "input": {
@@ -538,7 +558,6 @@ class VisionAgent:
             #     "confidence": result.confidence
             # }
             # await self._call_odoo("/api/training/record", payload)
-
         except Exception as e:
             logger.error(f"Failed to record for fine-tuning: {e}")
 
@@ -553,7 +572,6 @@ class VisionAgent:
             rclpy.shutdown()
         logger.info("VisionAgent shutdown complete")
 
-
 # =============================================================================
 # 12. FACTORY FUNCTION – This is what supervisor.py imports
 # =============================================================================
@@ -562,11 +580,11 @@ def create_vision_agent():
     """
     Create and return a compiled LangGraph vision agent.
 
-    This function provides the contract that the supervisor expects:
-    a compiled LangGraph graph with .ainvoke().
+    This function provides the contract that the supervisor expects: a
+    compiled LangGraph graph with .ainvoke().
 
-    The graph is a simple wrapper around the VisionAgent class that
-    routes input through the agent's process() method.
+    The graph is a simple wrapper around the VisionAgent class that routes
+    input through the agent's process() method.
 
     Returns:
         CompiledGraph: A compiled LangGraph workflow for vision processing.
@@ -626,16 +644,16 @@ def create_vision_agent():
     # Compile and return
     return workflow.compile()
 
-
 # =============================================================================
 # 13. MAIN ENTRY POINT (for testing)
 # =============================================================================
 
 if __name__ == "__main__":
-    # Example usage
     import asyncio
+    import json
 
     async def main():
+        """Test the vision agent with a sample request."""
         agent = create_vision_agent()
 
         # Test with a dummy state
