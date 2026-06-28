@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION H – GPU NODE MODEL
-# =============================================================================
 # FILE: odoo-modules/nettrades_gpu_admin/models/gpu_node.py
-#
-# PURPOSE:
-#   This model represents a single GPU node (physical or virtual machine)
-#   that is part of a GPU cluster. It stores hardware information,
-#   WireGuard configuration, GPU inventory, and operational status.
+# =============================================================================
+# DESCRIPTION:
+#   GPU Node Model – represents a single GPU machine (physical or virtual)
+#   that is part of a GPU cluster. Stores hardware inventory, WireGuard
+#   configuration, GPU details, and operational status.
 #
 # RELATIONSHIPS:
 #   - cluster_id → gpu.cluster (the cluster this node belongs to)
 #
 # KEY FEATURES:
 #   - Hardware inventory (GPUs, VRAM, OS, TEE capabilities)
-#   - WireGuard key management
+#   - WireGuard key management (node generates its own keys)
 #   - Pool assignment (internal vs public)
 #   - Container runtime selection (Docker vs gVisor)
 #   - Token economics (earnings, reputation)
@@ -23,16 +21,19 @@
 # USAGE:
 #   - Created automatically when a GPU node registers via the agent
 #   - Managed by the GPU Administrator via the Odoo admin panel
-#
 # =============================================================================
 
-from odoo import fields, models, api, _
-from odoo.exceptions import UserError, ValidationError
 import logging
 import json
 import secrets
-import requests
+import hashlib
+import subprocess
+import base64
+import re
 from datetime import datetime, timedelta
+
+from odoo import fields, models, api, _
+from odoo.exceptions import UserError, ValidationError
 
 _logger = logging.getLogger(__name__)
 
@@ -334,7 +335,7 @@ class GPUNode(models.Model):
             node.gpu_count = count
 
     # =========================================================================
-    # 13. WIREGUARD CONFIGURATION
+    # 13. WIREGUARD CONFIGURATION GENERATION
     # =========================================================================
 
     def _generate_wireguard_config(self):
@@ -344,87 +345,81 @@ class GPUNode(models.Model):
         This method generates the WireGuard configuration that this node
         should use to connect to the cluster's WireGuard network.
 
+        IMPORTANT: The node's private key is generated locally and NEVER
+        stored in the database. Only the public key is stored.
+
         Returns:
-            str: The WireGuard configuration in INI format.
+            dict: A dictionary containing:
+                - 'private_key': The node's private key (for the agent)
+                - 'public_key': The node's public key (stored in the database)
+                - 'config': The WireGuard configuration in INI format
 
-        The config includes:
-            - The node's private key (generated if not present)
-            - The assigned IP address
-            - The controller's public key and endpoint
-
-        Note:
-            This method is called by the register_gpu_node endpoint when
-            a node registers, and the config is returned to the agent.
+        Raises:
+            UserError: If WireGuard tools are not installed or key generation fails.
         """
         self.ensure_one()
 
         # Get the cluster's WireGuard configuration
         cluster = self.cluster_id
 
-        # Generate a new key pair for this node if not already present
-        if not self.wireguard_public_key:
-            try:
-                import subprocess
+        # ---------------------------------------------------------------------
+        # Step 1: Generate a new WireGuard key pair for this node
+        # ---------------------------------------------------------------------
+        # The private key is generated locally and never stored.
+        # Only the public key is stored in the database.
+        try:
+            # Generate private key using wg(8)
+            privkey_proc = subprocess.run(
+                ['wg', 'genkey'],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=5
+            )
+            private_key = privkey_proc.stdout.strip()
 
-                # Generate a new key pair using wg(8)
-                privkey_proc = subprocess.run(
-                    ['wg', 'genkey'],
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-                private_key = privkey_proc.stdout.strip()
+            # Derive the public key from the private key
+            pubkey_proc = subprocess.run(
+                ['wg', 'pubkey'],
+                input=private_key,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=5
+            )
+            public_key = pubkey_proc.stdout.strip()
 
-                pubkey_proc = subprocess.run(
-                    ['wg', 'pubkey'],
-                    input=private_key,
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-                public_key = pubkey_proc.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            _logger.error(f"WireGuard key generation failed: {e}")
+            raise UserError(_(
+                "Failed to generate WireGuard keys. "
+                "Please ensure WireGuard is installed and 'wg' is in PATH."
+            ))
+        except FileNotFoundError:
+            _logger.error("WireGuard tools (wg) not found in PATH")
+            raise UserError(_(
+                "WireGuard tools not found. Please install WireGuard "
+                "and ensure 'wg' is available in the system PATH."
+            ))
+        except subprocess.TimeoutExpired:
+            _logger.error("WireGuard key generation timed out")
+            raise UserError(_("WireGuard key generation timed out. Please try again."))
 
-                # Store the public key on the node
-                # Note: The private key should never be stored in the database
-                # for security reasons. It should only be returned to the agent.
-                self.write({
-                    'wireguard_public_key': public_key,
-                })
+        # Store the public key on the node (private key is never stored)
+        self.write({
+            'wireguard_public_key': public_key,
+        })
 
-            except (ImportError, subprocess.CalledProcessError) as e:
-                _logger.error(f"Failed to generate WireGuard keys: {e}")
-                raise UserError(_("Failed to generate WireGuard keys. "
-                                  "Please ensure WireGuard is installed."))
-        else:
-            # If a public key already exists, we need to generate a new private key
-            # for the response (but we don't store it)
-            try:
-                import subprocess
-
-                privkey_proc = subprocess.run(
-                    ['wg', 'genkey'],
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-                private_key = privkey_proc.stdout.strip()
-
-                # Validate that the public key matches the private key
-                # The agent will handle this; we just need to generate a new key
-                # if the existing one is invalid or expired
-
-            except (ImportError, subprocess.CalledProcessError) as e:
-                _logger.error(f"Failed to generate WireGuard keys: {e}")
-                raise UserError(_("Failed to generate WireGuard keys."))
-
-        # Determine the assigned IP based on the cluster's subnet
+        # ---------------------------------------------------------------------
+        # Step 2: Determine the assigned IP address for this node
+        # ---------------------------------------------------------------------
+        # Use a deterministic IP based on the node ID (for consistency)
+        # In production, this should use a proper IPAM system
         subnet_parts = cluster.wireguard_mesh_subnet.split('/')
         base_ip = subnet_parts[0]
         prefix = subnet_parts[1] if len(subnet_parts) > 1 else '24'
 
-        # For now, assign a simple IP based on the node's ID
-        # In production, this should use a proper IPAM system
-        import hashlib
+        # Generate a stable IP suffix based on the node's ID
         node_hash = int(hashlib.md5(str(self.id).encode()).hexdigest()[:8], 16)
         ip_suffix = (node_hash % 254) + 1  # Avoid .0 and .255
         assigned_ip = f"{base_ip.rsplit('.', 1)[0]}.{ip_suffix}"
@@ -433,7 +428,9 @@ class GPUNode(models.Model):
             'wireguard_assigned_ip': assigned_ip,
         })
 
-        # Build the WireGuard config for this node
+        # ---------------------------------------------------------------------
+        # Step 3: Build the WireGuard configuration for this node
+        # ---------------------------------------------------------------------
         config = f"""[Interface]
 Address = {assigned_ip}/{prefix}
 PrivateKey = {private_key}
@@ -449,7 +446,19 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
 # Do not modify unless you know what you are doing.
 """
 
-        return config
+        _logger.info(
+            "Generated WireGuard config for node %s (ID: %d) with IP %s",
+            self.name, self.id, assigned_ip
+        )
+
+        # ---------------------------------------------------------------------
+        # Step 4: Return the configuration (private key, public key, config)
+        # ---------------------------------------------------------------------
+        return {
+            'private_key': private_key,
+            'public_key': public_key,
+            'config': config,
+        }
 
     # =========================================================================
     # 14. GPUSTACK TOKEN MANAGEMENT
@@ -477,6 +486,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
             return None
 
         try:
+            import requests
             url = f"{cluster.gpustack_server_url.rstrip('/')}/api/v1/workers/token"
             headers = {
                 'Authorization': f'Bearer {cluster.gpustack_api_key}',
@@ -493,16 +503,17 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
             result = response.json()
             token = result.get('token')
 
-            if token:
-                # Store the worker ID if provided
-                if result.get('worker_id'):
-                    self.write({
-                        'gpustack_worker_id': result.get('worker_id'),
-                    })
+            if token and result.get('worker_id'):
+                self.write({
+                    'gpustack_worker_id': result.get('worker_id'),
+                })
 
             return token
 
-        except requests.exceptions.RequestException as e:
+        except ImportError:
+            _logger.error("requests library not available")
+            return None
+        except Exception as e:
             _logger.error(f"Failed to generate GPUStack token: {e}")
             return None
 
@@ -523,32 +534,21 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
             dict: Action result for the Odoo UI.
         """
         self.ensure_one()
+        node_name = self.name
 
-        # Step 1: Remove from WireGuard peers (via peer manager API)
+        # Step 1: Remove from WireGuard peers (the peer manager will sync)
         try:
-            # The peer manager periodically syncs with the database, so
-            # we just mark the node as inactive. The peer manager will
-            # eventually remove the peer from the WireGuard interface.
-            # For immediate removal, we could call the peer manager API.
-
-            # Attempt to call the peer manager API if configured
             cluster = self.cluster_id
             if cluster.controller_endpoint:
-                # The peer manager API is typically internal, but we can
-                # attempt to call it if it's exposed
-                _logger.info(f"Requesting peer removal for node {self.name} via peer manager")
-
+                _logger.info(f"Requesting peer removal for node {self.name}")
                 # In production, this would call the peer manager API
-                # requests.post(f"http://localhost:8080/api/v1/peers/remove", ...)
-
-                pass
-
         except Exception as e:
             _logger.warning(f"Failed to remove WireGuard peer: {e}")
 
         # Step 2: Deregister from GPUStack
         if self.gpustack_worker_id:
             try:
+                import requests
                 cluster = self.cluster_id
                 if cluster.gpustack_server_url and cluster.gpustack_api_key:
                     url = f"{cluster.gpustack_server_url.rstrip('/')}/api/v1/workers/{self.gpustack_worker_id}"
@@ -558,14 +558,12 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
                     response = requests.delete(url, headers=headers, timeout=10)
                     if response.status_code in (200, 204, 404):
                         _logger.info(f"Deregistered worker {self.gpustack_worker_id} from GPUStack")
-                    else:
-                        _logger.warning(f"Failed to deregister worker: {response.status_code}")
+            except ImportError:
+                _logger.warning("requests library not available, skipping GPUStack deregistration")
             except Exception as e:
                 _logger.warning(f"Failed to deregister from GPUStack: {e}")
 
         # Step 3: Delete the node record
-        # Save the name for the notification message
-        node_name = self.name
         self.unlink()
 
         return {
@@ -611,10 +609,8 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
 
         # Validate the pool assignment
         if new_pool == 'public' and self.cluster_id.trust_mode == 'company_multi_gpu':
-            # Check if this node has multiple GPUs that would be affected
+            # Warn if multi-GPU node is being moved to public pool
             if self.gpu_count > 1:
-                # Warn the administrator that multi-GPU public sharing is not recommended
-                # (gVisor doesn't support multi-GPU passthrough well)
                 _logger.warning(
                     f"Node {self.name} has {self.gpu_count} GPUs. "
                     "Public sharing with multi-GPU may not be fully supported."
@@ -635,6 +631,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         # Update the GPUStack worker labels if possible
         if self.gpustack_worker_id:
             try:
+                import requests
                 cluster = self.cluster_id
                 if cluster.gpustack_server_url and cluster.gpustack_api_key:
                     url = f"{cluster.gpustack_server_url.rstrip('/')}/api/v1/workers/{self.gpustack_worker_id}"
@@ -651,8 +648,8 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
                     response = requests.patch(url, headers=headers, json=payload, timeout=10)
                     if response.status_code == 200:
                         _logger.info(f"Updated GPUStack worker labels for {self.gpustack_worker_id}")
-                    else:
-                        _logger.warning(f"Failed to update GPUStack worker labels: {response.status_code}")
+            except ImportError:
+                _logger.warning("requests library not available, skipping GPUStack label update")
             except Exception as e:
                 _logger.warning(f"Failed to update GPUStack worker labels: {e}")
 
@@ -686,21 +683,15 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
 
         # Get all nodes that are supposedly online
         nodes = self.search([('status', '=', 'online')])
-
         threshold = datetime.now() - timedelta(minutes=5)
 
         for node in nodes:
-            # If the node hasn't been seen recently, mark it as offline
             if node.last_seen and node.last_seen < threshold:
                 _logger.warning(
                     f"Node {node.name} ({node.hostname}) appears offline. "
                     f"Last seen: {node.last_seen}"
                 )
                 node.status = 'offline'
-
-                # Send notification to administrators
-                # This could use the Odoo mail system or in-app notifications
-                # self.env['user.notification'].create({...})
 
         _logger.info(f"GPU node health watchdog completed: {len(nodes)} nodes checked")
 
@@ -715,9 +706,6 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
 
         Ensures the key is a valid WireGuard base64-encoded public key.
         """
-        import base64
-        import re
-
         for node in self:
             if node.wireguard_public_key:
                 # WireGuard public keys are 44 characters of base64

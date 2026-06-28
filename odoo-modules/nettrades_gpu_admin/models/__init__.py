@@ -6,7 +6,7 @@ from . import gpu_cluster             # defines gpu.cluster – MUST BE FIRST
 
 # Now models that reference gpu.cluster
 from . import gpu_cluster_subnet      # references gpu.cluster via cluster_id
-from . import gpu_node                # references gpu.cluster
+from . import gpu_node                # references gpu.cluster and is referenced by gpu.cluster.gpu_ids
 from . import gpu_sharing_schedule    # references gpu.cluster
 from . import gpu_token_economics     # references gpu.cluster (if any)
 
