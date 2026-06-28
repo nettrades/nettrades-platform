@@ -71,11 +71,7 @@ class GPUNode(models.Model):
 
     node_id = fields.Char(
         string='Hardware Node ID',
-        help="""A hardware-bound unique identifier for this node.
-            This is generated from the TPM Endorsement Key hash (preferred)
-            or MAC address hash (fallback). It prevents token farming by
-            ensuring each physical machine has a unique identity.
-        """
+        help="Hardware-bound unique identifier generated from TPM Endorsement Key hash or MAC address hash. Prevents token farming."
     )
 
     hostname = fields.Char(
@@ -101,12 +97,7 @@ class GPUNode(models.Model):
         ],
         string='Status',
         default='offline',
-        help="""Current operational status of the node:
-            - Online: Node is active and serving requests.
-            - Offline: Node is not reachable.
-            - Degraded: Node is online but has issues (e.g., high utilisation).
-            - Maintenance: Node is being serviced and not accepting requests.
-        """
+        help="Current operational status of the node: Online, Offline, Degraded, or Maintenance."
     )
 
     last_seen = fields.Datetime(
@@ -130,10 +121,7 @@ class GPUNode(models.Model):
 
     gpus = fields.Json(
         string='GPU Inventory',
-        help="""JSON array containing GPU information from nvidia-smi.
-            Each entry has: index, name, memory_mb, utilisation, temperature.
-            Example: [{"index": 0, "name": "NVIDIA RTX 4090", "memory_mb": 24576}]
-        """
+        help="JSON array containing GPU information from nvidia-smi. Each entry: index, name, memory_mb, utilisation, temperature."
     )
 
     total_vram_gb = fields.Float(
@@ -166,7 +154,7 @@ class GPUNode(models.Model):
 
     model = fields.Char(
         string='System Model',
-        help="The system model of the machine (e.g., 'Dell PowerEdge R740')."
+        help="The system model of the machine (e.g., Dell PowerEdge R740)."
     )
 
     # =========================================================================
@@ -175,10 +163,7 @@ class GPUNode(models.Model):
 
     tee_capabilities = fields.Json(
         string='TEE Capabilities',
-        help="""JSON object containing Trusted Execution Environment capabilities.
-            Keys: nvidia_cc, intel_sgx, amd_sev, intel_tdx.
-            Example: {"nvidia_cc": true, "intel_sgx": false}
-        """
+        help="JSON object containing Trusted Execution Environment capabilities: nvidia_cc, intel_sgx, amd_sev, intel_tdx."
     )
 
     attestation_passed = fields.Boolean(
@@ -198,10 +183,7 @@ class GPUNode(models.Model):
 
     edge_device_info = fields.Json(
         string='Edge Device Info',
-        help="""JSON object containing edge device information.
-            Keys: type, model, memory, storage.
-            Example: {"type": "jetson", "model": "AGX Orin", "memory": 32}
-        """
+        help="JSON object containing edge device information: type, model, memory, storage."
     )
 
     # =========================================================================
@@ -224,22 +206,22 @@ class GPUNode(models.Model):
     )
 
     # =========================================================================
-    # 8. POOL ASSIGNMENT
+    # 8. POOL ASSIGNMENT (RENAMED to avoid conflict with Odoo's internal 'pool' attribute)
     # =========================================================================
+    # IMPORTANT: The field name 'pool' is reserved in Odoo's Model class.
+    # It is used internally to refer to the model registry. Defining a field
+    # named 'pool' shadows this attribute and causes the model registration
+    # to fail with AssertionError: is_model_definition(model_def).
+    # We rename it to 'gpu_pool' to avoid this conflict.
 
-    pool = fields.Selection(
+    gpu_pool = fields.Selection(
         [
             ('internal', 'Internal (Trusted)'),
             ('public', 'Public (Untrusted)'),
         ],
         string='Pool',
         default='internal',
-        help="""The pool this node belongs to:
-            - Internal: Company trusted network. Uses Docker runtime.
-              Supports multi-GPU vLLM and Axolotl FSDP2.
-            - Public: Untrusted freelancer network. Uses gVisor runtime.
-              Single-GPU quantised inference only.
-        """
+        help="Internal: Company trusted network. Uses Docker runtime. Public: Untrusted freelancer network. Uses gVisor runtime."
     )
 
     # =========================================================================
@@ -253,10 +235,7 @@ class GPUNode(models.Model):
         ],
         string='Container Runtime',
         default='docker',
-        help="""The container runtime used for inference workloads:
-            - Docker: Standard container runtime. Used for internal pools.
-            - gVisor: Syscall-level sandbox. Used for public pools.
-        """
+        help="The container runtime used for inference workloads: Docker (internal) or gVisor (public)."
     )
 
     # =========================================================================
@@ -597,7 +576,9 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         """
         self.ensure_one()
 
-        if new_pool == self.pool:
+        # Note: The field was renamed from 'pool' to 'gpu_pool' to avoid
+        # conflicting with Odoo's internal 'pool' attribute on models.
+        if new_pool == self.gpu_pool:
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -620,13 +601,13 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
 
             # Automatically switch to gVisor for public pool
             self.write({
-                'pool': new_pool,
+                'gpu_pool': new_pool,
                 'container_runtime': 'gvisor',
             })
         else:
             # For internal pool, use Docker runtime
             self.write({
-                'pool': new_pool,
+                'gpu_pool': new_pool,
                 'container_runtime': 'docker' if new_pool == 'internal' else self.container_runtime,
             })
 

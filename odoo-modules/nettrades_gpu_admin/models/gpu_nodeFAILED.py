@@ -6,6 +6,26 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+node_id = fields.Char(string='Hardware Node ID', help="...")
+hostname = fields.Char(string='Hostname')
+ip_address = fields.Char(string='IP Address')
+uptime_hours = fields.Float(string='Uptime (hours)')
+gpu_utilisation_pct = fields.Float(string='GPU Utilisation (%)')
+os = fields.Char(string='Operating System')
+arch = fields.Char(string='Architecture')
+model = fields.Char(string='System Model')
+endpoint = fields.Char(string='WireGuard Endpoint')
+gpustack_worker_id = fields.Char(string='GPUStack Worker ID')
+tokens_served = fields.Integer(string='Tokens Served', default=0)
+token_earnings = fields.Float(string='Token Earnings', default=0.0)
+reputation_score = fields.Float(string='Reputation Score', default=0.0)
+scheduled_share = fields.Boolean(string='Scheduled Sharing', default=False)
+
+tee_capabilities = fields.Json(string='TEE Capabilities')
+edge_device_info = fields.Json(string='Edge Device Info')
+
+pool = fields.Selection([...], string='Pool', default='internal')
+container_runtime = fields.Selection([...], string='Container Runtime', default='docker')
 
 class GPUNode(models.Model):
     _name = 'gpu.node'
