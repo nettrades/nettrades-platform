@@ -21,16 +21,10 @@
 # USAGE:
 #   - Created automatically when a GPU node registers via the agent
 #   - Managed by the GPU Administrator via the Odoo admin panel
-#
-# CRITICAL FIX (2026-06-28):
-#   - Fixed malformed import statements that were on a single line.
-#   - Each import is now on its own line for proper Python syntax.
-#   - This resolves the AssertionError: is_model_definition(model_def)
-#     that occurred during model registration.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# IMPORTS – Each import must be on its own line for valid Python syntax.
+# IMPORTS – Each import MUST be on its own line for valid Python syntax.
 # -----------------------------------------------------------------------------
 import logging
 import json
