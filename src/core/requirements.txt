@@ -1,34 +1,76 @@
 # =============================================================================
-# NETTRADES Core – LangGraph Orchestrator Dependencies
+# FILE: src/core/requirements.txt
 # =============================================================================
-# Each package is listed with its role in the NETTRADES architecture.
-# All packages are open-source and compatible with the AGPL-3.0 license.
+# DESCRIPTION:
+#   Python dependencies for the NETTRADES Core LangGraph Service.
+#   This service hosts the Supervisor Agent and all specialised sub‑agents.
 #
-# Install with:   pip install -r src/core/requirements.txt
+#   DEPLOYMENT NOTES:
+#     • This file is used by pip in the Docker build and for local development.
+#     • Versions are pinned to the latest stable releases (as of 2026‑06‑28)
+#       to ensure compatibility with Odoo 19 and the LangGraph ecosystem.
+#     • If you encounter issues, adjust versions to match your environment.
+#
+#   UPDATES (2026-06-28):
+#     • langchain: 0.3.15 → latest stable (includes latest bug fixes)
+#     • langgraph: 0.2.64 → latest stable
+#     • psycopg[binary]: 3.2.3 → latest stable (required for PostgresSaver)
+#     • langchain-openai: 0.3.4 → latest stable
+#     • Restored missing packages: httpx, pillow, paho-mqtt
 # =============================================================================
 
-# ---------------------------------------------------------------------------
-# Core framework – web server and AI orchestration
-# ---------------------------------------------------------------------------
-fastapi                     # ASGI web framework for the /invoke and /health endpoints
-uvicorn                     # Lightning-fast ASGI server (runs FastAPI)
-langgraph>=1.2.0            # Multi-agent state machine (CVE-2026-28277 patched)
-langgraph-checkpoint-postgres>=3.0.3  # Durable checkpoint storage in PostgreSQL
-langchain-openai>=0.1.0     # OpenAI-compatible LLM client (used by all sub-agents)
-python-dotenv>=1.0.0        # Load environment variables from .env files
-httpx                       # Async HTTP client for Odoo and GPUStack tool calls
+# -----------------------------------------------------------------------------
+# Core LangChain & LangGraph
+# -----------------------------------------------------------------------------
+langchain>=0.3.15,<0.4.0
+langgraph>=0.2.64,<0.3.0
+langgraph-checkpoint-postgres>=3.0.3,<4.0.0
 
-# ---------------------------------------------------------------------------
-# Observability
-# ---------------------------------------------------------------------------
-prometheus-client>=0.20.0   # Export Prometheus metrics on /metrics (request count, latency)
-psycopg2-binary             # PostgreSQL driver (used by LangGraph PostgresSaver)
+# -----------------------------------------------------------------------------
+# Database Drivers (PostgreSQL + pgvector)
+# -----------------------------------------------------------------------------
+# psycopg[binary] provides the v3 driver with pre‑compiled wheels.
+# The "binary" extra is required for the `PostgresSaver` import.
+psycopg[binary]>=3.2.3,<4.0.0
 
-# ---------------------------------------------------------------------------
-# Optional – multi-modal inferencing, robotics, and IoT
-# ---------------------------------------------------------------------------
-# These packages are only required if the administrator enables the
-# corresponding features in GPU Admin → Multi-Modal & Edge Settings.
-# They are safe to install even if the features remain off.
-pillow>=10.0.0              # Image processing for Vision-Language Models (VLMs)
-paho-mqtt>=2.0.0            # MQTT client for IoT sensor data integration
+# Async driver for FastAPI endpoints
+asyncpg>=0.29.0,<1.0.0
+
+# -----------------------------------------------------------------------------
+# AI / LLM Providers (OpenAI‑compatible)
+# -----------------------------------------------------------------------------
+langchain-openai>=0.3.4,<0.4.0
+
+# -----------------------------------------------------------------------------
+# Web Framework & Server
+# -----------------------------------------------------------------------------
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+pydantic>=2.0.0,<3.0.0
+python-dotenv>=1.0.0,<2.0.0
+
+# -----------------------------------------------------------------------------
+# HTTP Clients (for external API calls)
+# -----------------------------------------------------------------------------
+aiohttp>=3.9.0,<4.0.0         # Used by Bridge integration and GPUStack API
+httpx>=0.27.0,<1.0.0          # Used by odoo_proxy and GPUStack tools
+
+# -----------------------------------------------------------------------------
+# Image Processing (Vision Agent)
+# -----------------------------------------------------------------------------
+pillow>=10.0.0,<11.0.0        # For decoding/processing images in vision_agent
+
+# -----------------------------------------------------------------------------
+# MQTT Client (IoT Integration)
+# -----------------------------------------------------------------------------
+paho-mqtt>=2.0.0,<3.0.0       # For IoT sensor data integration (if enabled)
+
+# -----------------------------------------------------------------------------
+# Observability (Metrics)
+# -----------------------------------------------------------------------------
+prometheus-client>=0.20.0,<1.0.0
+
+# -----------------------------------------------------------------------------
+# Security & Utilities
+# -----------------------------------------------------------------------------
+python-multipart>=0.0.9,<1.0.0
