@@ -23,7 +23,7 @@ flowchart LR
         Commit["git commit & push"]
     end
 
-    subgraph Forgejo["Forgejo (Self‑Hosted Git)"]
+    subgraph Forgejo["Forgejo (Self-Hosted Git)"]
         Repo["Repository\n━━━━━━━━━━━━━━━━━\n• nettrades-platform\n• nettrades-odoo-modules"]
         Actions["Forgejo Actions\n━━━━━━━━━━━━━━━━━\n• CI Runner\n• Lint & Test\n• Build & Push"]
     end

@@ -16,8 +16,8 @@
 #   - Token usage tracking
 #
 # INTEGRATION:
-#   This module now calls a dedicated Odoo JSON‑RPC proxy service that
-#   validates an API key. Fallback to direct Odoo JSON‑RPC is also available.
+#   This module now calls a dedicated Odoo JSON-RPC proxy service that
+#   validates an API key. Fallback to direct Odoo JSON-RPC is also available.
 #
 # =============================================================================
 
