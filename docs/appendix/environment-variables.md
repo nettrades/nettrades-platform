@@ -24,7 +24,7 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 |----------|---------|---------|----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string (format: `postgresql://user:pass@host:port/dbname`) | `postgresql://odoo:password@postgres:5432/odoo` | ✅ Yes | Odoo, LangGraph |
 | `POSTGRES_PASSWORD` | PostgreSQL password for the `odoo` user | None | ✅ Yes | Odoo, Postgres container |
-| `DB_HOST` | PostgreSQL host (single‑VM) | `localhost` | ⚠️ Optional (if `DATABASE_URL` set) | Odoo |
+| `DB_HOST` | PostgreSQL host (single-VM) | `localhost` | ⚠️ Optional (if `DATABASE_URL` set) | Odoo |
 | `DB_PORT` | PostgreSQL port | `5432` | ⚠️ Optional | Odoo |
 | `DB_USER` | PostgreSQL user | `odoo` | ⚠️ Optional | Odoo |
 | `DB_NAME` | PostgreSQL database name | `odoo` | ⚠️ Optional | Odoo |
@@ -85,8 +85,8 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
 | `ADMIN_PASSWORD` | Master password for Odoo database creation | `admin` | ✅ Yes | Odoo |
-| `ODOO_API_KEY` | API key for Odoo JSON‑RPC calls (MCP bridge) | None | ✅ Yes | MCP‑Odoo bridge |
-| `ODOO_URL` | Odoo server URL for MCP bridge | `http://odoo:8069` | ⚠️ Optional | MCP‑Odoo bridge |
+| `ODOO_API_KEY` | API key for Odoo JSON-RPC calls (MCP bridge) | None | ✅ Yes | MCP-Odoo bridge |
+| `ODOO_URL` | Odoo server URL for MCP bridge | `http://odoo:8069` | ⚠️ Optional | MCP-Odoo bridge |
 | `WORKERS` | Number of Odoo worker processes (set to 0 for development) | `0` | ⚠️ Optional | Odoo |
 | `LOG_LEVEL` | Odoo log level (`info`, `debug`, `warn`, `error`) | `info` | ⚠️ Optional | Odoo |
 
@@ -123,15 +123,15 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 
 ---
 
-## Bridge Service (Company‑Specific Overrides)
+## Bridge Service (Company-Specific Overrides)
 
 These variables are used by the `nettrades_bridge` module to route requests between local and remote brains. They are typically set in the Odoo admin interface rather than environment variables, but they can also be set in `.env`.
 
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
 | `BRIDGE_MODE` | Override for a specific company: `local`, `remote`, `hybrid`, `global` | `global` | ⚠️ Optional | Bridge service |
-| `BRIDGE_REMOTE_URL` | Company‑specific remote brain URL | None | ⚠️ Optional | Bridge service |
-| `BRIDGE_REMOTE_API_KEY` | Company‑specific remote brain API key | None | ⚠️ Optional | Bridge service |
+| `BRIDGE_REMOTE_URL` | Company-specific remote brain URL | None | ⚠️ Optional | Bridge service |
+| `BRIDGE_REMOTE_API_KEY` | Company-specific remote brain API key | None | ⚠️ Optional | Bridge service |
 
 ---
 
@@ -139,8 +139,8 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
-| `FINETUNE_BACKEND` | Which fine‑tuning backend to use: `local` or `remote` | `local` | ⚠️ Optional | `ft.dataset` |
-| `DATA_JUICER_ENABLED` | Whether to enable Data‑Juicer filtering | `false` | ⚠️ Optional | `ft.dataset` |
+| `FINETUNE_BACKEND` | Which fine-tuning backend to use: `local` or `remote` | `local` | ⚠️ Optional | `ft.dataset` |
+| `DATA_JUICER_ENABLED` | Whether to enable Data-Juicer filtering | `false` | ⚠️ Optional | `ft.dataset` |
 | `DEITA_ENABLED` | Whether to enable DEITA scoring | `false` | ⚠️ Optional | `ft.dataset` |
 
 ---
@@ -162,8 +162,8 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
 | `DOMAIN` | Main domain for the platform (e.g., `nettrades.ai`) | None | ✅ Yes | Traefik, Odoo, Forgejo |
-| `ADMIN_EMAIL` | Email address for Let's Encrypt certificate registration | None | ✅ Yes | Traefik, cert‑manager |
-| `PUBLIC_IP` | Public IP address of the server (auto‑detected if not set) | Auto‑detected | ⚠️ Optional | Installer scripts |
+| `ADMIN_EMAIL` | Email address for Let's Encrypt certificate registration | None | ✅ Yes | Traefik, cert-manager |
+| `PUBLIC_IP` | Public IP address of the server (auto-detected if not set) | Auto-detected | ⚠️ Optional | Installer scripts |
 
 ---
 

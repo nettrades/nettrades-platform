@@ -1,22 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- =========================================================================
-     FILE: odoo-modules/nettrades_gpu_admin/security/gpu_registration_token_security.xml
-     =========================================================================
-     DESCRIPTION:
-       Record rule for the GPU Registration Token model to enforce company
-       isolation. Tokens are only visible to users in the same company.
+<!--
+    FILE: nettrades_gpu_admin/security/gpu_registration_token_security.xml
+    DESCRIPTION: Record rule for the GPU Registration Token model to enforce
+                 company isolation. Tokens are only visible to users in the
+                 same company.
 
-       GROUP REFERENCES:
-         - group_gpu_administrator: full access (create, read, write, delete)
-         - group_gpu_operator: read-only access
-     ========================================================================= -->
-
+    GROUP REFERENCES:
+      - group_gpu_administrator: full access (create, read, write, delete)
+      - group_gpu_operator: read-only access
+-->
 <odoo>
     <record id="gpu_registration_token_company_rule" model="ir.rule">
         <field name="name">GPU Registration Token: Company Isolation</field>
         <field name="model_id" ref="model_gpu_registration_token"/>
         <field name="global" eval="False"/>
         <field name="domain_force">[('company_id', 'in', user.company_ids)]</field>
-        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
+        <field name="groups" eval="[
+            (4, ref('nettrades_gpu_admin.group_gpu_administrator')),
+            (4, ref('nettrades_gpu_admin.group_gpu_operator'))
+        ]"/>
     </record>
 </odoo>

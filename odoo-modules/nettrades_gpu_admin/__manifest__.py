@@ -18,7 +18,7 @@
 #   • Tokens are one-time use, expirable, revocable, and company-scoped.
 #   • Added full admin UI (tree, form, search views) for token management.
 #   • Created new security groups: `group_gpu_administrator` (full access)
-#     and `group_gpu_operator` (read‑only).
+#     and `group_gpu_operator` (read-only).
 #
 #   ────────────────────────────────────────────────────────────────────────────
 #   PRESERVED FUNCTIONALITY (All original features remain)
