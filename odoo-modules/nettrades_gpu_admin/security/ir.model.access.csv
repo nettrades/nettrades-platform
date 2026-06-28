@@ -11,3 +11,5 @@ access_gpu_token_economics_user,gpu.token.economics.user,model_gpu_token_economi
 access_gpu_token_economics_operator,gpu.token.economics.operator,model_gpu_token_economics,group_gpu_operator,1,0,0,0
 access_multimodal_config_user,multimodal.config.user,model_multimodal_config,group_gpu_administrator,1,1,1,1
 access_multimodal_config_operator,multimodal.config.operator,model_multimodal_config,group_gpu_operator,1,0,0,0
+access_gpu_registration_token_manager,gpu.registration.token.manager,model_gpu_registration_token,nettrades_gpu_admin.group_gpu_manager,1,1,1,1
+access_gpu_registration_token_user,gpu.registration.token.user,model_gpu_registration_token,nettrades_gpu_admin.group_gpu_user,1,0,0,0

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- =====================================================================
+         Record Rules for GPU Registration Tokens (Multi-tenant isolation)
+         ===================================================================== -->
+
+    <!-- Rule 1: Users can only see tokens in their own company -->
+    <record id="gpu_registration_token_company_rule" model="ir.rule">
+        <field name="name">GPU Registration Token: Company Isolation</field>
+        <field name="model_id" ref="model_gpu_registration_token"/>
+        <field name="global" eval="False"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_manager')), (4, ref('nettrades_gpu_admin.group_gpu_user'))]"/>
+    </record>
+
+    <!-- Rule 2: GPU Managers can do everything; GPU Users can only read -->
+    <!-- (Handled by ir.model.access.csv above) -->
+
+    <!-- Rule 3: Public/Unauthenticated users have NO access -->
+    <!-- (No rule needed - they have no access by default) -->
+</odoo>

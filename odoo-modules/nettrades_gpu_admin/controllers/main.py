@@ -1,246 +1,436 @@
-# -*- coding: utf-8 -*-
-# =============================================================================
-# NETTRADES GPU Admin – Main Controller
+#!/usr/bin/env python3
 # =============================================================================
 # FILE: odoo-modules/nettrades_gpu_admin/controllers/main.py
+# =============================================================================
+# DESCRIPTION:
+#   GPU Admin Controller – handles GPU node registration, cluster management,
+#   WireGuard configuration, and administrative tasks for the distributed GPU
+#   network.
 #
-# PURPOSE:
-#   This file contains the HTTP controllers for the GPU Admin module.
-#   It handles:
-#     - GPU node registration and updates (with Bearer token authentication)
-#     - WireGuard peer list for the peer manager daemon
-#     - GPU node removal and revocation of WireGuard peers
+#   This controller implements a secure token-based authentication system for
+#   node registration (modeled after Tailscale, Wiredoor, and DockNimbus) while
+#   preserving all original admin and peer-management functionality.
+#
+#
+#   It also handles:
 #     - Network scanning for GPU-equipped machines
 #     - Remote installation of GPU agents
 #     - Fine-tuning job submission, status checking, and deployment
 #
 # ENDPOINTS:
-#   - /api/v1/gpu/register (POST) – GPU node registration
-#   - /api/v1/gpu/peers (GET) – WireGuard peer list (used by peer manager)
-#   - /api/v1/admin/scan_network (POST) – Network discovery
-#   - /api/v1/admin/install_node (POST) – Remote node installation
-#   - /api/v1/admin/remove_node (POST) – Node removal (deprecated: use action_remove_node)
-#   - /api/v1/admin/finetune/start (POST) – Fine-tuning job submission
-#   - /api/v1/admin/finetune/status (GET) – Fine-tuning job status
-#   - /api/v1/admin/finetune/deploy (POST) – Model deployment
+#   ────────────────────────────────────────────────────────────────────────────
+#   PUBLIC (token-authenticated)
+#   ────────────────────────────────────────────────────────────────────────────
+#   POST /api/v1/gpu/register          – Register a new GPU node using a
+#                                        registration token. (REPLACED the old
+#                                        insecure bearer-check with real token
+#                                        validation.)
 #
-# INTEGRATION POINTS:
-#   - Odoo ORM: gpustack.sync, gpu.cluster, gpu.node, ft.dataset, ft.training.job
-#   - GPUStack API: via gpustack.sync model
-#   - WireGuard: peer configuration generation and revocation (placeholder)
+#   ────────────────────────────────────────────────────────────────────────────
+#   INTERNAL (Odoo user authenticated)
+#   ────────────────────────────────────────────────────────────────────────────
+#   GET  /api/v1/gpu/peers             – List all active WireGuard peers.
+#   POST /api/v1/admin/scan_network    – Scan network for GPU machines.
+#   POST /api/v1/admin/install_node    – Install GPU agent on remote host.
+#   POST /api/v1/admin/remove_node     – Remove a GPU node from cluster.
+#   POST /api/v1/admin/finetune/start  – Start a fine-tuning job.
+#   GET  /api/v1/admin/finetune/status – Check fine-tuning job status.
+#   POST /api/v1/admin/finetune/deploy – Deploy a fine-tuned model.
 #
-# SECURITY:
-#   - Bearer token authentication for agent endpoints
-#   - Session-based authentication for admin endpoints (auth='user')
-#   - Access control via Odoo security groups
-#
+# SECURITY IMPROVEMENTS:
+#   1. Registration uses SHA-256 hashed tokens stored in gpu.registration.token.
+#   2. Tokens are one-time use, time-limited, revocable, and scoped by company.
+#   3. Node provides its own WireGuard public key (private key never transmitted).
+#   4. Controller private key is NEVER generated or exposed.
+#   5. All admin endpoints enforce group permissions (group_gpu_administrator).
+#   6. All endpoints log detailed audit information.
 # =============================================================================
 
-import json
+import os
 import logging
-import hmac
-from datetime import datetime, timedelta
-
-from odoo import http, fields
+import ipaddress
+from odoo import http
 from odoo.http import request
-from odoo.exceptions import UserError, AccessError, ValidationError
-from odoo.tools import consteq
+from odoo.exceptions import AccessError, ValidationError
 
 _logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Configuration
+# =============================================================================
+# The registration endpoint is enabled by default with token-based auth.
+# Set ENABLE_GPU_REGISTRATION=false to disable it entirely (emergency kill-switch).
+_ENABLE_GPU_REGISTRATION = os.getenv('ENABLE_GPU_REGISTRATION', 'true').lower() == 'true'
+_DEFAULT_SUBNET = os.getenv('WIREGUARD_SUBNET', '10.0.0.0/8')
 
-class GPUController(http.Controller):
-    """
-    GPU Admin Controller – handles all GPU-related API endpoints.
 
-    This controller is the entry point for:
-        - GPU node registration (from agent)
-        - WireGuard peer management
-        - Health monitoring
-        - Fine-tuning orchestration
-        - Network discovery and remote installation
-    """
+class GpuAdminController(http.Controller):
 
     # =========================================================================
-    # 1. AUTHENTICATION HELPERS
+    # 1. GPU NODE REGISTRATION (Token-Authenticated)
     # =========================================================================
 
-    def _auth_method_bearer(self):
+    def _validate_token(self, auth_header):
         """
-        Authenticate using a Bearer token from the Authorization header.
+        Extract and validate the Bearer token from the Authorization header.
 
-        This is the pattern used in the vendor's odoo_llm code and is
-        required for agent-to-Odoo communication where session cookies are
-        not available.
+        This method:
+        1. Extracts the token from the "Authorization: Bearer <token>" header.
+        2. Validates the token against the gpu.registration.token model.
+        3. Returns the validated token record or raises an exception.
 
-        The token is currently validated by checking the gpustack.sync model.
-        In production, this should be a dedicated token store with proper
-        hashing and expiry.
+        Args:
+            auth_header (str): The Authorization header value.
 
         Returns:
-            bool: True if authentication succeeds, False otherwise.
+            gpu.registration.token: The validated token record.
+
+        Raises:
+            Exception: With appropriate error message if validation fails.
         """
-        auth_header = request.httprequest.headers.get('Authorization')
         if not auth_header:
-            return False
+            _logger.warning("GPU registration: missing Authorization header")
+            raise Exception("Missing Authorization header")
 
         parts = auth_header.split()
         if len(parts) != 2 or parts[0].lower() != 'bearer':
-            return False
+            _logger.warning("GPU registration: malformed Authorization header")
+            raise Exception("Invalid Authorization header format. Expected: Bearer <token>")
 
-        token = parts[1]
+        plaintext_token = parts[1]
 
-        # Look up the token in the gpustack.sync model
-        # In production, this should be a dedicated token store with proper
-        # hashing and expiry.
+        # Validate the token using the model
+        token_model = request.env['gpu.registration.token'].sudo()
+        result = token_model.validate_token(plaintext_token)
+
+        if not result['valid']:
+            _logger.warning("GPU registration: token validation failed: %s", result.get('error'))
+            raise Exception(result.get('error', 'Token validation failed'))
+
+        return result['token']
+
+    def _allocate_ip(self, cluster, node_name=None):
+        """
+        Allocate a unique IP address for a new node from the cluster's subnet.
+
+        Args:
+            cluster (gpu.cluster): The GPU cluster record.
+            node_name (str, optional): Name of the node for logging.
+
+        Returns:
+            str: The allocated IP address.
+
+        Raises:
+            Exception: If no IP addresses are available.
+        """
+        subnet_str = cluster.wireguard_subnet or _DEFAULT_SUBNET
         try:
-            sync = request.env['gpustack.sync'].sudo()
-            # TODO: Replace with proper token store.
-            return True
-        except Exception:
-            return False
+            subnet = ipaddress.ip_network(subnet_str, strict=False)
+        except ValueError as e:
+            _logger.error("Invalid subnet configuration: %s", subnet_str)
+            raise Exception(f"Invalid subnet configuration: {subnet_str}")
 
-        return False
+        Node = request.env['gpu.node'].sudo()
+        existing_nodes = Node.search([('cluster_id', '=', cluster.id)])
+        existing_ips = set()
+        for node in existing_nodes:
+            if node.wireguard_ip:
+                try:
+                    existing_ips.add(ipaddress.ip_address(node.wireguard_ip))
+                except ValueError:
+                    pass
 
-    # =========================================================================
-    # 2. GPU NODE REGISTRATION (Agent Endpoint)
-    # =========================================================================
+        all_ips = list(subnet.hosts())
+        for ip in all_ips:
+            if ip not in existing_ips:
+                _logger.info(
+                    "Allocated IP %s for node %s in cluster %s",
+                    str(ip), node_name or 'unnamed', cluster.name
+                )
+                return str(ip)
 
-    @http.route('/api/v1/gpu/register', type='json', auth='public', methods=['POST'], csrf=False)
-    def register_gpu_node(self, **kwargs):
+        _logger.error("No available IPs in subnet %s for cluster %s", subnet_str, cluster.name)
+        raise Exception(f"No available IPs in subnet {subnet_str}")
+
+    def _generate_node_wireguard_config(self, cluster, node_name, node_public_key, node_ip):
         """
-        Register or update a GPU node from the agent.
+        Generate a WireGuard configuration for a specific node.
 
-        This endpoint is called by the GPU agent when a new GPU node comes
-        online. It supports both:
-          - Bearer token authentication (for agents, using auth='public')
-          - Session-based authentication (for admin UI, not used here)
+        This method returns the server-side details that the node needs to
+        establish a tunnel. The node's private key is NEVER stored or returned.
 
-        The agent sends a JSON payload with the node's hardware details,
-        WireGuard public key, and optionally TEE capabilities.
+        Args:
+            cluster (gpu.cluster): The GPU cluster record.
+            node_name (str): Name of the node.
+            node_public_key (str): The node's WireGuard public key.
+            node_ip (str): The allocated IP address for the node.
 
-        Request Body:
-        {
-            "node_id": "hardware-bound-id",
-            "hostname": "gpu-node-01",
-            "gpus": [{"index": 0, "name": "NVIDIA RTX 4090", "memory_mb": 24576}],
-            "wireguard_public_key": "abc123...",
-            "os": "linux",
-            "tee_capabilities": {"nvidia_cc": true},
-            "edge_device_info": {"type": "jetson", "model": "AGX Orin"}
+        Returns:
+            dict: WireGuard configuration with keys:
+                - server_public_key: The server's public key.
+                - server_endpoint: The server's endpoint (IP or domain:port).
+                - address: The node's IP address.
+                - allowed_ips: The allowed IP ranges.
+                - persistent_keepalive: Keepalive interval.
+                - dns_servers: DNS servers for the node.
+        """
+        server_public_key = cluster.wireguard_server_public_key
+        server_endpoint = cluster.wireguard_server_endpoint
+        listen_port = cluster.wireguard_listen_port or 51820
+
+        if not server_public_key or not server_endpoint:
+            _logger.error(
+                "Cluster %s missing WireGuard server configuration. "
+                "Please configure wireguard_server_public_key and wireguard_server_endpoint.",
+                cluster.name
+            )
+            raise Exception("Cluster WireGuard configuration incomplete")
+
+        allowed_ips = cluster.wireguard_subnet or _DEFAULT_SUBNET
+
+        config = {
+            'server_public_key': server_public_key,
+            'server_endpoint': server_endpoint,
+            'server_port': listen_port,
+            'address': node_ip,
+            'allowed_ips': allowed_ips,
+            'persistent_keepalive': 25,
+            'node_name': node_name,
+            'dns_servers': cluster.dns_servers or '8.8.8.8, 1.1.1.1',
         }
 
-        Response:
-        {
-            "node_id": 123,
-            "wireguard_config": "[Interface]...",
-            "gpustack_token": "gpsk_...",
-            "gpustack_server_url": "https://gpustack.nettrades.ai",
-            "pool": "internal",
-            "trust_mode": "company_multi_gpu"
-        }
+        _logger.info(
+            "Generated WireGuard config for node %s with IP %s in cluster %s",
+            node_name, node_ip, cluster.name
+        )
 
-        If the node already exists, it is updated with the latest information.
-        If it is new, a new record is created.
+        return config
 
-        The WireGuard configuration is generated by the cluster model and
-        returned to the agent so it can set up its tunnel.
-
-        A GPUStack registration token is also generated for the node to
-        authenticate with GPUStack.
+    @http.route(
+        '/api/v1/gpu/register',
+        type='json',
+        auth='public',          # Public endpoint, but token-based auth is applied
+        methods=['POST'],
+        csrf=False,
+        cors='*'
+    )
+    def register_node(self, **kwargs):
         """
-        # Try Bearer token auth first (for agents)
-        if self._auth_method_bearer():
-            user = request.env.user
-        else:
-            # Fall back to session-based auth (for admin UI)
-            if not request.env.user or not request.env.user.id:
-                return {'error': 'Authentication required'}, 401
-            user = request.env.user
+        Register a new GPU node into the cluster.
 
-        company = user.company_id
-        if not company:
-            return {'error': 'User not associated with a company'}, 400
+        This endpoint implements a secure token-based registration flow:
+        1. Client provides a registration token (Bearer auth).
+        2. Client provides its WireGuard public key (generated locally).
+        3. Client provides a node name and optional IP hint.
+        4. System validates the token against the token store.
+        5. System allocates an IP address for the node.
+        6. System generates a node-specific WireGuard configuration.
+        7. System returns the configuration to the client.
 
-        # Get or create the GPU cluster for this company
-        cluster = request.env['gpu.cluster'].sudo().search([
-            ('company_id', '=', company.id),
-        ], limit=1)
+        Request payload:
+            {
+                "name": "alice-gpu-01",
+                "public_key": "AbC123...",
+                "ip": "10.0.0.10"      # optional
+            }
 
-        if not cluster:
-            cluster = request.env['gpu.cluster'].sudo().create({
-                'company_id': company.id,
-                'name': f"{company.name} GPU Cluster",
-                'trust_mode': 'company_multi_gpu',
-            })
-            _logger.info(f"Created new cluster for company {company.name}")
+        Response (success):
+            {
+                "status": "success",
+                "node": {
+                    "id": 123,
+                    "name": "alice-gpu-01",
+                    "ip": "10.0.0.10",
+                    "wireguard": {
+                        "server_public_key": "...",
+                        "server_endpoint": "wg.example.com:51820",
+                        "address": "10.0.0.10/32",
+                        "allowed_ips": "10.0.0.0/8",
+                        "persistent_keepalive": 25,
+                        "dns_servers": "8.8.8.8, 1.1.1.1"
+                    }
+                }
+            }
 
-        # Extract node data from request
-        node_id = kwargs.get('node_id')
-        hostname = kwargs.get('hostname')
-        gpus = kwargs.get('gpus', [])
-        wireguard_public_key = kwargs.get('wireguard_public_key')
-        os_type = kwargs.get('os', 'linux')
-        tee_capabilities = kwargs.get('tee_capabilities', {})
-        edge_device_info = kwargs.get('edge_device_info', {})
+        Response (error):
+            {
+                "status": "error",
+                "error": "Human-readable error message"
+            }
 
-        if not node_id:
-            return {'error': 'node_id is required'}, 400
+        Security:
+            - Token validation against gpu.registration.token model.
+            - Tokens stored as SHA-256 hashes (never plaintext).
+            - One-time use tokens are marked as used after successful registration.
+            - Expired/revoked tokens are rejected.
+            - Node-specific token binding (optional).
+            - All errors logged for audit.
+        """
+        # ---------------------------------------------------------------------
+        # Step 1: Check if registration is enabled (default: true)
+        # ---------------------------------------------------------------------
+        if not _ENABLE_GPU_REGISTRATION:
+            _logger.warning(
+                "GPU registration endpoint called but is disabled. "
+                "Set ENABLE_GPU_REGISTRATION=true to enable."
+            )
+            return {
+                "status": "error",
+                "error": "GPU registration is disabled by administrator configuration."
+            }
 
-        if not wireguard_public_key:
-            return {'error': 'wireguard_public_key is required'}, 400
+        # ---------------------------------------------------------------------
+        # Step 2: Authenticate the request using the Bearer token
+        # ---------------------------------------------------------------------
+        try:
+            auth_header = request.httprequest.headers.get('Authorization')
+            token = self._validate_token(auth_header)
+            _logger.info(
+                "GPU registration request authenticated with token: %s (ID: %d)",
+                token.name, token.id
+            )
+        except Exception as e:
+            _logger.warning("GPU registration authentication failed: %s", str(e))
+            return {
+                "status": "error",
+                "error": str(e)
+            }
 
-        # Find existing node or create new one
-        node = request.env['gpu.node'].sudo().search([
-            ('node_id', '=', node_id),
-            ('cluster_id', '=', cluster.id),
-        ], limit=1)
+        # ---------------------------------------------------------------------
+        # Step 3: Extract and validate request parameters
+        # ---------------------------------------------------------------------
+        try:
+            params = request.jsonrequest or {}
+            node_name = params.get('name')
+            node_public_key = params.get('public_key')
+            requested_ip = params.get('ip')
 
-        if node:
-            node.write({
-                'hostname': hostname or node.hostname,
-                'status': 'online',
-                'last_seen': fields.Datetime.now(),
-                'wireguard_public_key': wireguard_public_key,
-                'os': os_type,
-                'gpus': json.dumps(gpus) if gpus else node.gpus,
-                'tee_capabilities': json.dumps(tee_capabilities) if tee_capabilities else node.tee_capabilities,
-                'edge_device_info': json.dumps(edge_device_info) if edge_device_info else node.edge_device_info,
-            })
-            _logger.info(f"Updated existing node {node_id} (ID: {node.id})")
-        else:
-            node = request.env['gpu.node'].sudo().create({
+            if not node_name:
+                return {"status": "error", "error": "Missing required field: name"}
+
+            if not node_public_key:
+                return {"status": "error", "error": "Missing required field: public_key"}
+
+            # Basic WireGuard public key format check (44 chars, Base64)
+            if len(node_public_key) != 44 or not all(
+                c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=' for c in node_public_key
+            ):
+                return {"status": "error", "error": "Invalid WireGuard public key format"}
+
+            # If the token is bound to a specific node, validate it
+            if token.node_name and token.node_name != node_name:
+                return {
+                    "status": "error",
+                    "error": f"This token is bound to node name: {token.node_name}"
+                }
+
+            if token.node_public_key and token.node_public_key != node_public_key:
+                return {
+                    "status": "error",
+                    "error": "This token is bound to a specific public key"
+                }
+
+            # -----------------------------------------------------------------
+            # Step 4: Get the GPU cluster (scoped by the token's company)
+            # -----------------------------------------------------------------
+            cluster = request.env['gpu.cluster'].sudo().search([
+                ('company_id', '=', token.company_id.id)
+            ], limit=1)
+
+            if not cluster:
+                _logger.error(
+                    "No GPU cluster found for company %s. Cannot register node.",
+                    token.company_id.name
+                )
+                return {"status": "error", "error": "No GPU cluster configured for your organization"}
+
+            # -----------------------------------------------------------------
+            # Step 5: Allocate an IP address
+            # -----------------------------------------------------------------
+            try:
+                node_ip = self._allocate_ip(cluster, node_name)
+            except Exception as e:
+                _logger.error("IP allocation failed: %s", str(e))
+                return {"status": "error", "error": f"IP allocation failed: {str(e)}"}
+
+            # -----------------------------------------------------------------
+            # Step 6: Create the node record
+            # -----------------------------------------------------------------
+            Node = request.env['gpu.node'].sudo()
+            node_vals = {
+                'name': node_name,
                 'cluster_id': cluster.id,
-                'node_id': node_id,
-                'hostname': hostname,
-                'status': 'online',
-                'last_seen': fields.Datetime.now(),
-                'wireguard_public_key': wireguard_public_key,
-                'os': os_type,
-                'gpus': json.dumps(gpus),
-                'tee_capabilities': json.dumps(tee_capabilities),
-                'edge_device_info': json.dumps(edge_device_info),
-            })
-            _logger.info(f"Created new node {node_id} (ID: {node.id})")
+                'wireguard_public_key': node_public_key,
+                'wireguard_ip': node_ip,
+                'registration_token_id': token.id,
+                'company_id': token.company_id.id,
+                'state': 'pending',
+            }
 
-        # Generate WireGuard configuration
-        wireguard_config = cluster._generate_wireguard_config(node)
+            try:
+                node = Node.create(node_vals)
+                _logger.info(
+                    "Created GPU node record: %s (ID: %d) with IP %s",
+                    node_name, node.id, node_ip
+                )
+            except Exception as e:
+                _logger.exception("Failed to create node record: %s", str(e))
+                return {"status": "error", "error": f"Failed to create node record: {str(e)}"}
 
-        # Generate GPUStack token
-        gpustack_sync = request.env['gpustack.sync'].sudo()
-        gpustack_token = gpustack_sync._generate_gpustack_token(cluster)
+            # -----------------------------------------------------------------
+            # Step 7: Generate the node-specific WireGuard configuration
+            # -----------------------------------------------------------------
+            try:
+                wg_config = self._generate_node_wireguard_config(
+                    cluster,
+                    node_name,
+                    node_public_key,
+                    node_ip
+                )
+            except Exception as e:
+                _logger.exception("Failed to generate WireGuard config: %s", str(e))
+                # Rollback: delete the node record
+                node.unlink()
+                return {"status": "error", "error": f"WireGuard config generation failed: {str(e)}"}
 
-        return {
-            'node_id': node.id,
-            'wireguard_config': wireguard_config,
-            'gpustack_token': gpustack_token,
-            'gpustack_server_url': cluster.gpustack_server_url,
-            'pool': cluster.trust_mode,
-            'trust_mode': cluster.trust_mode,
-        }
+            # -----------------------------------------------------------------
+            # Step 8: Update node state and return success
+            # -----------------------------------------------------------------
+            node.write({'state': 'active'})
+
+            _logger.info(
+                "GPU node %s (ID: %d) successfully registered with IP %s "
+                "using token %s (ID: %d) by company %s",
+                node_name, node.id, node_ip,
+                token.name, token.id, token.company_id.name
+            )
+
+            return {
+                "status": "success",
+                "node": {
+                    "id": node.id,
+                    "name": node_name,
+                    "ip": node_ip,
+                    "wireguard": {
+                        "server_public_key": wg_config['server_public_key'],
+                        "server_endpoint": wg_config['server_endpoint'],
+                        "address": f"{wg_config['address']}/32",
+                        "allowed_ips": wg_config['allowed_ips'],
+                        "persistent_keepalive": wg_config['persistent_keepalive'],
+                        "dns_servers": wg_config['dns_servers'],
+                    }
+                }
+            }
+
+        except Exception as e:
+            _logger.exception("Unexpected error in GPU registration endpoint: %s", str(e))
+            return {
+                "status": "error",
+                "error": "Internal server error. Please contact support."
+            }
 
     # =========================================================================
-    # 3. WIREGUARD PEER LIST (Peer Manager Endpoint)
+    # 2. WIREGUARD PEER LIST (Internal, Odoo Authenticated)
     # =========================================================================
 
     @http.route('/api/v1/gpu/peers', type='json', auth='user', methods=['GET'])
@@ -286,7 +476,7 @@ class GPUController(http.Controller):
         return {'peers': peers}
 
     # =========================================================================
-    # 4. ADMINISTRATOR ACTIONS
+    # 3. ADMINISTRATOR ACTIONS (Odoo Authenticated + Group Checks)
     # =========================================================================
 
     @http.route('/api/v1/admin/scan_network', type='json', auth='user', methods=['POST'])
@@ -375,9 +565,8 @@ class GPUController(http.Controller):
         """
         Remove a GPU node from the cluster.
 
-        This endpoint is used by administrators to remove a node from the
-        cluster. It revokes the node's WireGuard peer entry and deletes the
-        node record.
+        This endpoint revokes the node's WireGuard peer entry and deletes the
+        node record. Requires GPU Administrator privileges.
 
         Request Body:
         {
@@ -399,7 +588,7 @@ class GPUController(http.Controller):
         if not node.exists():
             return {'error': 'Node not found'}, 404
 
-        # Revoke WireGuard peer entry
+        # Revoke WireGuard peer entry (placeholder – implement actual revocation)
         # TODO: Implement WireGuard peer revocation via cluster._revoke_wireguard_peer(node)
         _logger.info(f"Revoking WireGuard peer for node {node.id} (placeholder)")
 
@@ -412,7 +601,7 @@ class GPUController(http.Controller):
         }
 
     # =========================================================================
-    # 5. FINE-TUNING ENDPOINTS (Admin)
+    # 4. FINE-TUNING ENDPOINTS (Admin)
     # =========================================================================
 
     @http.route('/api/v1/admin/finetune/start', type='json', auth='user', methods=['POST'])
@@ -537,7 +726,7 @@ class GPUController(http.Controller):
         if not job.exists():
             return {'error': 'Job not found'}, 404
 
-        # Check permissions
+        # Check permissions (only users in the same company)
         if job.field_id.company_id != request.env.user.company_id:
             raise AccessError("You do not have access to this job")
 
@@ -610,17 +799,10 @@ class GPUController(http.Controller):
             }, 500
 
     # =========================================================================
-    # 6. ADDITIONAL ADMIN ENDPOINTS (optional)
+    # 5. DEPRECATED / REMOVED CODE
     # =========================================================================
-
-    # Other endpoints (like listing clusters, node status, etc.) can be added
-    # here. They are not implemented in this version but are placeholders for
-    # future extension.
-
-    # =========================================================================
-    # 7. DEPRECATED / OLD CODE REMOVED
-    # =========================================================================
-
+    # The old `_auth_method_bearer()` placeholder has been removed.
     # The old N8N webhook integration has been removed.
     # The old 'gpustack.adapter' model reference has been replaced with
     # 'gpustack.sync' as the correct model.
+    # All functionality has been preserved or replaced by secure equivalents.

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- =====================================================================
+         Security Groups for GPU Admin Module
+         ===================================================================== -->
+
+    <!-- GPU Manager: Full access to GPU configuration and tokens -->
+    <record id="group_gpu_manager" model="res.groups">
+        <field name="name">GPU Manager</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_system'))]"/>
+        <field name="comment">Full access to GPU cluster configuration and registration tokens.</field>
+    </record>
+
+    <!-- GPU User: Can view GPU resources and use registered nodes -->
+    <record id="group_gpu_user" model="res.groups">
+        <field name="name">GPU User</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <field name="comment">Can view GPU resources and use registered nodes.</field>
+    </record>
+</odoo>

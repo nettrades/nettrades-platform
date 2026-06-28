@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- =========================================================================
+     FILE: odoo-modules/nettrades_gpu_admin/views/gpu_registration_token_views.xml
+     =========================================================================
+     DESCRIPTION:
+       Odoo views for the GPU Registration Token model.
+       These provide the administration screens for managing tokens.
+
+     ADMIN WORKFLOW:
+       1. Navigate to: GPU > Registration Tokens
+       2. Click "Create" to generate a new token
+       3. Fill in: Name, optional Node Name, optional Public Key, Expiration
+       4. Click "Save" - the plaintext token is displayed once
+       5. Copy the token and share it with the node operator
+       6. Tokens can be revoked from the list or form views
+
+     SECURITY:
+       - Only users with GPU Manager access can create/revoke tokens
+       - Tokens are stored as SHA-256 hashes (plaintext never persisted)
+       - The plaintext token is shown only once, immediately after creation
+       - Revoked tokens cannot be used for registration
+     ========================================================================= -->
+
+<odoo>
+    <!-- =====================================================================
+         Action: Main action for the token list view
+         ===================================================================== -->
+    <record id="action_gpu_registration_token" model="ir.actions.act_window">
+        <field name="name">GPU Registration Tokens</field>
+        <field name="res_model">gpu.registration.token</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Generate registration tokens for GPU nodes.
+            </p>
+            <p>
+                Tokens allow nodes to securely register with the GPU cluster.
+                Each token is a pre-shared key that:
+                <ul>
+                    <li>Is stored as a SHA-256 hash (never plaintext)</li>
+                    <li>Can be one-time use or reusable</li>
+                    <li>Expires after a configurable duration</li>
+                    <li>Can be revoked at any time</li>
+                    <li>Can be bound to a specific node name or public key</li>
+                </ul>
+            </p>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         Menu: Add to GPU menu
+         ===================================================================== -->
+    <menuitem id="menu_gpu_registration_token"
+              name="Registration Tokens"
+              parent="nettrades_gpu_admin.menu_gpu_root"
+              sequence="20"
+              action="action_gpu_registration_token"/>
+
+    <!-- =====================================================================
+         Tree View: List of tokens
+         ===================================================================== -->
+    <record id="view_gpu_registration_token_tree" model="ir.ui.view">
+        <field name="name">gpu.registration.token.tree</field>
+        <field name="model">gpu.registration.token</field>
+        <field name="arch" type="xml">
+            <tree string="GPU Registration Tokens" decoration-danger="is_revoked==True" decoration-warning="is_used==True">
+                <field name="name"/>
+                <field name="node_name" optional="hide"/>
+                <field name="node_public_key" optional="hide"/>
+                <field name="is_one_time"/>
+                <field name="is_used"/>
+                <field name="is_revoked"/>
+                <field name="expires_at"/>
+                <field name="created_by"/>
+                <field name="create_date"/>
+                <button name="action_revoke_token" type="object" string="Revoke" class="btn-danger" icon="fa-times" invisible="is_revoked==True"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         Form View: Create/Edit tokens
+         ===================================================================== -->
+    <record id="view_gpu_registration_token_form" model="ir.ui.view">
+        <field name="name">gpu.registration.token.form</field>
+        <field name="model">gpu.registration.token</field>
+        <field name="arch" type="xml">
+            <form string="GPU Registration Token">
+                <header>
+                    <button name="action_revoke_token" type="object" string="Revoke Token"
+                            class="btn-danger" confirm="Are you sure you want to revoke this token? This cannot be undone."
+                            invisible="is_revoked==True"/>
+                    <button name="action_copy_token" type="object" string="Copy Token"
+                            class="btn-primary" invisible="is_revoked==True or is_used==True"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,revoked,expired"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Token Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Token Details">
+                            <field name="token_hash" readonly="1"/>
+                            <field name="is_one_time"/>
+                            <field name="is_used" readonly="1"/>
+                            <field name="used_at" readonly="1"/>
+                            <field name="is_revoked" readonly="1"/>
+                            <field name="expires_at"/>
+                        </group>
+                        <group string="Node Binding (Optional)">
+                            <field name="node_name" placeholder="Specific node name (optional)"/>
+                            <field name="node_public_key" placeholder="Specific public key (optional)"/>
+                            <field name="allowed_ips" placeholder="Allowed IP ranges"/>
+                        </group>
+                    </group>
+                    <group string="Audit">
+                        <field name="created_by" readonly="1"/>
+                        <field name="company_id" readonly="1"/>
+                        <field name="create_date" readonly="1"/>
+                        <field name="write_date" readonly="1"/>
+                    </group>
+                    <div class="alert alert-info" role="alert" invisible="plaintext_token == False">
+                        <strong>Token Generated!</strong>
+                        <p>Copy this token and share it with the node operator.
+                           This is the <strong>only</strong> time the plaintext token will be shown.</p>
+                        <div class="well" style="font-family: monospace; font-size: 16px; padding: 10px; background: #f5f5f5; border-radius: 4px; word-break: break-all;">
+                            <field name="plaintext_token" widget="text"/>
+                        </div>
+                        <p class="text-danger"><strong>Warning:</strong> Store this token securely. If lost, you must generate a new one.</p>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         Search View
+         ===================================================================== -->
+    <record id="view_gpu_registration_token_search" model="ir.ui.view">
+        <field name="name">gpu.registration.token.search</field>
+        <field name="model">gpu.registration.token</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="node_name"/>
+                <filter name="unused" string="Unused" domain="[('is_used','=',False)]"/>
+                <filter name="used" string="Used" domain="[('is_used','=',True)]"/>
+                <filter name="revoked" string="Revoked" domain="[('is_revoked','=',True)]"/>
+                <filter name="active" string="Active" domain="[('is_revoked','=',False), ('is_used','=',False), ('expires_at','&gt;', datetime.now())]"/>
+                <filter name="expired" string="Expired" domain="[('expires_at','&lt;', datetime.now())]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_created_by" string="Created By" context="{'group_by':'created_by'}"/>
+                    <filter name="group_by_company" string="Company" context="{'group_by':'company_id'}"/>
+                    <filter name="group_by_is_used" string="Used" context="{'group_by':'is_used'}"/>
+                    <filter name="group_by_is_revoked" string="Revoked" context="{'group_by':'is_revoked'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo>
