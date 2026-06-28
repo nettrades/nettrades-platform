@@ -113,7 +113,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_DB: odoo
       POSTGRES_USER: odoo

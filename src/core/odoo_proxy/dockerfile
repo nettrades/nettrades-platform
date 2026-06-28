@@ -3,7 +3,7 @@
 # =============================================================================
 # DESCRIPTION:
 #   Container definition for the Odoo HTTP Proxy Shim.
-#   This service is a lightweight FastAPI wrapper that forwards JSON‑RPC
+#   This service is a lightweight FastAPI wrapper that forwards JSON-RPC
 #   calls from the LangGraph service to the Odoo backend.
 #
 # USAGE:

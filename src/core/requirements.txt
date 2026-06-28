@@ -3,11 +3,11 @@
 # =============================================================================
 # DESCRIPTION:
 #   Python dependencies for the NETTRADES Core LangGraph Service.
-#   This service hosts the Supervisor Agent and all specialised sub‑agents.
+#   This service hosts the Supervisor Agent and all specialised sub-agents.
 #
 #   DEPLOYMENT NOTES:
 #     • This file is used by pip in the Docker build and for local development.
-#     • Versions are pinned to the latest stable releases (as of 2026‑06‑28)
+#     • Versions are pinned to the latest stable releases (as of 2026-06-28)
 #       to ensure compatibility with Odoo 19 and the LangGraph ecosystem.
 #     • If you encounter issues, adjust versions to match your environment.
 #
@@ -29,7 +29,7 @@ langgraph-checkpoint-postgres>=3.0.3,<4.0.0
 # -----------------------------------------------------------------------------
 # Database Drivers (PostgreSQL + pgvector)
 # -----------------------------------------------------------------------------
-# psycopg[binary] provides the v3 driver with pre‑compiled wheels.
+# psycopg[binary] provides the v3 driver with pre-compiled wheels.
 # The "binary" extra is required for the `PostgresSaver` import.
 psycopg[binary]>=3.2.3,<4.0.0
 
@@ -37,7 +37,7 @@ psycopg[binary]>=3.2.3,<4.0.0
 asyncpg>=0.29.0,<1.0.0
 
 # -----------------------------------------------------------------------------
-# AI / LLM Providers (OpenAI‑compatible)
+# AI / LLM Providers (OpenAI-compatible)
 # -----------------------------------------------------------------------------
 langchain-openai>=0.3.4,<0.4.0
 

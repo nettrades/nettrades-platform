@@ -45,10 +45,10 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # PostgreSQL 17 with pgvector (RAG embeddings)
+  # PostgreSQL 18 with pgvector (RAG embeddings)
   # ---------------------------------------------------------------------------
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_DB: odoo
       POSTGRES_USER: odoo

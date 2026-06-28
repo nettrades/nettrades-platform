@@ -26,6 +26,8 @@ Forgejo – https://git.your-domain
 
 LangGraph Agent – https://langgraph.your-domain
 
+Odoo Proxy (HTTP JSON-RPC shim) – http://localhost:3000
+
 llama.cpp (CPU inference) or vLLM (GPU inference) – auto-detected.
 
 All services are secured with Let's Encrypt TLS.
@@ -139,13 +141,18 @@ SSL certificate not issued – Ensure port 80 is open and DNS resolves correctly
 
 GPU not detected – Run nvidia-smi; if not available, install NVIDIA drivers.
 
+LangGraph returns 500 – Check docker compose logs langgraph and verify PROXY_API_KEY matches ODOO_API_KEY in .env.
+
+Proxy not responding – Run docker compose logs odoo-proxy and verify Odoo is reachable.
+
 For more detailed help, see the Full Documentation.
+
 Next Steps
 
-Single VM Deployment (full guide)
+[Single VM Deployment](operations/single-vm-deployment.md)
 
-Kubernetes Deployment
+[Kubernetes Deployment](operations/kubernetes-deployment.md)
 
-GPU Node Deployment
+[GPU Node Deployment](operations/gpu-node-deployment.md)
 
-Developer Guide
+[Developer Guide](developer/index.md)

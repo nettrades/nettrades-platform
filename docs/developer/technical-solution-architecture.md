@@ -47,7 +47,7 @@ flowchart TD
         subgraph DataLayer["?? Data & Persistence Layer"]
 
             subgraph PostgresContainer["Container: postgres (Port 5432 internal)"]
-                PostgreSQL["PostgreSQL 17 + pgvector<br>━━━━━━━━━━━━━━━━<br>• Odoo transactional data<br>• Vector embeddings<br>• LangGraph checkpoint blobs<br>• Full-text search indexes<br><br>Persistent Volume:<br>• /var/lib/postgresql/data"]
+                PostgreSQL["PostgreSQL 18 + pgvector<br>━━━━━━━━━━━━━━━━<br>• Odoo transactional data<br>• Vector embeddings<br>• LangGraph checkpoint blobs<br>• Full-text search indexes<br><br>Persistent Volume:<br>• /var/lib/postgresql/data"]
             end
 
             subgraph ValkeyContainer["Container: valkey (Port 6379 internal)"]
@@ -261,7 +261,7 @@ All application logic is packaged into Docker containers and orchestrated via do
 
 #### All stateful data is stored in dedicated containers with persistent volumes:
 
-* PostgreSQL 17 + pgvector (postgres): Stores Odoo transactional data, vector embeddings for semantic search, and LangGraph checkpoint blobs. Data is persisted to /var/lib/postgresql/data on the host.
+* PostgreSQL 18 + pgvector (postgres): Stores Odoo transactional data, vector embeddings for semantic search, and LangGraph checkpoint blobs. Data is persisted to /var/lib/postgresql/data on the host.
 
 * Valkey 8.0 (valkey): A Redis-compatible in-memory data store used for Odoo ORM session caching, Odoo bus notifications (Pub/Sub), rate limiting counters, and temporary job locks.
 
