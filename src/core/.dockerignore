@@ -1,0 +1,49 @@
+# =============================================================================
+# FILE: src/core/.dockerignore
+# =============================================================================
+# DESCRIPTION:
+#   Excludes unnecessary files from the Docker build context.
+#   This reduces image size and prevents secrets from being baked in.
+# =============================================================================
+
+# Python cache & virtual environments
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+
+# Git & version control
+.git/
+.gitignore
+.gitattributes
+
+# IDE & editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs & temporary files
+*.log
+tmp/
+*.tmp
+
+# Environment secrets (should be provided at runtime)
+.env
+.env.local
+.env.*.local
+
+# Test & coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation (not needed in the image)
+docs/
+README.md
+
+# CI/CD pipelines (not needed)
+.github/
+.gitlab-ci.yml
