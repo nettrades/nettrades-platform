@@ -31,7 +31,6 @@
 #   from self_improving_integration import SelfImprovingService
 #   service = SelfImprovingService(odoo_env)
 #   await service.record_episode(intent, input_data, output_data, quality_score)
-#
 # =============================================================================
 
 import json
@@ -90,8 +89,8 @@ class SelfImprovingService:
     """
     Service for integrating with the self-improving loop.
 
-    This service records interaction episodes from LangGraph agents and
-    feeds them into the self-improving loop. The data is used for:
+    This service records interaction episodes from LangGraph agents and feeds
+    them into the self-improving loop. The data is used for:
     1. Fine-tuning models (via Apexive llm_training)
     2. Trigger detection (quality drops, edge cases)
     3. Continuous improvement of AI models
@@ -112,8 +111,7 @@ class SelfImprovingService:
 
         Args:
             odoo_env: An Odoo environment (optional). If provided, the service
-                      uses direct RPC to create episodes. Otherwise, it uses
-                      HTTP API calls.
+                uses direct RPC to create episodes. Otherwise, it uses HTTP API calls.
         """
         self.odoo_env = odoo_env
         self.threshold_episodes = 50
@@ -121,7 +119,6 @@ class SelfImprovingService:
 
         # Try to load configuration from Odoo if available
         self._load_config()
-
         _logger.info("SelfImprovingService initialised")
 
     def _load_config(self):
@@ -154,9 +151,9 @@ class SelfImprovingService:
         """
         Record an interaction episode for the self-improving loop.
 
-        This method creates a data.episode record in Odoo with the interaction
-        data. It handles quality filtering and triggers self-improvement
-        cycles when data thresholds are met.
+        This method creates a data.episode record in Odoo with the interaction data.
+        It handles quality filtering and triggers self-improvement cycles when
+        data thresholds are met.
 
         Args:
             intent: The intent of the interaction (recruitment, freelance, etc.)
@@ -210,7 +207,6 @@ class SelfImprovingService:
         # =====================================================================
         # 3. Prepare episode data
         # =====================================================================
-        # Extract input text from messages
         input_text = self._extract_input_text(input_data)
         output_text = self._extract_output_text(output_data)
 
@@ -236,10 +232,8 @@ class SelfImprovingService:
 
         if episode_id:
             _logger.info(f"Episode {episode_id} recorded successfully")
-
             # Check if we should trigger a self-improvement cycle
             await self._check_trigger()
-
             return episode_id
         else:
             _logger.warning("Failed to create episode")
@@ -266,7 +260,6 @@ class SelfImprovingService:
                 'legal': 'Legal',
                 'lead_gen': 'Lead Generation',
             }
-
             field_name = field_name_map.get(intent, 'General')
 
             # Try to find the field
@@ -284,7 +277,6 @@ class SelfImprovingService:
             })
             _logger.info(f"Created field '{field_name}' for intent '{intent}'")
             return field.id
-
         except Exception as e:
             _logger.warning(f"Failed to get field ID: {e}")
             return None
@@ -302,7 +294,6 @@ class SelfImprovingService:
         # Try direct text
         if 'text' in input_data:
             return str(input_data['text'])
-
         if 'query' in input_data:
             return str(input_data['query'])
 
@@ -313,10 +304,8 @@ class SelfImprovingService:
         """Extract output text from various data formats."""
         if 'analysis' in output_data:
             return str(output_data['analysis'])
-
         if 'response' in output_data:
             return str(output_data['response'])
-
         if 'message' in output_data:
             return str(output_data['message'])
 
@@ -347,7 +336,6 @@ class SelfImprovingService:
                 ('processed', '=', False),
                 ('quality_score', '>=', self.threshold_quality)
             ])
-
             _logger.info(f"Unprocessed episodes: {episode_count}")
 
             # If we have enough episodes, trigger the self-improving loop
@@ -361,10 +349,8 @@ class SelfImprovingService:
                     ('trigger_type', '=', 'data_volume'),
                     ('active', '=', True)
                 ])
-
                 for trigger in triggers:
                     _logger.info(f"Trigger {trigger.name} will be processed by cron")
-
         except Exception as e:
             _logger.warning(f"Failed to check trigger: {e}")
 
@@ -389,23 +375,19 @@ class SelfImprovingService:
             episodes = self.odoo_env['data.episode'].search([
                 ('processed', '=', False)
             ])
-
             stats['episode_count'] = len(episodes)
 
             if episodes:
                 avg_quality = sum(e.quality_score for e in episodes) / len(episodes)
                 stats['avg_quality'] = avg_quality
-
         except Exception as e:
             _logger.warning(f"Failed to get stats: {e}")
 
         return stats
 
-
 # =============================================================================
 # 4. MAIN ENTRY POINT (for testing)
 # =============================================================================
-
 if __name__ == "__main__":
     import asyncio
 

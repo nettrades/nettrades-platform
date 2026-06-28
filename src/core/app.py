@@ -25,7 +25,6 @@
 #
 #   2. Removed Dead Code: The build_graph() function was commented out
 #      and is no longer needed. It has been removed.
-#
 # =============================================================================
 
 import os
@@ -33,8 +32,8 @@ import logging
 import json
 import time
 import traceback
-
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Header, Request, status
 from fastapi.responses import JSONResponse, Response
 from langgraph.checkpoint.postgres import AsyncPostgresSaver
@@ -49,7 +48,6 @@ load_dotenv()
 # =============================================================================
 # LOGGING CONFIGURATION
 # =============================================================================
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -59,7 +57,6 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-
 # Database connection string for PostgresSaver (LangGraph checkpoints)
 DB_URI = os.getenv("DATABASE_URL", "postgresql://odoo:password@postgres:5432/odoo")
 
@@ -84,35 +81,31 @@ ml_models = {}
 # =============================================================================
 # PROMETHEUS METRICS
 # =============================================================================
-
 REQUEST_COUNT = Counter(
     'langgraph_requests_total',
     'Total number of requests processed by the LangGraph agent',
     ['intent']
 )
-
 REQUEST_DURATION = Histogram(
     'langgraph_request_duration_seconds',
     'Time taken to process a LangGraph request'
 )
 
-
 # =============================================================================
 # APPLICATION LIFESPAN
 # =============================================================================
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Build the LangGraph supervisor graph and attach the durable PostgresSaver.
 
     This function runs at application startup and shutdown:
-    - Startup: Creates a connection to PostgreSQL, sets up the checkpoint
-      saver, and builds the supervisor graph.
+    - Startup: Creates a connection to PostgreSQL, sets up the checkpoint saver,
+      and builds the supervisor graph.
     - Shutdown: Clears the graph from memory.
 
-    The PostgresSaver provides durable checkpointing, allowing the graph
-    to resume from the last saved state if the service crashes.
+    The PostgresSaver provides durable checkpointing, allowing the graph to
+    resume from the last saved state if the service crashes.
     """
     logger.info("Starting LangGraph agent...")
 
@@ -124,7 +117,6 @@ async def lifespan(app: FastAPI):
 
         # Build the supervisor graph
         graph = build_supervisor()
-
         # Attach the checkpointer to the graph
         graph.checkpointer = checkpointer
         logger.info("Supervisor graph built with checkpointing")
@@ -135,15 +127,13 @@ async def lifespan(app: FastAPI):
         # Yield control to the application
         yield
 
-        # Clean up on shutdown
-        ml_models.clear()
-        logger.info("LangGraph agent shutdown complete")
-
+    # Clean up on shutdown
+    ml_models.clear()
+    logger.info("LangGraph agent shutdown complete")
 
 # =============================================================================
 # FASTAPI APPLICATION
 # =============================================================================
-
 app = FastAPI(
     title="NETTRADES LangGraph Agent",
     description="AI orchestration service for autonomous enterprise platform",
@@ -151,11 +141,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-
 # =============================================================================
 # MIDDLEWARE: METRICS TRACKING
 # =============================================================================
-
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     """
@@ -169,11 +157,9 @@ async def metrics_middleware(request: Request, call_next):
     REQUEST_DURATION.observe(time.time() - start)
     return response
 
-
 # =============================================================================
 # GLOBAL ERROR HANDLER
 # =============================================================================
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """
@@ -192,7 +178,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
-
 # =============================================================================
 # ENDPOINTS
 # =============================================================================
@@ -202,23 +187,21 @@ async def health_check():
     """
     Liveness and readiness probe for container orchestration.
 
-    This endpoint returns a simple status to indicate that the service
-    is running and ready to accept requests.
+    This endpoint returns a simple status to indicate that the service is
+    running and ready to accept requests.
     """
     return {"status": "ok", "service": "langgraph"}
-
 
 @app.get("/metrics")
 async def metrics():
     """
     Prometheus metrics endpoint.
 
-    This endpoint exposes all Prometheus metrics for scraping by
-    a Prometheus server. It includes request counts, durations,
-    and any other metrics registered with the Prometheus registry.
+    This endpoint exposes all Prometheus metrics for scraping by a Prometheus
+    server. It includes request counts, durations, and any other metrics
+    registered with the Prometheus registry.
     """
     return Response(content=generate_latest(REGISTRY), media_type="text/plain")
-
 
 @app.post("/invoke")
 async def invoke(
@@ -228,45 +211,44 @@ async def invoke(
     """
     Main inference endpoint.
 
-    This endpoint receives a user message, processes it through the
-    LangGraph supervisor, and returns the result.
+    This endpoint receives a user message, processes it through the LangGraph
+    supervisor, and returns the result.
 
     Authentication:
-        - Requires the 'X-API-Key' header with a valid API key.
-        - The API key must match the LANGGRAPH_API_KEY environment variable.
+    - Requires the 'X-API-Key' header with a valid API key.
+    - The API key must match the LANGGRAPH_API_KEY environment variable.
 
     ⚠️ CRITICAL SECURITY FIX: Previously, if LANGGRAPH_API_KEY was unset,
     authentication was silently bypassed. This is a security vulnerability
     that has been fixed. Now the API key is required and validated.
 
     Request Body:
-        {
-            "input": {
-                "messages": [
-                    {"role": "user", "content": "Find me a Python developer"}
-                ],
-                "image_base64": "data:image/png;base64,..."  # Optional
-            },
-            "config": {
-                "configurable": {
-                    "thread_id": "unique-session-id"  # For checkpointing
-                }
+    {
+        "input": {
+            "messages": [
+                {"role": "user", "content": "Find me a Python developer"}
+            ],
+            "image_base64": "data:image/png;base64,..."  # Optional
+        },
+        "config": {
+            "configurable": {
+                "thread_id": "unique-session-id"  # For checkpointing
             }
         }
+    }
 
     Response:
-        {
-            "analysis": "I found 5 candidates...",
-            "intent": "recruitment",
-            "rankings": [...],
-            "screening_done": true,
-            "followup_count": 0
-        }
+    {
+        "analysis": "I found 5 candidates...",
+        "intent": "recruitment",
+        "rankings": [...],
+        "screening_done": true,
+        "followup_count": 0
+    }
     """
     # =========================================================================
     # STEP 1: AUTHENTICATION
     # =========================================================================
-
     # ⚠️ CRITICAL SECURITY FIX:
     # Previously, if LANGGRAPH_API_KEY was unset, authentication was skipped.
     # This is now fixed: we REQUIRE the API key to be set.
@@ -288,7 +270,6 @@ async def invoke(
     # =========================================================================
     # STEP 2: PARSE REQUEST BODY
     # =========================================================================
-
     try:
         body = await request.json()
         logger.debug(f"Request body: {body}")
@@ -317,7 +298,6 @@ async def invoke(
     # =========================================================================
     # STEP 3: INVOKE THE SUPERVISOR GRAPH
     # =========================================================================
-
     graph = ml_models.get("graph")
     if not graph:
         logger.error("Graph not initialized")
@@ -333,10 +313,9 @@ async def invoke(
         # Record the intent for metrics
         intent = result.get("intent", "unknown")
         REQUEST_COUNT.labels(intent=intent).inc()
-
         logger.info(f"Request completed with intent: {intent}")
-        return result
 
+        return result
     except Exception as e:
         logger.error(f"Graph invocation failed: {e}")
         logger.error(traceback.format_exc())

@@ -29,7 +29,6 @@
 #   from bridge_integration import BridgeService
 #   bridge = BridgeService()
 #   result = await bridge.route_request(intent, data, company_id)
-#
 # =============================================================================
 
 import json
@@ -74,8 +73,7 @@ class BridgeService:
 
         Args:
             odoo_env: An Odoo environment (optional). If provided, the service
-                      uses direct RPC to call the bridge. Otherwise, it uses
-                      HTTP API calls.
+                uses direct RPC to call the bridge. Otherwise, it uses HTTP API calls.
         """
         self.odoo_env = odoo_env
         self.bridge_url = "http://localhost:8069/api/bridge/route"
@@ -90,14 +88,12 @@ class BridgeService:
         """
         Route a request through the bridge to determine the processing target.
 
-        This method checks the bridge configuration and returns a routing
-        decision. If the bridge decides to route remotely, it returns the
-        remote brain's response. Otherwise, it returns None to indicate
-        local processing.
+        This method checks the bridge configuration and returns a routing decision.
+        If the bridge decides to route remotely, it returns the remote brain's response.
+        Otherwise, it returns None to indicate local processing.
 
         Args:
-            intent: The intent of the request (recruitment, freelance, gpu,
-                    vision, action, general, etc.)
+            intent: The intent of the request (recruitment, freelance, gpu, vision, action, general, etc.)
             data: The request data (messages, user_id, context, etc.)
             company_id: The company ID for per-company routing configuration.
 
@@ -137,10 +133,8 @@ class BridgeService:
                 if result and result.get('source') != 'local':
                     _logger.info(f"Bridge routed remotely via RPC for intent: {intent}")
                     return result
-
                 _logger.info(f"Bridge routed locally via RPC for intent: {intent}")
                 return None
-
             except Exception as e:
                 _logger.warning(f"Bridge RPC failed: {e}. Falling back to HTTP API.")
 
@@ -153,7 +147,6 @@ class BridgeService:
 
         try:
             _logger.debug(f"Using HTTP API for bridge routing: {self.bridge_url}")
-
             payload = {
                 "intent": intent,
                 "data": data,
@@ -176,13 +169,11 @@ class BridgeService:
                             if bridge_data.get('source') != 'local':
                                 _logger.info(f"Bridge routed remotely via HTTP for intent: {intent}")
                                 return bridge_data
-
-                        _logger.info(f"Bridge routed locally via HTTP for intent: {intent}")
-                        return None
+                            _logger.info(f"Bridge routed locally via HTTP for intent: {intent}")
+                            return None
                     else:
                         _logger.warning(f"Bridge HTTP error: {response.status}")
                         return None
-
         except aiohttp.ClientError as e:
             _logger.warning(f"Bridge HTTP client error: {e}")
             return None
@@ -202,12 +193,10 @@ class BridgeService:
 
         Args:
             company_id: The company ID (optional). If provided, returns the
-                        company-specific configuration; otherwise, returns
-                        the global configuration.
+                company-specific configuration; otherwise, returns the global configuration.
 
         Returns:
-            Optional[Dict[str, Any]]: The bridge configuration, or None if
-                                       the bridge is unavailable.
+            Optional[Dict[str, Any]]: The bridge configuration, or None if the bridge is unavailable.
         """
         _logger.info(f"Fetching bridge configuration for company: {company_id}")
 
@@ -239,18 +228,14 @@ class BridgeService:
                         if response.status == 200:
                             result = await response.json()
                             return result.get('data', {})
-
-            return None
-
+                return None
         except Exception as e:
             _logger.warning(f"Failed to fetch bridge configuration: {e}")
             return None
 
-
 # =============================================================================
 # MAIN ENTRY POINT (for testing)
 # =============================================================================
-
 if __name__ == "__main__":
     import asyncio
 
