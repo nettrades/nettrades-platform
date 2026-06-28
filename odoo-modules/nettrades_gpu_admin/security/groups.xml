@@ -1,31 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    FILE: nettrades_gpu_admin/security/groups.xml
-    DESCRIPTION: Security groups for the GPU Admin module.
-
-    These groups define the two primary roles:
-    - GPU Administrator: full control over GPU clusters, nodes, tokens, and fine-tuning.
-    - GPU Operator: read-only access to GPU resources; cannot create, edit, or delete.
-
-    These groups are referenced by:
-      - ir.model.access.csv (CRUD permissions)
-      - gpu_admin_security.xml (record rules)
-      - gpu_registration_token_security.xml (token record rules)
-      - controllers/main.py (permission checks for admin endpoints)
--->
 <odoo>
-    <!-- =====================================================================
-         Group: GPU Administrator (Full Access)
-         ===================================================================== -->
     <record id="group_gpu_administrator" model="res.groups">
         <field name="name">GPU Administrator</field>
         <field name="category_id" ref="base.module_category_hidden"/>
         <field name="comment">Full access to GPU cluster configuration, registration tokens, network scanning, remote installation, and fine-tuning.</field>
     </record>
-
-    <!-- =====================================================================
-         Group: GPU Operator (Read-Only)
-         ===================================================================== -->
     <record id="group_gpu_operator" model="res.groups">
         <field name="name">GPU Operator</field>
         <field name="category_id" ref="base.module_category_hidden"/>
