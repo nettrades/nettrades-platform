@@ -16,12 +16,15 @@
 #     - Stored as SHA-256 hashes (never plaintext)
 #
 #   INDUSTRY BEST PRACTICES REFERENCED:
-#     - Tailscale: Pre-authentication keys with expiry and tags [2†L5-L7][11†L3-L4]
-#     - Wiredoor: Personal Access Tokens (PATs) with per-node association [8†L36-L38]
-#     - DockNimbus: SHA-256 hashed tokens, single-use, 10-min expiry [10†L6-L8]
-#     - Odoo 19: API key authentication best practices [5†L30-L32]
+#     - Tailscale: Pre-authentication keys with expiry and tags
+#     - Wiredoor: Personal Access Tokens (PATs) with per-node association
+#     - DockNimbus: SHA-256 hashed tokens, single-use, 10-min expiry
+#     - Odoo 19: API key authentication best practices
 # =============================================================================
 
+# -----------------------------------------------------------------------------
+# IMPORTS – Each import MUST be on its own line for valid Python syntax.
+# -----------------------------------------------------------------------------
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 import secrets
@@ -58,7 +61,6 @@ class GpuRegistrationToken(models.Model):
         6. Token is marked as used (if one-time)
         7. Node receives WireGuard configuration
     """
-
     _name = 'gpu.registration.token'
     _description = 'GPU Registration Token'
     _order = 'create_date DESC'
@@ -368,14 +370,3 @@ class GpuRegistrationToken(models.Model):
             token.name, token.id, self.env.user.login
         )
         return True
-
-    # =========================================================================
-    # Security: Record Rules (to be defined in security/ir.model.access.csv)
-    # =========================================================================
-    # The following record rules should be added to ensure proper access control:
-    #
-    # 1. GPU Manager: full access (CRUD) on tokens in their company
-    # 2. GPU User: read-only access to tokens in their company
-    # 3. Public/Unauthenticated: NO access (tokens validated via controller)
-    #
-    # See security/ir.model.access.csv for the actual implementation.
