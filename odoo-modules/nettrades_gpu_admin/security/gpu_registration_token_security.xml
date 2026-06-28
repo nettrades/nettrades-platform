@@ -1,10 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    ============================================================================
+    FILE: odoo-modules/nettrades_gpu_admin/security/gpu_registration_token_security.xml
+    ============================================================================
+    DESCRIPTION:
+        Record rule for the GPU Registration Token model to enforce company
+        isolation. Tokens are only visible to users in the same company.
+
+        This rule works in conjunction with:
+          - groups.xml         : defines the user groups
+          - ir.model.access.csv : defines CRUD permissions at the model level
+
+        ────────────────────────────────────────────────────────────────────────────
+        SECURITY POLICY
+        ────────────────────────────────────────────────────────────────────────────
+        • GPU Administrators have full access to tokens in their company
+          (create, read, update, delete, revoke).
+        • GPU Operators have read-only access to tokens in their company
+          (can view tokens but cannot create, edit, or revoke them).
+        • Tokens from other companies are never visible.
+
+        ────────────────────────────────────────────────────────────────────────────
+        MULTI-TENANT ISOLATION
+        ────────────────────────────────────────────────────────────────────────────
+        The domain filter `[('company_id', 'in', user.company_ids)]` ensures that
+        a user can only see tokens belonging to companies they are associated with.
+        This is standard Odoo multi-tenant isolation.
+    ============================================================================
+-->
+
 <odoo>
+
+    <!-- =====================================================================
+         RULE: GPU Registration Token – Company Isolation
+         =====================================================================
+         Applies to:  gpu.registration.token model
+         Groups:      Administrator and Operator
+         Domain:      Only tokens where company_id is in the user's company IDs.
+         Purpose:     Ensures that both Administrators and Operators can only
+                      see registration tokens belonging to their own company.
+    ===================================================================== -->
     <record id="gpu_registration_token_company_rule" model="ir.rule">
         <field name="name">GPU Registration Token: Company Isolation</field>
         <field name="model_id" ref="model_gpu_registration_token"/>
         <field name="global" eval="False"/>
         <field name="domain_force">[('company_id', 'in', user.company_ids)]</field>
-        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
+        <field name="groups" eval="[
+            (4, ref('nettrades_gpu_admin.group_gpu_administrator')),
+            (4, ref('nettrades_gpu_admin.group_gpu_operator'))
+        ]"/>
     </record>
+
 </odoo>

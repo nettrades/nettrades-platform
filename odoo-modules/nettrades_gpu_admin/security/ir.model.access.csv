@@ -1,15 +1,72 @@
+# =============================================================================
+# FILE: odoo-modules/nettrades_gpu_admin/security/ir.model.access.csv
+# =============================================================================
+# DESCRIPTION:
+#   Model-level CRUD (Create, Read, Update, Delete) access rights.
+#   Each line grants or denies permissions to a specific group for a model.
+#
+#   COLUMNS:
+#     id           : Unique identifier for the access line
+#     name         : Human-readable name
+#     model_id:id  : Reference to the model (e.g., model_gpu_cluster)
+#     group_id:id  : Reference to the security group
+#     perm_read    : 1 = can read, 0 = cannot read
+#     perm_write   : 1 = can write, 0 = cannot write
+#     perm_create  : 1 = can create, 0 = cannot create
+#     perm_unlink  : 1 = can delete, 0 = cannot delete
+#
+#   SECURITY POLICY:
+#     - GPU Administrators (group_gpu_administrator): Full CRUD access
+#     - GPU Operators (group_gpu_operator): Read-only access
+#
+#   MULTI-TENANT ISOLATION:
+#     Record rules (defined in gpu_admin_security.xml) further restrict
+#     access so that users can only see records belonging to their company.
+# =============================================================================
+
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+
+# -----------------------------------------------------------------------------
+# GPU CLUSTER
+# -----------------------------------------------------------------------------
+# Administrators: full access; Operators: read-only
 access_gpu_cluster_admin,gpu.cluster.admin,model_gpu_cluster,group_gpu_administrator,1,1,1,1
 access_gpu_cluster_operator,gpu.cluster.operator,model_gpu_cluster,group_gpu_operator,1,0,0,0
+
+# -----------------------------------------------------------------------------
+# GPU NODE
+# -----------------------------------------------------------------------------
 access_gpu_node_admin,gpu.node.admin,model_gpu_node,group_gpu_administrator,1,1,1,1
 access_gpu_node_operator,gpu.node.operator,model_gpu_node,group_gpu_operator,1,0,0,0
+
+# -----------------------------------------------------------------------------
+# GPU CLUSTER SUBNET
+# -----------------------------------------------------------------------------
 access_gpu_cluster_subnet_admin,gpu.cluster.subnet.admin,model_gpu_cluster_subnet,group_gpu_administrator,1,1,1,1
 access_gpu_cluster_subnet_operator,gpu.cluster.subnet.operator,model_gpu_cluster_subnet,group_gpu_operator,1,0,0,0
+
+# -----------------------------------------------------------------------------
+# GPU SHARING SCHEDULE
+# -----------------------------------------------------------------------------
 access_gpu_sharing_schedule_admin,gpu.sharing.schedule.admin,model_gpu_sharing_schedule,group_gpu_administrator,1,1,1,1
 access_gpu_sharing_schedule_operator,gpu.sharing.schedule.operator,model_gpu_sharing_schedule,group_gpu_operator,1,0,0,0
+
+# -----------------------------------------------------------------------------
+# GPU TOKEN ECONOMICS
+# -----------------------------------------------------------------------------
 access_gpu_token_economics_admin,gpu.token.economics.admin,model_gpu_token_economics,group_gpu_administrator,1,1,1,1
 access_gpu_token_economics_operator,gpu.token.economics.operator,model_gpu_token_economics,group_gpu_operator,1,0,0,0
+
+# -----------------------------------------------------------------------------
+# MULTIMODAL CONFIG
+# -----------------------------------------------------------------------------
 access_multimodal_config_admin,multimodal.config.admin,model_multimodal_config,group_gpu_administrator,1,1,1,1
 access_multimodal_config_operator,multimodal.config.operator,model_multimodal_config,group_gpu_operator,1,0,0,0
+
+# -----------------------------------------------------------------------------
+# GPU REGISTRATION TOKEN (NEW - 2026-06-28)
+# -----------------------------------------------------------------------------
+# Administrators: full access (can generate, revoke, and manage tokens)
 access_gpu_registration_token_admin,gpu.registration.token.admin,model_gpu_registration_token,group_gpu_administrator,1,1,1,1
+# Operators: read-only (can view tokens but not create/edit/delete)
 access_gpu_registration_token_operator,gpu.registration.token.operator,model_gpu_registration_token,group_gpu_operator,1,0,0,0
