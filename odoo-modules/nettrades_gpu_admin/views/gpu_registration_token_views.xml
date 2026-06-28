@@ -15,10 +15,14 @@
        6. Tokens can be revoked from the list or form views
 
      SECURITY:
-       - Only users with GPU Manager access can create/revoke tokens
+       - Only users with GPU Administrator group can create/revoke tokens
        - Tokens are stored as SHA-256 hashes (plaintext never persisted)
        - The plaintext token is shown only once, immediately after creation
        - Revoked tokens cannot be used for registration
+
+     GROUP REFERENCES:
+       - The action and menus are visible only to group_gpu_administrator
+         and group_gpu_operator (read-only for operators).
      ========================================================================= -->
 
 <odoo>
@@ -54,7 +58,8 @@
               name="Registration Tokens"
               parent="nettrades_gpu_admin.menu_gpu_root"
               sequence="20"
-              action="action_gpu_registration_token"/>
+              action="action_gpu_registration_token"
+              groups="nettrades_gpu_admin.group_gpu_administrator,nettrades_gpu_admin.group_gpu_operator"/>
 
     <!-- =====================================================================
          Tree View: List of tokens
@@ -73,7 +78,7 @@
                 <field name="expires_at"/>
                 <field name="created_by"/>
                 <field name="create_date"/>
-                <button name="action_revoke_token" type="object" string="Revoke" class="btn-danger" icon="fa-times" invisible="is_revoked==True"/>
+                <button name="action_revoke_token" type="object" string="Revoke" class="btn-danger" icon="fa-times" invisible="is_revoked==True" groups="nettrades_gpu_admin.group_gpu_administrator"/>
             </tree>
         </field>
     </record>
@@ -89,9 +94,8 @@
                 <header>
                     <button name="action_revoke_token" type="object" string="Revoke Token"
                             class="btn-danger" confirm="Are you sure you want to revoke this token? This cannot be undone."
-                            invisible="is_revoked==True"/>
-                    <button name="action_copy_token" type="object" string="Copy Token"
-                            class="btn-primary" invisible="is_revoked==True or is_used==True"/>
+                            invisible="is_revoked==True"
+                            groups="nettrades_gpu_admin.group_gpu_administrator"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,active,revoked,expired"/>
                 </header>
                 <sheet>

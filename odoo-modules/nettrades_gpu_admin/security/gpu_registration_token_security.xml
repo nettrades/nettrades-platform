@@ -1,21 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <!-- =====================================================================
-         Record Rules for GPU Registration Tokens (Multi-tenant isolation)
-         ===================================================================== -->
+<!-- =========================================================================
+     FILE: odoo-modules/nettrades_gpu_admin/security/gpu_registration_token_security.xml
+     =========================================================================
+     DESCRIPTION:
+       Record rule for the GPU Registration Token model to enforce company
+       isolation. Tokens are only visible to users in the same company.
 
-    <!-- Rule 1: Users can only see tokens in their own company -->
+       GROUP REFERENCES:
+         - group_gpu_administrator: full access (create, read, write, delete)
+         - group_gpu_operator: read-only access
+     ========================================================================= -->
+
+<odoo>
     <record id="gpu_registration_token_company_rule" model="ir.rule">
         <field name="name">GPU Registration Token: Company Isolation</field>
         <field name="model_id" ref="model_gpu_registration_token"/>
         <field name="global" eval="False"/>
-        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
-        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_manager')), (4, ref('nettrades_gpu_admin.group_gpu_user'))]"/>
+        <field name="domain_force">[('company_id', 'in', user.company_ids)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
     </record>
-
-    <!-- Rule 2: GPU Managers can do everything; GPU Users can only read -->
-    <!-- (Handled by ir.model.access.csv above) -->
-
-    <!-- Rule 3: Public/Unauthenticated users have NO access -->
-    <!-- (No rule needed - they have no access by default) -->
 </odoo>

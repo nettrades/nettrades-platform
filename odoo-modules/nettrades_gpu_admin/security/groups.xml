@@ -1,21 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- =========================================================================
+     FILE: odoo-modules/nettrades_gpu_admin/security/groups.xml
+     =========================================================================
+     DESCRIPTION:
+       Security groups for the GPU Admin module.
+
+       These groups are referenced by:
+         - ir.model.access.csv (CRUD permissions for models)
+         - gpu_admin_security.xml (record rules)
+         - gpu_registration_token_security.xml (record rules for tokens)
+         - controllers/main.py (permission checks for admin endpoints)
+
+       Group naming is aligned with the controller checks:
+         - group_gpu_administrator -> used for endpoints that require full control
+         - group_gpu_operator       -> used for read-only access
+
+       FIX (2026-06-28):
+         Previously the groups were named group_gpu_manager and group_gpu_user,
+         but the controller checks for group_gpu_administrator. They have been
+         renamed to match the controller and avoid permission errors.
+     ========================================================================= -->
+
 <odoo>
     <!-- =====================================================================
-         Security Groups for GPU Admin Module
+         Group: GPU Administrator (Full Access)
          ===================================================================== -->
-
-    <!-- GPU Manager: Full access to GPU configuration and tokens -->
-    <record id="group_gpu_manager" model="res.groups">
-        <field name="name">GPU Manager</field>
+    <record id="group_gpu_administrator" model="res.groups">
+        <field name="name">GPU Administrator</field>
         <field name="category_id" ref="base.module_category_hidden"/>
-        <field name="implied_ids" eval="[(4, ref('base.group_system'))]"/>
-        <field name="comment">Full access to GPU cluster configuration and registration tokens.</field>
+        <field name="comment">
+            Full access to GPU cluster configuration, registration tokens,
+            network scanning, remote installation, and fine-tuning.
+        </field>
     </record>
 
-    <!-- GPU User: Can view GPU resources and use registered nodes -->
-    <record id="group_gpu_user" model="res.groups">
-        <field name="name">GPU User</field>
+    <!-- =====================================================================
+         Group: GPU Operator (Read-Only)
+         ===================================================================== -->
+    <record id="group_gpu_operator" model="res.groups">
+        <field name="name">GPU Operator</field>
         <field name="category_id" ref="base.module_category_hidden"/>
-        <field name="comment">Can view GPU resources and use registered nodes.</field>
+        <field name="comment">
+            Can view GPU resources and use registered nodes, but cannot
+            create, edit, or delete configurations.
+        </field>
     </record>
 </odoo>

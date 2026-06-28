@@ -1,15 +1,97 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_gpu_cluster_user,gpu.cluster.user,model_gpu_cluster,group_gpu_administrator,1,1,1,1
-access_gpu_cluster_operator,gpu.cluster.operator,model_gpu_cluster,group_gpu_operator,1,0,0,0
-access_gpu_node_user,gpu.node.user,model_gpu_node,group_gpu_administrator,1,1,1,1
-access_gpu_node_operator,gpu.node.operator,model_gpu_node,group_gpu_operator,1,0,0,0
-access_gpu_cluster_subnet_user,gpu.cluster.subnet.user,model_gpu_cluster_subnet,group_gpu_administrator,1,1,1,1
-access_gpu_cluster_subnet_operator,gpu.cluster.subnet.operator,model_gpu_cluster_subnet,group_gpu_operator,1,0,0,0
-access_gpu_sharing_schedule_user,gpu.sharing.schedule.user,model_gpu_sharing_schedule,group_gpu_administrator,1,1,1,1
-access_gpu_sharing_schedule_operator,gpu.sharing.schedule.operator,model_gpu_sharing_schedule,group_gpu_operator,1,0,0,0
-access_gpu_token_economics_user,gpu.token.economics.user,model_gpu_token_economics,group_gpu_administrator,1,1,1,1
-access_gpu_token_economics_operator,gpu.token.economics.operator,model_gpu_token_economics,group_gpu_operator,1,0,0,0
-access_multimodal_config_user,multimodal.config.user,model_multimodal_config,group_gpu_administrator,1,1,1,1
-access_multimodal_config_operator,multimodal.config.operator,model_multimodal_config,group_gpu_operator,1,0,0,0
-access_gpu_registration_token_manager,gpu.registration.token.manager,model_gpu_registration_token,nettrades_gpu_admin.group_gpu_manager,1,1,1,1
-access_gpu_registration_token_user,gpu.registration.token.user,model_gpu_registration_token,nettrades_gpu_admin.group_gpu_user,1,0,0,0
+<?xml version="1.0" encoding="utf-8"?>
+<!-- =========================================================================
+     FILE: odoo-modules/nettrades_gpu_admin/security/gpu_admin_security.xml
+     =========================================================================
+     DESCRIPTION:
+       Record rules for all GPU-related models to enforce company isolation.
+       These rules restrict access so that users can only see records belonging
+       to their own company (multi-tenant).
+
+       GROUP REFERENCES:
+         - group_gpu_administrator: full access (create, read, write, delete)
+         - group_gpu_operator: read-only access
+
+       This file is still needed and has NOT been replaced by the new token
+       security file. It is kept in full to preserve existing functionality.
+     ========================================================================= -->
+
+<odoo>
+    <!-- =====================================================================
+         RULES FOR GPU CLUSTER
+         ===================================================================== -->
+    <record id="gpu_cluster_company_rule" model="ir.rule">
+        <field name="name">GPU Cluster: Company Isolation</field>
+        <field name="model_id" ref="model_gpu_cluster"/>
+        <field name="global" eval="False"/>
+        <field name="domain_force">[('company_id', '=', user.company_id.id)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
+    </record>
+
+    <!-- =====================================================================
+         RULES FOR GPU NODE
+         ===================================================================== -->
+    <record id="gpu_node_company_rule" model="ir.rule">
+        <field name="name">GPU Node: Company Isolation</field>
+        <field name="model_id" ref="model_gpu_node"/>
+        <field name="global" eval="False"/>
+        <field name="domain_force">[('cluster_id.company_id', '=', user.company_id.id)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
+    </record>
+
+    <!-- =====================================================================
+         RULES FOR GPU CLUSTER SUBNET
+         ===================================================================== -->
+    <record id="gpu_cluster_subnet_company_rule" model="ir.rule">
+        <field name="name">GPU Cluster Subnet: Company Isolation</field>
+        <field name="model_id" ref="model_gpu_cluster_subnet"/>
+        <field name="global" eval="False"/>
+        <field name="domain_force">[('cluster_id.company_id', '=', user.company_id.id)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
+    </record>
+
+    <!-- =====================================================================
+         RULES FOR GPU SHARING SCHEDULE
+         ===================================================================== -->
+    <record id="gpu_sharing_schedule_company_rule" model="ir.rule">
+        <field name="name">GPU Sharing Schedule: Company Isolation</field>
+        <field name="model_id" ref="model_gpu_sharing_schedule"/>
+        <field name="global" eval="False"/>
+        <field name="domain_force">[('cluster_id.company_id', '=', user.company_id.id)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
+    </record>
+
+    <!-- =====================================================================
+         RULES FOR GPU TOKEN ECONOMICS
+         ===================================================================== -->
+    <record id="gpu_token_economics_company_rule" model="ir.rule">
+        <field name="name">GPU Token Economics: Company Isolation</field>
+        <field name="model_id" ref="model_gpu_token_economics"/>
+        <field name="global" eval="False"/>
+        <field name="domain_force">[('company_id', '=', user.company_id.id)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
+    </record>
+
+    <!-- =====================================================================
+         RULES FOR MULTIMODAL CONFIG
+         ===================================================================== -->
+    <record id="multimodal_config_company_rule" model="ir.rule">
+        <field name="name">Multimodal Config: Company Isolation</field>
+        <field name="model_id" ref="model_multimodal_config"/>
+        <field name="global" eval="False"/>
+        <field name="domain_force">[('company_id', '=', user.company_id.id)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator')), (4, ref('nettrades_gpu_admin.group_gpu_operator'))]"/>
+    </record>
+
+    <!-- =====================================================================
+         ADDITIONAL RULE: GPU Administrator Full Access to All GPU Models
+         (This is a safety rule to ensure administrators can always access
+         records even if the company_id filter is bypassed.)
+         ===================================================================== -->
+    <record id="gpu_admin_full_access_rule" model="ir.rule">
+        <field name="name">GPU Administrator: Full Access to GPU Models</field>
+        <field name="model_id" ref="model_gpu_cluster"/>
+        <field name="global" eval="False"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('nettrades_gpu_admin.group_gpu_administrator'))]"/>
+    </record>
+</odoo>
