@@ -79,20 +79,20 @@ WIREGUARD_PRIVATE_KEY=$(generate_wireguard_key)
 WIREGUARD_PUBLIC_KEY=$(echo "$WIREGUARD_PRIVATE_KEY" | wg pubkey 2>/dev/null || echo "manual")
 
 # Update .env file with generated secrets
-# Using sed with different delimiters to handle special characters
-sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$POSTGRES_PASSWORD/" "$ENV_FILE"
-sed -i "s/^ODOO_ADMIN_PASSWORD=.*/ODOO_ADMIN_PASSWORD=$ODOO_ADMIN_PASSWORD/" "$ENV_FILE"
-sed -i "s/^SECRET_KEY=.*/SECRET_KEY=$SECRET_KEY/" "$ENV_FILE"
-sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" "$ENV_FILE"
-sed -i "s/^VLLM_API_KEY=.*/VLLM_API_KEY=$VLLM_API_KEY/" "$ENV_FILE"
-sed -i "s/^PROXY_API_KEY=.*/PROXY_API_KEY=$PROXY_API_KEY/" "$ENV_FILE"
-sed -i "s/^WIREGUARD_PRIVATE_KEY=.*/WIREGUARD_PRIVATE_KEY=$WIREGUARD_PRIVATE_KEY/" "$ENV_FILE"
-sed -i "s/^WIREGUARD_PUBLIC_KEY=.*/WIREGUARD_PUBLIC_KEY=$WIREGUARD_PUBLIC_KEY/" "$ENV_FILE"
+# Using '|' as delimiter to avoid conflict with '/' in secrets
+sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$POSTGRES_PASSWORD|" "$ENV_FILE"
+sed -i "s|^ODOO_ADMIN_PASSWORD=.*|ODOO_ADMIN_PASSWORD=$ODOO_ADMIN_PASSWORD|" "$ENV_FILE"
+sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|" "$ENV_FILE"
+sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|" "$ENV_FILE"
+sed -i "s|^VLLM_API_KEY=.*|VLLM_API_KEY=$VLLM_API_KEY|" "$ENV_FILE"
+sed -i "s|^PROXY_API_KEY=.*|PROXY_API_KEY=$PROXY_API_KEY|" "$ENV_FILE"
+sed -i "s|^WIREGUARD_PRIVATE_KEY=.*|WIREGUARD_PRIVATE_KEY=$WIREGUARD_PRIVATE_KEY|" "$ENV_FILE"
+sed -i "s|^WIREGUARD_PUBLIC_KEY=.*|WIREGUARD_PUBLIC_KEY=$WIREGUARD_PUBLIC_KEY|" "$ENV_FILE"
 
 # Generate random domain if not set
 if ! grep -q "^DOMAIN=.*" "$ENV_FILE" || grep -q "^DOMAIN=$" "$ENV_FILE"; then
     RANDOM_DOMAIN="nettrades-$(openssl rand -hex 4).local"
-    sed -i "s/^DOMAIN=.*/DOMAIN=$RANDOM_DOMAIN/" "$ENV_FILE"
+    sed -i "s|^DOMAIN=.*|DOMAIN=$RANDOM_DOMAIN|" "$ENV_FILE"
     log_warning "DOMAIN not set – using $RANDOM_DOMAIN"
 fi
 

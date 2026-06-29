@@ -78,11 +78,23 @@ fi
 # -----------------------------------------------------------------------------
 # 2. Install Docker Compose (standalone)
 # -----------------------------------------------------------------------------
+# 2. Install Docker Compose (plugin)
+# -----------------------------------------------------------------------------
 log_step "Checking Docker Compose installation..."
 if ! docker compose version &>/dev/null; then
     log_info "Installing Docker Compose plugin..."
     if [[ "$OS" == "linux" ]]; then
-        sudo apt-get update && sudo apt-get install -y docker-compose-plugin
+        # Add Docker's official repository if not already present
+        if [[ ! -f /etc/apt/sources.list.d/docker.list ]]; then
+            log_info "Adding Docker's official repository..."
+            sudo install -m 0755 -d /etc/apt/keyrings
+            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            sudo chmod a+r /etc/apt/keyrings/docker.asc
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            sudo apt-get update
+        fi
+        sudo apt-get install -y docker-compose-plugin
+        log_success "Docker Compose plugin installed"
     else
         log_error "Please install Docker Compose manually for $OS"
         exit 1
@@ -90,7 +102,6 @@ if ! docker compose version &>/dev/null; then
 else
     log_success "Docker Compose already installed"
 fi
-
 # -----------------------------------------------------------------------------
 # 3. Install NVIDIA drivers (if GPU is present or requested)
 # -----------------------------------------------------------------------------

@@ -115,6 +115,20 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# Prepare Odoo addons for Docker build
+# -----------------------------------------------------------------------------
+log_step "Preparing Odoo addons for build..."
+if [[ -f "$SCRIPT_DIR/prepare-odoo-addons.sh" ]]; then
+    if [[ "$FORCE" == true ]]; then
+        bash "$SCRIPT_DIR/prepare-odoo-addons.sh" --force
+    else
+        bash "$SCRIPT_DIR/prepare-odoo-addons.sh"
+    fi
+else
+    log_warning "prepare-odoo-addons.sh not found – skipping addon preparation"
+fi
+
+# -----------------------------------------------------------------------------
 # 3. Build custom Docker images
 # -----------------------------------------------------------------------------
 log_step "Building custom Docker images..."

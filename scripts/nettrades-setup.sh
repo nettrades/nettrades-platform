@@ -248,25 +248,32 @@ prepare_environment() {
         if [[ "$(detect_wsl)" == "false" ]]; then
             log_error "Windows detected but NOT inside WSL2."
             cat << EOF
-To enable WSL2:
+${YELLOW}To enable WSL2:${NC}
   1. Open PowerShell as Administrator and run:
        dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
        dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
        wsl --set-default-version 2
   2. Restart your computer.
   3. Install a Linux distribution from Microsoft Store (e.g., Ubuntu 22.04).
-  4. Launch WSL and re-run this script.
+  4. Launch the WSL distribution and re-run this script from inside it.
+
+${GREEN}For the best experience, we recommend running this script inside a WSL terminal.${NC}
 EOF
             exit 1
         else
             log_success "Running inside WSL2."
+            
+            # Check for Docker Desktop integration
             if ! command -v docker &>/dev/null; then
-                log_warning "Docker not found in WSL2. Please install Docker Desktop with WSL2 backend."
+                log_warning "Docker not found in WSL2."
+                log_info "Please install Docker Desktop with WSL2 backend enabled."
                 log_info "See: https://docs.docker.com/desktop/wsl/"
                 if [[ "$AUTO" != true ]]; then
                     read -rp "Continue anyway? (y/N): " cont
                     [[ ! "$cont" =~ ^[Yy]$ ]] && exit 1
                 fi
+            else
+                log_success "Docker found in WSL2."
             fi
         fi
     elif [[ "$os" == "macos" ]]; then
@@ -286,9 +293,7 @@ EOF
         exit 1
     fi
 
-    # ============================================================
-    # GLOBAL DEPENDENCY CHECK – called here
-    # ============================================================
+    # Run global dependency checks
     check_dependencies
 }
 

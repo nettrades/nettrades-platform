@@ -127,11 +127,14 @@ This guide will help you get the platform running on your own server, laptop, or
 
 ##### Operating System:
 
-* Linux (Ubuntu 22.04+ recommended)
+- **Linux** (Ubuntu 22.04+ recommended)
+- **macOS** (with Docker Desktop)
+- **Windows** with **WSL2** (Ubuntu 22.04+)
 
-* macOS (with Docker Desktop)
+> 💡 **For Windows users**: We **strongly recommend** running the installer inside a WSL2 terminal (Ubuntu). The script will detect if you're not in WSL2 and provide instructions to enable it.
 
-* Windows with WSL2 (the script will guide you if not detected)
+Install PostgreSQL 18
+
 
 ##### Minimum Requirements:
 
@@ -140,14 +143,6 @@ This guide will help you get the platform running on your own server, laptop, or
 * 50 GB free disk space
 
 * Internet connection (to download models and images)
-
-##### Optional (for GPU support):
-
-* NVIDIA GPU with drivers installed
-
-* nvidia-container-toolkit (installed automatically during setup)
-
-If you’re on Windows and not running inside WSL2, the setup script will provide clear instructions to enable it and exit gracefully.
 
 ### One-Click Installer
 
@@ -176,30 +171,7 @@ Simply run the script without any arguments:
 ./scripts/nettrades-setup.sh
 
 ```
-A friendly text-based menu will guide you through:
-
-* Selecting a deployment profile (e.g., deploy, gpu, all)
-
-* Toggling options like --force or --upgrade
-
-* Confirming your choices before the installation begins
     
-    
-#### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
-
-You can specify a profile and options directly:
-```bash
-
-# Deploy the platform without GPU (single-VM)
-./scripts/nettrades-setup.sh deploy --auto
-
-# Deploy with GPU support (vLLM + GPUStack)
-./scripts/nettrades-setup.sh gpu --auto
-
-# Full deployment including Odoo modules
-./scripts/nettrades-setup.sh all --auto
-```
-
 #### 📦 Installation Options
 
 
@@ -222,11 +194,20 @@ You can specify a profile and options directly:
 | `--upgrade` | Upgrade Odoo modules instead of fresh install |
 | `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
 
+    
+#### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
 
-
-#### Common Use Cases
-
+You can specify a profile and options directly:
 ```bash
+# Full deployment with modules
+./scripts/nettrades-setup.sh all --auto
+
+# Deployment without GPU
+./scripts/nettrades-setup.sh deploy --auto
+
+# Deployment with GPU support
+./scripts/nettrades-setup.sh gpu --auto
+
 # Development environment only
 ./scripts/nettrades-setup.sh dev
 
