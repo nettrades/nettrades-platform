@@ -1,0 +1,228 @@
+#!/bin/bash
+# =============================================================================
+# FILE: scripts/phase-system.sh
+# =============================================================================
+# PURPOSE:
+#   Phase 0: System Preparation & Security Hardening.
+#   This phase prepares the host system for NETTRADES deployment by:
+#     - Installing system dependencies (Docker, Docker Compose, NVIDIA drivers)
+#     - Configuring firewall (UFW/iptables)
+#     - Hardening SSH (disable root login, key-only auth)
+#     - Installing fail2ban
+#     - Configuring system limits for high-performance workloads
+#     - Setting up WireGuard (if requested)
+#     - Enabling gVisor runtime for container isolation (if on Kubernetes)
+#
+#   It is idempotent and safe to re-run.
+#
+# USAGE:
+#   ./phase-system.sh [--auto]
+# =============================================================================
+
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Source shared libraries
+# -----------------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/logging.sh"
+source "$SCRIPT_DIR/lib/common.sh"
+
+# -----------------------------------------------------------------------------
+# Parse arguments
+# -----------------------------------------------------------------------------
+AUTO="${AUTO:-false}"
+
+# -----------------------------------------------------------------------------
+# Phase marker
+# -----------------------------------------------------------------------------
+if phase_completed 0; then
+    log_warning "Phase 0 already completed. Use --force to re-run."
+    exit 0
+fi
+
+# -----------------------------------------------------------------------------
+# Detect OS
+# -----------------------------------------------------------------------------
+OS=$(detect_os)
+log_info "Detected OS: $OS"
+
+if [[ "$OS" != "linux" ]]; then
+    log_warning "Phase 0 is primarily designed for Linux. Some steps may not work on $OS."
+    if [[ "$AUTO" != true ]]; then
+        read -rp "Continue anyway? (y/N): " continue_anyway
+        if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# 1. Install Docker
+# -----------------------------------------------------------------------------
+log_step "Checking Docker installation..."
+if ! command -v docker &>/dev/null; then
+    log_info "Installing Docker..."
+    if [[ "$OS" == "linux" ]]; then
+        curl -fsSL https://get.docker.com | sh
+        sudo usermod -aG docker "$USER"
+    else
+        log_error "Please install Docker manually for $OS"
+        exit 1
+    fi
+else
+    log_success "Docker already installed"
+fi
+
+# -----------------------------------------------------------------------------
+# 2. Install Docker Compose (standalone)
+# -----------------------------------------------------------------------------
+log_step "Checking Docker Compose installation..."
+if ! docker compose version &>/dev/null; then
+    log_info "Installing Docker Compose plugin..."
+    if [[ "$OS" == "linux" ]]; then
+        sudo apt-get update && sudo apt-get install -y docker-compose-plugin
+    else
+        log_error "Please install Docker Compose manually for $OS"
+        exit 1
+    fi
+else
+    log_success "Docker Compose already installed"
+fi
+
+# -----------------------------------------------------------------------------
+# 3. Install NVIDIA drivers (if GPU is present or requested)
+# -----------------------------------------------------------------------------
+if detect_gpu; then
+    log_success "NVIDIA GPU detected: $(get_gpu_name)"
+    log_step "Checking NVIDIA drivers..."
+    if ! nvidia-smi &>/dev/null; then
+        log_info "Installing NVIDIA drivers..."
+        if [[ "$OS" == "linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y nvidia-driver-550 nvidia-utils-550
+        else
+            log_warning "Please install NVIDIA drivers manually for $OS"
+        fi
+    else
+        log_success "NVIDIA drivers already installed"
+    fi
+
+    log_step "Installing NVIDIA Container Toolkit..."
+    if ! command -v nvidia-container-toolkit &>/dev/null; then
+        if [[ "$OS" == "linux" ]]; then
+            distribution=$(. /etc/os-release; echo "$ID$VERSION_ID")
+            curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+            curl -s -L "https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list" | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+            sudo apt-get update
+            sudo apt-get install -y nvidia-container-toolkit
+            sudo nvidia-ctk runtime configure --runtime=docker
+            sudo systemctl restart docker
+        else
+            log_warning "Please install NVIDIA Container Toolkit manually for $OS"
+        fi
+    else
+        log_success "NVIDIA Container Toolkit already installed"
+    fi
+else
+    log_info "No NVIDIA GPU detected – skipping GPU driver installation"
+fi
+
+# -----------------------------------------------------------------------------
+# 4. Firewall configuration (UFW)
+# -----------------------------------------------------------------------------
+log_step "Configuring firewall..."
+if command -v ufw &>/dev/null; then
+    if ! ufw status | grep -q "active"; then
+        log_info "Enabling UFW firewall..."
+        sudo ufw allow 22/tcp comment 'SSH'
+        sudo ufw allow 80/tcp comment 'HTTP'
+        sudo ufw allow 443/tcp comment 'HTTPS'
+        sudo ufw allow 51820/udp comment 'WireGuard'
+        sudo ufw --force enable
+    else
+        log_success "UFW firewall already active"
+    fi
+else
+    log_warning "UFW not found – skipping firewall configuration"
+fi
+
+# -----------------------------------------------------------------------------
+# 5. SSH hardening
+# -----------------------------------------------------------------------------
+log_step "Hardening SSH configuration..."
+if [[ -f /etc/ssh/sshd_config ]]; then
+    # Disable root login
+    if ! grep -q "^PermitRootLogin no" /etc/ssh/sshd_config; then
+        sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+        sudo systemctl restart sshd
+        log_success "SSH root login disabled"
+    else
+        log_success "SSH root login already disabled"
+    fi
+
+    # Disable password authentication (if key-based auth is set up)
+    if [[ -f ~/.ssh/authorized_keys ]] && [[ -s ~/.ssh/authorized_keys ]]; then
+        if ! grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
+            sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+            sudo systemctl restart sshd
+            log_success "SSH password authentication disabled"
+        else
+            log_success "SSH password authentication already disabled"
+        fi
+    fi
+else
+    log_warning "sshd_config not found – skipping SSH hardening"
+fi
+
+# -----------------------------------------------------------------------------
+# 6. Install fail2ban
+# -----------------------------------------------------------------------------
+log_step "Installing fail2ban..."
+if ! command -v fail2ban-client &>/dev/null; then
+    if [[ "$OS" == "linux" ]]; then
+        sudo apt-get install -y fail2ban
+        sudo systemctl enable fail2ban
+        sudo systemctl start fail2ban
+        log_success "fail2ban installed and started"
+    else
+        log_warning "Please install fail2ban manually for $OS"
+    fi
+else
+    log_success "fail2ban already installed"
+fi
+
+# -----------------------------------------------------------------------------
+# 7. System limits for high-performance workloads
+# -----------------------------------------------------------------------------
+log_step "Configuring system limits..."
+if [[ -f /etc/security/limits.conf ]]; then
+    if ! grep -q "nofile 65536" /etc/security/limits.conf; then
+        echo "* soft nofile 65536" | sudo tee -a /etc/security/limits.conf
+        echo "* hard nofile 65536" | sudo tee -a /etc/security/limits.conf
+        echo "* soft nproc 65536" | sudo tee -a /etc/security/limits.conf
+        echo "* hard nproc 65536" | sudo tee -a /etc/security/limits.conf
+        log_success "System limits configured"
+    else
+        log_success "System limits already configured"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# 8. gVisor runtime (for Kubernetes)
+# -----------------------------------------------------------------------------
+log_step "Checking gVisor installation..."
+if command -v runsc &>/dev/null; then
+    log_success "gVisor already installed"
+else
+    log_info "gVisor not installed – will be installed during Kubernetes phase if needed"
+    # gVisor is installed via Talos extensions in Phase 4
+fi
+
+# -----------------------------------------------------------------------------
+# 9. Mark phase complete
+# -----------------------------------------------------------------------------
+mark_phase_complete 0
+
+log_success "Phase 0 completed – system is prepared and hardened"

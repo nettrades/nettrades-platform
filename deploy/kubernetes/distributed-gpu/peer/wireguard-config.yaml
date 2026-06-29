@@ -1,0 +1,87 @@
+# =============================================================================
+# FILE: deploy/kubernetes/distributed-gpu/peers/wireguard-config.yaml
+# =============================================================================
+# PURPOSE:
+#   WireGuard ConfigMap for distributed GPU worker nodes.
+#   This ConfigMap provides the wg0.conf file that configures the WireGuard
+#   VPN tunnel on each Kubernetes node in the GPU cluster.
+#
+# USAGE:
+#   1. Generate WireGuard keys (see docs).
+#   2. Replace placeholders (SERVER_PRIVATE_KEY, PUBLIC_KEY, ENDPOINT_IP, etc.).
+#   3. Apply with: kubectl apply -f wireguard-config.yaml
+# =============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wireguard-config
+  namespace: gpustack  # Or your desired namespace
+  labels:
+    app: wireguard
+    component: vpn
+data:
+  wg0.conf: |
+    # =========================================================================
+    # WireGuard Server Configuration
+    # =========================================================================
+    [Interface]
+    # The private key of the WireGuard server (primary node).
+    # This will be injected from a Kubernetes Secret for security.
+    # Replace with your actual private key.
+    PrivateKey = <SERVER_PRIVATE_KEY>
+    
+    # The IP address of the WireGuard server within the VPN.
+    Address = 10.0.0.1/24
+    
+    # The port on which the server listens for incoming connections.
+    ListenPort = 51820
+    
+    # Optional: Save the configuration automatically.
+    # SaveConfig = true
+    
+    # =========================================================================
+    # Peer Definitions (GPU Worker Nodes)
+    # =========================================================================
+    
+    # --- Peer 1: GPU Worker Node 1 ---
+    [Peer]
+    # The public key of this peer (GPU worker node).
+    # Generated from the peer's private key.
+    PublicKey = <PEER1_PUBLIC_KEY>
+    
+    # Pre-shared key for this peer (optional but recommended for added security).
+    # Will be injected from a Kubernetes Secret.
+    PresharedKey = <PEER1_PSK>
+    
+    # The IP address assigned to this peer within the VPN.
+    AllowedIPs = 10.0.0.2/32
+    
+    # If this peer is behind NAT, specify its endpoint.
+    # Endpoint = <PEER1_PUBLIC_IP>:51820
+    
+    # Persistent keepalive to maintain the connection through NAT.
+    PersistentKeepalive = 25
+    
+    # --- Peer 2: GPU Worker Node 2 ---
+    [Peer]
+    PublicKey = <PEER2_PUBLIC_KEY>
+    PresharedKey = <PEER2_PSK>
+    AllowedIPs = 10.0.0.3/32
+    # Endpoint = <PEER2_PUBLIC_IP>:51820
+    PersistentKeepalive = 25
+    
+    # --- Peer 3: GPU Worker Node 3 ---
+    [Peer]
+    PublicKey = <PEER3_PUBLIC_KEY>
+    PresharedKey = <PEER3_PSK>
+    AllowedIPs = 10.0.0.4/32
+    # Endpoint = <PEER3_PUBLIC_IP>:51820
+    PersistentKeepalive = 25
+    
+    # --- Add more peers as needed ---
+    # [Peer]
+    # PublicKey = <PEERn_PUBLIC_KEY>
+    # PresharedKey = <PEERn_PSK>
+    # AllowedIPs = 10.0.0.<n+1>/32
+    # PersistentKeepalive = 25

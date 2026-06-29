@@ -7,9 +7,9 @@
 #   phase-based scripts that users run manually. This ensures the deployment
 #   scripts are validated in CI before they reach production.
 #
-#   DESIGN CHOICE (2026-06-29):
+#   DESIGN CHOICE:
 #   For staging and production, we use SSH + nettrades-setup.sh, which
-#   exercises the full setup logic (Phase 1, 2, 5). This is the simplest
+#   exercises the full setup logic (Phase 0, 1, 2, 5). This is the simplest
 #   and most testable approach for a new project.
 #
 #   Kubernetes (Phase 4) is **commented out** for future use. When you are
@@ -31,8 +31,6 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_BUILDKIT: 1
-  # If your Odoo proxy requires an API key, set it here or via GitHub secrets.
-  # We use PROXY_API_KEY (replaces older MCP_API_KEY).
   PROXY_API_KEY: ${{ secrets.PROXY_API_KEY }}
 
 jobs:
@@ -59,7 +57,7 @@ jobs:
         run: pre-commit run --all-files || true
 
       - name: Run ShellCheck
-        run: shellcheck scripts/*.sh deploy/docker/*.sh deploy/kubernetes/*.sh || true
+        run: shellcheck scripts/*.sh scripts/lib/*.sh || true
 
       - name: Check Python formatting
         run: black --check --diff . || true
@@ -101,7 +99,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        target: [odoo_proxy, core]  # image names correspond to Dockerfile locations
+        target: [odoo, langgraph]
     steps:
       - uses: actions/checkout@v4
 
@@ -111,8 +109,8 @@ jobs:
       - name: Build ${{ matrix.target }} image
         uses: docker/build-push-action@v5
         with:
-          context: ./src/core/${{ matrix.target }}
-          file: ./src/core/${{ matrix.target }}/Dockerfile
+          context: ./src/${{ matrix.target }}
+          file: ./src/${{ matrix.target }}/Dockerfile
           push: false
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.target }}:test
@@ -164,7 +162,6 @@ jobs:
             ./scripts/nettrades-setup.sh all --auto
           EOF
 
-      # Optionally run a health check after deployment
       - name: Health check
         run: |
           curl -f http://${{ secrets.STAGING_HOST }}/odoo/health || exit 1
@@ -262,9 +259,9 @@ jobs:
 #     - name: Apply Kubernetes manifests
 #       run: |
 #         export KUBECONFIG=/tmp/kubeconfig
-#         kubectl set image deployment/odoo-proxy odoo-proxy=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-odoo_proxy:${{ github.sha }} -n staging
-#         kubectl set image deployment/langgraph langgraph=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-core:${{ github.sha }} -n staging
-#         kubectl apply -f deploy/kubernetes/apps/ -n staging
+#         kubectl set image deployment/odoo odoo=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-odoo:${{ github.sha }} -n staging
+#         kubectl set image deployment/langgraph langgraph=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-langgraph:${{ github.sha }} -n staging
+#         kubectl apply -k deploy/kubernetes/apps/ -n staging
 #
 # deploy-production-k8s:
 #   name: Deploy to Production (K8s)
@@ -288,10 +285,6 @@ jobs:
 #     - name: Apply Kubernetes manifests
 #       run: |
 #         export KUBECONFIG=/tmp/kubeconfig
-#         kubectl set image deployment/odoo-proxy odoo-proxy=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-odoo_proxy:${{ github.event.release.tag_name }} -n production
-#         kubectl set image deployment/langgraph langgraph=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-core:${{ github.event.release.tag_name }} -n production
-#         kubectl apply -f deploy/kubernetes/apps/ -n production
-
-# =============================================================================
-# End of ci-cd.yml
-# =============================================================================
+#         kubectl set image deployment/odoo odoo=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-odoo:${{ github.event.release.tag_name }} -n production
+#         kubectl set image deployment/langgraph langgraph=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-langgraph:${{ github.event.release.tag_name }} -n production
+#         kubectl apply -k deploy/kubernetes/apps/ -n production

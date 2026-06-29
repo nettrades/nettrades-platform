@@ -1,0 +1,138 @@
+#!/bin/bash
+# =============================================================================
+# FILE: scripts/phase-monitoring.sh
+# =============================================================================
+# PURPOSE:
+#   Phase 6: Monitoring Setup – deploys Prometheus and Grafana.
+#   This phase can be run on either Docker Compose or Kubernetes deployments.
+#   It configures:
+#     - Prometheus for metrics collection
+#     - Grafana for visualisation
+#     - Alertmanager for alerting
+#     - Pre-configured dashboards for NETTRADES
+#
+# USAGE:
+#   ./phase-monitoring.sh [--auto] [--force]
+# =============================================================================
+
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Source shared libraries
+# -----------------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/logging.sh"
+source "$SCRIPT_DIR/lib/common.sh"
+
+# -----------------------------------------------------------------------------
+# Parse arguments
+# -----------------------------------------------------------------------------
+AUTO="${AUTO:-false}"
+FORCE="${FORCE:-false}"
+
+# -----------------------------------------------------------------------------
+# Phase marker
+# -----------------------------------------------------------------------------
+if phase_completed 6; then
+    log_warning "Phase 6 already completed. Use --force to re-run."
+    exit 0
+fi
+
+# -----------------------------------------------------------------------------
+# Detect deployment type
+# -----------------------------------------------------------------------------
+DEPLOYMENT_TYPE="unknown"
+
+if docker compose version &>/dev/null && [[ -f "$PROJECT_ROOT/deploy/docker/docker-compose.yaml" ]]; then
+    if docker compose -f "$PROJECT_ROOT/deploy/docker/docker-compose.yaml" ps --services 2>/dev/null | grep -q prometheus; then
+        DEPLOYMENT_TYPE="docker"
+        log_info "Detected Docker Compose deployment"
+    fi
+fi
+
+if command -v kubectl &>/dev/null && kubectl get namespace monitoring &>/dev/null; then
+    DEPLOYMENT_TYPE="kubernetes"
+    log_info "Detected Kubernetes deployment"
+fi
+
+if [[ "$DEPLOYMENT_TYPE" == "unknown" ]]; then
+    log_error "No existing deployment detected. Please run Phase 2 (Docker) or Phase 4 (Kubernetes) first."
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# Deploy monitoring (Docker)
+# -----------------------------------------------------------------------------
+if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
+    DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
+    cd "$DEPLOY_DIR"
+
+    log_step "Restarting Prometheus and Grafana (Docker)..."
+    docker compose up -d prometheus grafana alertmanager
+
+    log_step "Configuring Grafana datasource..."
+    # Wait for Grafana to be ready
+    sleep 10
+    curl -X POST http://localhost:3000/api/datasources \
+        -H "Content-Type: application/json" \
+        -d '{"name":"Prometheus","type":"prometheus","url":"http://prometheus:9090","access":"proxy"}' \
+        2>/dev/null || log_warning "Failed to configure Grafana datasource"
+
+    cd "$PROJECT_ROOT"
+fi
+
+# -----------------------------------------------------------------------------
+# Deploy monitoring (Kubernetes)
+# -----------------------------------------------------------------------------
+if [[ "$DEPLOYMENT_TYPE" == "kubernetes" ]]; then
+    log_step "Ensuring Prometheus & Grafana are running (Kubernetes)..."
+    if ! kubectl get namespace monitoring &>/dev/null; then
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo update
+        helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
+    else
+        log_success "Prometheus & Grafana already deployed"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# Import NETTRADES dashboards
+# -----------------------------------------------------------------------------
+log_step "Importing NETTRADES dashboards..."
+DASHBOARD_DIR="$PROJECT_ROOT/docs/operations/dashboards"
+
+if [[ -d "$DASHBOARD_DIR" ]]; then
+    for dashboard in "$DASHBOARD_DIR"/*.json; do
+        if [[ -f "$dashboard" ]]; then
+            log_info "Importing dashboard: $(basename "$dashboard")"
+            # Import via Grafana API
+            if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
+                curl -X POST http://localhost:3000/api/dashboards/db \
+                    -H "Content-Type: application/json" \
+                    -d @"$dashboard" 2>/dev/null || log_warning "Failed to import dashboard"
+            elif [[ "$DEPLOYMENT_TYPE" == "kubernetes" ]]; then
+                kubectl port-forward svc/grafana -n monitoring 3000:3000 &
+                sleep 5
+                curl -X POST http://localhost:3000/api/dashboards/db \
+                    -H "Content-Type: application/json" \
+                    -d @"$dashboard" 2>/dev/null || log_warning "Failed to import dashboard"
+                kill %1 2>/dev/null || true
+            fi
+        fi
+    done
+else
+    log_warning "Dashboard directory not found – skipping import"
+fi
+
+# -----------------------------------------------------------------------------
+# Mark phase complete
+# -----------------------------------------------------------------------------
+mark_phase_complete 6
+
+log_success "Phase 6 completed – monitoring stack deployed"
+echo ""
+echo "Access monitoring:"
+echo "  Prometheus: http://localhost:9090"
+echo "  Grafana:    http://localhost:3000 (admin/admin)"
+echo "  Alertmanager: http://localhost:9093"

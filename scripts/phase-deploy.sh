@@ -1,319 +1,614 @@
 #!/bin/bash
 # =============================================================================
-# NETTRADES.AI – Phase 2: Single VM Deployment (UPDATED)
-# =============================================================================
 # FILE: scripts/phase-deploy.sh
-#
+# =============================================================================
 # PURPOSE:
-#   This script deploys the NETTRADES platform on a single VM using Docker Compose.
-#   It includes all custom modules including bridge, fairness, and self-improving.
+#   Phase 2: Single‑VM Docker deployment.
+#   This script deploys the entire NETTRADES stack using Docker Compose.
+#   It is idempotent and safe to re‑run.
 #
-# PHASE 2 STEPS:
-#   1. Check prerequisites
-#   2. Generate secure secrets (uses PROXY_API_KEY)
-#   3. Download models (if no GPU)
-#   4. Build Docker images
-#   5. Start the stack
-#   6. Initialize the database (with fairness & self-improving tables)
-#   7. Install Odoo modules
-#   8. (Optional) Run security hardening
-#
-# UPDATED (2026-06-29):
-#   - Added phase marker for idempotency (--force to re-run)
-#   - Added --auto flag to skip interactive prompts
-#   - Added security hardening prompt (runs security-harden.sh if confirmed)
-#   - Replaced MCP_API_KEY with PROXY_API_KEY
-#   - All existing functionality is preserved
+#   It performs the following steps (in order):
+#     1. Create required directories.
+#     2. Download DeepSeek model (if not cached).
+#     3. Build custom Docker images (Odoo, LangGraph) if missing.
+#     4. Generate `init-db.sql` with all NETTRADES database tables.
+#     5. Run security hardening (if Phase 0 not completed).
+#     6. Start the Docker Compose stack (using `--no-recreate`).
+#     7. Initialise PostgreSQL database with `init-db.sql`.
+#     8. Install all NETTRADES Odoo modules.
+#     9. Set up cron for daily backups.
+#    10. Verify service health.
 #
 # USAGE:
-#   ./scripts/phase-deploy.sh [--force] [--auto]
-#
-# OPTIONS:
-#   --force    Re-run even if already completed (idempotency).
-#   --auto     Skip all interactive prompts (use defaults).
-#
+#   ./phase-deploy.sh [--auto] [--force] [--upgrade]
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# Phase completion marker and path setup
+# Source shared libraries
 # -----------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PHASE_MARKER="$PROJECT_ROOT/.phase-2-complete"
+source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/logging.sh"
+source "$SCRIPT_DIR/lib/common.sh"
 
-# Check for --force and --auto flags
-FORCE=false
-AUTO=false
-for arg in "$@"; do
-    case $arg in
-        --force) FORCE=true ;;
-        --auto)  AUTO=true ;;
-    esac
-done
+# -----------------------------------------------------------------------------
+# Parse arguments
+# -----------------------------------------------------------------------------
+AUTO="${AUTO:-false}"
+FORCE="${FORCE:-false}"
+UPGRADE="${UPGRADE:-false}"
 
-# If phase already completed and not forcing, exit
-if [ -f "$PHASE_MARKER" ] && [ "$FORCE" != true ]; then
-    echo -e "${YELLOW}[WARNING] Phase 2 already completed. Use --force to re-run.${NC}"
+# -----------------------------------------------------------------------------
+# Phase marker
+# -----------------------------------------------------------------------------
+if phase_completed 2; then
+    log_warning "Phase 2 already completed. Use --force to re-run."
     exit 0
 fi
 
 # -----------------------------------------------------------------------------
-# Colours for output
+# Prerequisites
 # -----------------------------------------------------------------------------
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+if ! phase_completed 1; then
+    log_info "Phase 1 not completed. Running Phase 1 first..."
+    bash "$SCRIPT_DIR/phase-env.sh"
+fi
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-
-echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN}NETTRADES.AI – Phase 2: Single VM Deployment${NC}"
-echo -e "${GREEN}============================================================${NC}"
+check_docker || exit 1
 
 # -----------------------------------------------------------------------------
-# 1. Check Prerequisites
+# Set up paths
 # -----------------------------------------------------------------------------
-log_info "Checking prerequisites..."
+DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
+ENV_FILE="$PROJECT_ROOT/.env"
+COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yaml"
+DATA_DIR="$PROJECT_ROOT/data"
+MODELS_DIR="$DATA_DIR/models"
+ADDONS_DIR="$PROJECT_ROOT/addons"
+LOGS_DIR="$PROJECT_ROOT/logs"
 
-# Check Docker
-if ! command -v docker &> /dev/null; then
-    log_error "Docker not installed. Please install Docker and Docker Compose first."
+if [[ ! -f "$ENV_FILE" ]]; then
+    log_error ".env not found. Please run Phase 1 first."
     exit 1
 fi
 
-# Check Docker Compose
-if ! docker compose version &> /dev/null; then
-    log_error "Docker Compose not installed. Please install Docker Compose first."
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+    log_error "docker-compose.yaml not found at $COMPOSE_FILE"
     exit 1
 fi
 
-log_success "Prerequisites met"
+# -----------------------------------------------------------------------------
+# 1. Create required directories
+# -----------------------------------------------------------------------------
+log_step "Creating required directories..."
+mkdir -p "$DATA_DIR/postgres"
+mkdir -p "$DATA_DIR/odoo"
+mkdir -p "$DATA_DIR/valkey"
+mkdir -p "$DATA_DIR/forgejo"
+mkdir -p "$DATA_DIR/prometheus"
+mkdir -p "$DATA_DIR/grafana"
+mkdir -p "$MODELS_DIR"
+mkdir -p "$ADDONS_DIR"
+mkdir -p "$LOGS_DIR"
+mkdir -p "$DATA_DIR/backups"
+log_success "Directories created"
 
 # -----------------------------------------------------------------------------
-# 2. Generate Secure Secrets
+# 2. Download DeepSeek model (if not cached)
 # -----------------------------------------------------------------------------
-log_info "Generating secure secrets..."
-
-cd "$PROJECT_ROOT"
-
-if [ ! -f ".env" ] || [ "$FORCE" = true ]; then
-    cat > .env << 'EOF'
-# =============================================================================
-# NETTRADES.AI – Environment Variables
-# =============================================================================
-DOMAIN=nettrades.ai
-ADMIN_EMAIL=admin@nettrades.ai
-POSTGRES_PASSWORD=$(openssl rand -base64 32)
-ADMIN_PASSWORD=$(openssl rand -base64 32)
-LANGGRAPH_API_KEY=$(openssl rand -base64 32)
-ODOO_API_KEY=$(openssl rand -base64 32)
-GPUSTACK_JWT_SECRET=$(openssl rand -base64 32)
-WIREGUARD_PRIVATE_KEY=$(openssl rand -base64 32)
-WIREGUARD_PUBLIC_KEY=$(openssl rand -base64 32)
-GRAFANA_PASSWORD=$(openssl rand -base64 32)
-FORGEJO_DB_PASSWORD=$(openssl rand -base64 32)
-FORGEJO_SECRET_KEY=$(openssl rand -base64 32)
-# NEW: Use PROXY_API_KEY (replaces MCP_API_KEY)
-PROXY_API_KEY=$(openssl rand -base64 32)
-# Fairness evaluation API keys (optional)
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-EOF
-    chmod 600 .env
-    log_success "Secrets generated"
-else
-    log_info ".env file already exists"
-fi
-
-# Load environment variables
-set -a
-# shellcheck source=/dev/null
-source .env
-set +a
-
-# -----------------------------------------------------------------------------
-# 3. Security Hardening (optional)
-# -----------------------------------------------------------------------------
-if [ "$AUTO" != true ]; then
-    read -rp "Do you want to run security hardening? (This configures UFW, SSH, fail2ban, etc.) (y/N): " run_harden
-else
-    # In auto mode, skip hardening by default (to avoid breaking existing servers)
-    run_harden="n"
-fi
-
-if [[ "$run_harden" =~ ^[Yy]$ ]]; then
-    if [[ -f "$PROJECT_ROOT/deploy/docker/security-harden.sh" ]]; then
-        log_info "Running security hardening..."
-        bash "$PROJECT_ROOT/deploy/docker/security-harden.sh" --auto
-        log_success "Security hardening completed"
+log_step "Checking DeepSeek model cache..."
+MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+if [[ ! -f "$MODEL_FILE" ]] || [[ "$FORCE" == true ]]; then
+    log_info "Downloading DeepSeek model (this may take a while)..."
+    if [[ -f "$DEPLOY_DIR/download-model.sh" ]]; then
+        bash "$DEPLOY_DIR/download-model.sh" --output "$MODEL_FILE"
     else
-        log_warning "security-harden.sh not found. Skipping."
-    fi
-fi
-
-
-# -----------------------------------------------------------------------------
-# 4. Create init-db.sql with all tables
-# -----------------------------------------------------------------------------
-log_info "Creating database initialisation script..."
-
-cat > deploy/docker/init-db.sql << 'EOF'
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Self-improving loop tables
-CREATE TABLE IF NOT EXISTS nettrades_episode (
-    id SERIAL PRIMARY KEY,
-    partner_id INTEGER NOT NULL,
-    field_id INTEGER,
-    input_text TEXT,
-    output_text TEXT,
-    quality_score FLOAT DEFAULT 0.0,
-    context_data JSONB,
-    source VARCHAR(50) DEFAULT 'auto',
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Fairness evaluation tables
-CREATE TABLE IF NOT EXISTS nettrades_fairness_metric (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    calculation_type VARCHAR(50),
-    threshold FLOAT DEFAULT 0.8,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS nettrades_fairness_audit (
-    id SERIAL PRIMARY KEY,
-    model_id VARCHAR(255),
-    metric_id INTEGER REFERENCES nettrades_fairness_metric(id),
-    score FLOAT,
-    passed BOOLEAN,
-    details JSONB,
-    audited_at TIMESTAMP DEFAULT NOW()
-);
-
--- Bridge routing tables
-CREATE TABLE IF NOT EXISTS nettrades_bridge_route (
-    id SERIAL PRIMARY KEY,
-    intent VARCHAR(100) NOT NULL,
-    source VARCHAR(50) DEFAULT 'local',
-    target_url VARCHAR(512),
-    company_id INTEGER,
-    enabled BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Indexes
-CREATE INDEX IF NOT EXISTS idx_episode_partner ON nettrades_episode(partner_id);
-CREATE INDEX IF NOT EXISTS idx_episode_quality ON nettrades_episode(quality_score);
-CREATE INDEX IF NOT EXISTS idx_fairness_audit_model ON nettrades_fairness_audit(model_id);
-EOF
-
-log_success "init-db.sql created"
-
-# -----------------------------------------------------------------------------
-# 5. Set up addons path with all modules
-# -----------------------------------------------------------------------------
-log_info "Setting up addons path..."
-
-ADDONS_PATH="third-party/odoo/addons,\
-odoo-modules,\
-third-party/odoo_llm,\
-third-party/odoo_llm_compat,\
-third-party/website_sale_marketplace,\
-third-party/queue-19"
-
-log_info "Addons path: $ADDONS_PATH"
-
-# -----------------------------------------------------------------------------
-# 6. (Optional) Run Security Hardening
-# -----------------------------------------------------------------------------
-if [ -f "$PROJECT_ROOT/deploy/docker/security-harden.sh" ]; then
-    if [ "$AUTO" = true ]; then
-        log_info "Auto mode: Skipping security hardening prompt."
-        log_info "To run hardening later: sudo ./deploy/docker/security-harden.sh"
-    else
-        log_warning "Security hardening is recommended for production servers."
-        read -rp "Run security hardening now? (y/N): " run_harden
-        if [[ "$run_harden" =~ ^[Yy]$ ]]; then
-            log_info "Running security hardening..."
-            bash "$PROJECT_ROOT/deploy/docker/security-harden.sh"
-        else
-            log_info "Skipping security hardening. You can run it later with: sudo ./deploy/docker/security-harden.sh"
+        log_warning "No download-model.sh found. Please ensure the model is present at $MODEL_FILE."
+        if [[ "$AUTO" != true ]]; then
+            read -rp "Press Enter to continue or Ctrl+C to abort..."
         fi
     fi
 else
-    log_warning "security-harden.sh not found. Skipping."
+    log_success "DeepSeek model already cached: $MODEL_FILE"
 fi
 
 # -----------------------------------------------------------------------------
-# 7. Build and Start Docker Compose Stack
+# 3. Build custom Docker images
 # -----------------------------------------------------------------------------
-log_info "Building and starting Docker Compose stack..."
+log_step "Building custom Docker images..."
 
-cd deploy/docker
-
-# Build images if needed (or if --force)
-if [ "$FORCE" = true ] || ! docker image inspect nettrades-langgraph:latest &>/dev/null; then
-    docker compose build --no-cache
-fi
-
-# Start the stack
-docker compose up -d
-
-log_success "Stack started"
-
-# -----------------------------------------------------------------------------
-# 8. Initialize Database
-# -----------------------------------------------------------------------------
-log_info "Initialising database..."
-
-sleep 10  # Wait for PostgreSQL to be ready
-
-if [ -f "init-db.sql" ]; then
-    docker exec -i postgres psql -U odoo odoo < init-db.sql 2>/dev/null || true
-    log_success "Database initialised"
-fi
-
-# -----------------------------------------------------------------------------
-# 9. Install Odoo Modules
-# -----------------------------------------------------------------------------
-log_info "Installing Odoo modules..."
-
-cd "$PROJECT_ROOT"
-
-if [ -f "scripts/install-modules.sh" ]; then
-    bash scripts/install-modules.sh
+# Odoo image
+ODOO_DOCKERFILE="$DEPLOY_DIR/Dockerfile.odoo"
+if [[ -f "$ODOO_DOCKERFILE" ]]; then
+    if ! docker image inspect nettrades-odoo:latest &>/dev/null || [[ "$FORCE" == true ]]; then
+        log_info "Building Odoo image..."
+        docker build -f "$ODOO_DOCKERFILE" -t nettrades-odoo:latest "$DEPLOY_DIR"
+        log_success "Odoo image built"
+    else
+        log_success "Odoo image already exists"
+    fi
 else
-    log_warning "install-modules.sh not found. Skipping module installation."
+    log_warning "Dockerfile.odoo not found – skipping Odoo image build"
+fi
+
+# LangGraph image
+LANGGRAPH_DOCKERFILE="$PROJECT_ROOT/src/core/Dockerfile"
+if [[ -f "$LANGGRAPH_DOCKERFILE" ]]; then
+    if ! docker image inspect nettrades-langgraph:latest &>/dev/null || [[ "$FORCE" == true ]]; then
+        log_info "Building LangGraph image..."
+        docker build -f "$LANGGRAPH_DOCKERFILE" -t nettrades-langgraph:latest "$PROJECT_ROOT/src/core"
+        log_success "LangGraph image built"
+    else
+        log_success "LangGraph image already exists"
+    fi
+else
+    log_warning "Dockerfile for LangGraph not found – skipping build"
 fi
 
 # -----------------------------------------------------------------------------
-# 10. Post-Installation Summary
+# 4. Generate init-db.sql with all NETTRADES tables
 # -----------------------------------------------------------------------------
-echo ""
-echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN}Phase 2 completed successfully!${NC}"
-echo -e "${GREEN}============================================================${NC}"
-echo ""
-echo "Services running:"
-echo "  Odoo:          http://localhost:8069"
-echo "  LangGraph:     http://localhost:8000"
-echo "  Grafana:       http://localhost:3000"
-echo ""
-echo "Next steps:"
-echo "  1. Log in to Odoo and install the Website module"
-echo "  2. Run Phase 3 (GPU): ./scripts/phase-add-gpu.sh (if you have a GPU)"
-echo "  3. Run Phase 5 (Modules): ./scripts/install-modules.sh --upgrade"
-echo ""
+log_step "Generating init-db.sql with all NETTRADES tables..."
+INIT_SQL="$DEPLOY_DIR/init-db.sql"
+if [[ ! -f "$INIT_SQL" ]] || [[ "$FORCE" == true ]]; then
+    cat > "$INIT_SQL" << 'EOF'
+-- =============================================================================
+-- NETTRADES Database Initialisation Script
+-- =============================================================================
+-- This script creates all required PostgreSQL tables for the NETTRADES platform.
+-- It is idempotent – tables are created only if they do not already exist.
+-- =============================================================================
 
-# Mark phase complete
-echo "$(date -Iseconds)" > "$PHASE_MARKER"
+-- Enable pgvector extension for AI embeddings
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- =============================================================================
+-- Core Platform Tables
+-- =============================================================================
+
+-- nettrades_core – Core platform tables
+CREATE TABLE IF NOT EXISTS nettrades_users (
+    id SERIAL PRIMARY KEY,
+    odoo_user_id INTEGER UNIQUE,
+    username VARCHAR(64) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    wallet_address VARCHAR(42),
+    karma_score INTEGER DEFAULT 0,
+    reputation_score DECIMAL(5,2) DEFAULT 0,
+    is_verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nettrades_companies (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    website VARCHAR(255),
+    industry VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nettrades_projects (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES nettrades_companies(id),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    budget DECIMAL(15,2),
+    status VARCHAR(50) DEFAULT 'open',
+    required_skills TEXT[],
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Good Answer / Self-Improving AI
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_good_answers (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES nettrades_users(id),
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    model_used VARCHAR(100),
+    votes_positive INTEGER DEFAULT 0,
+    votes_negative INTEGER DEFAULT 0,
+    is_verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nettrades_votes (
+    id SERIAL PRIMARY KEY,
+    answer_id INTEGER REFERENCES nettrades_good_answers(id),
+    user_id INTEGER REFERENCES nettrades_users(id),
+    vote_type VARCHAR(10) CHECK (vote_type IN ('positive', 'negative')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(answer_id, user_id)
+);
+
+-- =============================================================================
+-- Ask Someone – Expert Marketplace
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_ask_someone_requests (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES nettrades_users(id),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    budget DECIMAL(15,2),
+    category VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'open',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nettrades_ask_someone_offers (
+    id SERIAL PRIMARY KEY,
+    request_id INTEGER REFERENCES nettrades_ask_someone_requests(id),
+    expert_id INTEGER REFERENCES nettrades_users(id),
+    price DECIMAL(15,2),
+    proposal TEXT,
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- GPU Marketplace
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_gpu_nodes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    gpu_model VARCHAR(100),
+    vram_gb INTEGER,
+    compute_capability VARCHAR(20),
+    ip_address VARCHAR(45),
+    port INTEGER,
+    status VARCHAR(50) DEFAULT 'available',
+    owner_id INTEGER REFERENCES nettrades_users(id),
+    price_per_hour DECIMAL(10,4),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nettrades_gpu_bookings (
+    id SERIAL PRIMARY KEY,
+    node_id INTEGER REFERENCES nettrades_gpu_nodes(id),
+    user_id INTEGER REFERENCES nettrades_users(id),
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    total_cost DECIMAL(15,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nettrades_gpu_usage_logs (
+    id SERIAL PRIMARY KEY,
+    booking_id INTEGER REFERENCES nettrades_gpu_bookings(id),
+    node_id INTEGER REFERENCES nettrades_gpu_nodes(id),
+    usage_type VARCHAR(50),
+    duration_seconds INTEGER,
+    tokens_used INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Bridge / Hub-and-Spoke Routing
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_bridge_routes (
+    id SERIAL PRIMARY KEY,
+    source_node VARCHAR(255),
+    target_node VARCHAR(255),
+    route_type VARCHAR(50),
+    config JSONB,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Job Matching & Proposals
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_job_matches (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER REFERENCES nettrades_projects(id),
+    freelancer_id INTEGER REFERENCES nettrades_users(id),
+    match_score DECIMAL(5,2),
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nettrades_proposals (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER REFERENCES nettrades_projects(id),
+    freelancer_id INTEGER REFERENCES nettrades_users(id),
+    cover_letter TEXT,
+    bid_amount DECIMAL(15,2),
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Fairness & Reputation
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_fairness_scores (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES nettrades_users(id),
+    fairness_score DECIMAL(5,2) DEFAULT 0,
+    trust_score DECIMAL(5,2) DEFAULT 0,
+    last_calculated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Notifications
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES nettrades_users(id),
+    type VARCHAR(50),
+    title VARCHAR(255),
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Research Module
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_research_projects (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    researcher_id INTEGER REFERENCES nettrades_users(id),
+    status VARCHAR(50) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Queue / Task Management
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_queue_tasks (
+    id SERIAL PRIMARY KEY,
+    task_type VARCHAR(100),
+    payload JSONB,
+    status VARCHAR(50) DEFAULT 'pending',
+    priority INTEGER DEFAULT 0,
+    retry_count INTEGER DEFAULT 0,
+    scheduled_at TIMESTAMP,
+    executed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Self-Improving Config
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_self_improving_config (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(255) UNIQUE NOT NULL,
+    value JSONB,
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Lead Scoring
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_leads (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES nettrades_companies(id),
+    score INTEGER DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'new',
+    source VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Chatbot
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_chatbot_conversations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES nettrades_users(id),
+    session_id VARCHAR(255),
+    messages JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- PWA / Offline
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS nettrades_pwa_cache (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES nettrades_users(id),
+    cache_key VARCHAR(255),
+    cache_data JSONB,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- Indexes for Performance
+-- =============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_good_answers_user_id ON nettrades_good_answers(user_id);
+CREATE INDEX IF NOT EXISTS idx_gpu_nodes_status ON nettrades_gpu_nodes(status);
+CREATE INDEX IF NOT EXISTS idx_gpu_bookings_user_id ON nettrades_gpu_bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_job_matches_project_id ON nettrades_job_matches(project_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_project_id ON nettrades_proposals(project_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON nettrades_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_queue_tasks_status ON nettrades_queue_tasks(status);
+
+EOF
+    log_success "init-db.sql generated with all NETTRADES tables"
+else
+    log_success "init-db.sql already exists"
+fi
+
+# -----------------------------------------------------------------------------
+# 5. Run security hardening (if Phase 0 not completed)
+# -----------------------------------------------------------------------------
+if ! phase_completed 0; then
+    log_step "Phase 0 not completed – running security hardening..."
+    if [[ -f "$SCRIPT_DIR/phase-system.sh" ]]; then
+        bash "$SCRIPT_DIR/phase-system.sh"
+    else
+        log_warning "phase-system.sh not found – skipping hardening"
+    fi
+else
+    log_success "Security hardening already applied (Phase 0)"
+fi
+
+# -----------------------------------------------------------------------------
+# 6. Start Docker Compose stack
+# -----------------------------------------------------------------------------
+cd "$DEPLOY_DIR"
+
+log_step "Starting Docker Compose stack..."
+if [[ "$FORCE" == true ]]; then
+    log_info "Force mode – recreating containers..."
+    docker compose down --remove-orphans
+    docker compose up -d --build
+else
+    docker compose up -d --no-recreate
+fi
+
+log_success "Docker Compose stack started"
+
+# -----------------------------------------------------------------------------
+# 7. Initialise PostgreSQL database
+# -----------------------------------------------------------------------------
+log_step "Initialising PostgreSQL database..."
+# Wait for PostgreSQL to be ready
+for i in {1..30}; do
+    if docker exec postgres pg_isready -U odoo &>/dev/null; then
+        break
+    fi
+    sleep 2
+done
+
+if [[ -f "$INIT_SQL" ]]; then
+    docker exec -i postgres psql -U odoo odoo < "$INIT_SQL" 2>/dev/null || {
+        log_warning "Database initialisation may have already been done."
+    }
+else
+    log_error "init-db.sql not found!"
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# 8. Install all NETTRADES Odoo modules
+# -----------------------------------------------------------------------------
+log_step "Installing NETTRADES Odoo modules..."
+
+# Wait for Odoo to be fully ready
+log_info "Waiting for Odoo to be ready..."
+for i in {1..30}; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
+        break
+    fi
+    sleep 2
+done
+
+if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
+    log_info "Running install-modules.sh..."
+    ARGS=""
+    [[ "$FORCE" == true ]] && ARGS="$ARGS --force"
+    [[ "$UPGRADE" == true ]] && ARGS="$ARGS --upgrade"
+    bash "$SCRIPT_DIR/install-modules.sh" $ARGS
+else
+    log_warning "install-modules.sh not found – skipping module installation"
+fi
+
+# -----------------------------------------------------------------------------
+# 9. Set up cron for daily backups
+# -----------------------------------------------------------------------------
+log_step "Setting up cron for daily backups..."
+BACKUP_SCRIPT="$DEPLOY_DIR/backup.sh"
+if [[ -f "$BACKUP_SCRIPT" ]]; then
+    if command -v crontab &>/dev/null; then
+        # Remove any existing entry for backup.sh
+        (crontab -l 2>/dev/null | grep -v "$BACKUP_SCRIPT" || echo "") > /tmp/cron.tmp
+        echo "0 2 * * * $BACKUP_SCRIPT >> $LOGS_DIR/backup.log 2>&1" >> /tmp/cron.tmp
+        crontab /tmp/cron.tmp
+        rm /tmp/cron.tmp
+        log_success "Cron backup scheduled at 2 AM daily"
+    else
+        log_warning "crontab not found – skipping cron setup"
+    fi
+else
+    log_warning "backup.sh not found – skipping cron setup"
+fi
+
+# -----------------------------------------------------------------------------
+# 10. Verify service health
+# -----------------------------------------------------------------------------
+log_step "Verifying service health..."
+sleep 10  # Allow services to settle
+
+# Check Odoo
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
+    log_success "Odoo is healthy"
+else
+    log_warning "Odoo health check failed – please check logs"
+fi
+
+# Check LangGraph
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
+    log_success "LangGraph is healthy"
+else
+    log_warning "LangGraph health check failed – please check logs"
+fi
+
+# Check PostgreSQL
+if docker exec postgres pg_isready -U odoo &>/dev/null; then
+    log_success "PostgreSQL is healthy"
+else
+    log_warning "PostgreSQL health check failed – please check logs"
+fi
+
+# -----------------------------------------------------------------------------
+# 11. Display final status
+# -----------------------------------------------------------------------------
+cd "$PROJECT_ROOT"
+mark_phase_complete 2
+
+log_success "Phase 2 completed – Docker stack deployed with all modules"
+echo ""
+echo "============================================================"
+echo "  NETTRADES Platform is now running!"
+echo "============================================================"
+echo ""
+docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+echo ""
+echo "Access the services:"
+echo "  Odoo:       http://localhost:8069"
+echo "  Forgejo:    http://localhost:3000"
+echo "  Grafana:    http://localhost:3001"
+echo "  Prometheus: http://localhost:9090"
+echo ""
+echo "Default Odoo credentials: admin / admin"
+echo "(Change immediately after first login)"
