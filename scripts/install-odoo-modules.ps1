@@ -23,15 +23,15 @@
         - All packages from third-party/odoo_llm/requirements.txt
         - All packages from third-party/odoo/requirements.txt
 
-    LOCATION‑AWARE:
+    LOCATION-AWARE:
         This script determines its own location and resolves all paths relative
         to the repository root. This allows it to be run from any directory.
 .PARAMETER OdooBin
-    Path to the Odoo binary. Overrides auto‑detected path.
+    Path to the Odoo binary. Overrides auto-detected path.
 .PARAMETER ConfigFile
-    Path to the Odoo configuration file. Overrides auto‑detected path.
+    Path to the Odoo configuration file. Overrides auto-detected path.
 .PARAMETER AddonsPath
-    Comma-separated list of addons paths. Overrides auto‑detected path.
+    Comma-separated list of addons paths. Overrides auto-detected path.
 .PARAMETER StopOnError
     Stop execution if a module installation fails. Defaults to $true.
 .PARAMETER SkipInstalled
@@ -42,7 +42,7 @@
     Force reinstall even if modules are already installed (uses -u update flag).
 .EXAMPLE
     .\install-odoo-modules.ps1
-    Installs all missing modules using auto‑detected paths.
+    Installs all missing modules using auto-detected paths.
 .EXAMPLE
     .\install-odoo-modules.ps1 -ForceReinstall
     Forces reinstallation of all modules (same as updating).
@@ -56,11 +56,11 @@
 
 [CmdletBinding()]
 param(
-    # Path to the Odoo binary (odoo-bin) – optional, auto‑detected if not provided
+    # Path to the Odoo binary (odoo-bin) – optional, auto-detected if not provided
     [string]$OdooBin = "",
-    # Path to the Odoo configuration file – optional, auto‑detected if not provided
+    # Path to the Odoo configuration file – optional, auto-detected if not provided
     [string]$ConfigFile = "",
-    # Comma-separated list of addons paths – optional, auto‑detected if not provided
+    # Comma-separated list of addons paths – optional, auto-detected if not provided
     [string]$AddonsPath = "",
     # Whether to stop the script if a module fails to install
     [bool]$StopOnError = $true,

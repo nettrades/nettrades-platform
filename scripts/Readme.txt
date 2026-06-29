@@ -80,7 +80,7 @@ Usage:
 ============================================================================
 5. ../deploy/docker/deploy-single.sh
 ============================================================================
-Idempotent single‑VM deployment script. Safe to re‑run.
+Idempotent single-VM deployment script. Safe to re-run.
 
 Usage:
   ./deploy-single.sh [--auto]
@@ -97,11 +97,11 @@ Services:
   - traefik        : Reverse proxy with Let's Encrypt SSL
   - postgres       : PostgreSQL 18 with pgvector
   - postgres-exporter : PostgreSQL metrics exporter
-  - valkey         : In‑memory store (sessions, ORM cache, bus)
+  - valkey         : In-memory store (sessions, ORM cache, bus)
   - odoo           : Odoo 19 CE with all custom modules
-  - forgejo        : Self‑hosted Git server
+  - forgejo        : Self-hosted Git server
   - langgraph      : AI orchestration service
-  - odoo-proxy     : HTTP JSON‑RPC shim for Odoo
+  - odoo-proxy     : HTTP JSON-RPC shim for Odoo
   - gpustack       : GPU management and inference
   - llama-cpp      : CPU inference engine
   - prometheus     : Metrics collection

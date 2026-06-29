@@ -45,6 +45,15 @@ Prerequisites
 
         Argo CD: https://argo.nettrades.ai
 
+
+For company GPU clusters:
+    bash
+
+    ./distributed-gpu/controller/install-gpustack-company.sh
+
+The platform is now fully operational with WireGuard isolation, GPUStack orchestration, Axolotl fine?tuning, and a complete Kubernetes?native monitoring stack.
+
+
 Repository Structure
 
     talos/ — Talos Linux VM provisioning (OpenTofu)

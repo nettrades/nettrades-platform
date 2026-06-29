@@ -7,11 +7,11 @@
 #   repositories, writes small configuration files, and adapts LLM module
 #   manifests for Odoo 19.
 #
-#   The directory structure follows the dual‑licensing layout:
-#     src/          – AGPL‑3.0 (your original code)
-#     odoo-modules/ – LGPL‑3.0 (your Odoo plugins)
-#     third-party/  – UNMODIFIED third‑party code
-#     deploy/       – AGPL‑3.0 (deployment configs)
+#   The directory structure follows the dual-licensing layout:
+#     src/          – AGPL-3.0 (your original code)
+#     odoo-modules/ – LGPL-3.0 (your Odoo plugins)
+#     third-party/  – UNMODIFIED third-party code
+#     deploy/       – AGPL-3.0 (deployment configs)
 #     docs/         – documentation and legal agreements
 #     scripts/      – build and setup scripts
 #
@@ -20,16 +20,16 @@
 #   - nettrades_good_answer       (quality voting system)
 #   - nettrades_ask_someone       (expert marketplace)
 #   - nettrades_gpu_admin         (GPU cluster management with token registration)
-#   - nettrades_bridge            (hub‑and‑spoke routing)
-#   - nettrades_data_collection   (self‑improving data collection)
-#   - nettrades_trigger           (self‑improving triggers)
-#   - nettrades_loop              (self‑improving loop)
-#   - nettrades_self_improving_config (self‑improving configuration)
+#   - nettrades_bridge            (hub-and-spoke routing)
+#   - nettrades_data_collection   (self-improving data collection)
+#   - nettrades_trigger           (self-improving triggers)
+#   - nettrades_loop              (self-improving loop)
+#   - nettrades_self_improving_config (self-improving configuration)
 #   - nettrades_fairness          (fairness and bias evaluation)
 #   - nettrades_gpustack_adapter  (GPUStack integration)
 #   - nettrades_queue             (background job processing)
 #   - nettrades_onboarding        (user onboarding)
-#   - nettrades_job_matching      (AI‑powered job matching)
+#   - nettrades_job_matching      (AI-powered job matching)
 #   - nettrades_proposals         (proposal generation)
 #   - nettrades_lead_scoring      (lead scoring)
 #   - nettrades_research          (research assistant)
@@ -55,17 +55,17 @@ echo ""
 # -----------------------------------------------------------------------------
 echo "Creating nettrades-platform folder structure..."
 
-# Top‑level directories
+# Top-level directories
 mkdir -p nettrades-platform/.vscode
 
-# Your original code (AGPL‑3.0)
+# Your original code (AGPL-3.0)
 mkdir -p nettrades-platform/src/core/tools
 mkdir -p nettrades-platform/src/core/agents
 mkdir -p nettrades-platform/src/agent/modes
 mkdir -p nettrades-platform/src/scripts
 
-# Your Odoo plugins (LGPL‑3.0)
-# Updated to include all new modules: bridge, fairness, self‑improving modules
+# Your Odoo plugins (LGPL-3.0)
+# Updated to include all new modules: bridge, fairness, self-improving modules
 for mod in \
     nettrades_core \
     nettrades_ask_someone \
@@ -113,7 +113,7 @@ mkdir -p nettrades-platform/odoo-modules/nettrades_trigger/data
 mkdir -p nettrades-platform/odoo-modules/nettrades_loop/data
 mkdir -p nettrades-platform/odoo-modules/nettrades_self_improving_config/data
 
-# Third‑party code (unmodified)
+# Third-party code (unmodified)
 mkdir -p nettrades-platform/third-party/odoo_llm_compat
 mkdir -p nettrades-platform/third-party/payment_stripe_ce
 

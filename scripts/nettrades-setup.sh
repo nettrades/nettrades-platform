@@ -8,10 +8,10 @@
 #   Unlike a monolithic "do everything" script, this tool provides composable
 #   profiles and options so you can set up exactly the environment you need.
 #
-#   PROFILES (pre‑defined combinations):
+#   PROFILES (pre-defined combinations):
 #     dev    : Phase 1 only (development environment)
-#     deploy : Phase 1 + Phase 2 (single‑VM deployment without GPU)
-#     gpu    : Phase 1 + Phase 2 + Phase 3 (single‑VM deployment with GPU)
+#     deploy : Phase 1 + Phase 2 (single-VM deployment without GPU)
+#     gpu    : Phase 1 + Phase 2 + Phase 3 (single-VM deployment with GPU)
 #     k8s    : Phase 1 + Phase 4 (development environment + Kubernetes scaling)
 #
 #   PHASES (individual steps):
@@ -24,10 +24,10 @@
 #   ./nettrades-setup.sh <profile> [options]
 #
 # OPTIONS:
-#   --force            Re‑run phases even if already completed.
+#   --force            Re-run phases even if already completed.
 #   --upgrade          Upgrade modules instead of fresh install.
 #   --skip-installed   Skip already installed Odoo modules.
-#   --phases=<list>    Comma‑separated list of phases (overrides profile).
+#   --phases=<list>    Comma-separated list of phases (overrides profile).
 #   --help             Show this help message.
 #
 # EXAMPLES:
@@ -61,15 +61,15 @@ ${YELLOW}USAGE:${NC}
 
 ${YELLOW}PROFILES:${NC}
   dev      : Phase 1 (development environment)
-  deploy   : Phase 1 + Phase 2 (single‑VM deployment without GPU)
-  gpu      : Phase 1 + Phase 2 + Phase 3 (single‑VM deployment with GPU)
+  deploy   : Phase 1 + Phase 2 (single-VM deployment without GPU)
+  gpu      : Phase 1 + Phase 2 + Phase 3 (single-VM deployment with GPU)
   k8s      : Phase 1 + Phase 4 (development environment + Kubernetes scaling)
 
 ${YELLOW}OPTIONS:${NC}
-  --force            Re‑run phases even if already completed.
+  --force            Re-run phases even if already completed.
   --upgrade          Upgrade modules instead of fresh install.
   --skip-installed   Skip already installed Odoo modules.
-  --phases=<list>    Comma‑separated list of phases (overrides profile).
+  --phases=<list>    Comma-separated list of phases (overrides profile).
   --help             Show this help message.
 
 ${YELLOW}EXAMPLES:${NC}

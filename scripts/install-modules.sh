@@ -64,7 +64,7 @@ MODULES=(
     "nettrades_good_answer"
     "nettrades_ask_someone"
 
-    # GPU Admin module – token‑based registration for GPU nodes
+    # GPU Admin module – token-based registration for GPU nodes
     "nettrades_gpu_admin"
 
     # GPUStack adapter – integration with GPUStack for inference
@@ -73,21 +73,21 @@ MODULES=(
     # Queue module – background job processing
     "nettrades_queue"
 
-    # Bridge module – hub‑and‑spoke routing between local and remote AI brains
+    # Bridge module – hub-and-spoke routing between local and remote AI brains
     "nettrades_bridge"
 
-    # Self‑improving modules – continuous learning loop (MAPE cycle)
+    # Self-improving modules – continuous learning loop (MAPE cycle)
     "nettrades_data_collection"      # Collects interaction episodes
-    "nettrades_trigger"              # Triggers self‑improvement cycles
-    "nettrades_loop"                 # Runs the self‑improvement loop
-    "nettrades_self_improving_config" # Configuration for self‑improving
+    "nettrades_trigger"              # Triggers self-improvement cycles
+    "nettrades_loop"                 # Runs the self-improvement loop
+    "nettrades_self_improving_config" # Configuration for self-improving
 
     # Fairness module – bias detection and evaluation
     "nettrades_fairness"
 
-    # End‑user modules
+    # End-user modules
     "nettrades_onboarding"           # User onboarding flows
-    "nettrades_job_matching"         # AI‑powered job matching
+    "nettrades_job_matching"         # AI-powered job matching
     "nettrades_proposals"            # Proposal generation
     "nettrades_lead_scoring"         # Lead scoring and prioritisation
     "nettrades_research"             # Research assistant
@@ -97,7 +97,7 @@ MODULES=(
 )
 
 # -----------------------------------------------------------------------------
-# Parse command‑line arguments
+# Parse command-line arguments
 # -----------------------------------------------------------------------------
 FORCE=false
 UPGRADE=false
@@ -162,4 +162,4 @@ echo "  2. Run an audit at: Settings → Technical → Fairness → Dashboard"
 echo "  3. Monitor flags at: Settings → Technical → Fairness → Flags"
 echo "  4. Configure GPU registration tokens at: GPU → Registration Tokens"
 echo "  5. Set up bridge routing at: Bridge → Configuration"
-echo "  6. Check the self‑improving loop at: Settings → Technical → Self‑Improving → Dashboard"
+echo "  6. Check the self-improving loop at: Settings → Technical → Self-Improving → Dashboard"
