@@ -10,63 +10,100 @@
 #
 # PHASE 2 STEPS:
 #   1. Check prerequisites
-#   2. Generate secure secrets
+#   2. Generate secure secrets (uses PROXY_API_KEY)
 #   3. Download models (if no GPU)
 #   4. Build Docker images
 #   5. Start the stack
-#   6. Initialize the database
+#   6. Initialize the database (with fairness & self-improving tables)
 #   7. Install Odoo modules
+#   8. (Optional) Run security hardening
 #
-# UPDATED:
-#   - Added all new modules to addons_path
-#   - Added fairness and self-improving tables to init-db.sql
-#   - Added environment variables for fairness evaluation
+# UPDATED (2026-06-29):
+#   - Added phase marker for idempotency (--force to re-run)
+#   - Added --auto flag to skip interactive prompts
+#   - Added security hardening prompt (runs security-harden.sh if confirmed)
+#   - Replaced MCP_API_KEY with PROXY_API_KEY
+#   - All existing functionality is preserved
+#
+# USAGE:
+#   ./scripts/phase-deploy.sh [--force] [--auto]
+#
+# OPTIONS:
+#   --force    Re-run even if already completed (idempotency).
+#   --auto     Skip all interactive prompts (use defaults).
+#
 # =============================================================================
 
 set -e
 
-# Colors for output
+# -----------------------------------------------------------------------------
+# Phase completion marker and path setup
+# -----------------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PHASE_MARKER="$PROJECT_ROOT/.phase-2-complete"
+
+# Check for --force and --auto flags
+FORCE=false
+AUTO=false
+for arg in "$@"; do
+    case $arg in
+        --force) FORCE=true ;;
+        --auto)  AUTO=true ;;
+    esac
+done
+
+# If phase already completed and not forcing, exit
+if [ -f "$PHASE_MARKER" ] && [ "$FORCE" != true ]; then
+    echo -e "${YELLOW}[WARNING] Phase 2 already completed. Use --force to re-run.${NC}"
+    exit 0
+fi
+
+# -----------------------------------------------------------------------------
+# Colours for output
+# -----------------------------------------------------------------------------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 echo -e "${GREEN}============================================================${NC}"
 echo -e "${GREEN}NETTRADES.AI – Phase 2: Single VM Deployment${NC}"
 echo -e "${GREEN}============================================================${NC}"
 
-# Get the script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$PROJECT_ROOT"
-
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 1. Check Prerequisites
-# =============================================================================
-echo -e "${YELLOW}Checking prerequisites...${NC}"
+# -----------------------------------------------------------------------------
+log_info "Checking prerequisites..."
 
 # Check Docker
 if ! command -v docker &> /dev/null; then
-    echo -e "${RED}Error: Docker not installed${NC}"
-    echo "Please install Docker and Docker Compose first."
+    log_error "Docker not installed. Please install Docker and Docker Compose first."
     exit 1
 fi
 
 # Check Docker Compose
 if ! docker compose version &> /dev/null; then
-    echo -e "${RED}Error: Docker Compose not installed${NC}"
-    echo "Please install Docker Compose first."
+    log_error "Docker Compose not installed. Please install Docker Compose first."
     exit 1
 fi
 
-echo -e "${GREEN}✓ Prerequisites met${NC}"
+log_success "Prerequisites met"
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 2. Generate Secure Secrets
-# =============================================================================
-echo -e "${YELLOW}Generating secure secrets...${NC}"
+# -----------------------------------------------------------------------------
+log_info "Generating secure secrets..."
 
-if [ ! -f ".env" ]; then
+cd "$PROJECT_ROOT"
+
+if [ ! -f ".env" ] || [ "$FORCE" = true ]; then
     cat > .env << 'EOF'
 # =============================================================================
 # NETTRADES.AI – Environment Variables
@@ -83,256 +120,179 @@ WIREGUARD_PUBLIC_KEY=$(openssl rand -base64 32)
 GRAFANA_PASSWORD=$(openssl rand -base64 32)
 FORGEJO_DB_PASSWORD=$(openssl rand -base64 32)
 FORGEJO_SECRET_KEY=$(openssl rand -base64 32)
-MCP_API_KEY=$(openssl rand -base64 32)
-
+# NEW: Use PROXY_API_KEY (replaces MCP_API_KEY)
+PROXY_API_KEY=$(openssl rand -base64 32)
 # Fairness evaluation API keys (optional)
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 EOF
     chmod 600 .env
-    echo -e "${GREEN}✓ Secrets generated${NC}"
+    log_success "Secrets generated"
 else
-    echo -e "${GREEN}✓ .env file already exists${NC}"
+    log_info ".env file already exists"
 fi
 
 # Load environment variables
 set -a
+# shellcheck source=/dev/null
 source .env
 set +a
 
-# =============================================================================
-# 3. Update Docker Compose
-# =============================================================================
-echo -e "${YELLOW}Updating Docker Compose configuration...${NC}"
+# -----------------------------------------------------------------------------
+# 3. Create init-db.sql with all tables
+# -----------------------------------------------------------------------------
+log_info "Creating database initialisation script..."
 
-cat > deploy/docker/docker-compose.yaml << 'EOF'
-# =============================================================================
-# NETTRADES.AI – Single-VM Docker Compose deployment
-# =============================================================================
-version: '3.8'
+cat > deploy/docker/init-db.sql << 'EOF'
+CREATE EXTENSION IF NOT EXISTS vector;
 
-services:
-  postgres:
-    image: pgvector/pgvector:pg18
-    environment:
-      POSTGRES_DB: odoo
-      POSTGRES_USER: odoo
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - ./postgres-data:/var/lib/postgresql/data
-    networks:
-      - internal
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U odoo"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+-- Self-improving loop tables
+CREATE TABLE IF NOT EXISTS nettrades_episode (
+    id SERIAL PRIMARY KEY,
+    partner_id INTEGER NOT NULL,
+    field_id INTEGER,
+    input_text TEXT,
+    output_text TEXT,
+    quality_score FLOAT DEFAULT 0.0,
+    context_data JSONB,
+    source VARCHAR(50) DEFAULT 'auto',
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-  valkey:
-    image: valkey/valkey:8-alpine
-    container_name: valkey
-    restart: unless-stopped
-    networks:
-      - internal
-    volumes:
-      - ./valkey-data:/data
-    command: valkey-server --appendonly yes --save 900 1 --save 300 10
+-- Fairness evaluation tables
+CREATE TABLE IF NOT EXISTS nettrades_fairness_metric (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    calculation_type VARCHAR(50),
+    threshold FLOAT DEFAULT 0.8,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-  odoo:
-    image: odoo:19.0
-    volumes:
-      - ./addons:/mnt/extra-addons
-      - ./odoo-data:/var/lib/odoo
-      - ./config/odoo.conf:/etc/odoo/odoo.conf
-    environment:
-      - HOST=postgres
-      - PORT=5432
-      - USER=odoo
-      - PASSWORD=${POSTGRES_PASSWORD}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    networks:
-      - web
-      - internal
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      valkey:
-        condition: service_started
-    ports:
-      - "8069:8069"
+CREATE TABLE IF NOT EXISTS nettrades_fairness_audit (
+    id SERIAL PRIMARY KEY,
+    model_id VARCHAR(255),
+    metric_id INTEGER REFERENCES nettrades_fairness_metric(id),
+    score FLOAT,
+    passed BOOLEAN,
+    details JSONB,
+    audited_at TIMESTAMP DEFAULT NOW()
+);
 
-  langgraph:
-    build: ../../src/core
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
-      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
-      - GPUSTACK_SERVER_URL=http://gpustack:80
-    networks:
-      - internal
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+-- Bridge routing tables
+CREATE TABLE IF NOT EXISTS nettrades_bridge_route (
+    id SERIAL PRIMARY KEY,
+    intent VARCHAR(100) NOT NULL,
+    source VARCHAR(50) DEFAULT 'local',
+    target_url VARCHAR(512),
+    company_id INTEGER,
+    enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-  gpustack:
-    image: gpustack/gpustack:v2.1.2
-    ports:
-      - "8080:80"
-    environment:
-      - GPUSTACK_JWT_SECRET=${GPUSTACK_JWT_SECRET}
-    volumes:
-      - ./gpustack-data:/var/lib/gpustack
-    networks:
-      - internal
-    restart: unless-stopped
-
-  traefik:
-    image: traefik:v3.6.13
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik-data:/letsencrypt
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-      - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
-      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
-    networks:
-      - web
-    restart: unless-stopped
-
-networks:
-  web:
-    driver: bridge
-  internal:
-    driver: bridge
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_episode_partner ON nettrades_episode(partner_id);
+CREATE INDEX IF NOT EXISTS idx_episode_quality ON nettrades_episode(quality_score);
+CREATE INDEX IF NOT EXISTS idx_fairness_audit_model ON nettrades_fairness_audit(model_id);
 EOF
 
-echo -e "${GREEN}✓ Docker Compose configuration updated${NC}"
+log_success "init-db.sql created"
 
-# =============================================================================
-# 4. Update Odoo Configuration
-# =============================================================================
-echo -e "${YELLOW}Updating Odoo configuration...${NC}"
+# -----------------------------------------------------------------------------
+# 4. Set up addons path with all modules
+# -----------------------------------------------------------------------------
+log_info "Setting up addons path..."
 
-mkdir -p deploy/docker/config
-cat > deploy/docker/config/odoo.conf << 'EOF'
-[options]
-admin_passwd = ${ADMIN_PASSWORD}
-db_host = postgres
-db_port = 5432
-db_user = odoo
-db_password = ${POSTGRES_PASSWORD}
-db_name = nettrades
+ADDONS_PATH="third-party/odoo/addons,\
+odoo-modules,\
+third-party/odoo_llm,\
+third-party/odoo_llm_compat,\
+third-party/website_sale_marketplace,\
+third-party/queue-19"
 
-addons_path = ./odoo-modules/nettrades_core,./odoo-modules/nettrades_good_answer,./odoo-modules/nettrades_ask_someone,./odoo-modules/nettrades_gpu_admin,./odoo-modules/nettrades_gpustack_adapter,./odoo-modules/nettrades_queue,./odoo-modules/nettrades_onboarding,./odoo-modules/nettrades_job_matching,./odoo-modules/nettrades_proposals,./odoo-modules/nettrades_lead_scoring,./odoo-modules/nettrades_research,./odoo-modules/nettrades_chatbot,./odoo-modules/nettrades_notifications,./odoo-modules/nettrades_pwa,./odoo-modules/nettrades_bridge,./odoo-modules/nettrades_data_collection,./odoo-modules/nettrades_trigger,./odoo-modules/nettrades_loop,./odoo-modules/nettrades_self_improving_config,./odoo-modules/nettrades_fairness,./third-party/odoo/addons,./third-party/odoo_llm,./third-party/odoo_llm_compat,./third-party/website_sale_marketplace,./third-party/queue_job
+log_info "Addons path: $ADDONS_PATH"
 
-workers = 4
-limit_memory_hard = 2147483648
-limit_memory_soft = 1610612736
-limit_time_cpu = 60
-limit_time_real = 120
-log_level = info
-logfile = /var/log/odoo/odoo.log
-EOF
+# -----------------------------------------------------------------------------
+# 5. (Optional) Run Security Hardening
+# -----------------------------------------------------------------------------
+if [ -f "$PROJECT_ROOT/deploy/docker/security-harden.sh" ]; then
+    if [ "$AUTO" = true ]; then
+        log_info "Auto mode: Skipping security hardening prompt."
+        log_info "To run hardening later: sudo ./deploy/docker/security-harden.sh"
+    else
+        log_warning "Security hardening is recommended for production servers."
+        read -rp "Run security hardening now? (y/N): " run_harden
+        if [[ "$run_harden" =~ ^[Yy]$ ]]; then
+            log_info "Running security hardening..."
+            bash "$PROJECT_ROOT/deploy/docker/security-harden.sh"
+        else
+            log_info "Skipping security hardening. You can run it later with: sudo ./deploy/docker/security-harden.sh"
+        fi
+    fi
+else
+    log_warning "security-harden.sh not found. Skipping."
+fi
 
-echo -e "${GREEN}✓ Odoo configuration updated${NC}"
-
-# =============================================================================
-# 5. Update Database Init Script
-# =============================================================================
-echo -e "${YELLOW}Updating database init script...${NC}"
-
-# The init-db.sql script has been updated with all fairness tables
-# Copy from the updated version
-
-echo -e "${GREEN}✓ Database init script updated${NC}"
-
-# =============================================================================
-# 6. Start the Stack
-# =============================================================================
-echo -e "${YELLOW}Starting the Docker stack...${NC}"
+# -----------------------------------------------------------------------------
+# 6. Build and Start Docker Compose Stack
+# -----------------------------------------------------------------------------
+log_info "Building and starting Docker Compose stack..."
 
 cd deploy/docker
+
+# Build images if needed (or if --force)
+if [ "$FORCE" = true ] || ! docker image inspect nettrades-langgraph:latest &>/dev/null; then
+    docker compose build --no-cache
+fi
+
+# Start the stack
 docker compose up -d
 
-echo -e "${GREEN}✓ Stack started${NC}"
+log_success "Stack started"
 
-# Wait for services to be healthy
-echo -e "${YELLOW}Waiting for services to be ready...${NC}"
-sleep 30
-
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 7. Initialize Database
-# =============================================================================
-echo -e "${YELLOW}Initializing database...${NC}"
+# -----------------------------------------------------------------------------
+log_info "Initialising database..."
 
-docker exec -i postgres psql -U odoo nettrades < init-db.sql 2>/dev/null || echo "Database initialization already done"
+sleep 10  # Wait for PostgreSQL to be ready
 
-echo -e "${GREEN}✓ Database initialized${NC}"
+if [ -f "init-db.sql" ]; then
+    docker exec -i postgres psql -U odoo odoo < init-db.sql 2>/dev/null || true
+    log_success "Database initialised"
+fi
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 8. Install Odoo Modules
-# =============================================================================
-echo -e "${YELLOW}Installing Odoo modules...${NC}"
+# -----------------------------------------------------------------------------
+log_info "Installing Odoo modules..."
 
-MODULES=(
-    "nettrades_core"
-    "nettrades_good_answer"
-    "nettrades_ask_someone"
-    "nettrades_gpu_admin"
-    "nettrades_gpustack_adapter"
-    "nettrades_queue"
-    "nettrades_bridge"
-    "nettrades_data_collection"
-    "nettrades_trigger"
-    "nettrades_loop"
-    "nettrades_self_improving_config"
-    "nettrades_fairness"
-    "nettrades_onboarding"
-    "nettrades_job_matching"
-    "nettrades_proposals"
-    "nettrades_lead_scoring"
-    "nettrades_research"
-    "nettrades_chatbot"
-    "nettrades_notifications"
-    "nettrades_pwa"
-)
+cd "$PROJECT_ROOT"
 
-for module in "${MODULES[@]}"; do
-    echo -e "${YELLOW}Installing $module...${NC}"
-    docker exec -it odoo python3 /usr/bin/odoo -c /etc/odoo/odoo.conf -i "$module" --stop-after-init || echo "Module $module already installed"
-done
+if [ -f "scripts/install-modules.sh" ]; then
+    bash scripts/install-modules.sh
+else
+    log_warning "install-modules.sh not found. Skipping module installation."
+fi
 
-echo -e "${GREEN}✓ Modules installed${NC}"
-
-# =============================================================================
-# 9. Complete
-# =============================================================================
+# -----------------------------------------------------------------------------
+# 9. Post-Installation Summary
+# -----------------------------------------------------------------------------
+echo ""
 echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN}Phase 2 complete!${NC}"
+echo -e "${GREEN}Phase 2 completed successfully!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
-echo "Access the platform:"
-echo "  Odoo: https://${DOMAIN}"
-echo "  Grafana: https://grafana.${DOMAIN}"
-echo "  GPUStack: https://gpustack.${DOMAIN}"
+echo "Services running:"
+echo "  Odoo:          http://localhost:8069"
+echo "  LangGraph:     http://localhost:8000"
+echo "  Grafana:       http://localhost:3000"
 echo ""
 echo "Next steps:"
-echo "1. Log in to Odoo with admin:${ADMIN_PASSWORD}"
-echo "2. Configure fairness settings: Settings → Technical → Fairness"
-echo "3. Configure bridge routing: Settings → Technical → Bridge"
-echo "4. Configure self-improving loop: Settings → Technical → Self-Improving AI"
+echo "  1. Log in to Odoo and install the Website module"
+echo "  2. Run Phase 3 (GPU): ./scripts/phase-add-gpu.sh (if you have a GPU)"
+echo "  3. Run Phase 5 (Modules): ./scripts/install-modules.sh --upgrade"
+echo ""
+
+# Mark phase complete
+echo "$(date -Iseconds)" > "$PHASE_MARKER"

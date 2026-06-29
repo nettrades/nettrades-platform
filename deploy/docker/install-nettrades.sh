@@ -6,7 +6,7 @@
 #   Interactive installation wizard for the NETTRADES platform.
 #   Auto-detects hardware, asks for confirmation, generates secure passwords,
 #   and calls the idempotent deploy script.
-#
+#   Interactive installer that also generates .env.
 # USAGE:
 #   sudo ./install-nettrades.sh
 # =============================================================================

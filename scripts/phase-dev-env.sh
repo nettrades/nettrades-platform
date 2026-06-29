@@ -7,31 +7,51 @@
 # PURPOSE:
 #   This script sets up the development environment for NETTRADES.
 #   It handles:
-#   - Creating a Python virtual environment
-#   - Installing all dependencies (torch, transformers, datasets, accelerate,
-#     langchain, langgraph)
-#   - Installing odoo_llm and Odoo requirements
-#   - Installing the odoo-proxy service
-#   - Fixing known vulnerabilities (Starlette)
-#   - Validating the installation
+#     - Creating a Python virtual environment
+#     - Installing all dependencies (torch, transformers, datasets, accelerate,
+#       langchain, langgraph)
+#     - Installing odoo_llm and Odoo requirements
+#     - Installing the odoo-proxy service
+#     - Fixing known vulnerabilities (Starlette)
+#     - Installing Odoo modules in the correct order
+#     - Validating the installation
 #
 # USAGE:
-#   ./scripts/phase-dev-env.sh
+#   ./scripts/phase-dev-env.sh [--force]
+#
+# OPTIONS:
+#   --force    Re-run even if already completed (idempotency).
 #
 # =============================================================================
 
-set -e  # Exit on error
-set -u  # Exit on undefined variable
+set -e          # Exit on error
+set -u          # Exit on undefined variable
 
 # -----------------------------------------------------------------------------
 # 1. Configuration
 # -----------------------------------------------------------------------------
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLATFORM_DIR="$(dirname "$SCRIPT_DIR")"
 VENV_DIR="$PLATFORM_DIR/venv"
 
-# Color codes for terminal output
+# Phase completion marker
+PHASE_MARKER="$PLATFORM_DIR/.phase-1-complete"
+
+# Check for --force flag
+FORCE=false
+for arg in "$@"; do
+    if [[ "$arg" == "--force" ]]; then
+        FORCE=true
+    fi
+done
+
+# If phase already completed and not forcing, exit
+if [ -f "$PHASE_MARKER" ] && [ "$FORCE" != true ]; then
+    echo -e "${YELLOW}[WARNING] Phase 1 already completed. Use --force to re-run.${NC}"
+    exit 0
+fi
+
+# Colour codes for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -41,7 +61,6 @@ NC='\033[0m' # No Color
 # -----------------------------------------------------------------------------
 # 2. Helper Functions
 # -----------------------------------------------------------------------------
-
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
@@ -72,7 +91,6 @@ check_wsl() {
 # -----------------------------------------------------------------------------
 # 3. Main Setup Functions
 # -----------------------------------------------------------------------------
-
 setup_virtual_environment() {
     log_info "Setting up Python virtual environment..."
     if [ -d "$VENV_DIR" ]; then
@@ -90,14 +108,17 @@ setup_virtual_environment() {
     log_info "Creating virtual environment in $VENV_DIR..."
     python3 -m venv "$VENV_DIR"
     # Activate the environment (source it)
+    # shellcheck source=/dev/null
     source "$VENV_DIR/bin/activate"
     log_success "Virtual environment created and activated"
 }
 
 install_dependencies() {
     log_info "Installing Python dependencies..."
+
     # Ensure virtual environment is active
     if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+        # shellcheck source=/dev/null
         source "$VENV_DIR/bin/activate"
     fi
 
@@ -108,7 +129,6 @@ install_dependencies() {
     # Install ML packages (torch, transformers, datasets, accelerate)
     # =========================================================================
     log_info "Installing torch, transformers, datasets, accelerate..."
-    # Install each package separately to better handle failures
     for pkg in torch transformers datasets accelerate; do
         if pip show "$pkg" &> /dev/null; then
             log_info "Package $pkg is already installed"
@@ -201,8 +221,8 @@ setup_odoo_proxy() {
 # Odoo JSON-RPC Proxy
 # =============================================================================
 # This FastAPI service provides a secure HTTP JSON-RPC endpoint that proxies
-# calls to the Odoo server. It validates an API key sent in the request
-# headers and forwards the JSON-RPC payload to Odoo's internal endpoint.
+# calls to the Odoo server. It validates an API key sent in the request headers
+# and forwards the JSON-RPC payload to Odoo's internal endpoint.
 #
 # It is intended to replace the broken mcp-odoo integration.
 # =============================================================================
@@ -236,8 +256,10 @@ async def jsonrpc_proxy(request: Request):
     auth = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
     if auth != PROXY_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
+
     body = await request.json()
     client = request.app.state.client
+
     try:
         resp = await client.post(f"{ODOO_URL}/jsonrpc", json=body)
         return JSONResponse(content=resp.json())
@@ -273,14 +295,16 @@ EOF
 
 install_odoo_modules() {
     log_info "Installing Odoo modules in the correct order..."
+
     # Ensure virtual environment is active
     if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+        # shellcheck source=/dev/null
         source "$VENV_DIR/bin/activate"
     fi
 
     ADDONS_PATH=".\third-party\odoo\addons,.\odoo-modules,.\third-party\odoo_llm,.\third-party\odoo_llm_compat,.\third-party\website_sale_marketplace,.\third-party\queue-19"
 
-    # Batch 1: Foundation
+    # Batch 1: Foundation modules
     log_info "Batch 1: Installing foundation modules..."
     python "$PLATFORM_DIR/third-party/odoo/odoo-bin" \
         -c "$PLATFORM_DIR/deploy/docker/config/odoo.conf" \
@@ -333,7 +357,9 @@ install_odoo_modules() {
 
 validate_installation() {
     log_info "Validating installation..."
+
     if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+        # shellcheck source=/dev/null
         source "$VENV_DIR/bin/activate"
     fi
 
@@ -369,7 +395,6 @@ validate_installation() {
 # -----------------------------------------------------------------------------
 # 4. Main Execution
 # -----------------------------------------------------------------------------
-
 main() {
     log_info "========================================="
     log_info "NETTRADES Development Environment Setup"
@@ -389,6 +414,9 @@ main() {
     setup_odoo_proxy
     install_odoo_modules
     validate_installation
+
+    # Mark phase complete
+    echo "$(date -Iseconds)" > "$PHASE_MARKER"
 
     log_info "========================================="
     log_success "Development environment setup complete!"

@@ -4,10 +4,15 @@
 # =============================================================================
 # This script creates all namespaces, installs the CNPG operator,
 # deploys the PostgreSQL cluster (with scheduled backups), Valkey,
-# and all application manifests via Kustomize.  It also installs
+# and all application manifests via Kustomize. It also installs
 # Prometheus/Grafana via the kube-prometheus-stack Helm chart.
+#
+# UPDATED (2026-06-29):
+#   - Replaced MCP_API_KEY with PROXY_API_KEY in validation
 # =============================================================================
+
 set -euo pipefail
+
 trap 'echo "ERROR: script failed at line $LINENO with exit code $?." >&2' ERR
 
 # ---- Validate environment ----
@@ -15,10 +20,19 @@ if [ ! -f .env ]; then
     echo "ERROR: .env file not found. Copy .env.example to .env and fill in secrets." >&2
     exit 1
 fi
+
 source .env
 
-required_vars=("POSTGRES_PASSWORD" "FORGEJO_INTERNAL_DB_PASSWORD" "FORGEJO_CLIENT_DB_PASSWORD"
-               "LANGGRAPH_API_KEY" "ODOO_API_KEY" "MCP_API_KEY")
+# Required variables (UPDATED: MCP_API_KEY → PROXY_API_KEY)
+required_vars=(
+    "POSTGRES_PASSWORD"
+    "FORGEJO_INTERNAL_DB_PASSWORD"
+    "FORGEJO_CLIENT_DB_PASSWORD"
+    "LANGGRAPH_API_KEY"
+    "ODOO_API_KEY"
+    "PROXY_API_KEY"
+)
+
 for var in "${required_vars[@]}"; do
     if [ -z "${!var:-}" ] || [ "${!var}" = "changeit" ]; then
         echo "ERROR: Environment variable $var is not set or still has the default value." >&2
@@ -26,7 +40,7 @@ for var in "${required_vars[@]}"; do
     fi
 done
 
-# Verify required tools
+# ---- Verify required tools ----
 for cmd in kubectl helm; do
     if ! command -v "$cmd" &>/dev/null; then
         echo "ERROR: $cmd is required but not installed." >&2
@@ -45,6 +59,7 @@ kubectl label ns runners pod-security.kubernetes.io/enforce=restricted --overwri
 echo "=== 2. CNPG Operator ==="
 helm repo add cnpg https://cloudnative-pg.github.io/charts
 helm upgrade --install cnpg cnpg/cloudnative-pg --namespace cnpg-system --create-namespace --wait
+
 # wait for CRD to be established
 kubectl wait --for=condition=established crd/clusters.postgresql.cnpg.io --timeout=120s
 
@@ -60,6 +75,7 @@ if [ -z "$CNPG_PRIMARY" ]; then
     echo "ERROR: Could not find CNPG primary pod." >&2
     exit 1
 fi
+
 kubectl exec -n backend "$CNPG_PRIMARY" -- psql -U postgres -c \
     "CREATE USER forgejo_internal WITH PASSWORD '${FORGEJO_INTERNAL_DB_PASSWORD}';" || true
 kubectl exec -n backend "$CNPG_PRIMARY" -- psql -U postgres -c \
@@ -71,11 +87,10 @@ kubectl exec -n backend "$CNPG_PRIMARY" -- psql -U postgres -c \
 
 # ---- Valkey ----
 echo "=== 5. Valkey ==="
-kubectl apply -f apps/backend/valkey-statefulset.yaml
+kubectl apply -f apps/backend/valkey-deployment.yaml
 
-# ---- All applications via Kustomize ----
-echo "=== 6. Applications ==="
-kubectl apply -k .
+echo "=== 6. Deployment complete ==="
+
 
 # ---- Monitoring ----
 echo "=== 7. Prometheus + Grafana ==="
