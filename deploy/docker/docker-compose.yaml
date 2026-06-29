@@ -1,42 +1,43 @@
 # =============================================================================
-# NETTRADES.AI – Single-VM Docker Compose deployment (Valkey edition)
+# FILE: deploy/docker/docker-compose.yaml
 # =============================================================================
 # PURPOSE:
-#   This file defines all services for a single-VM deployment of the NETTRADES
-#   platform. It includes:
-#     - Traefik (reverse proxy with automatic Let's Encrypt SSL)
-#     - PostgreSQL 18 with pgvector (RAG embeddings)
-#     - Valkey (BSD-licensed in-memory store for sessions, ORM cache, bus)
-#     - Odoo 19 CE with all custom NETTRADES modules
-#     - Forgejo 15.0 LTS (self-hosted Git server)
-#     - LangGraph Agent (durable AI orchestration)
-#     - Odoo Proxy (HTTP JSON-RPC shim – replaces mcp-odoo)
-#     - GPUStack (GPU management and inference)
-#     - llama.cpp / vLLM (inference engines)
-#     - Prometheus (metrics collection)
-#     - Grafana (visualisation)
-#     - Node Exporter (system metrics for Prometheus)
+#   Defines all services for a single‑VM deployment of the NETTRADES platform.
+#
+# SERVICES:
+#   - Traefik: Reverse proxy with automatic Let's Encrypt SSL
+#   - PostgreSQL 18 with pgvector: RAG embeddings & main database
+#   - Postgres Exporter: Prometheus metrics for PostgreSQL
+#   - Valkey 8: BSD‑licensed in‑memory store (sessions, ORM cache, bus)
+#   - Odoo 19 CE: ERP, Marketplace, and AI Hub
+#   - Forgejo 15.0 LTS: Self‑hosted Git server
+#   - LangGraph Agent: Durable AI orchestration
+#   - Odoo Proxy: HTTP JSON‑RPC shim (replaces mcp‑odoo)
+#   - GPUStack: GPU management and inference
+#   - llama.cpp / vLLM: Inference engines
+#   - Prometheus: Metrics collection
+#   - Grafana: Visualisation
+#   - Node Exporter: System metrics for Prometheus
 #
 # KEY FEATURES:
-#   - All services are production-ready with pinned versions for stability.
+#   - All services are production‑ready with pinned versions.
 #   - Forgejo 15.0 LTS is supported until July 2027.
 #   - GPUStack v2.1.2 is the current stable release.
-#   - Valkey 8 (BSD-3-Clause) replaces Redis for session storage, ORM cache,
-#     and bus notifications.
-#   - GPUStack's built-in Prometheus and Grafana are DISABLED on the central
-#     deployment. Metrics are scraped by the external Prometheus (port 10161)
-#     and visualised in the external Grafana.
+#   - Valkey 8 replaces Redis for session storage, ORM cache, and bus notifications.
+#   - GPUStack's built‑in Prometheus and Grafana are DISABLED on the central
+#     deployment. Metrics are scraped by the external Prometheus and visualised
+#     in the external Grafana.
 #   - Client companies running their own GPUStack server (Trusted Mode) retain
-#     the built-in Grafana for anonymous Viewer access to GPU-level dashboards.
+#     the built‑in Grafana for anonymous Viewer access to GPU‑level dashboards.
 #
 # MODIFICATIONS:
-#   - Added new self-improving modules to Odoo addons_path.
-#   - Added bridge module for hub-and-spoke routing.
+#   - Added new self‑improving modules to Odoo addons_path.
+#   - Added bridge module for hub‑and‑spoke routing.
 #   - Added data collection, trigger, and loop modules.
 #   - Added fairness module to Odoo addons.
 #   - Updated environment variables for fairness evaluation.
-#   - Replaced mcp-odoo with odoo-proxy service.
-#   - Added node_exporter for system-level metrics.
+#   - Replaced mcp‑odoo with odoo‑proxy service.
+#   - Added node_exporter for system‑level metrics.
 # =============================================================================
 
 version: '3.8'
@@ -126,7 +127,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 4. VALKEY – BSD-licensed in-memory store (sessions, ORM cache, bus)
+  # 4. VALKEY – BSD‑licensed in‑memory store (sessions, ORM cache, bus)
   # =========================================================================
   valkey:
     image: valkey/valkey:8-alpine
@@ -184,7 +185,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 6. FORGEJO 15.0 LTS – Self-hosted Git Server
+  # 6. FORGEJO 15.0 LTS – Self‑hosted Git Server
   # =========================================================================
   forgejo:
     image: codeberg.org/forgejo/forgejo:15.0
@@ -261,7 +262,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 8. ODOO PROXY – HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
+  # 8. ODOO PROXY – HTTP JSON‑RPC Shim (NEW – replaces mcp-odoo)
   # =========================================================================
   odoo-proxy:
     build: ../odoo-proxy
@@ -271,14 +272,11 @@ services:
     networks:
       - internal
     environment:
-      # Odoo backend connection details
       - ODOO_URL=${ODOO_URL:-http://odoo:8069}
       - ODOO_DB=${ODOO_DB:-odoo}
       - ODOO_USER=${ODOO_USER:-1}
       - ODOO_PASSWORD=${ADMIN_PASSWORD}
-      # Shared secret – MUST match PROXY_API_KEY in langgraph service
       - PROXY_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
-      # Logging level
       - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
       - "3000:3000"

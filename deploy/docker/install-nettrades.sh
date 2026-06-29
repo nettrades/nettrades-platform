@@ -1,8 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# NETTRADES.AI – Interactive Installation Wizard (Valkey edition)
+# FILE: deploy/docker/install-nettrades.sh
 # =============================================================================
 # PURPOSE:
+#   Interactive installation wizard for the NETTRADES platform.
 #   Auto-detects hardware, asks for confirmation, generates secure passwords,
 #   and calls the idempotent deploy script.
 #

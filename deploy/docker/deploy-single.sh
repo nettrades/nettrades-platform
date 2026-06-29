@@ -1,17 +1,18 @@
 #!/bin/bash
 # =============================================================================
-# NETTRADES.AI – Single-VM Idempotent Deployment Script (Valkey edition)
+# FILE: deploy/docker/deploy-single.sh
 # =============================================================================
 # PURPOSE:
-#   This script is safe to re-run. It checks for existing files, images, and
+#   Single‑VM idempotent deployment script for the NETTRADES platform.
+#   This script is safe to re‑run. It checks for existing files, images, and
 #   directories before creating them. It uses the shared detection library to
 #   decide between CPU (llama.cpp) and GPU (vLLM) inference.
 #
-#   Sessions, ORM cache, and bus notifications use Valkey (BSD-3-Clause).
+#   Sessions, ORM cache, and bus notifications use Valkey (BSD‑3‑Clause).
 #
 # USAGE:
 #   ./deploy-single.sh [--auto]
-#     --auto: Skip confirmation prompts and use auto-detected values.
+#     --auto: Skip confirmation prompts and use auto‑detected values.
 # =============================================================================
 
 set -euo pipefail

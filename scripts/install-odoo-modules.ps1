@@ -22,23 +22,27 @@
         - langchain-openai, langchain-anthropic, langchain-ollama, langchain-deepseek
         - All packages from third-party/odoo_llm/requirements.txt
         - All packages from third-party/odoo/requirements.txt
+
+    LOCATION‑AWARE:
+        This script determines its own location and resolves all paths relative
+        to the repository root. This allows it to be run from any directory.
 .PARAMETER OdooBin
-    Path to the Odoo binary. Defaults to '.\third-party\odoo\odoo-bin'
+    Path to the Odoo binary. Overrides auto‑detected path.
 .PARAMETER ConfigFile
-    Path to the Odoo configuration file. Defaults to '.\deploy\docker\config\odoo.conf'
+    Path to the Odoo configuration file. Overrides auto‑detected path.
 .PARAMETER AddonsPath
-    Comma-separated list of addons paths. Defaults to the standard NETTRADES paths.
+    Comma-separated list of addons paths. Overrides auto‑detected path.
 .PARAMETER StopOnError
     Stop execution if a module installation fails. Defaults to $true.
 .PARAMETER SkipInstalled
     Skip modules that are already installed. Defaults to $true.
 .PARAMETER LogFile
-    Path to log file. Defaults to '.\module-install.log'
+    Path to log file. Defaults to '.\module-install.log' (relative to repo root).
 .PARAMETER ForceReinstall
     Force reinstall even if modules are already installed (uses -u update flag).
 .EXAMPLE
     .\install-odoo-modules.ps1
-    Installs all missing modules using default paths.
+    Installs all missing modules using auto‑detected paths.
 .EXAMPLE
     .\install-odoo-modules.ps1 -ForceReinstall
     Forces reinstallation of all modules (same as updating).
@@ -52,12 +56,12 @@
 
 [CmdletBinding()]
 param(
-    # Path to the Odoo binary (odoo-bin)
-    [string]$OdooBin = ".\third-party\odoo\odoo-bin",
-    # Path to the Odoo configuration file
-    [string]$ConfigFile = ".\deploy\docker\config\odoo.conf",
-    # Comma-separated list of addons paths
-    [string]$AddonsPath = ".\third-party\odoo\addons,.\odoo-modules,.\third-party\odoo_llm,.\third-party\odoo_llm_compat,.\third-party\website_sale_marketplace,.\third-party\queue-19",
+    # Path to the Odoo binary (odoo-bin) – optional, auto‑detected if not provided
+    [string]$OdooBin = "",
+    # Path to the Odoo configuration file – optional, auto‑detected if not provided
+    [string]$ConfigFile = "",
+    # Comma-separated list of addons paths – optional, auto‑detected if not provided
+    [string]$AddonsPath = "",
     # Whether to stop the script if a module fails to install
     [bool]$StopOnError = $true,
     # Whether to skip modules that are already installed (saves time)
@@ -67,6 +71,42 @@ param(
     # Switch to force reinstall of all modules (uses -u update instead of -i install)
     [switch]$ForceReinstall
 )
+
+# =============================================================================
+# 0. DETERMINE PATHS RELATIVE TO THE SCRIPT LOCATION
+# =============================================================================
+
+# Get the directory where this script is located
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Repository root is one level up from the scripts directory
+$repoRoot = Split-Path -Parent $scriptDir
+
+# Default paths relative to the repository root
+$defaultOdooBin = Join-Path $repoRoot "third-party\odoo\odoo-bin"
+$defaultConfigFile = Join-Path $repoRoot "deploy\docker\config\odoo.conf"
+$defaultAddonsPath = @(
+    ".\third-party\odoo\addons",
+    ".\odoo-modules",
+    ".\third-party\odoo_llm",
+    ".\third-party\odoo_llm_compat",
+    ".\third-party\website_sale_marketplace",
+    ".\third-party\queue-19"
+) -join ","
+$defaultLogFile = Join-Path $repoRoot "module-install.log"
+
+# Use user-provided values or fall back to defaults
+if (-not $OdooBin) { $OdooBin = $defaultOdooBin }
+if (-not $ConfigFile) { $ConfigFile = $defaultConfigFile }
+if (-not $AddonsPath) { $AddonsPath = $defaultAddonsPath }
+if (-not $LogFile) { $LogFile = $defaultLogFile }
+
+# Also need to adjust the addons path to use absolute paths (convert ".\" to full path)
+# We'll keep them relative to the working directory, but since we might run from anywhere,
+# we'll leave them as relative to the repo root. The Odoo command will run with the
+# current working directory set to the repo root when we call it.
+# We'll change to the repo root before executing Odoo.
+# So we keep AddonsPath as relative paths that are correct when run from repo root.
 
 # =============================================================================
 # 1. SETUP: Logging and output functions
@@ -90,6 +130,10 @@ if (Test-Path $LogFile) { Remove-Item $LogFile -Force }
 Write-Info "=== NETTRADES Module Installation ==="
 Write-Info "Starting installation at $(Get-Date)"
 Write-Info "Log file: $LogFile"
+Write-Info "Repository root: $repoRoot"
+Write-Info "Odoo binary: $OdooBin"
+Write-Info "Config file: $ConfigFile"
+Write-Info "Addons path: $AddonsPath"
 
 # =============================================================================
 # 2. PRE-FLIGHT CHECKS: Verify that required files and tools exist
@@ -202,7 +246,7 @@ if ($to_install.Count -gt 0) {
 # =============================================================================
 # 3.3 Install odoo_llm requirements
 # =============================================================================
-$llm_reqs = "third-party/odoo_llm/requirements.txt"
+$llm_reqs = Join-Path $repoRoot "third-party/odoo_llm/requirements.txt"
 if (Test-Path $llm_reqs) {
     Write-Info "Installing odoo_llm requirements..."
     & "python" -m pip install -r $llm_reqs
@@ -214,7 +258,7 @@ if (Test-Path $llm_reqs) {
 # =============================================================================
 # 3.4 Install Odoo core requirements
 # =============================================================================
-$odoo_reqs = "third-party/odoo/requirements.txt"
+$odoo_reqs = Join-Path $repoRoot "third-party/odoo/requirements.txt"
 if (Test-Path $odoo_reqs) {
     Write-Info "Installing Odoo core requirements..."
     & "python" -m pip install -r $odoo_reqs
@@ -346,8 +390,10 @@ function Get-InstalledModules {
     $cmd = "python $OdooBin -c $ConfigFile --addons-path=$AddonsPath -d $DbName --list-installed-modules --stop-after-init"
 
     try {
-        # Execute the command and capture both stdout and stderr
+        # Change to the repo root so that relative paths in addons-path work
+        Push-Location $repoRoot
         $output = & cmd /c $cmd 2>&1
+        Pop-Location
         if ($LASTEXITCODE -eq 0) {
             # Parse the output: lines with only alphanumeric characters (and underscores) are module names
             $installed = @()
@@ -394,7 +440,8 @@ function Install-Module {
     $cmd = "python $OdooBin -c $ConfigFile --addons-path=$AddonsPath $action $ModuleName --stop-after-init"
     Write-Info "Command: $cmd"
 
-    # Execute the command and capture both stdout and stderr
+    # Change to the repo root to ensure relative paths work
+    Push-Location $repoRoot
     try {
         $output = & cmd /c $cmd 2>&1
         $exitCode = $LASTEXITCODE
@@ -410,7 +457,6 @@ function Install-Module {
             return $true
         } else {
             Write-Error "Module '$ModuleName' installation failed with exit code: $exitCode"
-            # If output contains error details, show them
             if ($output) {
                 Write-Error "Error details: $output"
             }
@@ -419,6 +465,8 @@ function Install-Module {
     } catch {
         Write-Error "Exception installing '$ModuleName': $_"
         return $false
+    } finally {
+        Pop-Location
     }
 }
 

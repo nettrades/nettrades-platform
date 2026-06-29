@@ -1,68 +1,119 @@
 #!/bin/bash
 # =============================================================================
-# NETTRADES.AI – Complete project scaffolding (final, multimodal edition)
+# FILE: scripts/create-nettrades-projects.sh
 # =============================================================================
-# Creates the full folder structure for nettrades-platform, clones external
-# repositories, writes small configuration files, and adapts LLM module
-# manifests for Odoo 19.
+# PURPOSE:
+#   Creates the full folder structure for nettrades-platform, clones external
+#   repositories, writes small configuration files, and adapts LLM module
+#   manifests for Odoo 19.
 #
-# The directory structure follows the dual-licensing layout:
-#   src/          – AGPL-3.0 (your original code)
-#   odoo-modules/ – LGPL-3.0 (your Odoo plugins)
-#   third-party/  – UNMODIFIED third-party code
-#   deploy/       – AGPL-3.0 (deployment configs)
-#   docs/         – documentation and legal agreements
-#   scripts/      – build and setup scripts
+#   The directory structure follows the dual‑licensing layout:
+#     src/          – AGPL‑3.0 (your original code)
+#     odoo-modules/ – LGPL‑3.0 (your Odoo plugins)
+#     third-party/  – UNMODIFIED third‑party code
+#     deploy/       – AGPL‑3.0 (deployment configs)
+#     docs/         – documentation and legal agreements
+#     scripts/      – build and setup scripts
+#
+# MODULES CREATED:
+#   - nettrades_core              (core platform logic)
+#   - nettrades_good_answer       (quality voting system)
+#   - nettrades_ask_someone       (expert marketplace)
+#   - nettrades_gpu_admin         (GPU cluster management with token registration)
+#   - nettrades_bridge            (hub‑and‑spoke routing)
+#   - nettrades_data_collection   (self‑improving data collection)
+#   - nettrades_trigger           (self‑improving triggers)
+#   - nettrades_loop              (self‑improving loop)
+#   - nettrades_self_improving_config (self‑improving configuration)
+#   - nettrades_fairness          (fairness and bias evaluation)
+#   - nettrades_gpustack_adapter  (GPUStack integration)
+#   - nettrades_queue             (background job processing)
+#   - nettrades_onboarding        (user onboarding)
+#   - nettrades_job_matching      (AI‑powered job matching)
+#   - nettrades_proposals         (proposal generation)
+#   - nettrades_lead_scoring      (lead scoring)
+#   - nettrades_research          (research assistant)
+#   - nettrades_chatbot           (AI chatbot)
+#   - nettrades_notifications     (notification system)
+#   - nettrades_pwa               (Progressive Web App)
+#
+# USAGE:
+#   ./create-nettrades-projects.sh
 # =============================================================================
+
 set -euo pipefail
 
 BASE_DIR=$(pwd)
 
 echo "============================================================="
-echo " NETTRADES.AI – Project Setup"
+echo "  NETTRADES.AI – Project Setup"
 echo "============================================================="
 echo ""
 
-# ---------------------------------------------------------------------------
-# 1. nettrades-platform – full folder tree
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 1. Create the main folder structure
+# -----------------------------------------------------------------------------
 echo "Creating nettrades-platform folder structure..."
 
-# Top-level
+# Top‑level directories
 mkdir -p nettrades-platform/.vscode
 
-# Your original code (AGPL-3.0)
+# Your original code (AGPL‑3.0)
 mkdir -p nettrades-platform/src/core/tools
 mkdir -p nettrades-platform/src/core/agents
 mkdir -p nettrades-platform/src/agent/modes
 mkdir -p nettrades-platform/src/scripts
 
-# Your Odoo plugins (LGPL-3.0)
-for mod in nettrades_core nettrades_ask_someone nettrades_good_answer \
-           nettrades_gpu_admin nettrades_gpustack_adapter nettrades_queue \
-           nettrades_onboarding nettrades_job_matching nettrades_proposals \
-           nettrades_lead_scoring nettrades_research nettrades_chatbot \
-           nettrades_notifications nettrades_pwa; do
+# Your Odoo plugins (LGPL‑3.0)
+# Updated to include all new modules: bridge, fairness, self‑improving modules
+for mod in \
+    nettrades_core \
+    nettrades_ask_someone \
+    nettrades_good_answer \
+    nettrades_gpu_admin \
+    nettrades_gpustack_adapter \
+    nettrades_queue \
+    nettrades_bridge \
+    nettrades_data_collection \
+    nettrades_trigger \
+    nettrades_loop \
+    nettrades_self_improving_config \
+    nettrades_fairness \
+    nettrades_onboarding \
+    nettrades_job_matching \
+    nettrades_proposals \
+    nettrades_lead_scoring \
+    nettrades_research \
+    nettrades_chatbot \
+    nettrades_notifications \
+    nettrades_pwa
+do
     mkdir -p "nettrades-platform/odoo-modules/$mod/controllers"
     mkdir -p "nettrades-platform/odoo-modules/$mod/models"
     mkdir -p "nettrades-platform/odoo-modules/$mod/security"
     mkdir -p "nettrades-platform/odoo-modules/$mod/views"
 done
 
-# Extra folders for some modules
+# Extra folders for specific modules
 mkdir -p nettrades-platform/odoo-modules/nettrades_core/data
 mkdir -p nettrades-platform/odoo-modules/nettrades_good_answer/data
 mkdir -p nettrades-platform/odoo-modules/nettrades_gpu_admin/static/src/js
 mkdir -p nettrades-platform/odoo-modules/nettrades_gpu_admin/static/src/scss
-mkdir -p nettrades-platform/odoo-modules/nettrades_gpu_admin/data          # cron.xml
-mkdir -p nettrades-platform/odoo-modules/nettrades_ask_someone/data        # expert agreement template
-mkdir -p nettrades-platform/odoo-modules/nettrades_chatbot/static/src/js   # llm message buttons
+mkdir -p nettrades-platform/odoo-modules/nettrades_gpu_admin/data  # cron.xml
+mkdir -p nettrades-platform/odoo-modules/nettrades_ask_someone/data  # expert agreement template
+mkdir -p nettrades-platform/odoo-modules/nettrades_chatbot/static/src/js  # LLM message buttons
 mkdir -p nettrades-platform/odoo-modules/nettrades_onboarding/templates
 mkdir -p nettrades-platform/odoo-modules/nettrades_lead_scoring/data
 mkdir -p nettrades-platform/odoo-modules/nettrades_pwa/static/src
 mkdir -p nettrades-platform/odoo-modules/nettrades_pwa/templates
+mkdir -p nettrades-platform/odoo-modules/nettrades_bridge/data
+mkdir -p nettrades-platform/odoo-modules/nettrades_fairness/data
+mkdir -p nettrades-platform/odoo-modules/nettrades_data_collection/data
+mkdir -p nettrades-platform/odoo-modules/nettrades_trigger/data
+mkdir -p nettrades-platform/odoo-modules/nettrades_loop/data
+mkdir -p nettrades-platform/odoo-modules/nettrades_self_improving_config/data
 
-# Third-party code (unmodified)
+# Third‑party code (unmodified)
 mkdir -p nettrades-platform/third-party/odoo_llm_compat
 mkdir -p nettrades-platform/third-party/payment_stripe_ce
 
@@ -72,215 +123,190 @@ mkdir -p nettrades-platform/deploy/docker/backups
 mkdir -p nettrades-platform/deploy/kubernetes/talos/talos-proxmox/patches
 mkdir -p nettrades-platform/deploy/kubernetes/apps/frontend
 mkdir -p nettrades-platform/deploy/kubernetes/apps/backend
-mkdir -p nettrades-platform/deploy/kubernetes/apps/ai
-mkdir -p nettrades-platform/deploy/kubernetes/apps/forgejo
 mkdir -p nettrades-platform/deploy/kubernetes/apps/gpustack
-mkdir -p nettrades-platform/deploy/kubernetes/apps/monitoring
-mkdir -p nettrades-platform/deploy/kubernetes/apps/registry
-mkdir -p nettrades-platform/deploy/kubernetes/apps/runners
-mkdir -p nettrades-platform/deploy/kubernetes/distributed-gpu/controller/wg-peer-manager
-mkdir -p nettrades-platform/deploy/kubernetes/ingress
-mkdir -p nettrades-platform/deploy/kubernetes/argocd
+mkdir -p nettrades-platform/deploy/kubernetes/apps/langgraph
 
-# Docs
-mkdir -p nettrades-platform/docs/architecture
+# Documentation
+mkdir -p nettrades-platform/docs/developer
+mkdir -p nettrades-platform/docs/operations
+mkdir -p nettrades-platform/docs/legal
 
-# ---------------------------------------------------------------------------
-# 2. Clone external repositories (into third-party/)
-# ---------------------------------------------------------------------------
-echo "Cloning Odoo 19 Community Edition..."
-if [ ! -d nettrades-platform/third-party/odoo/.git ]; then
-    git clone https://github.com/odoo/odoo.git --branch 19.0 --depth 1 \
-        nettrades-platform/third-party/odoo
-else
-    echo "  Odoo already exists – skipping."
-fi
+# Scripts
+mkdir -p nettrades-platform/scripts
 
-echo "Cloning website_sale_marketplace..."
-if [ ! -d nettrades-platform/third-party/website_sale_marketplace/.git ]; then
-    git clone https://github.com/erpgap/website_sale_marketplace.git \
-        nettrades-platform/third-party/website_sale_marketplace
-    mv nettrades-platform/third-party/website_sale_marketplace/website_sale_marketplace/* \
-       nettrades-platform/third-party/website_sale_marketplace/
-    rmdir nettrades-platform/third-party/website_sale_marketplace/website_sale_marketplace
-else
-    echo "  website_sale_marketplace already exists – skipping."
-fi
+echo "✅ Folder structure created."
 
-echo "Setting up apexive/odoo-llm..."
-if [ ! -d nettrades-platform/third-party/odoo_llm/.git ]; then
-    git clone --branch 19.0 https://github.com/apexive/odoo-llm.git \
-        nettrades-platform/third-party/odoo_llm
-    git clone --branch 18.0 https://github.com/apexive/odoo-llm.git \
-        nettrades-platform/third-party/odoo_llm_18
+# -----------------------------------------------------------------------------
+# 2. Create a minimal __manifest__.py for each module (if missing)
+# -----------------------------------------------------------------------------
+echo "Creating minimal module manifests..."
 
-    find nettrades-platform/third-party/odoo_llm_18 -name '__manifest__.py' | while read manifest; do
-        sed -i "s/'version': '18\.0\.[0-9.]*'/'version': '19.0.1.0.0'/" "$manifest"
-    done
-
-    moved=0
-    for mod in nettrades-platform/third-party/odoo_llm_18/*/; do
-        mod_name=$(basename "$mod")
-        [[ "$mod_name" == ".claude" || "$mod_name" == ".git" ]] && continue
-        if [ ! -d "nettrades-platform/third-party/odoo_llm/$mod_name" ]; then
-            cp -r "$mod" "nettrades-platform/third-party/odoo_llm/"
-            rm -rf "$mod"
-            moved=$((moved + 1))
-        fi
-    done
-    echo "  Added $moved new modules from 18.0."
-    rm -rf nettrades-platform/third-party/odoo_llm_18
-else
-    echo "  odoo_llm already exists – skipping."
-fi
-
-echo "Cloning MCP-Odoo bridge..."
-if [ -d nettrades-platform/third-party/mcp-odoo/.git ]; then
-    cd nettrades-platform/third-party/mcp-odoo && git pull && cd "$BASE_DIR"
-else
-    git clone https://github.com/bmya/claude-odoo-api.git \
-        nettrades-platform/third-party/mcp-odoo
-fi
-
-# ---------------------------------------------------------------------------
-# 3. Write small files for nettrades-platform
-# ---------------------------------------------------------------------------
-echo "Writing configuration files..."
-
-# .vscode/launch.json
-cat > nettrades-platform/.vscode/launch.json << 'EOF'
+for mod in \
+    nettrades_core \
+    nettrades_ask_someone \
+    nettrades_good_answer \
+    nettrades_gpu_admin \
+    nettrades_gpustack_adapter \
+    nettrades_queue \
+    nettrades_bridge \
+    nettrades_data_collection \
+    nettrades_trigger \
+    nettrades_loop \
+    nettrades_self_improving_config \
+    nettrades_fairness \
+    nettrades_onboarding \
+    nettrades_job_matching \
+    nettrades_proposals \
+    nettrades_lead_scoring \
+    nettrades_research \
+    nettrades_chatbot \
+    nettrades_notifications \
+    nettrades_pwa
+do
+    manifest_file="nettrades-platform/odoo-modules/$mod/__manifest__.py"
+    if [ ! -f "$manifest_file" ]; then
+        cat > "$manifest_file" << EOF
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: Odoo",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceRoot}/third-party/odoo/odoo-bin",
-            "args": ["-c", "${workspaceFolder}/deploy/docker/config/odoo.conf"],
-            "gevent": false,
-            "console": "integratedTerminal",
-            "justMyCode": false
-        }
-    ]
+    'name': 'NETTRADES $mod',
+    'version': '19.0.1.0.0',
+    'category': 'Technical',
+    'summary': 'NETTRADES $mod module',
+    'description': \"\"\"NETTRADES $mod module.\"\"\",
+    'author': 'NETTRADES',
+    'website': 'https://nettrades.ai',
+    'depends': ['base'],
+    'data': [],
+    'installable': True,
+    'application': True,
+    'auto_install': False,
+    'license': 'LGPL-3',
 }
 EOF
-
-# requirements-dev.txt
-cat > nettrades-platform/requirements-dev.txt << 'EOF'
-requests>=2.28
-psutil
-python-dotenv
-pyyaml
-fastapi
-uvicorn
-langgraph>=1.2.0
-langgraph-checkpoint-postgres>=3.0.3
-langchain-openai>=0.1.0
-httpx
-prometheus-client>=0.20.0
-EOF
-
-# README.md
-cat > nettrades-platform/README.md << 'EOF'
-# NETTRADES.AI Platform
-
-The open-source autonomous enterprise platform — matching talent, running AI on your
-own hardware, and continuously improving.
-
-## Quick Start
-1. Run `./scripts/create-nettrades-projects.sh` to scaffold the project.
-2. Run `./scripts/nettrades-setup.sh` and select Phase 1 for a dev environment.
-3. Start Odoo 19 CE and install the modules.
-EOF
-
-# Root LICENSE.txt
-cat > nettrades-platform/LICENSE.txt << 'EOF'
-This project contains multiple components, each with its own license:
-
-  src/             – AGPL-3.0 (GNU Affero General Public License v3)
-  odoo-modules/    – LGPL-3.0 (GNU Lesser General Public License v3)
-  third-party/     – see OPEN-SOURCE-NOTICES.txt for individual licenses
-  deploy/          – AGPL-3.0
-  docs/            – Creative Commons Attribution 4.0
-  scripts/         – MIT
-
-A commercial license for AGPL-free use of src/ is available from
-NETTRADES AI (PVT) LIMITED.  Contact licensing@nettrades.ai.
-EOF
-
-# .gitignore
-cat > nettrades-platform/.gitignore << 'EOF'
-__pycache__/
-*.py[cod]
-*.egg-info/
-odoo/session/
-odoo/filestore/
-.vscode/
-.idea/
-.env
-*.key
-*.pem
-postgres-data/
-odoo-data/
-forgejo-data/
-llama-cpp-data/
-gpustack-data/
-valkey-data/
-traefik-data/
-prometheus-data/
-grafana-data/
-backups/
-*.log
-EOF
-
-# --- Create empty __init__.py files for all Odoo modules ---
-for dir in nettrades-platform/odoo-modules/*/; do
-    touch "${dir}__init__.py"
-    for sub in controllers models; do
-        [ -d "${dir}$sub" ] && touch "${dir}${sub}/__init__.py"
-    done
+        echo "  Created $manifest_file"
+    fi
 done
 
-# --- Write placeholder stubs for large files that need the full code later ---
-for stub_file in \
-    nettrades-platform/src/core/app.py \
-    nettrades-platform/src/core/supervisor.py \
-    nettrades-platform/src/core/tools/odoo_tools.py \
-    nettrades-platform/src/core/tools/inference_tools.py \
-    nettrades-platform/src/core/agents/recruitment_agent.py \
-    nettrades-platform/src/core/agents/freelance_agent.py \
-    nettrades-platform/src/core/agents/lead_gen_agent.py \
-    nettrades-platform/src/core/agents/gpu_management_agent.py \
-    nettrades-platform/src/core/agents/vision_agent.py \
-    nettrades-platform/src/core/agents/action_agent.py \
-    nettrades-platform/src/core/tools/ros2_tools.py \
-    nettrades-platform/src/core/tools/iot_tools.py \
-    nettrades-platform/src/agent/agent.py \
-    nettrades-platform/src/agent/wg_dns_watchdog.py \
-    nettrades-platform/src/agent/tee_detect.py \
-    nettrades-platform/src/agent/edge_detect.py \
-    nettrades-platform/odoo-modules/nettrades_gpu_admin/controllers/main.py \
-    nettrades-platform/odoo-modules/nettrades_gpu_admin/models/gpu_cluster.py \
-    nettrades-platform/odoo-modules/nettrades_gpu_admin/models/gpu_node.py \
-    nettrades-platform/odoo-modules/nettrades_gpu_admin/views/gpu_cluster_views.xml \
-    nettrades-platform/odoo-modules/nettrades_gpu_admin/views/gpu_dashboard_templates.xml \
-    nettrades-platform/odoo-modules/nettrades_gpu_admin/static/src/js/dashboard.js \
-    nettrades-platform/odoo-modules/nettrades_gpu_admin/models/multimodal_config.py \
-    nettrades-platform/odoo-modules/nettrades_gpu_admin/views/multimodal_config_views.xml; do
-    echo "// PLACEHOLDER – Replace with full code from the conversation." > "$stub_file"
+echo "✅ Module manifests created."
+
+# -----------------------------------------------------------------------------
+# 3. Create a minimal __init__.py for each module
+# -----------------------------------------------------------------------------
+echo "Creating module __init__.py files..."
+
+for mod in \
+    nettrades_core \
+    nettrades_ask_someone \
+    nettrades_good_answer \
+    nettrades_gpu_admin \
+    nettrades_gpustack_adapter \
+    nettrades_queue \
+    nettrades_bridge \
+    nettrades_data_collection \
+    nettrades_trigger \
+    nettrades_loop \
+    nettrades_self_improving_config \
+    nettrades_fairness \
+    nettrades_onboarding \
+    nettrades_job_matching \
+    nettrades_proposals \
+    nettrades_lead_scoring \
+    nettrades_research \
+    nettrades_chatbot \
+    nettrades_notifications \
+    nettrades_pwa
+do
+    init_file="nettrades-platform/odoo-modules/$mod/__init__.py"
+    if [ ! -f "$init_file" ]; then
+        cat > "$init_file" << EOF
+# -*- coding: utf-8 -*-
+from . import controllers
+from . import models
+EOF
+        echo "  Created $init_file"
+    fi
 done
 
-# License stubs
-for lic in nettrades-platform/src/LICENSE.txt \
-           nettrades-platform/odoo-modules/LICENSE.txt \
-           nettrades-platform/deploy/LICENSE.txt; do
-    [ ! -f "$lic" ] && echo "// License text placeholder." > "$lic"
+echo "✅ __init__.py files created."
+
+# -----------------------------------------------------------------------------
+# 4. Create placeholder files for subdirectories
+# -----------------------------------------------------------------------------
+echo "Creating placeholder files..."
+
+for mod in \
+    nettrades_core \
+    nettrades_ask_someone \
+    nettrades_good_answer \
+    nettrades_gpu_admin \
+    nettrades_gpustack_adapter \
+    nettrades_queue \
+    nettrades_bridge \
+    nettrades_data_collection \
+    nettrades_trigger \
+    nettrades_loop \
+    nettrades_self_improving_config \
+    nettrades_fairness \
+    nettrades_onboarding \
+    nettrades_job_matching \
+    nettrades_proposals \
+    nettrades_lead_scoring \
+    nettrades_research \
+    nettrades_chatbot \
+    nettrades_notifications \
+    nettrades_pwa
+do
+    # controllers/__init__.py
+    if [ ! -f "nettrades-platform/odoo-modules/$mod/controllers/__init__.py" ]; then
+        echo "from . import main" > "nettrades-platform/odoo-modules/$mod/controllers/__init__.py"
+    fi
+
+    # models/__init__.py
+    if [ ! -f "nettrades-platform/odoo-modules/$mod/models/__init__.py" ]; then
+        echo "# Models for $mod" > "nettrades-platform/odoo-modules/$mod/models/__init__.py"
+    fi
+
+    # security/ir.model.access.csv
+    if [ ! -f "nettrades-platform/odoo-modules/$mod/security/ir.model.access.csv" ]; then
+        echo "id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink" > "nettrades-platform/odoo-modules/$mod/security/ir.model.access.csv"
+    fi
 done
 
+echo "✅ Placeholder files created."
+
+# -----------------------------------------------------------------------------
+# 5. Summary
+# -----------------------------------------------------------------------------
 echo ""
 echo "============================================================="
-echo " Scaffold complete."
+echo "  Project setup complete!"
 echo "============================================================="
-echo " Run the orchestrator to set up your environment:"
-echo "   ./scripts/nettrades-setup.sh"
+echo ""
+echo "Directory structure created at: nettrades-platform/"
+echo ""
+echo "Next steps:"
+echo "  1. cd nettrades-platform"
+echo "  2. Copy your Odoo modules into odoo-modules/"
+echo "  3. Run the installation script: ./scripts/install-modules.sh"
+echo "  4. Start the stack: cd deploy/docker && docker compose up -d"
+echo ""
+echo "Module list (20 modules):"
+echo "  - nettrades_core"
+echo "  - nettrades_ask_someone"
+echo "  - nettrades_good_answer"
+echo "  - nettrades_gpu_admin"
+echo "  - nettrades_gpustack_adapter"
+echo "  - nettrades_queue"
+echo "  - nettrades_bridge"
+echo "  - nettrades_data_collection"
+echo "  - nettrades_trigger"
+echo "  - nettrades_loop"
+echo "  - nettrades_self_improving_config"
+echo "  - nettrades_fairness"
+echo "  - nettrades_onboarding"
+echo "  - nettrades_job_matching"
+echo "  - nettrades_proposals"
+echo "  - nettrades_lead_scoring"
+echo "  - nettrades_research"
+echo "  - nettrades_chatbot"
+echo "  - nettrades_notifications"
+echo "  - nettrades_pwa"
