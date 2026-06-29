@@ -113,9 +113,9 @@ check_talosctl() {
 # -----------------------------------------------------------------------------
 generate_wireguard_key() {
     if command -v wg &>/dev/null; then
-        wg genkey
+        wg genkey | tr -d '\n'
     else
-        openssl rand -base64 32
+        openssl rand -base64 32 | tr -d '\n'
     fi
 }
 
