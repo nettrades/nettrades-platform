@@ -22,163 +22,45 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # -----------------------------------------------------------------------------
-# Colours and logging
+# Source shared libraries
 # -----------------------------------------------------------------------------
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-log_step() { echo -e "${CYAN}▶${NC} $1"; }
-log_header() {
-    echo ""
-    echo -e "${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${MAGENTA} $1${NC}"
-    echo -e "${MAGENTA}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-}
+source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/logging.sh"
+source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
-# OS Detection
+# Show help
 # -----------------------------------------------------------------------------
-detect_os() {
-    case "$(uname -s)" in
-        Linux*)     echo "linux";;
-        Darwin*)    echo "macos";;
-        CYGWIN*|MINGW*|MSYS*) echo "windows";;
-        *)          echo "unknown";;
-    esac
-}
+show_help() {
+    cat << EOF
+${GREEN}NETTRADES.AI – Unified Setup Orchestrator${NC}
 
-detect_wsl() {
-    if grep -q Microsoft /proc/version 2>/dev/null; then
-        echo "true"
-    else
-        echo "false"
-    fi
-}
+${YELLOW}USAGE:${NC}
+    ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
+    ./nettrades-setup.sh                       (Interactive wizard)
+    ./nettrades-setup.sh --help                Show this help.
 
-# -----------------------------------------------------------------------------
-# Phase Marker Functions (idempotency)
-# -----------------------------------------------------------------------------
-phase_completed() {
-    local phase="$1"
-    local marker="$PROJECT_ROOT/.phase-${phase}-complete"
-    [[ -f "$marker" ]] && [[ "${FORCE:-false}" != true ]]
-}
+${YELLOW}PROFILES (CLI):${NC}
+    dev         : Phase 1 (development environment)
+    deploy      : Phase 0 + Phase 1 + Phase 2 (single-VM deployment without GPU)
+    gpu         : Phase 0 + Phase 1 + Phase 2 + Phase 3 (single-VM deployment with GPU)
+    k8s         : Phase 0 + Phase 1 + Phase 4 (Kubernetes scaling)
+    monitoring  : Phase 6 (Prometheus & Grafana setup)
+    modules     : Phase 5 (install/upgrade Odoo modules only)
+    all         : Phase 0 + Phase 1 + Phase 2 + Phase 5 (full deployment with modules)
 
-mark_phase_complete() {
-    local phase="$1"
-    local marker="$PROJECT_ROOT/.phase-${phase}-complete"
-    echo "$(date -Iseconds)" > "$marker"
-    log_success "Phase $phase completed"
-}
+${YELLOW}OPTIONS (CLI):${NC}
+    --force           Re-run phases even if already completed.
+    --upgrade         Upgrade existing modules instead of fresh install.
+    --skip-installed  Skip already installed Odoo modules.
+    --auto            Run in non-interactive mode (use defaults, no prompts).
+    --phases=LIST     Comma-separated list of phases (overrides profile).
 
-# -----------------------------------------------------------------------------
-# Global Dependency Check
-# -----------------------------------------------------------------------------
-check_dependencies() {
-    local os
-    os=$(detect_os)
-    local missing=()
-
-    if [[ "$os" == "linux" ]]; then
-        # Check for curl, wget, git, etc.
-        for cmd in curl wget git; do
-            if ! command -v "$cmd" &>/dev/null; then
-                missing+=("$cmd")
-            fi
-        done
-        if [[ ${#missing[@]} -gt 0 ]]; then
-            log_warning "Missing system packages: ${missing[*]}"
-            log_info "Install with: sudo apt-get install -y ${missing[*]}"
-            if [[ "$AUTO" != true ]]; then
-                read -rp "Continue anyway? (y/N): " cont
-                [[ ! "$cont" =~ ^[Yy]$ ]] && exit 1
-            fi
-        fi
-    fi
-
-    # Python 3.10+
-    if ! command -v python3 &>/dev/null; then
-        log_error "Python3 not found. Please install Python 3.10 or higher."
-        exit 1
-    fi
-    local py_version
-    py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-    if [[ "$(printf '%s\n' "3.10" "$py_version" | sort -V | head -n1)" != "3.10" ]]; then
-        log_error "Python version $py_version detected. Need 3.10+."
-        exit 1
-    fi
-    log_success "Python $py_version detected."
-
-    # pip
-    if ! command -v pip3 &>/dev/null; then
-        log_warning "pip3 not found. Installing..."
-        python3 -m ensurepip --upgrade 2>/dev/null || {
-            log_error "Failed to install pip. Please install manually."
-            exit 1
-        }
-    fi
-}
-
-# -----------------------------------------------------------------------------
-# Development environment setup (Phase 1 specific)
-# -----------------------------------------------------------------------------
-setup_dev_environment() {
-    local os
-    os=$(detect_os)
-
-    # Install Python dependencies if requirements-dev.txt exists
-    if [[ -f "$PROJECT_ROOT/requirements-dev.txt" ]]; then
-        log_step "Installing Python development dependencies..."
-        pip3 install -r "$PROJECT_ROOT/requirements-dev.txt" 2>/dev/null || {
-            log_warning "Failed to install Python dependencies automatically. Please install manually."
-        }
-    else
-        log_warning "requirements-dev.txt not found – skipping Python dependencies."
-    fi
-
-    # Create .env from template if not exists
-    if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
-        if [[ -f "$PROJECT_ROOT/deploy/docker/.env.example" ]]; then
-            log_step "Creating .env from template..."
-            cp "$PROJECT_ROOT/deploy/docker/.env.example" "$PROJECT_ROOT/.env"
-            chmod 600 "$PROJECT_ROOT/.env"
-            log_warning "Created .env from .env.example. Please review and set secrets."
-        else
-            log_warning ".env.example not found – skipping .env creation."
-        fi
-    else
-        log_success ".env already exists."
-    fi
-
-    # Install Odoo module dependencies (if appropriate scripts exist)
-    if [[ "$os" == "windows" ]]; then
-        if [[ -f "$PROJECT_ROOT/scripts/install-odoo-modules.ps1" ]]; then
-            log_step "Installing Odoo module dependencies (Windows)..."
-            powershell -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-odoo-modules.ps1" -SkipInstalled:"$SKIP_INSTALLED" -ForceReinstall:"$FORCE" 2>/dev/null || {
-                log_warning "Odoo module dependency installation failed."
-            }
-        else
-            log_warning "install-odoo-modules.ps1 not found – skipping Odoo dependencies."
-        fi
-    else
-        if [[ -f "$PROJECT_ROOT/scripts/install-modules.sh" ]]; then
-            log_step "Installing Odoo module dependencies (Linux/macOS)..."
-            bash "$PROJECT_ROOT/scripts/install-modules.sh" --deps-only 2>/dev/null || {
-                log_warning "Odoo module dependency installation failed."
-            }
-        else
-            log_warning "install-modules.sh not found – skipping Odoo dependencies."
-        fi
-    fi
+${YELLOW}EXAMPLES:${NC}
+    ./nettrades-setup.sh                        # Interactive wizard
+    ./nettrades-setup.sh deploy --auto          # Automated deploy
+    ./nettrades-setup.sh gpu --force --upgrade  # Re-deploy with GPU and upgrade modules
+EOF
 }
 
 # =============================================================================
@@ -248,6 +130,64 @@ run_interactive() {
     [[ ! "$confirm" =~ ^[Yy]$ ]] && { log_info "Aborted."; exit 0; }
 
     export FORCE UPGRADE AUTO
+}
+
+# =============================================================================
+# PHASE 1: Development Environment (Integrated)
+# =============================================================================
+
+setup_dev_environment() {
+    local os
+    os=$(detect_os)
+
+    log_step "Setting up development environment..."
+
+    # Install Python dependencies if requirements-dev.txt exists
+    if [[ -f "$PROJECT_ROOT/requirements-dev.txt" ]]; then
+        log_step "Installing Python development dependencies..."
+        pip3 install -r "$PROJECT_ROOT/requirements-dev.txt" 2>/dev/null || {
+            log_warning "Failed to install Python dependencies automatically. Please install manually."
+        }
+    else
+        log_warning "requirements-dev.txt not found – skipping Python dependencies."
+    fi
+
+    # Create .env from template if not exists
+    if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
+        if [[ -f "$PROJECT_ROOT/deploy/docker/.env.example" ]]; then
+            log_step "Creating .env from template..."
+            cp "$PROJECT_ROOT/deploy/docker/.env.example" "$PROJECT_ROOT/.env"
+            chmod 600 "$PROJECT_ROOT/.env"
+            log_warning "Created .env from .env.example. Please review and set secrets."
+        else
+            log_warning ".env.example not found – skipping .env creation."
+        fi
+    else
+        log_success ".env already exists."
+    fi
+
+    # Install Odoo module dependencies (if appropriate scripts exist)
+    if [[ "$os" == "windows" ]]; then
+        if [[ -f "$PROJECT_ROOT/scripts/install-odoo-modules.ps1" ]]; then
+            log_step "Installing Odoo module dependencies (Windows)..."
+            powershell -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-odoo-modules.ps1" -SkipInstalled:"$SKIP_INSTALLED" -ForceReinstall:"$FORCE" 2>/dev/null || {
+                log_warning "Odoo module dependency installation failed."
+            }
+        else
+            log_warning "install-odoo-modules.ps1 not found – skipping Odoo dependencies."
+        fi
+    else
+        if [[ -f "$PROJECT_ROOT/scripts/install-modules.sh" ]]; then
+            log_step "Installing Odoo module dependencies (Linux/macOS)..."
+            bash "$PROJECT_ROOT/scripts/install-modules.sh" --deps-only 2>/dev/null || {
+                log_warning "Odoo module dependency installation failed."
+            }
+        else
+            log_warning "install-modules.sh not found – skipping Odoo dependencies."
+        fi
+    fi
+
+    mark_phase_complete 1
 }
 
 # =============================================================================
@@ -346,43 +286,57 @@ EOF
         exit 1
     fi
 
-    # Run global dependency checks
+    # ============================================================
+    # GLOBAL DEPENDENCY CHECK – called here
+    # ============================================================
     check_dependencies
 }
 
 # -----------------------------------------------------------------------------
-# Show help
+# Global Dependency Check
 # -----------------------------------------------------------------------------
-show_help() {
-    cat << EOF
-${GREEN}NETTRADES.AI – Unified Setup Orchestrator${NC}
+check_dependencies() {
+    local os
+    os=$(detect_os)
+    local missing=()
 
-${YELLOW}USAGE:${NC}
-    ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
-    ./nettrades-setup.sh                       (Interactive wizard)
-    ./nettrades-setup.sh --help                Show this help.
+    if [[ "$os" == "linux" ]]; then
+        for cmd in curl wget git; do
+            if ! command -v "$cmd" &>/dev/null; then
+                missing+=("$cmd")
+            fi
+        done
+        if [[ ${#missing[@]} -gt 0 ]]; then
+            log_warning "Missing system packages: ${missing[*]}"
+            log_info "Install with: sudo apt-get install -y ${missing[*]}"
+            if [[ "$AUTO" != true ]]; then
+                read -rp "Continue anyway? (y/N): " cont
+                [[ ! "$cont" =~ ^[Yy]$ ]] && exit 1
+            fi
+        fi
+    fi
 
-${YELLOW}PROFILES (CLI):${NC}
-    dev         : Phase 1 (development environment)
-    deploy      : Phase 0 + Phase 1 + Phase 2 (single-VM deployment without GPU)
-    gpu         : Phase 0 + Phase 1 + Phase 2 + Phase 3 (single-VM deployment with GPU)
-    k8s         : Phase 0 + Phase 1 + Phase 4 (Kubernetes scaling)
-    monitoring  : Phase 6 (Prometheus & Grafana setup)
-    modules     : Phase 5 (install/upgrade Odoo modules only)
-    all         : Phase 0 + Phase 1 + Phase 2 + Phase 5 (full deployment with modules)
+    # Python 3.10+
+    if ! command -v python3 &>/dev/null; then
+        log_error "Python3 not found. Please install Python 3.10 or higher."
+        exit 1
+    fi
+    local py_version
+    py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    if [[ "$(printf '%s\n' "3.10" "$py_version" | sort -V | head -n1)" != "3.10" ]]; then
+        log_error "Python version $py_version detected. Need 3.10+."
+        exit 1
+    fi
+    log_success "Python $py_version detected."
 
-${YELLOW}OPTIONS (CLI):${NC}
-    --force           Re-run phases even if already completed.
-    --upgrade         Upgrade existing modules instead of fresh install.
-    --skip-installed  Skip already installed Odoo modules.
-    --auto            Run in non-interactive mode (use defaults, no prompts).
-    --phases=LIST     Comma-separated list of phases (overrides profile).
-
-${YELLOW}EXAMPLES:${NC}
-    ./nettrades-setup.sh                        # Interactive wizard
-    ./nettrades-setup.sh deploy --auto          # Automated deploy
-    ./nettrades-setup.sh gpu --force --upgrade  # Re-deploy with GPU and upgrade modules
-EOF
+    # pip
+    if ! command -v pip3 &>/dev/null; then
+        log_warning "pip3 not found. Installing..."
+        python3 -m ensurepip --upgrade 2>/dev/null || {
+            log_error "Failed to install pip. Please install manually."
+            exit 1
+        }
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -452,7 +406,6 @@ for phase in "${PHASES[@]}"; do
             ;;
         1)
             log_header "Phase 1 — Development Environment"
-            # Run Phase 1: setup development environment (Python deps, .env, Odoo deps)
             if phase_completed 1; then
                 log_warning "Phase 1 already completed. Use --force to re-run."
             else
