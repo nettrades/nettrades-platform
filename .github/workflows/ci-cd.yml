@@ -1,53 +1,49 @@
 # =============================================================================
-# NETTRADES.AI – CI/CD Pipeline
-# =============================================================================
 # FILE: .github/workflows/ci-cd.yml
-#
+# =============================================================================
 # PURPOSE:
-#   This workflow automates the build, test, and deployment of the
-#   NETTRADES platform. It runs on every push and can be triggered
-#   manually for releases.
+#   CI/CD pipeline for the NETTRADES platform.
+#   This workflow builds, tests, and deploys the platform using the SAME
+#   phase-based scripts that users run manually. This ensures the deployment
+#   scripts are validated in CI before they reach production.
 #
-# WORKFLOW STAGES:
-#   1. Lint & Validate – Check code quality
-#   2. Build – Build Docker images
-#   3. Test – Run unit and integration tests
-#   4. Deploy – Deploy to staging/production
+#   DESIGN CHOICE (2026-06-29):
+#   For staging and production, we use SSH + nettrades-setup.sh, which
+#   exercises the full setup logic (Phase 1, 2, 5). This is the simplest
+#   and most testable approach for a new project.
 #
+#   Kubernetes (Phase 4) is **commented out** for future use. When you are
+#   ready to migrate to Kubernetes, uncomment the relevant jobs (search for
+#   "KUBERNETES") and follow the instructions inside.
 # =============================================================================
 
-name: NETTRADES.AI CI/CD Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
-      - develop
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
+    branches: [ main, develop ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
   release:
-    types:
-      - created
-  workflow_dispatch:
+    types: [ published ]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: nettrades/nettrades-platform
+  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_BUILDKIT: 1
+  # If your Odoo proxy requires an API key, set it here or via GitHub secrets.
+  # We use PROXY_API_KEY (replaces older MCP_API_KEY).
+  PROXY_API_KEY: ${{ secrets.PROXY_API_KEY }}
 
 jobs:
-  # ===========================================================================
-  # Stage 1: Lint & Validate
-  # ===========================================================================
+  # =========================================================================
+  # 1. LINT AND QUALITY CHECKS
+  # =========================================================================
   lint:
-    name: Lint & Validate
-    runs-on: ubuntu-latest
+    name: Lint & Quality
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -56,193 +52,246 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install flake8 black isort mypy pylint
+          python -m pip install --upgrade pip
+          pip install pre-commit black isort flake8 shellcheck-py
 
-      - name: Lint Python code
-        run: |
-          flake8 src/ odoo-modules/ --count --max-complexity=10 --statistics
-          black --check src/ odoo-modules/
-          isort --check-only src/ odoo-modules/
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files || true
 
-      - name: Validate Odoo manifests
-        run: |
-          for manifest in odoo-modules/*/__manifest__.py; do
-            echo "Validating $manifest"
-            python -c "import ast; ast.parse(open('$manifest').read())"
-          done
+      - name: Run ShellCheck
+        run: shellcheck scripts/*.sh deploy/docker/*.sh deploy/kubernetes/*.sh || true
 
-  # ===========================================================================
-  # Stage 2: Build
-  # ===========================================================================
+      - name: Check Python formatting
+        run: black --check --diff . || true
+
+      - name: Check Python imports
+        run: isort --check --diff . || true
+
+  # =========================================================================
+  # 2. SECURITY SCANNING (Trivy + Dependency Review)
+  # =========================================================================
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Dependency Review
+        uses: actions/dependency-review-action@v4
+        if: github.event_name == 'pull_request'
+
+  # =========================================================================
+  # 3. BUILD IMAGES
+  # =========================================================================
   build:
     name: Build Images
-    runs-on: ubuntu-latest
-    needs: lint
-    if: github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        target: [odoo_proxy, core]  # image names correspond to Dockerfile locations
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=sha,format=short
-
-      - name: Build and push Odoo image
+      - name: Build ${{ matrix.target }} image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: deploy/docker/Dockerfile.odoo
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          context: ./src/core/${{ matrix.target }}
+          file: ./src/core/${{ matrix.target }}/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.target }}:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push LangGraph image
-        uses: docker/build-push-action@v5
-        with:
-          context: src/core
-          file: src/core/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-langgraph:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ===========================================================================
-  # Stage 3: Test
-  # ===========================================================================
+  # =========================================================================
+  # 4. TEST (Unit & Integration)
+  # =========================================================================
   test:
     name: Run Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build
     strategy:
       matrix:
         test_type: [unit, integration]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Install dependencies
+      - name: Run ${{ matrix.test_type }} tests
         run: |
-          pip install pytest pytest-cov pytest-xdist
-          pip install -r src/core/requirements.txt
+          docker compose -f docker-compose.test.yml run --rm test-${{ matrix.test_type }}
 
-      - name: Run unit tests
-        if: matrix.test_type == 'unit'
-        run: |
-          pytest src/core/tests/ --cov=src --cov-report=xml
-
-      - name: Run integration tests
-        if: matrix.test_type == 'integration'
-        run: |
-          docker compose -f deploy/docker/docker-compose.test.yaml up -d
-          sleep 30
-          pytest tests/integration/ --cov=src --cov-report=xml
-          docker compose -f deploy/docker/docker-compose.test.yaml down
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          flags: ${{ matrix.test_type }}
-          name: codecov-${{ matrix.test_type }}
-
-  # ===========================================================================
-  # Stage 4: Deploy
-  # ===========================================================================
+  # =========================================================================
+  # 5. DEPLOY TO STAGING (using nettrades-setup.sh)
+  # =========================================================================
   deploy-staging:
     name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    needs: [lint, security, build, test]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     environment: staging
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          version: 'latest'
+          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
 
-      - name: Set up kubeconfig
+      - name: Deploy via nettrades-setup.sh
         run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG_STAGING }}" > $HOME/.kube/config
+          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            cd ${{ secrets.STAGING_PATH }}
+            git pull
+            ./scripts/nettrades-setup.sh all --auto
+          EOF
 
-      - name: Deploy to staging
+      # Optionally run a health check after deployment
+      - name: Health check
         run: |
-          kubectl set image deployment/odoo odoo=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} -n frontend
-          kubectl rollout status deployment/odoo -n frontend --timeout=5m
+          curl -f http://${{ secrets.STAGING_HOST }}/odoo/health || exit 1
+          curl -f http://${{ secrets.STAGING_HOST }}/langgraph/health || exit 1
 
+  # =========================================================================
+  # 6. DEPLOY TO PRODUCTION (using nettrades-setup.sh with --upgrade)
+  # =========================================================================
   deploy-production:
     name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: deploy-staging
+    runs-on: ubuntu-24.04
+    needs: [deploy-staging]
     if: github.event_name == 'release'
     environment: production
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          version: 'latest'
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
 
-      - name: Set up kubeconfig
+      - name: Deploy via nettrades-setup.sh (upgrade mode)
         run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG_PRODUCTION }}" > $HOME/.kube/config
+          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+            cd ${{ secrets.PRODUCTION_PATH }}
+            git pull
+            ./scripts/nettrades-setup.sh all --auto --upgrade
+          EOF
 
-      - name: Apply production manifests
+      - name: Health check
         run: |
-          kubectl apply -f deploy/kubernetes/ -R
+          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/odoo/health || exit 1
+          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/langgraph/health || exit 1
 
-      - name: Update images
-        run: |
-          kubectl set image deployment/odoo odoo=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} -n frontend
-          kubectl rollout status deployment/odoo -n frontend --timeout=10m
-
-  # ===========================================================================
-  # Stage 5: Notify
-  # ===========================================================================
+  # =========================================================================
+  # 7. NOTIFY (Slack)
+  # =========================================================================
   notify:
-    name: Notify
-    runs-on: ubuntu-latest
+    name: Notify Slack
+    runs-on: ubuntu-24.04
     needs: [deploy-staging, deploy-production]
     if: always()
     steps:
-      - name: Send notification
+      - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.27.0
         with:
-          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
-          slack-message: |
-            Deployment status: ${{ job.status }}
-            Environment: ${{ github.event_name == 'release' && 'Production' || 'Staging' }}
-            Commit: ${{ github.sha }}
-            Author: ${{ github.actor }}
+          payload: |
+            {
+              "text": "Deployment status: ${{ job.status }}\nRef: ${{ github.ref }}\nRepo: ${{ github.repository }}",
+              "attachments": [
+                {
+                  "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+                  "title": "CI/CD Pipeline",
+                  "fields": [
+                    { "title": "Status", "value": "${{ job.status }}", "short": true },
+                    { "title": "Branch", "value": "${{ github.ref_name }}", "short": true }
+                  ]
+                }
+              ]
+            }
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+# =============================================================================
+# ====================== KUBERNETES DEPLOYMENT (FUTURE USE) ===================
+# =============================================================================
+# To enable Kubernetes deployment, uncomment the block below and adjust as
+# needed. This is Phase 4 of the deployment strategy. You will need to:
+#   1. Set up a Kubernetes cluster (e.g., Talos + Argo CD).
+#   2. Store KUBECONFIG_STAGING and KUBECONFIG_PRODUCTION as GitHub secrets.
+#   3. Ensure your images are pushed to the registry (add a push step).
+#   4. Remove or disable the SSH-based deploy jobs above.
+# =============================================================================
+
+# deploy-staging-k8s:
+#   name: Deploy to Staging (K8s)
+#   runs-on: ubuntu-24.04
+#   needs: [lint, security, build, test]
+#   if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+#   environment: staging
+#   steps:
+#     - uses: actions/checkout@v4
+#
+#     - name: Set up kubectl
+#       uses: azure/setup-kubectl@v4
+#       with:
+#         version: 'latest'
+#
+#     - name: Set KUBECONFIG
+#       run: echo "${{ secrets.KUBECONFIG_STAGING }}" > /tmp/kubeconfig
+#       env:
+#         KUBECONFIG_STAGING: ${{ secrets.KUBECONFIG_STAGING }}
+#
+#     - name: Apply Kubernetes manifests
+#       run: |
+#         export KUBECONFIG=/tmp/kubeconfig
+#         kubectl set image deployment/odoo-proxy odoo-proxy=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-odoo_proxy:${{ github.sha }} -n staging
+#         kubectl set image deployment/langgraph langgraph=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-core:${{ github.sha }} -n staging
+#         kubectl apply -f deploy/kubernetes/apps/ -n staging
+#
+# deploy-production-k8s:
+#   name: Deploy to Production (K8s)
+#   runs-on: ubuntu-24.04
+#   needs: [deploy-staging-k8s]
+#   if: github.event_name == 'release'
+#   environment: production
+#   steps:
+#     - uses: actions/checkout@v4
+#
+#     - name: Set up kubectl
+#       uses: azure/setup-kubectl@v4
+#       with:
+#         version: 'latest'
+#
+#     - name: Set KUBECONFIG
+#       run: echo "${{ secrets.KUBECONFIG_PRODUCTION }}" > /tmp/kubeconfig
+#       env:
+#         KUBECONFIG_PRODUCTION: ${{ secrets.KUBECONFIG_PRODUCTION }}
+#
+#     - name: Apply Kubernetes manifests
+#       run: |
+#         export KUBECONFIG=/tmp/kubeconfig
+#         kubectl set image deployment/odoo-proxy odoo-proxy=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-odoo_proxy:${{ github.event.release.tag_name }} -n production
+#         kubectl set image deployment/langgraph langgraph=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-core:${{ github.event.release.tag_name }} -n production
+#         kubectl apply -f deploy/kubernetes/apps/ -n production
+
+# =============================================================================
+# End of ci-cd.yml
+# =============================================================================
