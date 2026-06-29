@@ -6,16 +6,48 @@
 #   Interactive installation wizard for the NETTRADES platform.
 #   Auto-detects hardware, asks for confirmation, generates secure passwords,
 #   and calls the idempotent deploy script.
-#   Interactive installer that also generates .env.
+#
+#   This script now integrates with the phase system and can be called from
+#   nettrades-setup.sh or run standalone.
+#
 # USAGE:
-#   sudo ./install-nettrades.sh
+#   sudo ./install-nettrades.sh [--auto]
+#     --auto: Skip confirmation prompts, use auto-detected values.
 # =============================================================================
 
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
+# Colours for output
+# -----------------------------------------------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# -----------------------------------------------------------------------------
+# Parse arguments
+# -----------------------------------------------------------------------------
+AUTO=false
+for arg in "$@"; do
+    case $arg in
+        --auto)
+            AUTO=true
+            shift
+            ;;
+    esac
+done
+
+# -----------------------------------------------------------------------------
 # Source detection library
 # -----------------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source /usr/local/bin/nettrades-ai-detect 2>/dev/null || true
 
 # ---- Default values ----
@@ -31,38 +63,46 @@ else
     DEFAULT_ENGINE="CPU (llama.cpp)"
 fi
 
-echo "=== NETTRADES.AI Installation Wizard ==="
-echo ""
-echo "Detected system parameters:"
-echo "  Domain name:    ${DEFAULT_DOMAIN}"
-echo "  Admin email:    ${DEFAULT_EMAIL}"
-echo "  Public IP:      ${DEFAULT_IP}"
-echo "  CPU cores:      ${DEFAULT_CORES}"
-echo "  Total RAM (GB): ${DEFAULT_RAM}"
-echo "  Inference:      ${DEFAULT_ENGINE}"
-echo ""
-
-read -rp "Use these values? (Y/n): " confirm
-
-if [[ "$confirm" =~ ^[Nn]$ ]]; then
-    read -rp "Domain name: " DOMAIN
-    read -rp "Admin email: " ADMIN_EMAIL
-    read -rp "Public IP: " IP_ADDRESS
-    read -rp "CPU cores for inference: " INFERENCE_CORES
-    DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
-    ADMIN_EMAIL=${ADMIN_EMAIL:-$DEFAULT_EMAIL}
-    IP_ADDRESS=${IP_ADDRESS:-$DEFAULT_IP}
-    INFERENCE_CORES=${INFERENCE_CORES:-$DEFAULT_CORES}
+# ---- Interactive or auto mode ----
+if [ "$AUTO" = true ]; then
+    DOMAIN="$DEFAULT_DOMAIN"
+    ADMIN_EMAIL="$DEFAULT_EMAIL"
+    IP_ADDRESS="$DEFAULT_IP"
+    INFERENCE_CORES="$DEFAULT_CORES"
 else
-    DOMAIN=$DEFAULT_DOMAIN
-    ADMIN_EMAIL=$DEFAULT_EMAIL
-    IP_ADDRESS=$DEFAULT_IP
-    INFERENCE_CORES=$DEFAULT_CORES
+    echo "=== NETTRADES.AI Installation Wizard ==="
+    echo ""
+    echo "Detected system parameters:"
+    echo "  Domain name:    ${DEFAULT_DOMAIN}"
+    echo "  Admin email:    ${DEFAULT_EMAIL}"
+    echo "  Public IP:      ${DEFAULT_IP}"
+    echo "  CPU cores:      ${DEFAULT_CORES}"
+    echo "  Total RAM (GB): ${DEFAULT_RAM}"
+    echo "  Inference:      ${DEFAULT_ENGINE}"
+    echo ""
+    read -rp "Use these values? (Y/n): " confirm
+
+    if [[ "$confirm" =~ ^[Nn]$ ]]; then
+        read -rp "Domain name: " DOMAIN
+        read -rp "Admin email: " ADMIN_EMAIL
+        read -rp "Public IP: " IP_ADDRESS
+        read -rp "CPU cores for inference: " INFERENCE_CORES
+        DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
+        ADMIN_EMAIL=${ADMIN_EMAIL:-$DEFAULT_EMAIL}
+        IP_ADDRESS=${IP_ADDRESS:-$DEFAULT_IP}
+        INFERENCE_CORES=${INFERENCE_CORES:-$DEFAULT_CORES}
+    else
+        DOMAIN=$DEFAULT_DOMAIN
+        ADMIN_EMAIL=$DEFAULT_EMAIL
+        IP_ADDRESS=$DEFAULT_IP
+        INFERENCE_CORES=$DEFAULT_CORES
+    fi
 fi
 
 # -----------------------------------------------------------------------------
 # Generate all secrets (NEVER printed to console)
 # -----------------------------------------------------------------------------
+log_info "Generating secure secrets..."
 POSTGRES_PASSWORD=$(openssl rand -base64 24)
 ADMIN_PASSWORD=$(openssl rand -base64 24)
 FORGEJO_DB_PASSWORD=$(openssl rand -base64 24)
@@ -73,7 +113,7 @@ LLAMA_API_KEY="dummy"
 LANGGRAPH_API_KEY=$(openssl rand -base64 32)
 ODOO_API_KEY=$(openssl rand -base64 24)
 
-# ---- NEW: Generate PROXY_API_KEY (shared secret between langgraph and odoo-proxy) ----
+# ---- PROXY_API_KEY (shared secret between langgraph and odoo-proxy) ----
 PROXY_API_KEY=$(openssl rand -base64 32)
 
 GPUSTACK_JWT_SECRET=$(openssl rand -base64 32)
@@ -87,6 +127,7 @@ rm -f /tmp/wg_priv
 # -----------------------------------------------------------------------------
 # Write the .env file
 # -----------------------------------------------------------------------------
+log_info "Writing .env file..."
 cat > .env << EOF
 DOMAIN=${DOMAIN}
 ADMIN_EMAIL=${ADMIN_EMAIL}
@@ -100,7 +141,7 @@ LLAMA_API_KEY=${LLAMA_API_KEY}
 LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
 ODOO_API_KEY=${ODOO_API_KEY}
 
-# ---- NEW: Odoo Proxy shared secret ----
+# ---- Odoo Proxy shared secret ----
 PROXY_API_KEY=${PROXY_API_KEY}
 ODOO_PROXY_URL=http://odoo-proxy:3000
 USE_ODOO_PROXY=true
@@ -111,9 +152,27 @@ WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUBLIC_KEY}
 EOF
 
 chmod 600 .env
+log_success ".env file created"
 
 # -----------------------------------------------------------------------------
 # Execute the main deploy script
 # -----------------------------------------------------------------------------
+log_info "Running deployment..."
 export DOMAIN ADMIN_EMAIL IP_ADDRESS INFERENCE_CORES
 ./deploy-single.sh --auto
+
+echo ""
+echo -e "${GREEN}=============================================================${NC}"
+echo -e "${GREEN}  Installation complete!${NC}"
+echo -e "${GREEN}=============================================================${NC}"
+echo ""
+echo "🔑 Important credentials (save these securely):"
+echo "   - Odoo admin password: ${ADMIN_PASSWORD}"
+echo "   - LangGraph API Key:   ${LANGGRAPH_API_KEY}"
+echo "   - Proxy API Key:       ${PROXY_API_KEY}"
+echo ""
+echo "📌 Next steps:"
+echo "   1. Log in to Odoo: https://${DOMAIN}"
+echo "   2. Install the Website module via the Apps menu"
+echo "   3. Run: ./scripts/nettrades-setup.sh modules --upgrade"
+echo "============================================================="

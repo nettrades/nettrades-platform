@@ -10,11 +10,12 @@
 #   existing modules; with --force, it reinstalls even if already installed.
 #
 # USAGE:
-#   ./install-modules.sh [--force] [--upgrade]
+#   ./install-modules.sh [--force] [--upgrade] [--auto]
 #
 # OPTIONS:
 #   --force    Force installation even if modules are already installed
 #   --upgrade  Upgrade existing modules to the latest version
+#   --auto     Run in non-interactive mode (no prompts)
 # =============================================================================
 
 set -e
@@ -25,11 +26,17 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${GREEN}============================================================${NC}"
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+echo -e "${GREEN}=============================================================${NC}"
 echo -e "${GREEN}NETTRADES.AI – Module Installation${NC}"
-echo -e "${GREEN}============================================================${NC}"
+echo -e "${GREEN}=============================================================${NC}"
 
 # -----------------------------------------------------------------------------
 # Get the directory of this script and change to project root
@@ -42,6 +49,7 @@ cd "$SCRIPT_DIR/.." || exit 1
 # -----------------------------------------------------------------------------
 FORCE=false
 UPGRADE=false
+AUTO=false
 
 for arg in "$@"; do
     case $arg in
@@ -53,6 +61,10 @@ for arg in "$@"; do
             UPGRADE=true
             shift
             ;;
+        --auto)
+            AUTO=true
+            shift
+            ;;
     esac
 done
 
@@ -60,8 +72,8 @@ done
 # Check if Odoo container is running
 # -----------------------------------------------------------------------------
 if ! docker ps | grep -q odoo; then
-    echo -e "${RED}Error: Odoo container is not running.${NC}"
-    echo "Please start the stack with: docker compose up -d"
+    log_error "Odoo container is not running."
+    log_info "Please start the stack with: docker compose up -d"
     exit 1
 fi
 
@@ -95,6 +107,9 @@ MODULES=(
     # Fairness module
     "nettrades_fairness"
 
+    # LLM Configuration (depends on gpu_admin)
+    "nettrades_llm_config"
+
     # End-user modules
     "nettrades_onboarding"
     "nettrades_job_matching"
@@ -112,25 +127,24 @@ MODULES=(
 install_module() {
     local module=$1
     local action="install"
+    local flag="-i"
 
     if [ "$UPGRADE" = true ] || [ "$FORCE" = true ]; then
         action="upgrade"
-        local flag="-u"
-    else
-        local flag="-i"
+        flag="-u"
     fi
 
-    echo -e "${YELLOW}${action^}ing module: $module${NC}"
+    log_info "${action^}ing module: $module"
 
     # Run the Odoo command
-    if docker exec -it odoo python3 /usr/bin/odoo \
+    if docker exec odoo python3 /usr/bin/odoo \
         -c /etc/odoo/odoo.conf \
         "$flag" "$module" \
-        --stop-after-init; then
-        echo -e "${GREEN}✓ Module $module ${action}ed successfully${NC}"
+        --stop-after-init 2>&1; then
+        log_success "✓ Module $module ${action}ed successfully"
         return 0
     else
-        echo -e "${RED}✗ Module $module ${action} failed${NC}"
+        log_error "✗ Module $module ${action} failed"
         return 1
     fi
 }
@@ -139,27 +153,40 @@ install_module() {
 # Main installation loop
 # -----------------------------------------------------------------------------
 FAILED_MODULES=()
+TOTAL_MODULES=${#MODULES[@]}
+CURRENT=0
+
+log_info "Starting installation of $TOTAL_MODULES modules..."
 
 for module in "${MODULES[@]}"; do
+    CURRENT=$((CURRENT + 1))
+    log_info "[$CURRENT/$TOTAL_MODULES] Processing module: $module"
     if ! install_module "$module"; then
         FAILED_MODULES+=("$module")
+        if [ "$AUTO" != true ]; then
+            log_warning "Module $module failed. Continue? (y/N): "
+            read -r continue_anyway
+            if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
+                log_error "Aborting installation."
+                exit 1
+            fi
+        fi
     fi
 done
 
-echo -e "${GREEN}============================================================${NC}"
+echo -e "${GREEN}=============================================================${NC}"
 
 if [ ${#FAILED_MODULES[@]} -eq 0 ]; then
-    echo -e "${GREEN}All modules installed successfully!${NC}"
+    log_success "All modules installed successfully!"
 else
-    echo -e "${RED}The following modules failed: ${FAILED_MODULES[*]}${NC}"
-    echo "Please check the logs and try again."
+    log_error "The following modules failed: ${FAILED_MODULES[*]}"
+    log_info "Check the logs and try again with: ./scripts/install-modules.sh --force"
     exit 1
 fi
 
-echo -e "${GREEN}============================================================${NC}"
-
+echo -e "${GREEN}=============================================================${NC}"
 echo ""
-echo "Next steps:"
+log_info "Next steps:"
 echo "  1. Configure fairness settings: Settings → Technical → Fairness → Global Configuration"
 echo "  2. Run an audit at: Settings → Technical → Fairness → Dashboard"
 echo "  3. Configure GPU registration tokens: GPU → Registration Tokens"

@@ -438,152 +438,120 @@ flowchart LR
 
 📖 Full architecture details are in the docs/developer/ folder.
 
-🚀 Quick Start
+## 🚀 Quick Start
 
-Prerequisites
-
-* Python 3.12+
-
-* PostgreSQL 18+ with pgvector extension
-
-* Docker & Kubernetes (for production deployment)
-
-* NVIDIA GPU (optional, for GPU features)
-
-One-Click Installer
+### One-Click Installer
 
 The quickest way to get started is with the interactive installer:
 
-```bash
-
-curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/deploy/docker/install-nettrades.sh | sudo bash
-
-```
-
-The installer auto-detects your hardware, asks for your domain, generates secure passwords, and starts all services.
-Manual Installation
 #### 1. Clone the Repository
 
 ```bash
 
+# Clone the repository
 git clone https://github.com/nettrades/nettrades-platform.git
 cd nettrades-platform
 
 ```
 
-#### 2. Set Up Python Virtual Environment
+#### 2. Run Unified Setup Script
 
 ```bash
 
-python -m venv venv
-source venv/bin/activate  # or .\venv\Scripts\activate on Windows
+# Run the unified setup script
+./scripts/nettrades-setup.sh all --auto
 
 ```
 
-#### 3. Install Dependencies
+##### This will:
+
+* Detect your OS and hardware
+
+* Install all Python dependencies
+
+* Generate secure secrets
+
+* Build and start all Docker containers
+
+* Install all Odoo modules
+
+* Configure the platform for first use
+
+##### Installation Options
+
+| Profile | Description |
+|---------|-------------|
+| `dev` | Development environment only (dependencies, config) |
+| `deploy` | Full single-VM deployment (without GPU) |
+| `gpu` | Full single-VM deployment with GPU support |
+| `modules` | Install/upgrade Odoo modules only |
+| `all` | Full deployment with all modules (default) |
+
+
+
+#### Common Use Cases
 
 ```bash
 
-# Core Python packages
-pip install torch transformers datasets accelerate
+# First-time installation (recommended)
+./scripts/nettrades-setup.sh all --auto
 
-# Odoo LLM modules requirements
-pip install -r third-party/odoo_llm/requirements.txt
+# Upgrade existing installation
+./scripts/nettrades-setup.sh all --upgrade
 
-# Upgrade Starlette (security fix for CVE-2026-48710)
-pip install --upgrade "starlette>=1.0.1"
+# Reinstall everything from scratch
+./scripts/nettrades-setup.sh all --force
+
+# Install only Odoo modules
+./scripts/nettrades-setup.sh modules --upgrade
+
+# Development environment only
+./scripts/nettrades-setup.sh dev
 
 ```
 
-### 4. Install Odoo Modules (in the correct order)
+### Manual Installation (Step by Step)
 
-    ⚠️ Important: Modules must be installed in this order to satisfy dependencies.
-
-#### Batch 1: Foundation Modules
+#### Clone the repository
 
 ```bash
 
-python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
-  --addons-path=third-party/odoo/addons,odoo-modules,third-party/odoo_llm,third-party/odoo_llm_compat,third-party/website_sale_marketplace,third-party/queue-19 \
-  -i queue_job,queue_job_batch,queue_job_cron,llm,llm_tool,llm_store,llm_pgvector,llm_knowledge,llm_assistant,llm_thread,llm_generate,llm_training \
-  --stop-after-init
-
+    git clone https://github.com/nettrades/nettrades-platform.git
+    cd nettrades-platform
 ```
 
-#### Batch 2: NETTRADES Core
+#### Run the setup script
 
 ```bash
 
-python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
-  --addons-path=... \
-  -i nettrades_core \
-  --stop-after-init
+./scripts/nettrades-setup.sh all
 
 ```
 
-#### Batch 3: Core NETTRADES Modules
 
-```bash
+#### Follow the prompts 
+The script will auto-detect your hardware and guide you through the process.
 
-python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
-  --addons-path=... \
-  -i nettrades_gpu_admin,nettrades_gpustack_adapter,nettrades_good_answer,nettrades_ask_someone,nettrades_queue,nettrades_notifications,nettrades_job_matching,nettrades_lead_scoring,nettrades_chatbot \
-  --stop-after-init
+#### Access the platform
 
-```
+Odoo: http://localhost:8069
 
-#### Batch 4: Self-improving System Modules
+LangGraph API: http://localhost:8000
 
-```bash
-
-python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
-  --addons-path=... \
-  -i nettrades_bridge,nettrades_data_collection,nettrades_trigger,nettrades_loop,nettrades_self_improving_config \
-  --stop-after-init
-
-```
-
-#### Batch 5: Additional Modules
-
-```bash
-
-python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
-  --addons-path=... \
-  -i nettrades_fairness,nettrades_onboarding,nettrades_proposals,nettrades_research,nettrades_pwa \
-  --stop-after-init
-
-```
-
-    📖 See the full installation guide in docs/operations/module-installation-order.md.
-
-### 5. Start Odoo
-
-```bash
-
-python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf \
-  --addons-path=third-party/odoo/addons,odoo-modules,third-party/odoo_llm,third-party/odoo_llm_compat,third-party/website_sale_marketplace,third-party/queue-19 \
-  -d nettrades
-
-```
-
-Open http://localhost:8069 and log in with admin / admin.
+Grafana: http://localhost:3000 (admin / auto-generated password)
 
 
+### Troubleshooting
 
-## 🛠️ Quick Start
+Odoo not starting: Check logs with docker compose logs odoo
 
-### One-Command Deployment (Ubuntu 24.04)
+LangGraph not responding: Check docker compose logs langgraph
 
-```bash
+GPU not detected: Run nvidia-smi; if not found, install NVIDIA drivers
 
-# Download and run the interactive installer
-curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/deploy/docker/install-nettrades.sh | sudo bash
+Module installation fails: Run ./scripts/nettrades-setup.sh modules --force to retry
 
-```
-
-The installer auto-detects your hardware, asks for your domain, generates secure passwords, and starts all services.
-
-### Access Your Platform
+### Accessing Your Platform On A Server
 
 ### After ~10-20 minutes, you'll have:
 
