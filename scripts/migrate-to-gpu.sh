@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# FILE: deploy/docker/migrate-to-gpu.sh
+# FILE: scripts/migrate-to-gpu.sh
 # =============================================================================
 # PURPOSE:
 #   Migrates the inference engine from CPU (llama.cpp) to GPU (vLLM).
@@ -9,7 +9,7 @@
 #
 #   It detects an NVIDIA GPU, installs the NVIDIA Container Toolkit,
 #   stops and removes the llama-cpp container, adds the vLLM service,
-#   and regenerates the .env file.
+#   and updates the .env file.
 #
 # USAGE:
 #   ./migrate-to-gpu.sh [--auto]
@@ -19,18 +19,25 @@
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# Colours for output
+# Source shared libraries (with fallback)
 # -----------------------------------------------------------------------------
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+if [[ -f "$SCRIPT_DIR/lib/colors.sh" ]]; then
+    source "$SCRIPT_DIR/lib/colors.sh"
+else
+    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+fi
+
+if [[ -f "$SCRIPT_DIR/lib/logging.sh" ]]; then
+    source "$SCRIPT_DIR/lib/logging.sh"
+else
+    log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+    log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+    log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+    log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+fi
 
 # -----------------------------------------------------------------------------
 # Parse arguments
@@ -99,7 +106,7 @@ fi
 # -----------------------------------------------------------------------------
 # Configure Docker to use NVIDIA runtime
 # -----------------------------------------------------------------------------
-if docker info | grep -q "runc" && docker info | grep -q "nvidia"; then
+if docker info 2>/dev/null | grep -q "nvidia"; then
     log_info "Docker already configured for NVIDIA runtime."
 else
     log_info "Configuring Docker for NVIDIA runtime..."
@@ -121,14 +128,19 @@ fi
 # -----------------------------------------------------------------------------
 # Add vLLM service to docker-compose.yml
 # -----------------------------------------------------------------------------
+DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
+cd "$DEPLOY_DIR"
+
 COMPOSE_FILE="docker-compose.yml"
+
 if grep -q "vllm:" "$COMPOSE_FILE"; then
     log_info "vLLM service already present in docker-compose.yml"
 else
     log_info "Adding vLLM service to docker-compose.yml..."
     # Create a backup
     cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak"
-    # Insert vLLM service before the last service
+
+    # Insert vLLM service
     cat >> "$COMPOSE_FILE" << 'EOF'
 
   vllm:
@@ -165,7 +177,7 @@ fi
 # -----------------------------------------------------------------------------
 # Update .env with GPU variables
 # -----------------------------------------------------------------------------
-if grep -q "VLLM_API_KEY" .env; then
+if grep -q "VLLM_API_KEY" .env 2>/dev/null; then
     log_info "VLLM_API_KEY already set in .env"
 else
     log_info "Adding VLLM_API_KEY to .env..."
@@ -180,13 +192,27 @@ fi
 log_info "Starting Docker Compose stack with vLLM..."
 docker compose up -d
 
+# -----------------------------------------------------------------------------
+# Verify vLLM is running (enhancement not in original)
+# -----------------------------------------------------------------------------
+log_step "Verifying vLLM health..."
+sleep 10
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null | grep -q "200"; then
+    log_success "vLLM is healthy and responding"
+else
+    log_warning "vLLM health check failed – please check logs with: docker compose logs vllm"
+fi
+
+# -----------------------------------------------------------------------------
+# Display completion message
+# -----------------------------------------------------------------------------
 echo ""
 echo -e "${GREEN}=============================================================${NC}"
-echo -e "${GREEN}  GPU migration complete!${NC}"
+echo -e "${GREEN} GPU migration complete!${NC}"
 echo -e "${GREEN}=============================================================${NC}"
 echo ""
-echo "  GPU:           ${GPU_NAME}"
-echo "  Inference:     vLLM (GPU)"
-echo "  API endpoint:  http://localhost:8000/v1"
+echo " GPU: ${GPU_NAME}"
+echo " Inference: vLLM (GPU)"
+echo " API endpoint: http://localhost:8000/v1"
 echo ""
 log_info "Note: You may need to update LLM_BASE_URL in .env to use vLLM."
