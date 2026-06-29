@@ -76,9 +76,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 2. Install Docker Compose (standalone)
-# -----------------------------------------------------------------------------
-# 2. Install Docker Compose (plugin)
+# 2. Install Docker Compose (standalone) & (plugin)
 # -----------------------------------------------------------------------------
 log_step "Checking Docker Compose installation..."
 if ! docker compose version &>/dev/null; then
@@ -102,8 +100,41 @@ if ! docker compose version &>/dev/null; then
 else
     log_success "Docker Compose already installed"
 fi
+
 # -----------------------------------------------------------------------------
-# 3. Install NVIDIA drivers (if GPU is present or requested)
+# 3. Check Python and pip
+# -----------------------------------------------------------------------------
+log_step "Checking Python and pip installation..."
+if ! command -v python3 &>/dev/null; then
+    log_error "Python3 not found. Please install Python 3.10 or higher."
+    exit 1
+fi
+
+# Check Python version
+PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+if [[ "$(printf '%s\n' "3.10" "$PYTHON_VERSION" | sort -V | head -n1)" != "3.10" ]]; then
+    log_error "Python version $PYTHON_VERSION detected. Need 3.10+."
+    exit 1
+fi
+log_success "Python $PYTHON_VERSION detected."
+
+# Check pip3 – use apt for Ubuntu/Debian
+if ! command -v pip3 &>/dev/null; then
+    log_warning "pip3 not found. Installing via apt..."
+    if [[ "$OS" == "linux" ]]; then
+        sudo apt-get update -qq
+        sudo apt-get install -y python3-pip
+        log_success "pip3 installed via apt"
+    else
+        log_error "Please install pip3 manually for $OS"
+        exit 1
+    fi
+else
+    log_success "pip3 already installed"
+fi
+
+# -----------------------------------------------------------------------------
+# 4. Install NVIDIA drivers (if GPU is present or requested)
 # -----------------------------------------------------------------------------
 if detect_gpu; then
     log_success "NVIDIA GPU detected: $(get_gpu_name)"
@@ -141,7 +172,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 4. Firewall configuration (UFW)
+# 5. Firewall configuration (UFW)
 # -----------------------------------------------------------------------------
 log_step "Configuring firewall..."
 if command -v ufw &>/dev/null; then
@@ -160,7 +191,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 5. SSH hardening
+# 6. SSH hardening
 # -----------------------------------------------------------------------------
 log_step "Hardening SSH configuration..."
 if [[ -f /etc/ssh/sshd_config ]]; then
@@ -188,7 +219,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 6. Install fail2ban
+# 7. Install fail2ban
 # -----------------------------------------------------------------------------
 log_step "Installing fail2ban..."
 if ! command -v fail2ban-client &>/dev/null; then
@@ -205,7 +236,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 7. System limits for high-performance workloads
+# 8. System limits for high-performance workloads
 # -----------------------------------------------------------------------------
 log_step "Configuring system limits..."
 if [[ -f /etc/security/limits.conf ]]; then
@@ -221,7 +252,7 @@ if [[ -f /etc/security/limits.conf ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 8. gVisor runtime (for Kubernetes)
+# 9. gVisor runtime (for Kubernetes)
 # -----------------------------------------------------------------------------
 log_step "Checking gVisor installation..."
 if command -v runsc &>/dev/null; then
@@ -232,7 +263,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 9. Mark phase complete
+# 10. Mark phase complete
 # -----------------------------------------------------------------------------
 mark_phase_complete 0
 

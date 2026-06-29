@@ -334,13 +334,30 @@ check_dependencies() {
     fi
     log_success "Python $py_version detected."
 
-    # pip
+    # pip – try apt first (Ubuntu/Debian), then fallback to ensurepip
     if ! command -v pip3 &>/dev/null; then
-        log_warning "pip3 not found. Installing..."
-        python3 -m ensurepip --upgrade 2>/dev/null || {
-            log_error "Failed to install pip. Please install manually."
-            exit 1
-        }
+        log_warning "pip3 not found. Attempting to install..."
+        
+        # Try apt first (Ubuntu/Debian)
+        if command -v apt &>/dev/null; then
+            log_info "Installing pip via apt..."
+            sudo apt update -qq 2>/dev/null || true
+            sudo apt install -y python3-pip 2>/dev/null || {
+                log_error "Failed to install pip via apt. Please install manually."
+                exit 1
+            }
+        # Fallback to ensurepip
+        else
+            python3 -m ensurepip --upgrade 2>/dev/null || {
+                log_error "Failed to install pip. Please install manually."
+                log_info "On Ubuntu/Debian: sudo apt install python3-pip"
+                log_info "On macOS: brew install python3"
+                exit 1
+            }
+        fi
+        log_success "pip3 installed"
+    else
+        log_success "pip3 already installed"
     fi
 }
 
