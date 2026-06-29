@@ -119,6 +119,233 @@ The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessl
 
 ---
 
+## 🚀 Quick Start
+
+This guide will help you get the platform running on your own server, laptop, or cloud VM in minutes.
+
+### 📋 Prerequisites
+
+##### Operating System:
+
+* Linux (Ubuntu 22.04+ recommended)
+
+* macOS (with Docker Desktop)
+
+* Windows with WSL2 (the script will guide you if not detected)
+
+##### Minimum Requirements:
+
+* 8 GB RAM (16 GB recommended)
+
+* 50 GB free disk space
+
+* Internet connection (to download models and images)
+
+##### Optional (for GPU support):
+
+* NVIDIA GPU with drivers installed
+
+* nvidia-container-toolkit (installed automatically during setup)
+
+If you’re on Windows and not running inside WSL2, the setup script will provide clear instructions to enable it and exit gracefully.
+
+### One-Click Installer
+
+The quickest way to get started is with the interactive installer:
+
+#### 1. Clone the Repository
+
+```bash
+
+# Clone the repository
+git clone https://github.com/nettrades/nettrades-platform.git
+cd nettrades-platform
+
+```
+
+#### 2. Choose Your Setup Path
+
+You have two main ways to run the installer:
+#### 🔹 Interactive Wizard (recommended for first-time users)
+
+Simply run the script without any arguments:
+
+```bash
+
+# Run the unified setup script
+./scripts/nettrades-setup.sh
+
+```
+A friendly text-based menu will guide you through:
+
+* Selecting a deployment profile (e.g., deploy, gpu, all)
+
+* Toggling options like --force or --upgrade
+
+* Confirming your choices before the installation begins
+    
+    
+#### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
+
+You can specify a profile and options directly:
+```bash
+
+# Deploy the platform without GPU (single-VM)
+./scripts/nettrades-setup.sh deploy --auto
+
+# Deploy with GPU support (vLLM + GPUStack)
+./scripts/nettrades-setup.sh gpu --auto
+
+# Full deployment including Odoo modules
+./scripts/nettrades-setup.sh all --auto
+```
+
+#### 📦 Installation Options
+
+
+| Profile | Description |
+|---------|-------------|
+| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps) |
+| `deploy` | Full single-VM deployment (Docker Compose) without GPU |
+| `gpu` | Single-VM deployment with GPU (NVIDIA, vLLM, GPUStack) |
+| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced |
+| `monitoring` | Deploys Prometheus + Grafana (on existing stack) |
+| `modules` | Installs or upgrades all NETTRADES Odoo modules |
+| `all` | Full production deployment + modules (best for production) |
+
+#### ⚙️ Useful Options (CLI)
+
+| Option | Effect |
+|---------|-------------|	
+| `--auto` | Run non-interactively (skip all prompts) |
+| `--force` | Re-run phases even if they were already completed |
+| `--upgrade` | Upgrade Odoo modules instead of fresh install |
+| `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
+
+
+
+#### Common Use Cases
+
+```bash
+# Development environment only
+./scripts/nettrades-setup.sh dev
+
+# First-time Development environment
+./scripts/nettrades-setup.sh dev --auto
+
+# Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website osoo module 
+./scripts/nettrades-setup.sh modules
+or
+./scripts/nettrades-setup.sh modules --upgrade
+
+# Reinstall everything from scratch
+./scripts/nettrades-setup.sh dev --force
+
+```
+
+
+#### 🔍 What Happens During Setup?
+
+The installer executes phases in the correct order:
+
+| Phase | Description |
+|---------|-------------|
+| `0` | System preparation & security hardening (Docker, firewall, fail2ban, etc.) |
+| `1` | Environment & secrets generation (.env with secure passwords) |
+| `2` | Single-VM Docker deployment (PostgreSQL, Odoo, LangGraph, Prometheus, etc.) |
+| `3` | GPU migration (NVIDIA drivers, vLLM, GPUStack) |
+| `4` | Kubernetes scaling (Talos, Argo CD, manifests) |
+| `5` | Odoo module installation (all NETTRADES modules) |
+| `6` | Monitoring setup (Prometheus, Grafana dashboards) |
+
+All phases are idempotent – you can safely re-run the script to fix or upgrade your deployment.
+
+#### 🌐 Access Your Platform
+
+Once the setup finishes, you’ll see a summary of running services:
+	
+| Service | URL |
+|---------|-------------|
+| `Odoo` | http://localhost:8069 |
+| `Forgejo (Git)` | http://localhost:3000 |
+| `Grafana` | http://localhost:3001 |
+| `Prometheus` | http://localhost:9090 |
+| `LangGraph API` | http://localhost:8000 |
+| `vLLM (GPU)` | http://localhost:8000/v1 (if GPU enabled) |
+
+Default Odoo credentials: admin / admin
+(Change immediately after first login)
+
+#### 🛠️ Next Steps
+
+* Configure fairness – Settings → Technical → Fairness → Global Configuration
+
+* Set up GPU marketplace – Settings → GPU → Marketplace
+
+* Connect WireGuard peers for secure distributed GPU communication
+
+* Import sample data (optional) – see docs/operations/import-demo-data.md
+
+#### ❓ Troubleshooting
+
+* Logs: Check docker compose -f deploy/docker/docker-compose.yaml logs for service logs.
+
+* Re-run safely: The script is idempotent; just run it again with --force if needed.
+
+* GPU not detected: Ensure NVIDIA drivers are installed and nvidia-smi works.
+
+For more detailed information, see the docs/ folder.
+
+#### 🧪 Advanced: Kubernetes / Distributed Deployment
+
+If you’re ready to scale to multiple nodes with Kubernetes, use:
+```bash
+
+./scripts/nettrades-setup.sh k8s --auto
+```
+This requires a Proxmox host and pre-configured Talos images. For details, see docs/operations/kubernetes-deployment.md.    
+    
+
+### Accessing Your Platform On A Server
+
+### After ~10-20 minutes, you'll have:
+
+
+| Service | URL | Default Credentials |
+|---------|-------------|-------------|
+|`Odoo`	| https://your-domain	| Create database on first login|
+|`Grafana`	| https://grafana.your-domain	| admin / password from .env|
+|`GPUStack`	| https://gpustack.your-domain	| admin / admin (change immediately)|
+|`Forgejo`	| https://git.your-domain	| Create first user on first login|
+
+All services are secured with Let's Encrypt TLS.
+
+For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
+
+### Troubleshooting a server
+
+Odoo returns 502 – Wait 30 seconds for PostgreSQL to start.
+
+SSL certificate not issued – Ensure port 80 is open and DNS resolves correctly.
+
+GPU not detected – Run nvidia-smi; if not available, install NVIDIA drivers.
+
+LangGraph returns 500 – Check docker compose logs langgraph and verify PROXY_API_KEY matches ODOO_API_KEY in .env.
+
+Proxy not responding – Run docker compose logs odoo-proxy and verify Odoo is reachable.
+
+For more detailed help, see the Full Documentation.
+
+### Next Steps
+
+[Single VM Deployment](docs/operations/single-vm-deployment.md)
+
+[Kubernetes Deployment](docs/operations/kubernetes-deployment.md)
+
+[GPU Node Deployment](docs/operations/gpu-node-deployment.md)
+
+[Developer Guide](developer/index.md)
+
 ## 🏗️ Architecture Overview
 
 ### 1. High-Level System Architecture
@@ -438,134 +665,6 @@ flowchart LR
 
 📖 Full architecture details are in the docs/developer/ folder.
 
-## 🚀 Quick Start
-
-### One-Click Installer
-
-The quickest way to get started is with the interactive installer:
-
-#### 1. Clone the Repository
-
-```bash
-
-# Clone the repository
-git clone https://github.com/nettrades/nettrades-platform.git
-cd nettrades-platform
-
-```
-
-#### 2. Run Unified Setup Script
-
-```bash
-
-# Run the unified setup script
-./scripts/nettrades-setup.sh all --auto
-
-```
-
-##### This will:
-
-* Detect your OS and hardware
-
-* Install all Python dependencies
-
-* Generate secure secrets
-
-* Build and start all Docker containers
-
-* Install all Odoo modules
-
-* Configure the platform for first use
-
-##### Installation Options
-
-| Profile | Description |
-|---------|-------------|
-| `dev` | Development environment only (dependencies, config) |
-| `deploy` | Full single-VM deployment (without GPU) |
-| `gpu` | Full single-VM deployment with GPU support |
-| `modules` | Install/upgrade Odoo modules only |
-| `all` | Full deployment with all modules (default) |
-
-
-
-#### Common Use Cases
-
-```bash
-
-# First-time installation (recommended)
-./scripts/nettrades-setup.sh all --auto
-
-# Upgrade existing installation
-./scripts/nettrades-setup.sh all --upgrade
-
-# Reinstall everything from scratch
-./scripts/nettrades-setup.sh all --force
-
-# Install only Odoo modules
-./scripts/nettrades-setup.sh modules --upgrade
-
-# Development environment only
-./scripts/nettrades-setup.sh dev
-
-```
-
-### Manual Installation (Step by Step)
-
-#### Clone the repository
-
-```bash
-
-    git clone https://github.com/nettrades/nettrades-platform.git
-    cd nettrades-platform
-```
-
-#### Run the setup script
-
-```bash
-
-./scripts/nettrades-setup.sh all
-
-```
-
-
-#### Follow the prompts 
-The script will auto-detect your hardware and guide you through the process.
-
-#### Access the platform
-
-Odoo: http://localhost:8069
-
-LangGraph API: http://localhost:8000
-
-Grafana: http://localhost:3000 (admin / auto-generated password)
-
-
-### Troubleshooting
-
-Odoo not starting: Check logs with docker compose logs odoo
-
-LangGraph not responding: Check docker compose logs langgraph
-
-GPU not detected: Run nvidia-smi; if not found, install NVIDIA drivers
-
-Module installation fails: Run ./scripts/nettrades-setup.sh modules --force to retry
-
-### Accessing Your Platform On A Server
-
-### After ~10-20 minutes, you'll have:
-
-
-| Service | URL | Default Credentials |
-|---------|-------------|-------------|
-|`Odoo`	| https://your-domain	| Create database on first login|
-|`Grafana`	| https://grafana.your-domain	| admin / password from .env|
-|`GPUStack`	| https://gpustack.your-domain	| admin / admin (change immediately)|
-|`Forgejo`	| https://git.your-domain	| Create first user on first login|
-
-All services are secured with Let's Encrypt TLS.
-
-For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
 
 
 ## 📚 Documentation
