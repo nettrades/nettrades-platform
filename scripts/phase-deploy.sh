@@ -139,7 +139,28 @@ source .env
 set +a
 
 # -----------------------------------------------------------------------------
-# 3. Create init-db.sql with all tables
+# 3. Security Hardening (optional)
+# -----------------------------------------------------------------------------
+if [ "$AUTO" != true ]; then
+    read -rp "Do you want to run security hardening? (This configures UFW, SSH, fail2ban, etc.) (y/N): " run_harden
+else
+    # In auto mode, skip hardening by default (to avoid breaking existing servers)
+    run_harden="n"
+fi
+
+if [[ "$run_harden" =~ ^[Yy]$ ]]; then
+    if [[ -f "$PROJECT_ROOT/deploy/docker/security-harden.sh" ]]; then
+        log_info "Running security hardening..."
+        bash "$PROJECT_ROOT/deploy/docker/security-harden.sh" --auto
+        log_success "Security hardening completed"
+    else
+        log_warning "security-harden.sh not found. Skipping."
+    fi
+fi
+
+
+# -----------------------------------------------------------------------------
+# 4. Create init-db.sql with all tables
 # -----------------------------------------------------------------------------
 log_info "Creating database initialisation script..."
 
@@ -199,7 +220,7 @@ EOF
 log_success "init-db.sql created"
 
 # -----------------------------------------------------------------------------
-# 4. Set up addons path with all modules
+# 5. Set up addons path with all modules
 # -----------------------------------------------------------------------------
 log_info "Setting up addons path..."
 
@@ -213,7 +234,7 @@ third-party/queue-19"
 log_info "Addons path: $ADDONS_PATH"
 
 # -----------------------------------------------------------------------------
-# 5. (Optional) Run Security Hardening
+# 6. (Optional) Run Security Hardening
 # -----------------------------------------------------------------------------
 if [ -f "$PROJECT_ROOT/deploy/docker/security-harden.sh" ]; then
     if [ "$AUTO" = true ]; then
@@ -234,7 +255,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 6. Build and Start Docker Compose Stack
+# 7. Build and Start Docker Compose Stack
 # -----------------------------------------------------------------------------
 log_info "Building and starting Docker Compose stack..."
 
@@ -251,7 +272,7 @@ docker compose up -d
 log_success "Stack started"
 
 # -----------------------------------------------------------------------------
-# 7. Initialize Database
+# 8. Initialize Database
 # -----------------------------------------------------------------------------
 log_info "Initialising database..."
 
@@ -263,7 +284,7 @@ if [ -f "init-db.sql" ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 8. Install Odoo Modules
+# 9. Install Odoo Modules
 # -----------------------------------------------------------------------------
 log_info "Installing Odoo modules..."
 
@@ -276,7 +297,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 9. Post-Installation Summary
+# 10. Post-Installation Summary
 # -----------------------------------------------------------------------------
 echo ""
 echo -e "${GREEN}============================================================${NC}"
