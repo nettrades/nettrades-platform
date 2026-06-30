@@ -84,21 +84,23 @@ PURPOSE:
 
 ## What is NETTRADES?
 
-**NETTRADES is an open-source, autonomous enterprise platform** that will power future AI startups, companies and smart cities. It also connects companies, freelancers, job-seekers, researchers, partners and customers. It combines:
+**NETTRADES is an open-source, autonomous enterprise platform** built to power self improving AI startups, companies and smart cities. 
+
+It uses a **Hub-and-Spoke Architecture** – Companies run the open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers. 
+
+### It combines:
 
 - **AI-powered job matching & freelancing** – LangGraph agents analyse CVs, job postings, and projects, automatically creating leads. It combines the functionalities of LinkedIn, Fiverr, Upwork, and Freelancer with AI Matching and Git Collaboration.
 - **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
 - **Expert marketplace “Ask Someone”** – Users can request paid help from verified professionals with Stripe escrow.
-- **Self-improving AI – A “Good Answer”** voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) that continuously improves field-specific models.
+- **Self-improving AI – A “Good Answer”** voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) which continuously improves field-specific models.
 - **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – Odoo ACID transactions + LangGraph checkpointing.
 
-🌐 Hub-and-Spoke Architecture** – Companies run the open-source autonomous enterprise platform client software locally for internal operations which can call `NETTRADES.AI` for external recruitment, GPU overflow and global services.
+The system is highly configurable and provides greater control and flexibility to the companies using it. Company administrators could also configure it for sovereign AI, so that everything runs locally. 
 
-The system is highly configurable and provides greater control and flexibility to the companies using it.  
-
-The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations. 
+The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI. 
 
 ---
 
@@ -127,14 +129,14 @@ This guide will help you get the platform running on your own server, laptop, or
 
 ##### Operating System:
 
-- **Linux** (Ubuntu 22.04+ recommended)
-- **macOS** (with Docker Desktop)
-- **Windows** with **WSL2** (Ubuntu 22.04+)
+- **Linux** (Ubuntu 22.04+) or **macOS** with Docker Desktop  
+- **Windows** with Install and run in **WSL2** (Ubuntu 22.04+ recommended)  
+- **Docker** and **Docker Compose** (installed automatically by the script if missing).
+- **Python 3.10+** and `pip` (installed automatically in Phase 0).
+- At least **8 GB RAM** (16 GB recommended) and **50 GB free disk**.
+- Optional: **NVIDIA GPU** with drivers for GPU acceleration.
 
-> 💡 **For Windows users**: We **strongly recommend** running the installer inside a WSL2 terminal (Ubuntu). The script will detect if you're not in WSL2 and provide instructions to enable it.
-
-Install PostgreSQL 18
-
+> 💡 **Windows users**: must run the installer inside a WSL2 terminal (Ubuntu). 
 
 ##### Minimum Requirements:
 
@@ -150,6 +152,11 @@ The quickest way to get started is with the interactive installer:
 
 #### 1. Clone the Repository
 
+In windows install WSL and the open the WSL.exe terminal window
+It could be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe
+And run the commands below.
+In Linux you could run them in the terminal window
+
 ```bash
 
 # Clone the repository
@@ -157,6 +164,9 @@ git clone https://github.com/nettrades/nettrades-platform.git
 cd nettrades-platform
 
 ```
+
+Work on the dev-deployment1 branch not on the main branch
+
 
 #### 2. Choose Your Setup Path
 
@@ -171,19 +181,28 @@ Simply run the script without any arguments:
 ./scripts/nettrades-setup.sh
 
 ```
-    
-#### 📦 Installation Options
+The script launches an interactive wizard that lets you choose a profile and options.
+
+For a fully automated deployment (non-interactive), use:
+
+```bash
+
+./scripts/nettrades-setup.sh all --auto
+```
+This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings.
+
+#### 📦 Other Installation Options
 
 
-| Profile | Description |
-|---------|-------------|
-| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps) |
-| `deploy` | Full single-VM deployment (Docker Compose) without GPU |
-| `gpu` | Single-VM deployment with GPU (NVIDIA, vLLM, GPUStack) |
-| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced |
-| `monitoring` | Deploys Prometheus + Grafana (on existing stack) |
-| `modules` | Installs or upgrades all NETTRADES Odoo modules |
-| `all` | Full production deployment + modules (best for production) |
+| Profile | Description |  Phase  |
+|---------|-------------|-------------|
+| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only| 
+| `deploy` | Full single-VM deployment (Docker Compose) without GPU |  Phases 0, 1, 2 |
+| `gpu` | Single-VM deployment with GPU (NVIDIA, vLLM, GPUStack) | Phases 0, 1, 2, 3  |
+| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 4  |
+| `monitoring` | Deploys Prometheus + Grafana (on existing stack) | Phase 6  |
+| `modules` | Installs or upgrades all NETTRADES Odoo modules |  Phase 5 |
+| `all` | Full production deployment + modules (best for production) | Phases 0, 1, 2, 5  |
 
 #### ⚙️ Useful Options (CLI)
 
@@ -231,31 +250,90 @@ The installer executes phases in the correct order:
 
 | Phase | Description |
 |---------|-------------|
-| `0` | System preparation & security hardening (Docker, firewall, fail2ban, etc.) |
-| `1` | Environment & secrets generation (.env with secure passwords) |
-| `2` | Single-VM Docker deployment (PostgreSQL, Odoo, LangGraph, Prometheus, etc.) |
-| `3` | GPU migration (NVIDIA drivers, vLLM, GPUStack) |
-| `4` | Kubernetes scaling (Talos, Argo CD, manifests) |
-| `5` | Odoo module installation (all NETTRADES modules) |
-| `6` | Monitoring setup (Prometheus, Grafana dashboards) |
+| `0` | System Preparation – installs Docker, Docker Compose, NVIDIA drivers (if GPU), configures firewall, installs fail2ban, sets system limits, and checks for gVisor. |
+| `1` | Environment & Secrets – generates secure passwords, API keys, WireGuard keys, and creates .env. |
+| `2` | Single-VM Deployment – builds custom images (Odoo, LangGraph), prepares Odoo addons, initialises the database, starts all Docker Compose services, sets up cron backups, and performs health checks. |
+| `3` | GPU Setup – migrates from CPU (llama.cpp) to GPU (vLLM) and configures GPUStack. |
+| `4` | Kubernetes Scaling – provisions Talos VMs on Proxmox, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, GPUStack, and WireGuard. |
+| `5` | Module Installation – installs all NETTRADES custom Odoo modules in the correct dependency order. |
+| `6` | Monitoring – deploys Prometheus and Grafana with pre-configured dashboards (if not already present). |
 
 All phases are idempotent – you can safely re-run the script to fix or upgrade your deployment.
 
+#### 🔑 Database Password Management
+
+During Phase 1, the script generates a random password for PostgreSQL. 
+
+However, for compatibility with Odoo’s command-line tools, the password must not contain special characters (like +, /, =). 
+
+If you encounter authentication errors, you can simplify the password by editing .env and deploy/docker/config/odoo.conf, and updating the PostgreSQL user:
+
+```bash
+
+docker exec -it docker-postgres-1 psql -U odoo -c "ALTER USER odoo WITH PASSWORD 'odoo123';"
+
+```
+Make sure you update the password in .env and odoo.conf and restart Odoo.
+
+
 #### 🌐 Access Your Platform
 
-Once the setup finishes, you’ll see a summary of running services:
-	
-| Service | URL |
-|---------|-------------|
-| `Odoo` | http://localhost:8069 |
-| `Forgejo (Git)` | http://localhost:3000 |
-| `Grafana` | http://localhost:3001 |
-| `Prometheus` | http://localhost:9090 |
-| `LangGraph API` | http://localhost:8000 |
-| `vLLM (GPU)` | http://localhost:8000/v1 (if GPU enabled) |
+Once the script finishes, open your browser and go to:
+
+* Odoo: http://localhost:8069
+* Login: admin / admin (or the password you set in .env as ODOO_ADMIN_PASSWORD 
+
+* Grafana: http://localhost:3001
+* Login: admin / admin (change password on first login)
+
+* Forgejo: http://localhost:3000
+
+* LangGraph Health: http://localhost:8000/health
 
 Default Odoo credentials: admin / admin
 (Change immediately after first login)
+
+
+#### 📦 Installing Odoo Modules
+
+The all profile automatically installs all NETTRADES modules. If you need to install or upgrade them later, run:
+
+```bash
+
+./scripts/install-modules.sh --force
+```
+
+
+If the command-line tool fails (e.g., due to password issues), you can install the modules via the Odoo UI:
+
+* Log in to Odoo (http://localhost:8069).
+
+* Go to Apps → Update Apps List.
+
+* Search for each nettrades_* module and click Install.
+
+
+#### 🧰 Useful Commands
+
+	
+| Action | Command |
+|---------|-------------|
+| Start all services	 | cd deploy/docker && docker compose up -d |
+| Stop all services	 | cd deploy/docker && docker compose down |
+| View logs	 | cd deploy/docker && docker compose logs -f |
+| Rebuild an image	 | cd deploy/docker && docker compose build <service> |
+| Prepare Odoo addons (after adding new modules)	 | ./scripts/prepare-odoo-addons.sh --force |
+| Install modules via UI  | Odoo → Apps → Update Apps List → Install |
+
+#### 🐳 Docker Compose Notes
+
+* All services are defined in deploy/docker/docker-compose.yaml.
+
+* The Odoo container is named odoo and listens on port 8069.
+
+* PostgreSQL uses a named volume postgres_data to persist data.
+
+* llama.cpp is configured for CPU inference; for GPU, replace the image with ghcr.io/ggml-org/llama.cpp:server-cuda and set -ngl 999 in the command.
 
 #### 🛠️ Next Steps
 
@@ -268,6 +346,30 @@ Default Odoo credentials: admin / admin
 * Import sample data (optional) – see docs/operations/import-demo-data.md
 
 #### ❓ Troubleshooting
+
+##### Odoo fails to start with “password authentication failed”
+
+* Ensure the password in .env, odoo.conf, and the PostgreSQL container match.
+
+* Use a simple password (e.g., odoo123) without special characters.
+
+* Update the PostgreSQL user password with ALTER USER odoo WITH PASSWORD 'your_password';.
+
+##### “No such container: odoo” during module installation
+
+* Add container_name: odoo to the Odoo service in docker-compose.yaml and recreate the container.
+
+##### Port 8069 already in use
+
+* Change the host port in docker-compose.yaml (e.g., "8069:8069" → "8069:8069" is fixed; if you need a different port, change the left side).
+
+##### LangGraph agent fails to start
+
+* Check logs: docker compose logs langgraph.
+
+* Ensure DATABASE_URL in docker-compose.yaml points to postgres with the correct password.
+
+##### Other issues
 
 * Logs: Check docker compose -f deploy/docker/docker-compose.yaml logs for service logs.
 
