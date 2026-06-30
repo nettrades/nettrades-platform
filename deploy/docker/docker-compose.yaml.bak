@@ -38,26 +38,9 @@
 #   - Updated environment variables for fairness evaluation.
 #   - Replaced mcp-odoo with odoo-proxy service.
 #   - Added node_exporter for system-level metrics.
-#   - Fixed PostgreSQL volume mount for pg18 compatibility.
-#   - Fixed build contexts for langgraph and odoo-proxy.
-#   - Updated llama.cpp image to use 'full' tag.
-#
-#
-#    FOR LLAMA.CPP IF YOU HAVE A NVIDIA GPU YOU COULD USE 
-#     image: ghcr.io/ggml-org/llama.cpp:server-cuda
-#
-#
-# deploy:
-#  resources:
-#    reservations:
-#      devices:
-#        - driver: nvidia
-#          count: all
-#          capabilities: [gpu]
-#
-#   Then change -ngl 0 to -ngl 999 (to load all layers onto the GPU).
-#
 # =============================================================================
+
+version: '3.8'
 
 # -----------------------------------------------------------------------------
 # Networks
@@ -67,10 +50,6 @@ networks:
     external: true
   internal:
     driver: bridge
-   
-volumes:
-  postgres_data:
-    driver: local
 
 # -----------------------------------------------------------------------------
 # Services
@@ -116,8 +95,7 @@ services:
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      # FIXED: Mount to /var/lib/postgresql (not /data) for PostgreSQL 18+ compatibility
-      - postgres_data:/var/lib/postgresql
+      - ./postgres-data:/var/lib/postgresql/data
     networks:
       - internal
     restart: unless-stopped
@@ -242,8 +220,7 @@ services:
   # 7. LANGGRAPH AGENT – Durable AI Orchestration
   # =========================================================================
   langgraph:
-    # FIXED: Correct build context path
-    build: ../../src/core
+    build: ../langgraph-agent
     image: langgraph-agent:latest
     container_name: langgraph
     restart: unless-stopped
@@ -288,8 +265,7 @@ services:
   # 8. ODOO PROXY – HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
   # =========================================================================
   odoo-proxy:
-    # FIXED: Correct build context path
-    build: ../../src/core/odoo_proxy
+    build: ../odoo-proxy
     image: odoo-proxy:latest
     container_name: odoo-proxy
     restart: unless-stopped
@@ -344,9 +320,7 @@ services:
   # 10. LLAMA.CPP – CPU Inference Engine
   # =========================================================================
   llama-cpp:
-    # Using the official Docker Hub image (public, no login required)
-    image: ghcr.io/ggml-org/llama.cpp:server
-    # image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    image: ggerganov/llama.cpp:full
     container_name: llama-cpp
     restart: unless-stopped
     networks:
@@ -360,21 +334,13 @@ services:
       - LLAMA_SERVER_N_GPU_LAYERS=0
     ports:
       - "8080:8080"
-    command:
-      - "-m"
-      - "/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "8080"
-      - "-ngl"
-      - "0"
+    command: ["-m", "/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf", "--host", "0.0.0.0", "--port", "8080", "-ngl", "0"]
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-        
+
   # =========================================================================
   # 11. PROMETHEUS – Metrics Collection
   # =========================================================================

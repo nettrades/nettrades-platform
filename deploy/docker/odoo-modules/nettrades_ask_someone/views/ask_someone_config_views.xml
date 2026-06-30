@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ask_someone_config_form" model="ir.ui.view">
+        <field name="name">ask.someone.config.form</field>
+        <field name="model">ask.someone.config</field>
+        <field name="arch" type="xml">
+            <form string="Ask Someone Settings">
+                <sheet>
+                    <group>
+                        <field name="distance_weight"/>
+                        <field name="reputation_weight"/>
+                        <field name="online_bonus"/>
+                        <field name="available_bonus"/>
+                        <field name="max_distance_km"/>
+                        <field name="reputation_threshold"/>
+                        <field name="geocoding_provider"/>
+                        <field name="platform_fee_percent"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

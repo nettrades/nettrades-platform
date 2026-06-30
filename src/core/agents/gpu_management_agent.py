@@ -26,8 +26,8 @@ from datetime import datetime, timedelta
 from langgraph.graph import StateGraph, END, START
 from langchain_openai import ChatOpenAI
 
-from ..tools.inference_tools import get_inference_backend
-from ..tools.odoo_tools import (
+from tools.inference_tools import get_inference_backend
+from tools.odoo_tools import (
     gpu_cluster_search,
     gpu_node_search,
     gpu_node_write,

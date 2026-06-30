@@ -32,11 +32,15 @@ import logging
 import json
 import time
 import traceback
+from psycopg_pool import AsyncConnectionPool
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Header, Request, status
 from fastapi.responses import JSONResponse, Response
-from langgraph.checkpoint.postgres import AsyncPostgresSaver
+try:
+    from langgraph.checkpoint.postgres import AsyncPostgresSaver
+except ImportError:
+    from langgraph.checkpoint.postgres import PostgresSaver as AsyncPostgresSaver
 from dotenv import load_dotenv
 from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 
@@ -94,40 +98,38 @@ REQUEST_DURATION = Histogram(
 # =============================================================================
 # APPLICATION LIFESPAN
 # =============================================================================
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Build the LangGraph supervisor graph and attach the durable PostgresSaver.
-
-    This function runs at application startup and shutdown:
-    - Startup: Creates a connection to PostgreSQL, sets up the checkpoint saver,
-      and builds the supervisor graph.
-    - Shutdown: Clears the graph from memory.
-
-    The PostgresSaver provides durable checkpointing, allowing the graph to
-    resume from the last saved state if the service crashes.
     """
     logger.info("Starting LangGraph agent...")
 
-    # Create a connection to PostgreSQL for checkpoint storage
-    async with AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer:
-        # Set up the database schema for checkpoints
-        await checkpointer.setup()
-        logger.info("PostgresSaver setup complete")
+    # Create a connection pool for PostgreSQL
+    pool = AsyncConnectionPool(conninfo=DB_URI, min_size=1, max_size=5)
+    async with pool:
+        # Get a connection from the pool
+        async with pool.connection() as conn:
+            # Create the checkpointer using the connection
+            checkpointer = AsyncPostgresSaver(conn)
+            # Set up the database schema for checkpoints
+            await checkpointer.setup()
+            logger.info("PostgresSaver setup complete")
 
-        # Build the supervisor graph
-        graph = build_supervisor()
-        # Attach the checkpointer to the graph
-        graph.checkpointer = checkpointer
-        logger.info("Supervisor graph built with checkpointing")
+            # Build the supervisor graph
+            graph = build_supervisor()
+            # Attach the checkpointer to the graph
+            graph.checkpointer = checkpointer
+            logger.info("Supervisor graph built with checkpointing")
 
-        # Store the graph in the global dictionary
-        ml_models["graph"] = graph
+            # Store the graph in the global dictionary
+            ml_models["graph"] = graph
 
-        # Yield control to the application
-        yield
+            # Yield control to the application – the connection stays open
+            yield
 
-    # Clean up on shutdown
+    # Clean up on shutdown – runs after the async with block exits
     ml_models.clear()
     logger.info("LangGraph agent shutdown complete")
 

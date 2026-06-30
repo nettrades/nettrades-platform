@@ -74,3 +74,6 @@ prometheus-client>=0.20.0,<1.0.0
 # Security & Utilities
 # -----------------------------------------------------------------------------
 python-multipart>=0.0.9,<1.0.0
+numpy
+opencv-python-headless
+psycopg_pool

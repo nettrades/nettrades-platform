@@ -25,8 +25,8 @@ import logging
 from langgraph.graph import StateGraph, END, START
 from langchain_openai import ChatOpenAI
 
-from ..tools.inference_tools import get_inference_backend
-from ..tools.odoo_tools import (
+from tools.inference_tools import get_inference_backend
+from tools.odoo_tools import (
     project_search,
     res_partner_search,
     project_match_create,

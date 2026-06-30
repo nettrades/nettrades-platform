@@ -356,3 +356,35 @@ def call_odoo_generic(model: str, method: str, args: List[Any], kwargs: Dict[str
     payload = _build_execute_payload(model, method, args, kwargs)
     result = _call_odoo_jsonrpc(payload)
     return result.get("result")
+    
+def project_search(name: str = None, limit: int = 10):
+    """
+    Placeholder for project_search.
+    TODO: Implement actual project search via Odoo RPC.
+    """
+    import logging
+    logging.warning("project_search is a stub – implement real logic.")
+    return [{"id": 0, "name": name or "Project"}]
+
+def res_partner_search(name: str = None, limit: int = 10):
+    """
+    Stub for res_partner_search.
+    TODO: Implement actual partner search via Odoo RPC.
+    """
+    import logging
+    logging.warning("res_partner_search is a stub – implement real logic.")
+    return [{"id": 0, "name": name or "Partner", "email": "partner@example.com"}]
+
+def crm_lead_create(name: str, email: str = None, phone: str = None, description: str = None):
+    """
+    Placeholder for crm_lead_create.
+    TODO: Implement actual lead creation via Odoo RPC.
+    """
+    import logging
+    logging.warning("crm_lead_create is a stub – implement real logic.")
+    return {"id": 0, "name": name, "email": email, "phone": phone, "description": description}
+
+def project_match_create(*args, **kwargs):
+    import logging
+    logging.warning("project_match_create is a stub – implement real logic.")
+    return {"id": 0}
