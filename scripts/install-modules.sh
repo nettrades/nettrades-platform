@@ -42,7 +42,8 @@ echo -e "${GREEN}=============================================================${
 # Get the directory of this script and change to project root
 # -----------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.." || exit 1
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT" || exit 1
 
 # -----------------------------------------------------------------------------
 # Parse command-line arguments
@@ -67,6 +68,21 @@ for arg in "$@"; do
             ;;
     esac
 done
+
+# -----------------------------------------------------------------------------
+# Load POSTGRES_PASSWORD from .env
+# -----------------------------------------------------------------------------
+ENV_FILE="$PROJECT_ROOT/.env"
+if [ -f "$ENV_FILE" ]; then
+    POSTGRES_PASSWORD=$(grep '^POSTGRES_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)
+    if [ -z "$POSTGRES_PASSWORD" ]; then
+        log_error "POSTGRES_PASSWORD not found in $ENV_FILE"
+        exit 1
+    fi
+else
+    log_error ".env file not found at $ENV_FILE"
+    exit 1
+fi
 
 # -----------------------------------------------------------------------------
 # Check if Odoo container is running
@@ -136,9 +152,15 @@ install_module() {
 
     log_info "${action^}ing module: $module"
 
-    # Run the Odoo command
-    if docker exec odoo python3 /usr/bin/odoo \
+    # Correct flags: underscore, not hyphen
+    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" \
+        odoo python3 /usr/bin/odoo \
         -c /etc/odoo/odoo.conf \
+        --db_host=postgres \
+        --db_port=5432 \
+        --db_user=odoo \
+        --db_password="$POSTGRES_PASSWORD" \
+        -d odoo \
         "$flag" "$module" \
         --stop-after-init 2>&1; then
         log_success "✓ Module $module ${action}ed successfully"

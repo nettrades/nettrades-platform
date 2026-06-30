@@ -114,7 +114,7 @@ services:
     environment:
       POSTGRES_DB: odoo
       POSTGRES_USER: odoo
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: odoo123
     volumes:
       # FIXED: Mount to /var/lib/postgresql (not /data) for PostgreSQL 18+ compatibility
       - postgres_data:/var/lib/postgresql
@@ -173,15 +173,18 @@ services:
   # =========================================================================
   odoo:
     image: odoo:19.0
+    container_name: odoo
+    ports:
+      - "8069:8069"
     volumes:
-      - ./addons:/mnt/extra-addons
-      - ./odoo-data:/var/lib/odoo
+      - ./odoo-modules:/odoo-modules              # <-- mount the prepared addons
       - ./config/odoo.conf:/etc/odoo/odoo.conf
+      - ./odoo-data:/var/lib/odoo
     environment:
       - HOST=postgres
       - PORT=5432
       - USER=odoo
-      - PASSWORD=${POSTGRES_PASSWORD}
+      - PASSWORD=odoo123
       # Fairness evaluation API keys
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

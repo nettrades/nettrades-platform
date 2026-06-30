@@ -25,6 +25,12 @@
 
 set -euo pipefail
 
+# Set PROJECT_ROOT if not already set (for standalone execution)
+if [ -z "${PROJECT_ROOT:-}" ]; then
+    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    export PROJECT_ROOT
+fi
+
 # -----------------------------------------------------------------------------
 # Source shared libraries
 # -----------------------------------------------------------------------------
