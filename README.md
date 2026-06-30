@@ -96,7 +96,7 @@ It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, ope
 - **Self-improving AI – A “Good Answer”** voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) which continuously improves field-specific models.
 - **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
-- **Transaction control and error handling** – Odoo ACID transactions + LangGraph checkpointing.
+- **Transaction control and error handling** – ACID transactions + LangGraph checkpointing.
 
 The system is highly configurable and provides greater control and flexibility to the companies using it. Company administrators could also configure it for sovereign AI, so that everything runs locally. 
 
