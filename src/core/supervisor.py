@@ -40,23 +40,23 @@ from langgraph.checkpoint.postgres import PostgresSaver
 # -----------------------------------------------------------------------------
 # Import sub-agent creators
 # -----------------------------------------------------------------------------
-from .agents.recruitment_agent import create_recruitment_agent
-from .agents.freelance_agent import create_freelance_agent
-from .agents.lead_gen_agent import create_lead_gen_agent
-from .agents.gpu_management_agent import create_gpu_management_agent
-from .agents.vision_agent import create_vision_agent
-from .agents.action_agent import create_action_agent
+from agents.recruitment_agent import create_recruitment_agent
+from agents.freelance_agent import create_freelance_agent
+from agents.lead_gen_agent import create_lead_gen_agent
+from agents.gpu_management_agent import create_gpu_management_agent
+from agents.vision_agent import create_vision_agent
+from agents.action_agent import create_action_agent
 
 # -----------------------------------------------------------------------------
 # Import LLM Factory for dynamic provider selection
 # -----------------------------------------------------------------------------
-from .tools.llm_factory import get_llm
+from tools.llm_factory import get_llm
 
 # -----------------------------------------------------------------------------
 # Import bridge integration (hub-and-spoke routing)
 # -----------------------------------------------------------------------------
 try:
-    from .bridge_integration import BridgeService
+    from bridge_integration import BridgeService
 except ImportError:
     # Fallback if the module doesn't exist yet
     class BridgeService:
@@ -67,7 +67,7 @@ except ImportError:
 # Import self-improving integration (continuous learning)
 # -----------------------------------------------------------------------------
 try:
-    from .self_improving_integration import SelfImprovingService
+    from self_improving_integration import SelfImprovingService
 except ImportError:
     # Fallback if the module doesn't exist yet
     class SelfImprovingService:
