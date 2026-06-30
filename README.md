@@ -84,21 +84,23 @@ PURPOSE:
 
 ## What is NETTRADES?
 
-**NETTRADES is an open-source, autonomous enterprise platform** that will power future AI startups, companies and smart cities. It also connects companies, freelancers, job-seekers, researchers, partners and customers. It combines:
+**NETTRADES is an open-source, autonomous enterprise platform** built to power self improving AI startups, companies and smart cities. 
+
+It uses a **Hub-and-Spoke Architecture** – Companies run the open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers. 
+
+### It combines:
 
 - **AI-powered job matching & freelancing** – LangGraph agents analyse CVs, job postings, and projects, automatically creating leads. It combines the functionalities of LinkedIn, Fiverr, Upwork, and Freelancer with AI Matching and Git Collaboration.
 - **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
 - **Expert marketplace “Ask Someone”** – Users can request paid help from verified professionals with Stripe escrow.
-- **Self-improving AI – A “Good Answer”** voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) that continuously improves field-specific models.
+- **Self-improving AI – A “Good Answer”** voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) which continuously improves field-specific models.
 - **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – Odoo ACID transactions + LangGraph checkpointing.
 
-🌐 Hub-and-Spoke Architecture** – Companies run the open-source autonomous enterprise platform client software locally for internal operations which can call `NETTRADES.AI` for external recruitment, GPU overflow and global services.
+The system is highly configurable and provides greater control and flexibility to the companies using it. Company administrators could also configure it for sovereign AI, so that everything runs locally. 
 
-The system is highly configurable and provides greater control and flexibility to the companies using it.  
-
-The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations. 
+The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI. 
 
 ---
 
@@ -134,10 +136,7 @@ This guide will help you get the platform running on your own server, laptop, or
 - At least **8 GB RAM** (16 GB recommended) and **50 GB free disk**.
 - Optional: **NVIDIA GPU** with drivers for GPU acceleration.
 
-> 💡 **For Windows users**: run the installer inside a WSL2 terminal (Ubuntu). 
-
-Install PostgreSQL 18
-
+> 💡 **Windows users**: must run the installer inside a WSL2 terminal (Ubuntu). 
 
 ##### Minimum Requirements:
 
@@ -153,6 +152,11 @@ The quickest way to get started is with the interactive installer:
 
 #### 1. Clone the Repository
 
+In windows install WSL and the open the WSL.exe terminal window
+It could be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe
+And run the commands below.
+In Linux you could run them in the terminal window
+
 ```bash
 
 # Clone the repository
@@ -160,6 +164,9 @@ git clone https://github.com/nettrades/nettrades-platform.git
 cd nettrades-platform
 
 ```
+
+Work on the dev-deployment1 branch not on the main branch
+
 
 #### 2. Choose Your Setup Path
 
@@ -255,14 +262,18 @@ All phases are idempotent – you can safely re-run the script to fix or upgrade
 
 #### 🔑 Database Password Management
 
-During Phase 1, the script generates a random password for PostgreSQL. However, for compatibility with Odoo’s command-line tools, the password must not contain special characters (like +, /, =). If you encounter authentication errors, you can simplify the password by editing .env and deploy/docker/config/odoo.conf, and updating the PostgreSQL user:
+During Phase 1, the script generates a random password for PostgreSQL. 
+
+However, for compatibility with Odoo’s command-line tools, the password must not contain special characters (like +, /, =). 
+
+If you encounter authentication errors, you can simplify the password by editing .env and deploy/docker/config/odoo.conf, and updating the PostgreSQL user:
 
 ```bash
 
 docker exec -it docker-postgres-1 psql -U odoo -c "ALTER USER odoo WITH PASSWORD 'odoo123';"
 
 ```
-Then update the password in .env and odoo.conf and restart Odoo.
+Make sure you update the password in .env and odoo.conf and restart Odoo.
 
 
 #### 🌐 Access Your Platform
@@ -293,7 +304,7 @@ The all profile automatically installs all NETTRADES modules. If you need to ins
 ```
 
 
-If the command‑line tool fails (e.g., due to password issues), you can install the modules via the Odoo UI:
+If the command-line tool fails (e.g., due to password issues), you can install the modules via the Odoo UI:
 
 * Log in to Odoo (http://localhost:8069).
 
