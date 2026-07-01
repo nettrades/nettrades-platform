@@ -180,6 +180,7 @@ services:
       - ./odoo-modules:/odoo-modules              # <-- mount the prepared addons
       - ./config/odoo.conf:/etc/odoo/odoo.conf
       - ./odoo-data:/var/lib/odoo
+      - ./odoo-logs:/var/log/odoo   # <-- odoo logs
     environment:
       - HOST=postgres
       - PORT=5432
