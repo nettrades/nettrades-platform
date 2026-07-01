@@ -1,0 +1,25 @@
+# =============================================================================
+# FILE: deploy/kubernetes/runtime-class-gvisor-gpu.yaml
+# =============================================================================
+# PURPOSE:
+#   Defines a Kubernetes RuntimeClass that uses gVisor with the --nvproxy flag
+#   to enable GPU access inside the sandbox.
+#
+# USAGE:
+#   kubectl apply -f runtime-class-gvisor-gpu.yaml
+#   Then reference `runtimeClassName: gvisor-gpu` in Pod specs.
+# =============================================================================
+
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor-gpu
+handler: runsc
+overhead:
+  podFixed:
+    memory: "128Mi"
+    cpu: "100m"
+scheduling:
+  nodeSelector:
+    # This runtime should only be scheduled on nodes with NVIDIA GPUs
+    nvidia.com/gpu.present: "true"

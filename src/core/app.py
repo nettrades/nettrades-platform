@@ -301,6 +301,7 @@ async def invoke(
     # STEP 3: INVOKE THE SUPERVISOR GRAPH
     # =========================================================================
     graph = ml_models.get("graph")
+    from supervisor import invoke_supervisor_with_retry
     if not graph:
         logger.error("Graph not initialized")
         raise HTTPException(
@@ -310,7 +311,7 @@ async def invoke(
 
     try:
         # Invoke the graph with the state
-        result = await graph.ainvoke(state)
+        result = await invoke_supervisor_with_retry(graph, state)
 
         # Record the intent for metrics
         intent = result.get("intent", "unknown")
