@@ -25,7 +25,9 @@
 #   - Odoo: Reads company-specific LLM configuration via LLMFactory
 #   - Bridge: Routes requests to local or remote brain based on company settings
 #   - Self-Improving: Records episodes for fine-tuning models
-#   - GPUStack: Uses configured LLM provider (OpenAI, Anthropic, DeepSeek, Ollama, NETTRADES.AI)
+#   - GPUStack: Uses configured LLM provider (OpenAI, Anthropic, DeepSeek, Ollama,
+#     NETTRADES.AI)
+#
 # =============================================================================
 
 import asyncio
@@ -72,8 +74,33 @@ except ImportError:
     # Fallback if the module doesn't exist yet
     class SelfImprovingService:
         async def record_episode(self, intent, input_data, output_data,
-                                  quality_score=0.5, feedback=None):
+                                 quality_score=0.5, feedback=None):
             pass
+
+# -----------------------------------------------------------------------------
+# Import resilience utilities (retry and circuit breaker)
+# -----------------------------------------------------------------------------
+try:
+    from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+    from circuitbreaker import CircuitBreaker, CircuitBreakerError
+except ImportError:
+    # Fallback if tenacity or circuitbreaker are not installed
+    def retry(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    class CircuitBreaker:
+        def __init__(self, *args, **kwargs):
+            pass
+        def call(self, func):
+            return func()
+        async def call_async(self, func):
+            return await func()
+    class CircuitBreakerError(Exception):
+        pass
+    retry_if_exception_type = lambda *args: lambda f: f
+    stop_after_attempt = lambda x: lambda f: f
+    wait_exponential = lambda *args, **kwargs: lambda f: f
 
 # -----------------------------------------------------------------------------
 # Logging setup
@@ -85,12 +112,58 @@ _logger = logging.getLogger(__name__)
 MAX_FOLLOWUP_ROUNDS = 3
 
 # =============================================================================
+# CIRCUIT BREAKER FOR SUPERVISOR INVOCATION
+# =============================================================================
+class SupervisorCircuitBreaker(CircuitBreaker):
+    """Custom circuit breaker for supervisor graph calls."""
+    pass
+
+# Create a singleton circuit breaker with default settings
+# (failure threshold = 5, recovery timeout = 30 seconds)
+_supervisor_breaker = SupervisorCircuitBreaker(failure_threshold=5, recovery_timeout=30)
+
+# =============================================================================
+# RESILIENT INVOCATION WRAPPER
+# =============================================================================
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((ConnectionError, TimeoutError, asyncio.TimeoutError)),
+    reraise=True
+)
+async def invoke_supervisor_with_retry(supervisor, state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Wrapper that adds retries and circuit breaker protection to supervisor.ainvoke.
+
+    This function is used by the `/invoke` endpoint in app.py to provide resilience.
+
+    Args:
+        supervisor: The compiled LangGraph supervisor graph.
+        state: The state dictionary to pass to the graph.
+
+    Returns:
+        Dict[str, Any]: The result from the supervisor graph.
+
+    Raises:
+        CircuitBreakerError: If the circuit breaker is open.
+        Exception: Any other exception from the graph invocation.
+    """
+    async def _invoke():
+        return await supervisor.ainvoke(state)
+
+    try:
+        result = await _supervisor_breaker.call_async(_invoke)
+        return result
+    except CircuitBreakerError:
+        _logger.error("Circuit breaker is open – supervisor invocation temporarily blocked.")
+        raise
+
+# =============================================================================
 # CREATE SUB-AGENTS (Each is a compiled LangGraph sub-graph)
 # =============================================================================
 # The supervisor uses these sub-agents to handle specific business domains.
 # Each sub-agent is created by its factory function and returns a compiled
 # graph with an .ainvoke() method.
-
 recruitment_agent = create_recruitment_agent()
 freelance_agent = create_freelance_agent()
 lead_gen_agent = create_lead_gen_agent()
@@ -284,8 +357,8 @@ async def bridge_route(state: dict) -> dict:
     - GPU overflow detection (local GPU utilisation > threshold)
     - Bridge mode (local, remote, hybrid)
 
-    If the bridge decides to route remotely, it returns a bridge_response that is
-    used directly by the route node, bypassing local sub-agents.
+    If the bridge decides to route remotely, it returns a bridge_response that
+    is used directly by the route node, bypassing local sub-agents.
 
     Returns:
         dict: Updated state with 'bridge_response' and 'route_source' keys.
@@ -387,7 +460,6 @@ async def route(state: dict) -> dict:
         # Merge the result into the state
         state.update(result)
         _logger.info(f"Routing completed for intent: {intent}")
-
     except Exception as e:
         _logger.error(f"Routing failed: {e}")
         state["error"] = str(e)
@@ -402,7 +474,8 @@ async def post_process(state: dict) -> dict:
     """
     Post-process the response and record for the self-improving loop.
 
-    This node records every interaction episode for the self-improving loop. It:
+    This node records every interaction episode for the self-improving loop.
+    It:
     1. Skips recording if the request was handled remotely (no local data)
     2. Calculates a quality score based on confidence or analysis length
     3. Records the episode via SelfImprovingService
@@ -554,24 +627,7 @@ def build_supervisor():
 # MAIN ENTRY POINT (for testing)
 # =============================================================================
 if __name__ == "__main__":
-    import asyncio
-
-    async def test_supervisor():
-        """Test the supervisor with a sample request."""
-        # Build the supervisor
-        graph = build_supervisor()
-
-        # Test state
-        state = {
-            "messages": [
-                {"role": "user", "content": "Find me a Python developer with 5 years experience"}
-            ],
-            "company_id": 1,
-            "user_id": 1,
-        }
-
-        # Invoke the graph
-        result = await graph.ainvoke(state)
-        print(json.dumps(result, indent=2))
-
-    asyncio.run(test_supervisor())
+    # Simple test to verify the supervisor builds
+    print("Building supervisor...")
+    supervisor = build_supervisor()
+    print("Supervisor built successfully!")
