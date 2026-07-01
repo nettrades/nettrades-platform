@@ -41,3 +41,7 @@ COPY odoo-modules/ /mnt/extra-addons/
 USER odoo
 
 # Addons path is configured in odoo.conf
+
+# Install WireGuard (wg) in the Odoo Container
+# The Odoo container needs the wg binary to satisfy the external dependency. 
+RUN apt-get update && apt-get install -y wireguard-tools
