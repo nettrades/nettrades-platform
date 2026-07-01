@@ -2,7 +2,7 @@
 # =============================================================================
 # NETTRADES Core – Module Manifest
 # =============================================================================
-# FILE:    odoo-modules/nettrades_core/__manifest__.py
+# FILE: odoo-modules/nettrades_core/__manifest__.py
 # VERSION: 1.0 (fully commented)
 #
 # PURPOSE:
@@ -12,11 +12,12 @@
 #   the security groups and views that are used across other NETTRADES modules.
 #
 # DEPENDENCIES:
-#   - base          : Odoo core
-#   - hr_recruitment: Job postings and applicants
-#   - crm           : Lead management
-#   - project       : Project management and milestones
+#   - base               : Odoo core
+#   - hr_recruitment     : Job postings and applicants
+#   - crm                : Lead management
+#   - project            : Project management and milestones
 #   - website_sale_marketplace : Multi-vendor marketplace (for e-commerce)
+#   - auth_signup        : Self-service onboarding (portal sign-up)
 #
 # MODELS PROVIDED:
 #   - res.partner (extended)
@@ -35,16 +36,14 @@
     'category': 'Nettrades',
     'summary': 'Core marketplace and AI integration',
     'description': """
-        This module provides the essential building blocks for the
-        NETTRADES.AI autonomous enterprise platform.
-
-        It extends Odoo's standard models to support:
-          - User roles (Job Seeker, Freelancer, Company, Partner)
-          - Professional fields and qualifications
-          - Work experience and reviews
-          - AI-powered job matching
-          - Lead generation and scoring
-
+        This module provides the essential building blocks for the NETTRADES.AI
+        autonomous enterprise platform. It extends Odoo's standard models to
+        support:
+        - User roles (Job Seeker, Freelancer, Company, Partner)
+        - Professional fields and qualifications
+        - Work experience and reviews
+        - AI-powered job matching
+        - Lead generation and scoring
         This module is a dependency for all other NETTRADES modules.
     """,
     'author': 'Nettrades',
@@ -57,6 +56,7 @@
         'crm',
         'project',
         'website_sale_marketplace',
+        'auth_signup',          # <-- ADDED: Enables self-service onboarding
     ],
     'data': [
         'security/nettrades_security.xml',
@@ -67,6 +67,7 @@
         'views/nettrades_review_views.xml',
         'views/nettrades_field_views.xml',
         'data/nettrades.skill.csv',
+        'data/portal_data.xml',  # <-- ADDED: Portal menus and sign-up settings
     ],
     'demo': [],
     'installable': True,

@@ -25,6 +25,12 @@
 #
 #   2. Removed Dead Code: The build_graph() function was commented out
 #      and is no longer needed. It has been removed.
+#
+#   3. Prompt Injection Monitoring: Added middleware to sanitise incoming
+#      requests and detect common injection patterns.
+#
+#   4. Resilience: Added retry logic and circuit breaker for supervisor
+#      graph invocation.
 # =============================================================================
 
 import os
@@ -37,14 +43,17 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Header, Request, status
 from fastapi.responses import JSONResponse, Response
+
 try:
     from langgraph.checkpoint.postgres import AsyncPostgresSaver
 except ImportError:
     from langgraph.checkpoint.postgres import PostgresSaver as AsyncPostgresSaver
+
 from dotenv import load_dotenv
 from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 
-from supervisor import build_supervisor
+from supervisor import build_supervisor, invoke_supervisor_with_retry
+from security.prompt_injection import sanitise_input
 
 # Load environment variables from .env file
 load_dotenv()
@@ -98,11 +107,18 @@ REQUEST_DURATION = Histogram(
 # =============================================================================
 # APPLICATION LIFESPAN
 # =============================================================================
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Build the LangGraph supervisor graph and attach the durable PostgresSaver.
+
+    This function runs at application startup and shutdown:
+    - Startup: Creates a connection to PostgreSQL, sets up the checkpoint saver,
+      and builds the supervisor graph.
+    - Shutdown: Clears the graph from memory.
+
+    The PostgresSaver provides durable checkpointing, allowing the graph to
+    resume from the last saved state if the service crashes.
     """
     logger.info("Starting LangGraph agent...")
 
@@ -157,6 +173,30 @@ async def metrics_middleware(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
     REQUEST_DURATION.observe(time.time() - start)
+    return response
+
+# =============================================================================
+# MIDDLEWARE: PROMPT INJECTION SANITISATION
+# =============================================================================
+@app.middleware("http")
+async def prompt_injection_middleware(request: Request, call_next):
+    """
+    Sanitises incoming JSON request bodies to prevent prompt injection.
+
+    Only applies to POST requests that contain JSON. Detects common injection
+    patterns (e.g., "ignore previous instructions") and redacts the offending
+    fields before they reach the LangGraph agent.
+    """
+    if request.method == "POST" and request.headers.get("content-type", "").startswith("application/json"):
+        try:
+            body = await request.json()
+            sanitised_body = sanitise_input(body)
+            # Store sanitised body in request state for later use
+            request.state._sanitised_body = sanitised_body
+        except Exception as e:
+            logger.warning(f"Failed to sanitise request: {e}")
+
+    response = await call_next(request)
     return response
 
 # =============================================================================
@@ -273,7 +313,11 @@ async def invoke(
     # STEP 2: PARSE REQUEST BODY
     # =========================================================================
     try:
-        body = await request.json()
+        # Retrieve sanitised body if available, else fallback to original
+        if hasattr(request.state, "_sanitised_body"):
+            body = request.state._sanitised_body
+        else:
+            body = await request.json()
         logger.debug(f"Request body: {body}")
     except Exception as e:
         logger.error(f"Failed to parse request body: {e}")
@@ -301,7 +345,6 @@ async def invoke(
     # STEP 3: INVOKE THE SUPERVISOR GRAPH
     # =========================================================================
     graph = ml_models.get("graph")
-    from supervisor import invoke_supervisor_with_retry
     if not graph:
         logger.error("Graph not initialized")
         raise HTTPException(
@@ -310,7 +353,7 @@ async def invoke(
         )
 
     try:
-        # Invoke the graph with the state
+        # Invoke the graph with the state (with retry and circuit breaker)
         result = await invoke_supervisor_with_retry(graph, state)
 
         # Record the intent for metrics
