@@ -118,7 +118,7 @@ The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessl
 | **🔐 Secure & Sovereign** | WireGuard VPN, gVisor isolation, and full on-premise deployment options. |
 | **📱 Mobile PWA** | Progressive Web App with offline support. |
 | **🔗 [Git Collaboration](docs/operations/deployment-perspective-CICD-pipeline-diagram.md)** | Forgejo Git integration for project collaboration. |
-
+| **🖥 Confidential Computing** | Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
 ---
 
 ## 🚀 Quick Start

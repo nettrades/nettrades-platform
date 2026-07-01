@@ -1,5 +1,5 @@
 # =============================================================================
-# NETTRADES Platform – Git Ignore
+# NETTRADES Platform â€“ Git Ignore
 # =============================================================================
 # FILE: .gitignore
 #
@@ -11,7 +11,7 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Python Virtual Environment (CRITICAL – Do Not Commit)
+# Python Virtual Environment (CRITICAL â€“ Do Not Commit)
 # -----------------------------------------------------------------------------
 venv/
 env/
@@ -61,41 +61,33 @@ odoo.cache
 odoo/session/
 odoo/filestore/
 
-
-
 # Secrets
 .env
 *.key
 *.pem
 
 # -----------------------------------------------------------------------------
-# Odoo Data Directories
+# Docker Runtime Data (Do Not Commit â€“ large and ephemeral)
 # -----------------------------------------------------------------------------
-/odoo-data/
-/sessions/
-/filestore/
-/web-assets/
-
-# -----------------------------------------------------------------------------
-# Data directories
-# -----------------------------------------------------------------------------
-postgres-data/
-forgejo-data/
-llama-cpp-data/
-gpustack-data/
-valkey-data/
-traefik-data/
-prometheus-data/
-grafana-data/
-backups/
+deploy/docker/odoo-data/
+deploy/docker/postgres-data/
+deploy/docker/forgejo-data/
+deploy/docker/llama-cpp-data/
+deploy/docker/gpustack-data/
+deploy/docker/valkey-data/
+deploy/docker/traefik-data/
+deploy/docker/prometheus-data/
+deploy/docker/grafana-data/
+deploy/docker/backups/
+deploy/docker/odoo-modules/
 
 # -----------------------------------------------------------------------------
 # Logs
 # -----------------------------------------------------------------------------
-
-# Logs
 *.log
-C:\var\log\odoo\*.log
+/var/log/odoo/*.log    # optional, if you have a Linux environment
+.phase-*.complete
+module-install.log
 
 # -----------------------------------------------------------------------------
 # Local Configuration
