@@ -3,7 +3,7 @@
 # =============================================================================
 # PURPOSE:
 #   Defines sandboxing policies for inference jobs.
-#   Administrators can set default trust levels and per‑user/ per‑job overrides.
+#   Administrators can set default trust levels and per_user/ per_job overrides.
 # =============================================================================
 
 from odoo import models, fields, api, _
@@ -25,7 +25,7 @@ class SandboxPolicy(models.Model):
         ('source_based', 'Source-Based (Recommended)'),
     ], string="Trust Level", default='source_based', required=True)
 
-    # === Source‑Based Rules ===
+    # === Source_Based Rules ===
     internal_trusted_sources = fields.Many2many(
         'res.users', string="Trusted Internal Users",
         help="Users who can bypass sandbox when running approved code."

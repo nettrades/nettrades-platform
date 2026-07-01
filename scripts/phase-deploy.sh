@@ -3,9 +3,9 @@
 # FILE: scripts/phase-deploy.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 2: Single‑VM Docker deployment.
+#   Phase 2: Single_VM Docker deployment.
 #   This script deploys the entire NETTRADES stack using Docker Compose.
-#   It is idempotent and safe to re‑run.
+#   It is idempotent and safe to re_run.
 #
 #   It performs the following steps (in order):
 #     1. Create required directories.
