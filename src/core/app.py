@@ -126,6 +126,8 @@ async def lifespan(app: FastAPI):
     pool = ConnectionPool(conninfo=DB_URI, min_size=1, max_size=5)
     with pool:  # sync context manager, fine inside async
         with pool.getconn() as conn:  # get a sync connection
+            # Enable autocommit to allow CREATE INDEX CONCURRENTLY
+            conn.autocommit = True
             # Create the checkpointer using the connection
             checkpointer = AsyncPostgresSaver(conn)
             # Set up the database schema for checkpoints
@@ -143,7 +145,7 @@ async def lifespan(app: FastAPI):
     # Clean up on shutdown – runs after the async with block exits
     ml_models.clear()
     logger.info("LangGraph agent shutdown complete")
-    
+
 # =============================================================================
 # FASTAPI APPLICATION
 # =============================================================================
