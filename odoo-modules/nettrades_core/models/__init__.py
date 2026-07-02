@@ -21,4 +21,4 @@ from . import nettrades_user_match
 from . import nettrades_skill
 from . import nettrades_field
 from . import nettrades_experience      # NEW: Work Experience model
-from . import nettrades_review          # NEW: Review model
+from . import nettrades_review          # NEW: Review modelfrom . import review
