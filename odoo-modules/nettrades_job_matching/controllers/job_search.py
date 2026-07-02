@@ -1,4 +1,4 @@
-# Section F.3 – Conversational job search.
+# Section F.3 - Conversational job search.
 import json, logging
 from odoo import http
 from odoo.http import request

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Good Answer – Dataset Contribution model
+# NETTRADES Good Answer - Dataset Contribution model
 # =============================================================================
 # Records which professionals contributed expert answers to a fine-tuning
 # dataset.  Used later to award indirect reputation points when an AI

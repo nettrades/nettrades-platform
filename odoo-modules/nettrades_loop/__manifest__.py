@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Loop – Self-Improving System Orchestrator
+# NETTRADES Loop - Self-Improving System Orchestrator
 # =============================================================================
 # FILE: odoo-modules/nettrades_loop/__manifest__.py
 #
@@ -16,10 +16,10 @@
 #     4. Deploys trained models (Execute phase)
 #
 #   This module integrates with:
-#     - nettrades_data_collection → Monitor phase
-#     - nettrades_trigger → Analyze phase
-#     - llm_training (Apexive) → Plan phase (dataset and job management)
-#     - GPUStack → Execute phase (model deployment)
+#     - nettrades_data_collection -> Monitor phase
+#     - nettrades_trigger -> Analyze phase
+#     - llm_training (Apexive) -> Plan phase (dataset and job management)
+#     - GPUStack -> Execute phase (model deployment)
 #
 # =============================================================================
 {

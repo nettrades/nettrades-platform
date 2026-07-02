@@ -3,7 +3,7 @@
 # FILE: odoo-modules/nettrades_gpu_admin/controllers/main.py
 # =============================================================================
 # DESCRIPTION:
-#   GPU Admin Controller – handles GPU node registration, cluster management,
+#   GPU Admin Controller - handles GPU node registration, cluster management,
 #   WireGuard configuration, and administrative tasks for the distributed GPU
 #   network.
 #
@@ -18,24 +18,24 @@
 #     - Fine-tuning job submission, status checking, and deployment
 #
 # ENDPOINTS:
-#   ────────────────────────────────────────────────────────────────────────────
+#   ----------------------------------------------------------------------------
 #   PUBLIC (token-authenticated)
-#   ────────────────────────────────────────────────────────────────────────────
-#   POST /api/v1/gpu/register          – Register a new GPU node using a
+#   ----------------------------------------------------------------------------
+#   POST /api/v1/gpu/register          - Register a new GPU node using a
 #                                        registration token. (REPLACED the old
 #                                        insecure bearer-check with real token
 #                                        validation.)
 #
-#   ────────────────────────────────────────────────────────────────────────────
+#   ----------------------------------------------------------------------------
 #   INTERNAL (Odoo user authenticated)
-#   ────────────────────────────────────────────────────────────────────────────
-#   GET  /api/v1/gpu/peers             – List all active WireGuard peers.
-#   POST /api/v1/admin/scan_network    – Scan network for GPU machines.
-#   POST /api/v1/admin/install_node    – Install GPU agent on remote host.
-#   POST /api/v1/admin/remove_node     – Remove a GPU node from cluster.
-#   POST /api/v1/admin/finetune/start  – Start a fine-tuning job.
-#   GET  /api/v1/admin/finetune/status – Check fine-tuning job status.
-#   POST /api/v1/admin/finetune/deploy – Deploy a fine-tuned model.
+#   ----------------------------------------------------------------------------
+#   GET  /api/v1/gpu/peers             - List all active WireGuard peers.
+#   POST /api/v1/admin/scan_network    - Scan network for GPU machines.
+#   POST /api/v1/admin/install_node    - Install GPU agent on remote host.
+#   POST /api/v1/admin/remove_node     - Remove a GPU node from cluster.
+#   POST /api/v1/admin/finetune/start  - Start a fine-tuning job.
+#   GET  /api/v1/admin/finetune/status - Check fine-tuning job status.
+#   POST /api/v1/admin/finetune/deploy - Deploy a fine-tuned model.
 #
 # SECURITY IMPROVEMENTS:
 #   1. Registration uses SHA-256 hashed tokens stored in gpu.registration.token.
@@ -588,7 +588,7 @@ class GpuAdminController(http.Controller):
         if not node.exists():
             return {'error': 'Node not found'}, 404
 
-        # Revoke WireGuard peer entry (placeholder – implement actual revocation)
+        # Revoke WireGuard peer entry (placeholder - implement actual revocation)
         # TODO: Implement WireGuard peer revocation via cluster._revoke_wireguard_peer(node)
         _logger.info(f"Revoking WireGuard peer for node {node.id} (placeholder)")
 

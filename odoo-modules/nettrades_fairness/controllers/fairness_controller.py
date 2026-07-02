@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Fairness – REST API Controller
+# NETTRADES Fairness - REST API Controller
 # =============================================================================
 # FILE: odoo-modules/nettrades_fairness/controllers/fairness_controller.py
 #
@@ -10,11 +10,11 @@
 #   module programmatically.
 #
 # ENDPOINTS:
-#   - GET /api/fairness/health – Health check
-#   - POST /api/fairness/evaluate – Evaluate a response
-#   - GET /api/fairness/audit – Get audit logs
-#   - GET /api/fairness/metrics – Get fairness metrics
-#   - POST /api/fairness/flag/review – Review a flag
+#   - GET /api/fairness/health - Health check
+#   - POST /api/fairness/evaluate - Evaluate a response
+#   - GET /api/fairness/audit - Get audit logs
+#   - GET /api/fairness/metrics - Get fairness metrics
+#   - POST /api/fairness/flag/review - Review a flag
 #
 # =============================================================================
 

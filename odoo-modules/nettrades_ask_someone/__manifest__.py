@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Ask Someone – Expert Help Marketplace
+# NETTRADES Ask Someone - Expert Help Marketplace
 # =============================================================================
 # FILE:    odoo-modules/nettrades_ask_someone/__manifest__.py
 #

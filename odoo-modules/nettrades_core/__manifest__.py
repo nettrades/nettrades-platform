@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Core – Module Manifest
+# NETTRADES Core - Module Manifest
 # =============================================================================
 # FILE: odoo-modules/nettrades_core/__manifest__.py
 # VERSION: 1.0 (fully commented)

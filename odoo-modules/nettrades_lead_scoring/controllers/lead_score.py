@@ -1,4 +1,4 @@
-# Section F.5 – Lead scoring from platform activity.
+# Section F.5 - Lead scoring from platform activity.
 from odoo import http
 from odoo.http import request
 

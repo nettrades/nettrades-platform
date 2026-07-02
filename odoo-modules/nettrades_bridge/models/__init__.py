@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Bridge – Models Initialisation
+# NETTRADES Bridge - Models Initialisation
 # =============================================================================
 # FILE: odoo-modules/nettrades_bridge/models/__init__.py
 #

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section F.7 – AI Chatbot Widget
+# Section F.7 - AI Chatbot Widget
 {
     'name': 'NETTRADES AI Chatbot',
     'version': '1.0',

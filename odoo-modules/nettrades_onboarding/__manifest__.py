@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section F.2 – Smart Onboarding
+# Section F.2 - Smart Onboarding
 {
     'name': 'NETTRADES Smart Onboarding',
     'version': '1.0',

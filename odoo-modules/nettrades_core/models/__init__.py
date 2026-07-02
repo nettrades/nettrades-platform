@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Core – Models Package
+# NETTRADES Core - Models Package
 # =============================================================================
 # FILE: odoo-modules/nettrades_core/models/__init__.py
 #

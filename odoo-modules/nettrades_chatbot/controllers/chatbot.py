@@ -1,4 +1,4 @@
-# Section F.7 – Floating AI chatbot widget.
+# Section F.7 - Floating AI chatbot widget.
 import json, logging
 from odoo import http
 from odoo.http import request

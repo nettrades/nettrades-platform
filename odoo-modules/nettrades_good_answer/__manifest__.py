@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Good Answer – Voting, Reputation, and Fine-Tuning
+# NETTRADES Good Answer - Voting, Reputation, and Fine-Tuning
 # =============================================================================
 # FILE:    odoo-modules/nettrades_good_answer/__manifest__.py
 #

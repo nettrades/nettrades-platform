@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Bridge – Core Routing Logic
+# NETTRADES Bridge - Core Routing Logic
 # =============================================================================
 # FILE: odoo-modules/nettrades_bridge/models/bridge_routing.py
 #
@@ -25,7 +25,7 @@ _logger = logging.getLogger(__name__)
 
 class NettradesBridgeRouting(models.Model):
     """
-    Bridge Routing – Core routing logic.
+    Bridge Routing - Core routing logic.
 
     This model is not stored in the database; it's a service class
     that provides routing methods.

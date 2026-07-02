@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Bridge – Global Configuration Model
+# NETTRADES Bridge - Global Configuration Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_bridge/models/bridge_config.py
 #
@@ -23,7 +23,7 @@ _logger = logging.getLogger(__name__)
 
 class NettradesBridgeConfig(models.Model):
     """
-    Global Bridge Configuration – system-wide defaults.
+    Global Bridge Configuration - system-wide defaults.
 
     This model is a singleton (only one record) that stores the global
     bridge settings. These settings apply to all companies unless a company
@@ -45,16 +45,16 @@ class NettradesBridgeConfig(models.Model):
     @api.depends('bridge_mode')
     def _compute_display_name(self):
         for record in self:
-            record.display_name = f"Bridge – {record.bridge_mode or 'local'}"
+            record.display_name = f"Bridge - {record.bridge_mode or 'local'}"
 
     # -------------------------------------------------------------------------
     # 2. Bridge Mode (main switch)
     # -------------------------------------------------------------------------
     bridge_mode = fields.Selection(
         [
-            ('local', 'Local Only – All AI runs locally'),
-            ('remote', 'Remote Only – All AI runs via Remote Brain'),
-            ('hybrid', 'Hybrid – Local first, fallback to Remote on failure'),
+            ('local', 'Local Only - All AI runs locally'),
+            ('remote', 'Remote Only - All AI runs via Remote Brain'),
+            ('hybrid', 'Hybrid - Local first, fallback to Remote on failure'),
         ],
         string='Bridge Mode',
         required=True,

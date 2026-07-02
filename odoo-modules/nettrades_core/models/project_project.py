@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section A-F – Forgejo repo creation and review actions, no n8n.
+# Section A-F - Forgejo repo creation and review actions, no n8n.
 import json, logging, requests
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError

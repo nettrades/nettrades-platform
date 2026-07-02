@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Data Annotation Model
+# NETTRADES Data Collection - Data Annotation Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/models/data_annotation.py
 #
@@ -23,7 +23,7 @@ _logger = logging.getLogger(__name__)
 
 class DataAnnotation(models.Model):
     """
-    Data Annotation – human or expert evaluation of an episode.
+    Data Annotation - human or expert evaluation of an episode.
 
     Each annotation is linked to a specific episode and annotator.
     """

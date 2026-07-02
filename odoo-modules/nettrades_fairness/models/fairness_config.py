@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Fairness – Configuration Models
+# NETTRADES Fairness - Configuration Models
 # =============================================================================
 # FILE: odoo-modules/nettrades_fairness/models/fairness_config.py
 #
 # PURPOSE:
 #   This file defines the configuration models for the fairness system.
 #   It provides:
-#     1. Global configuration (singleton) – system-wide defaults
-#     2. Field-specific configuration – per-professional field overrides
+#     1. Global configuration (singleton) - system-wide defaults
+#     2. Field-specific configuration - per-professional field overrides
 #
 #   The configuration is stored in the database and can be modified
 #   through the Odoo admin interface.
@@ -28,7 +28,7 @@ _logger = logging.getLogger(__name__)
 
 class FairnessGlobalConfig(models.Model):
     """
-    Global Fairness Configuration – system-wide defaults.
+    Global Fairness Configuration - system-wide defaults.
 
     This model is a singleton (only one record) that stores the global
     fairness settings. These settings apply to all fields unless overridden
@@ -57,7 +57,7 @@ class FairnessGlobalConfig(models.Model):
                 status_parts.append("Bias Detection ON")
             if not status_parts:
                 status_parts.append("Disabled")
-            record.display_name = f"Fairness – {' / '.join(status_parts)}"
+            record.display_name = f"Fairness - {' / '.join(status_parts)}"
 
     # =========================================================================
     # 2. Feature Controls (Enable/Disable)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Fairness – LLM-as-Judge Evaluator
+# NETTRADES Fairness - LLM-as-Judge Evaluator
 # =============================================================================
 # FILE: odoo-modules/nettrades_fairness/models/fairness_evaluator.py
 #
@@ -36,7 +36,7 @@ _logger = logging.getLogger(__name__)
 
 class FairnessEvaluator(models.TransientModel):
     """
-    Fairness Evaluator Service – LLM-as-Judge for rationality and bias.
+    Fairness Evaluator Service - LLM-as-Judge for rationality and bias.
 
     This service evaluates AI responses using a configurable LLM judge.
     """

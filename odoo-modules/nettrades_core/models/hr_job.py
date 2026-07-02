@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section A-F – AI-matching with direct LangGraph call, no n8n.
+# Section A-F - AI-matching with direct LangGraph call, no n8n.
 import json, logging, requests
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
@@ -42,14 +42,14 @@ class HrJob(models.Model):
     def action_match_candidates(self):
         """
         Run AI matching synchronously.  All Odoo writes happen inside this
-        transaction – if the LangGraph call fails the transaction rolls back.
+        transaction - if the LangGraph call fails the transaction rolls back.
         For very long matches, use the `_do_ai_matching` queue job instead.
         """
         self.ensure_one()
         self._do_ai_matching()
 
     def _do_ai_matching(self):
-        """Core matching logic – can be called from a queue job."""
+        """Core matching logic - can be called from a queue job."""
         self.ensure_one()
         url = self.env['ir.config_parameter'].sudo().get_param(
             'langgraph_invoke_url', 'http://langgraph:8000/invoke')
@@ -81,7 +81,7 @@ class HrJob(models.Model):
         except json.JSONDecodeError:
             raise UserError(_("Invalid response from AI matching service."))
 
-        # Parse LangGraph output – expect a JSON list of matches
+        # Parse LangGraph output - expect a JSON list of matches
         matches = json.loads(result.get('analysis', '[]'))
         for match in matches:
             self.env['crm.lead'].create({

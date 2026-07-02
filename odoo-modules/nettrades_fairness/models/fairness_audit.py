@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Fairness – Audit & Flag Models
+# NETTRADES Fairness - Audit & Flag Models
 # =============================================================================
 # FILE: odoo-modules/nettrades_fairness/models/fairness_audit.py
 #
@@ -24,7 +24,7 @@ _logger = logging.getLogger(__name__)
 
 class FairnessAudit(models.Model):
     """
-    Fairness Audit Log – tracks all fairness evaluations.
+    Fairness Audit Log - tracks all fairness evaluations.
 
     Each record stores the evaluation of a single AI response.
     """
@@ -161,7 +161,7 @@ class FairnessAudit(models.Model):
 
 class FairnessFlag(models.Model):
     """
-    Fairness Flag – responses flagged for human review.
+    Fairness Flag - responses flagged for human review.
 
     When a response exceeds the rationality or bias thresholds, it is
     flagged for human review. An administrator can review the flag,

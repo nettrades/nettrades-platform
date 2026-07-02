@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section A-F – Stores AI-generated match scores between a job and a candidate.
+# Section A-F - Stores AI-generated match scores between a job and a candidate.
 from odoo import fields, models
 
 class NettradesUserMatch(models.Model):

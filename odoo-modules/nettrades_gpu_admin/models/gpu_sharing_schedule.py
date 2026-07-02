@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION H – Time-based sharing rules.
+# SECTION H - Time-based sharing rules.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# IMPORTS – Each import MUST be on its own line for valid Python syntax.
+# IMPORTS - Each import MUST be on its own line for valid Python syntax.
 # -----------------------------------------------------------------------------
 from odoo import fields, models, api
 from datetime import datetime
@@ -24,8 +24,8 @@ class GPUSharingSchedule(models.Model):
 
     day_of_week = fields.Selection(
         [
-            ('mon_fri', 'Monday–Friday'),
-            ('sat_sun', 'Saturday–Sunday'),
+            ('mon_fri', 'Monday-Friday'),
+            ('sat_sun', 'Saturday-Sunday'),
             ('all', 'Every Day'),
         ],
         string='Day Range',

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Core – Work Experience Model
+# NETTRADES Core - Work Experience Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_core/models/nettrades_experience.py
 #
@@ -29,7 +29,7 @@ _logger = logging.getLogger(__name__)
 
 class NettradesExperience(models.Model):
     """
-    Work Experience – represents a single job or role in a user's career.
+    Work Experience - represents a single job or role in a user's career.
 
     Each record stores the job title, company, start/end dates, and a
     description of responsibilities and achievements.

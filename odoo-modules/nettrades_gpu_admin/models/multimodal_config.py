@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES GPU Admin – Multi-Modal & Edge-Device Configuration
+# NETTRADES GPU Admin - Multi-Modal & Edge-Device Configuration
 # =============================================================================
 # This transient model (res.config.settings) holds system-wide toggles for
 # multimodal inferencing, robotics, and IoT features. Each feature requires
@@ -8,7 +8,7 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# IMPORTS – Each import MUST be on its own line for valid Python syntax.
+# IMPORTS - Each import MUST be on its own line for valid Python syntax.
 # -----------------------------------------------------------------------------
 from odoo import fields, models
 
@@ -18,7 +18,7 @@ class MultimodalConfig(models.TransientModel):
     _inherit = 'res.config.settings'
     _description = 'Multi-Modal & Edge-Device Configuration'
 
-    # ── Multi-Modal Inferencing ──
+    # -- Multi-Modal Inferencing --
     enable_multimodal = fields.Boolean(
         string='Enable Multi-Modal Inferencing',
         default=False,
@@ -36,7 +36,7 @@ class MultimodalConfig(models.TransientModel):
         config_parameter='nettrades.multimodal_vlm_endpoint',
     )
 
-    # ── Robotics Integration ──
+    # -- Robotics Integration --
     enable_robotics = fields.Boolean(
         string='Enable Robotics Integration',
         default=False,
@@ -54,7 +54,7 @@ class MultimodalConfig(models.TransientModel):
         config_parameter='nettrades.robotics_vla_model',
     )
 
-    # ── IoT Integration ──
+    # -- IoT Integration --
     enable_iot = fields.Boolean(
         string='Enable IoT Integration',
         default=False,
@@ -73,7 +73,7 @@ class MultimodalConfig(models.TransientModel):
         config_parameter='nettrades.iot_mqtt_port',
     )
 
-    # ── Edge Device Deployment ──
+    # -- Edge Device Deployment --
     enable_edge_deployment = fields.Boolean(
         string='Enable Edge Device Support',
         default=False,
@@ -82,7 +82,7 @@ class MultimodalConfig(models.TransientModel):
 
     edge_default_quantization = fields.Selection(
         [
-            ('q4_k_m', '4-bit (Q4_K_M) – recommended'),
+            ('q4_k_m', '4-bit (Q4_K_M) - recommended'),
             ('q5_k_m', '5-bit (Q5_K_M)'),
             ('q8_0', '8-bit (Q8_0)'),
         ],

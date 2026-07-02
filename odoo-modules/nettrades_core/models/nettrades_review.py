@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Core – Review Model
+# NETTRADES Core - Review Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_core/models/nettrades_review.py
 #
@@ -9,9 +9,9 @@
 #   about another user's work on a project.
 #
 # RELATIONSHIPS:
-#   - reviewer_id → res.partner (the person who writes the review)
-#   - reviewed_partner_id → res.partner (the person being reviewed)
-#   - project_id → project.project (optional)
+#   - reviewer_id -> res.partner (the person who writes the review)
+#   - reviewed_partner_id -> res.partner (the person being reviewed)
+#   - project_id -> project.project (optional)
 #
 # USAGE:
 #   This model is referenced by res.partner via a One2many field:
@@ -30,7 +30,7 @@ _logger = logging.getLogger(__name__)
 
 class NettradesReview(models.Model):
     """
-    User Review – ratings and comments left by one user about another.
+    User Review - ratings and comments left by one user about another.
 
     Each review is linked to a reviewer (the person giving the review),
     a reviewee (the person receiving the review), and optionally a project.

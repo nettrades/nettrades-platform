@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Data Metric Model
+# NETTRADES Data Collection - Data Metric Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/models/data_metric.py
 #
@@ -24,7 +24,7 @@ _logger = logging.getLogger(__name__)
 
 class DataMetric(models.Model):
     """
-    Data Metric – performance metrics for the self-improving system.
+    Data Metric - performance metrics for the self-improving system.
 
     Each metric record stores a single measurement at a point in time.
     """

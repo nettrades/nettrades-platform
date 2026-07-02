@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Good Answer – User Field Reputation model
+# NETTRADES Good Answer - User Field Reputation model
 # =============================================================================
 # Tracks a user's reputation points for a single professional field.
 # Points are earned through "Good Answer" votes.  When a user's reputation
@@ -8,9 +8,9 @@
 # their expert sessions (Ask Someone).
 #
 # AUTONOMOUS CRON JOBS
-#   _cron_decay_reputation()        – reduces points for inactive experts.
-#   _cron_auto_qualify_by_karma()   – promotes users to Qualified Professional.
-#   _cron_auto_adjust_weights()     – automatically adjusts qualified voting
+#   _cron_decay_reputation()        - reduces points for inactive experts.
+#   _cron_auto_qualify_by_karma()   - promotes users to Qualified Professional.
+#   _cron_auto_adjust_weights()     - automatically adjusts qualified voting
 #                                     weights based on community composition.
 #
 # ADMINISTRATOR CONFIGURATION
@@ -56,13 +56,13 @@ class UserFieldReputation(models.Model):
     )
 
     # ------------------------------------------------------------------
-    # Reputation Decay (1 % per night for inactive 30 days)
+    # Reputation Decay (1???% per night for inactive 30 days)
     # ------------------------------------------------------------------
     def _cron_decay_reputation(self):
         """
-        Runs daily.  Reduces reputation points by 1 % for experts who have
+        Runs daily.  Reduces reputation points by 1???% for experts who have
         not received a Good Answer vote in the last 30 days.
-        The floor is 0 – reputation never goes negative.
+        The floor is 0 - reputation never goes negative.
         """
         self.env.cr.execute("""
             UPDATE user_field_reputation

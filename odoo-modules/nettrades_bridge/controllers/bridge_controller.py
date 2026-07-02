@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Bridge – REST API Controller
+# NETTRADES Bridge - REST API Controller
 # =============================================================================
 # FILE: odoo-modules/nettrades_bridge/controllers/bridge_controller.py
 #

@@ -1,4 +1,4 @@
-# Section F.2 – Extends res.partner with onboarding fields and a completeness score
+# Section F.2 - Extends res.partner with onboarding fields and a completeness score
 # Add-on 1: Smart Onboarding & Profile Enhancement
 # Purpose: Simplify registration; help users build complete profiles; allow import from LinkedIn/GitHub.
 # F2 Features

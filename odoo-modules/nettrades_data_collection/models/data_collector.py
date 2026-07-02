@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Data Collector Service
+# NETTRADES Data Collection - Data Collector Service
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/models/data_collector.py
 #
@@ -28,7 +28,7 @@ _logger = logging.getLogger(__name__)
 
 class DataCollector(models.TransientModel):
     """
-    Data Collector Service – Collects data from various sources.
+    Data Collector Service - Collects data from various sources.
 
     This service provides methods for collecting interaction data from
     different parts of the platform and creating data.episode records.

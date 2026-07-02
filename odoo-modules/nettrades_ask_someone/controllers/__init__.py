@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# [MODULE NAME] – Controllers Package
+# [MODULE NAME] - Controllers Package
 # =============================================================================
 # FILE:    odoo-modules/[module]/controllers/__init__.py
 #

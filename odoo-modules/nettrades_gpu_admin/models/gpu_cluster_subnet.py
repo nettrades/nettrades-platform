@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION H – Subnet used for auto-detection of GPU machines.
+# SECTION H - Subnet used for auto-detection of GPU machines.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# IMPORTS – Each import MUST be on its own line for valid Python syntax.
+# IMPORTS - Each import MUST be on its own line for valid Python syntax.
 # -----------------------------------------------------------------------------
 from odoo import fields, models
 import ipaddress

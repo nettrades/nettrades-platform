@@ -1,4 +1,4 @@
-# Section F.6 – Research project matching and management.
+# Section F.6 - Research project matching and management.
 from odoo import http
 from odoo.http import request
 

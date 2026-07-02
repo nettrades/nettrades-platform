@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Good Answer – Fine-Tuning Dataset Model
+# NETTRADES Good Answer - Fine-Tuning Dataset Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_good_answer/models/ft_dataset.py
 #
@@ -175,7 +175,8 @@ class FTDataset(models.Model):
             return None
 
         # Write to a temporary JSONL file
-        temp_path = tempfile.mktemp(suffix='.jsonl')
+        fd, temp_path = tempfile.mkstemp(suffix='.jsonl')
+        os.close(fd)  # Close fd; file will be written separately
         with open(temp_path, 'w', encoding='utf-8') as f:
             for fb in eligible:
                 record = {
@@ -297,7 +298,7 @@ class FTDataset(models.Model):
         4. Create a ft.training.job record
         5. Submit the job to GPUStack via the LangGraph agent or direct API
 
-        🔧 FIX: This method now handles empty recordset gracefully.
+        ???? FIX: This method now handles empty recordset gracefully.
                It checks `if not self:` and returns early, logging a message.
                It also ensures that if multiple datasets are selected, it
                processes them one by one (though the cron should call it on
@@ -381,7 +382,7 @@ class FTDataset(models.Model):
         been processed (or have record_count > 0). It then triggers fine-tuning
         for each qualifying dataset.
 
-        🔧 FIX: This method now correctly handles the case where no datasets
+        ???? FIX: This method now correctly handles the case where no datasets
                exist by logging a message and returning early.
         """
         # Find all fields with fine-tuning enabled

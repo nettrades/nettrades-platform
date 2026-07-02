@@ -63,7 +63,8 @@ def start_isolated(server_url, token):
         # "page fault for every page of application memory, and THP reduces the
         # fault count by 512x (2MB / 4KB). This is the recommended configuration
         # for production gVisor deployments with GPU workloads."
-        subprocess.run([
+        # Use Popen (non-blocking) so agent main loop can continue
+        subprocess.Popen([
             "runsc", "--nvproxy", "run",
             "worker-container",
             "gpustack-worker", "--server-url", server_url, "--token", token
@@ -72,7 +73,8 @@ def start_isolated(server_url, token):
         _logger.warning(
             "gVisor not found — falling back to Docker (trusted internal pool only)."
         )
-        subprocess.run(["gpustack", "start", "--server-url", server_url, "--token", token], check=True)
+        # Use Popen (non-blocking) so agent main loop can continue
+        subprocess.Popen(["gpustack", "start", "--server-url", server_url, "--token", token])
     else:
         raise RuntimeError("No suitable runtime available for GPU isolation.")
 

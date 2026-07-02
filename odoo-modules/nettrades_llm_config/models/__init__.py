@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES LLM Configuration – Models
+# NETTRADES LLM Configuration - Models
 # =============================================================================
 # FILE: odoo-modules/nettrades_llm_config/models/__init__.py
 #

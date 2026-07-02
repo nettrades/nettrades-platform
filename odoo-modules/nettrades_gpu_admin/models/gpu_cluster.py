@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION H – GPU CLUSTER MODEL
+# SECTION H - GPU CLUSTER MODEL
 # =============================================================================
 # FILE: odoo-modules/nettrades_gpu_admin/models/gpu_cluster.py
 #
@@ -10,7 +10,7 @@
 #   and tracks cluster-wide statistics (node count, VRAM, etc.).
 #
 # RELATIONSHIPS:
-#   - company_id → res.company (the company that owns this cluster)
+#   - company_id -> res.company (the company that owns this cluster)
 #   - One-to-many with gpu.node (the GPU nodes in this cluster)
 #   - One-to-many with gpu.cluster.subnet (registered subnets)
 #
@@ -27,7 +27,7 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# IMPORTS – Each import MUST be on its own line for valid Python syntax.
+# IMPORTS - Each import MUST be on its own line for valid Python syntax.
 # -----------------------------------------------------------------------------
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError, ValidationError
@@ -42,7 +42,7 @@ _logger = logging.getLogger(__name__)
 
 class GPUCluster(models.Model):
     """
-    GPU Cluster Model – represents a company's GPU cluster.
+    GPU Cluster Model - represents a company's GPU cluster.
 
     This model stores all configuration for a GPU cluster, including
     WireGuard settings, GPUStack integration, and cluster-wide statistics.
@@ -76,20 +76,20 @@ class GPUCluster(models.Model):
 
     trust_mode = fields.Selection(
         [
-            ('company_multi_gpu', 'Trusted – Multi-GPU'),
-            ('company_single_gpu', 'Trusted – Single GPU'),
-            ('public_untrusted', 'Untrusted – Public Sharing'),
+            ('company_multi_gpu', 'Trusted - Multi-GPU'),
+            ('company_single_gpu', 'Trusted - Single GPU'),
+            ('public_untrusted', 'Untrusted - Public Sharing'),
         ],
         string='Trust Mode',
         required=True,
         default='company_multi_gpu',
         help="""Determines the network topology and security level:
-            - Trusted – Multi-GPU: Full WireGuard mesh. Used for company
+            - Trusted - Multi-GPU: Full WireGuard mesh. Used for company
               internal clusters with multiple GPUs. Supports vLLM tensor
               parallelism and Axolotl FSDP2 training.
-            - Trusted – Single GPU: Hub-and-spoke WireGuard. Used for
+            - Trusted - Single GPU: Hub-and-spoke WireGuard. Used for
               company internal clusters with single GPUs.
-            - Untrusted – Public Sharing: Hub-and-spoke WireGuard with
+            - Untrusted - Public Sharing: Hub-and-spoke WireGuard with
               gVisor isolation. Used for freelancers sharing GPUs publicly.
         """
     )
@@ -118,7 +118,7 @@ class GPUCluster(models.Model):
         readonly=True,
         help="""The private key of the controller's WireGuard interface.
             This is sensitive information and should be protected.
-            ⚠️ WARNING: This field is readable only by system administrators.
+            ?????? WARNING: This field is readable only by system administrators.
         """
     )
 
@@ -153,7 +153,7 @@ class GPUCluster(models.Model):
         string='GPUStack API Key',
         help="""The API key for authenticating with GPUStack.
             This is a sensitive credential and should be protected.
-            ⚠️ WARNING: This field is readable only by system administrators.
+            ?????? WARNING: This field is readable only by system administrators.
         """
     )
 
@@ -169,7 +169,7 @@ class GPUCluster(models.Model):
     )
 
     # =========================================================================
-    # 6. COMPUTED FIELDS – CLUSTER-WIDE STATISTICS
+    # 6. COMPUTED FIELDS - CLUSTER-WIDE STATISTICS
     # =========================================================================
 
     node_count = fields.Integer(

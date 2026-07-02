@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Trigger – Trigger Event Model
+# NETTRADES Trigger - Trigger Event Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_trigger/models/trigger_event.py
 #
@@ -23,7 +23,7 @@ _logger = logging.getLogger(__name__)
 
 class TriggerEvent(models.Model):
     """
-    Trigger Event – tracks when a trigger fires.
+    Trigger Event - tracks when a trigger fires.
 
     Each event is linked to a trigger configuration and may be linked
     to a self-improvement cycle.

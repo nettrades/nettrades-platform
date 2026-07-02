@@ -1,4 +1,4 @@
-# Section F.8 – In-app notification centre, reviews, and dispute workflow.
+# Section F.8 - In-app notification centre, reviews, and dispute workflow.
 from odoo import http
 from odoo.http import request
 
