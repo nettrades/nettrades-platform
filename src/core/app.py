@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES LangGraph Agent – durable AI orchestration
+# NETTRADES LangGraph Agent – Durable AI Orchestration
 # =============================================================================
 # FILE: src/core/app.py
 #
 # PURPOSE:
-#   This file is the main entry point for the LangGraph service.
-#   It provides a FastAPI application that exposes:
-#   - /invoke – main inference endpoint (authenticated)
-#   - /health – liveness probe for container orchestration
-#   - /metrics – Prometheus metrics endpoint
+#   Main entry point for the LangGraph service. It provides a FastAPI
+#   application that exposes:
+#     - /invoke   – main inference endpoint (authenticated)
+#     - /health   – liveness probe for container orchestration
+#     - /metrics  – Prometheus metrics endpoint
 #
 # KEY FEATURES:
 #   - Auto-detects inference backend (GPUStack / vLLM / llama.cpp)
-#   - Uses a supervisor to dispatch to business sub-agents
+#   - Uses a supervisor to dispatch to business sub‑agents
 #   - Exposes Prometheus metrics for observability
 #   - Uses PostgresSaver for durable checkpointing
 #
-# IMPORTANT FIXES:
+# IMPORTANT FIXES (2026-07-02):
 #   1. Authentication Bypass: Previously, if LANGGRAPH_API_KEY was unset,
 #      authentication was silently bypassed. This is a SECURITY ISSUE.
 #      FIX: Now we require the API key to be set at deployment time.
@@ -31,6 +31,10 @@
 #
 #   4. Resilience: Added retry logic and circuit breaker for supervisor
 #      graph invocation.
+#
+#   5. Database Connection: Fixed the lifespan to use an asynchronous
+#      connection (psycopg.AsyncConnection) with autocommit enabled.
+#      This allows CREATE INDEX CONCURRENTLY to work correctly.
 # =============================================================================
 
 import os
@@ -38,12 +42,12 @@ import logging
 import json
 import time
 import traceback
-from psycopg_pool import ConnectionPool
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Header, Request, status
 from fastapi.responses import JSONResponse, Response
 
+# LangGraph imports with fallback for AsyncPostgresSaver
 try:
     from langgraph.checkpoint.postgres import AsyncPostgresSaver
 except ImportError:
@@ -54,6 +58,14 @@ from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 
 from supervisor import build_supervisor, invoke_supervisor_with_retry
 from security.prompt_injection import sanitise_input
+
+# -----------------------------------------------------------------------------
+# DATABASE CONNECTION – Use psycopg's asynchronous connection
+# -----------------------------------------------------------------------------
+# We import AsyncConnection to create a direct async connection to PostgreSQL.
+# This is compatible with AsyncPostgresSaver and allows us to enable autocommit
+# so that migrations can execute CREATE INDEX CONCURRENTLY without errors.
+from psycopg import AsyncConnection
 
 # Load environment variables from .env file
 load_dotenv()
@@ -71,6 +83,8 @@ logger = logging.getLogger(__name__)
 # CONFIGURATION
 # =============================================================================
 # Database connection string for PostgresSaver (LangGraph checkpoints)
+# This is read from the environment variable DATABASE_URL.
+# In Docker Compose, it is set to: postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
 DB_URI = os.getenv("DATABASE_URL", "postgresql://odoo:password@postgres:5432/odoo")
 
 # API Key for the /invoke endpoint
@@ -84,11 +98,11 @@ LANGGRAPH_API_KEY = os.getenv("LANGGRAPH_API_KEY")
 if not LANGGRAPH_API_KEY:
     logger.critical(
         "⚠️ LANGGRAPH_API_KEY environment variable is not set. "
-        "The /invoke endpoint will not function correctly."
+        "The /invoke endpoint will not function correctly. "
         "Please set this variable in your .env file or environment."
     )
 
-# Global dictionary to hold the compiled graph
+# Global dictionary to hold the compiled graph (shared across requests)
 ml_models = {}
 
 # =============================================================================
@@ -105,44 +119,55 @@ REQUEST_DURATION = Histogram(
 )
 
 # =============================================================================
-# APPLICATION LIFESPAN
+# APPLICATION LIFESPAN (Startup / Shutdown)
 # =============================================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Build the LangGraph supervisor graph and attach the durable PostgresSaver.
+    Lifespan context manager for FastAPI – runs on startup and shutdown.
 
-    This function runs at application startup and shutdown:
-    - Startup: Creates a connection to PostgreSQL, sets up the checkpoint saver,
-      and builds the supervisor graph.
-    - Shutdown: Clears the graph from memory.
+    Startup:
+      1. Establish an asynchronous connection to PostgreSQL.
+      2. Enable autocommit on the connection to avoid transaction-block errors
+         during index creation (CREATE INDEX CONCURRENTLY).
+      3. Create the AsyncPostgresSaver and call setup() to initialise the
+         checkpoint schema.
+      4. Build the supervisor graph and attach the checkpointer.
+      5. Store the compiled graph in ml_models for later use.
 
-    The PostgresSaver provides durable checkpointing, allowing the graph to
-    resume from the last saved state if the service crashes.
+    Shutdown:
+      Clear ml_models and close the connection (implicitly via async with).
+
+    Why we use a single connection (not a pool):
+      - The LangGraph library expects a single async connection for the
+        checkpointer. Using a pool with getconn() caused type mismatches.
+      - A single connection is sufficient for the checkpointing needs of a
+        single LangGraph instance. It will be reused for all requests via
+        the same connection.
     """
     logger.info("Starting LangGraph agent...")
 
-    # Use a synchronous connection pool (compatible with AsyncPostgresSaver)
-    pool = ConnectionPool(conninfo=DB_URI, min_size=1, max_size=5)
-    with pool:  # sync context manager, fine inside async
-        with pool.getconn() as conn:  # get a sync connection
-            # Enable autocommit to allow CREATE INDEX CONCURRENTLY
-            conn.autocommit = True
-            # Create the checkpointer using the connection
-            checkpointer = AsyncPostgresSaver(conn)
-            # Set up the database schema for checkpoints
-            await checkpointer.setup()
-            logger.info("PostgresSaver setup complete")
-            # Build the supervisor graph
-            graph = build_supervisor()
-            # Attach the checkpointer to the graph
-            graph.checkpointer = checkpointer
-            logger.info("Supervisor graph built with checkpointing")
-            # Store the graph in the global dictionary
-            ml_models["graph"] = graph
-            # Yield control to the application – the connection stays open
-            yield
-    # Clean up on shutdown – runs after the async with block exits
+    # Create a single asynchronous connection.
+    # The 'async with' ensures the connection is closed on exit.
+    async with await AsyncConnection.connect(DB_URI) as conn:
+        # Enable autocommit – this allows CREATE INDEX CONCURRENTLY to run.
+        await conn.set_autocommit(True)
+
+        # Create the checkpointer and initialise the database schema.
+        checkpointer = AsyncPostgresSaver(conn)
+        await checkpointer.setup()
+        logger.info("PostgresSaver setup complete")
+
+        # Build the supervisor graph (this loads all sub‑agents).
+        graph = build_supervisor()
+        graph.checkpointer = checkpointer
+        ml_models["graph"] = graph
+        logger.info("Supervisor graph built with checkpointing")
+
+        # Yield control to the application – the connection stays open.
+        yield
+
+    # Clean up on shutdown
     ml_models.clear()
     logger.info("LangGraph agent shutdown complete")
 
@@ -163,7 +188,7 @@ app = FastAPI(
 async def metrics_middleware(request: Request, call_next):
     """
     Middleware that tracks request duration and counts for Prometheus.
-
+    
     This middleware intercepts every request, measures the time taken,
     and records it in the Prometheus metrics.
     """
@@ -295,7 +320,7 @@ async def invoke(
         logger.error("LANGGRAPH_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="LANGGRAPH_API_KEY is not configured. Please set this environment variable."
+            detail="LANGGRAPH_API_KEY is not configured."
         )
 
     # Validate the API key
