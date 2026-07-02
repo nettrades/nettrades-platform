@@ -32,9 +32,10 @@
 #   4. Resilience: Added retry logic and circuit breaker for supervisor
 #      graph invocation.
 #
-#   5. Database Connection: Fixed the lifespan to use an asynchronous
-#      connection (psycopg.AsyncConnection) with autocommit enabled.
-#      This allows CREATE INDEX CONCURRENTLY to work correctly.
+#   5. Database Connection: Fixed the lifespan to use the correct
+#      connection type (async or sync) based on the available checkpointer.
+#      The code now detects whether checkpointer.setup() is a coroutine
+#      and calls it appropriately.
 # =============================================================================
 
 import os
@@ -42,6 +43,7 @@ import logging
 import json
 import time
 import traceback
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Header, Request, status
@@ -60,14 +62,16 @@ from supervisor import build_supervisor, invoke_supervisor_with_retry
 from security.prompt_injection import sanitise_input
 
 # -----------------------------------------------------------------------------
-# DATABASE CONNECTION – Use psycopg's asynchronous connection
+# DATABASE CONNECTION
 # -----------------------------------------------------------------------------
-# We import AsyncConnection to create a direct async connection to PostgreSQL.
-# This is compatible with AsyncPostgresSaver and allows us to enable autocommit
-# so that migrations can execute CREATE INDEX CONCURRENTLY without errors.
-from psycopg import AsyncConnection
+# We try to import AsyncConnection (async) and fallback to psycopg2 for sync.
+try:
+    from psycopg import AsyncConnection
+    HAS_ASYNC_CONN = True
+except ImportError:
+    HAS_ASYNC_CONN = False
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
 # =============================================================================
@@ -119,7 +123,7 @@ REQUEST_DURATION = Histogram(
 )
 
 # =============================================================================
-# APPLICATION LIFESPAN (Startup / Shutdown)
+# APPLICATION LIFESPAN
 # =============================================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -144,32 +148,63 @@ async def lifespan(app: FastAPI):
       - A single connection is sufficient for the checkpointing needs of a
         single LangGraph instance. It will be reused for all requests via
         the same connection.
+
+    This function now detects whether the checkpointer's `setup()` method is
+    async or sync, and calls it correctly. It also handles the connection type
+    (async or sync) based on the available import.
     """
     logger.info("Starting LangGraph agent...")
 
-    # Create a single asynchronous connection.
-    # The 'async with' ensures the connection is closed on exit.
-    async with await AsyncConnection.connect(DB_URI) as conn:
-        # Enable autocommit – this allows CREATE INDEX CONCURRENTLY to run.
-        await conn.set_autocommit(True)
+    # Determine which checkpointer class we actually have
+    # If AsyncPostgresSaver exists, we use it; otherwise we use the fallback.
+    # We'll create the connection based on whether we have async support.
+    checkpointer = None
+    conn = None
 
-        # Create the checkpointer and initialise the database schema.
-        checkpointer = AsyncPostgresSaver(conn)
-        await checkpointer.setup()
-        logger.info("PostgresSaver setup complete")
+    try:
+        # Try to create an async connection and async checkpointer
+        if HAS_ASYNC_CONN:
+            # Use async connection
+            async with await AsyncConnection.connect(DB_URI) as conn:
+                await conn.set_autocommit(True)
+                checkpointer = AsyncPostgresSaver(conn)
+                # Now check if setup is a coroutine
+                if asyncio.iscoroutinefunction(checkpointer.setup):
+                    await checkpointer.setup()
+                else:
+                    checkpointer.setup()
+                logger.info("PostgresSaver setup complete (async)")
+        else:
+            # Fallback to sync connection (using psycopg2)
+            import psycopg2
+            sync_conn = psycopg2.connect(DB_URI)
+            sync_conn.autocommit = True
+            checkpointer = AsyncPostgresSaver(sync_conn)
+            # If AsyncPostgresSaver is actually PostgresSaver (sync), setup may be sync
+            if asyncio.iscoroutinefunction(checkpointer.setup):
+                await checkpointer.setup()
+            else:
+                checkpointer.setup()
+            logger.info("PostgresSaver setup complete (sync)")
 
-        # Build the supervisor graph (this loads all sub‑agents).
+        # Build supervisor and attach checkpointer
         graph = build_supervisor()
         graph.checkpointer = checkpointer
         ml_models["graph"] = graph
         logger.info("Supervisor graph built with checkpointing")
 
-        # Yield control to the application – the connection stays open.
+        # Yield control to the application – keep connection open
         yield
 
-    # Clean up on shutdown
-    ml_models.clear()
-    logger.info("LangGraph agent shutdown complete")
+    except Exception as e:
+        logger.error(f"Lifespan startup failed: {e}")
+        raise
+    finally:
+        # Clean up connections
+        if conn:
+            await conn.close() if HAS_ASYNC_CONN else conn.close()
+        ml_models.clear()
+        logger.info("LangGraph agent shutdown complete")
 
 # =============================================================================
 # FASTAPI APPLICATION
