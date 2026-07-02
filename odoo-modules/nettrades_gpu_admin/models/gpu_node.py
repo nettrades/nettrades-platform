@@ -47,6 +47,15 @@ class GPUNode(models.Model):
     This model stores all information about a GPU node, including its
     hardware inventory, WireGuard configuration, and operational status.
     """
+    
+    partner_id = fields.Many2one(
+            'res.partner',
+            string='Partner',
+            required=True,
+            ondelete='cascade',
+            help="The partner (company or user) that owns this GPU node."
+    )
+    
     _name = 'gpu.node'
     _description = 'GPU Node'
     _rec_name = 'name'

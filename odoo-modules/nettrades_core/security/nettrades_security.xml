@@ -25,7 +25,7 @@
     <!-- 1. NETTRADES Manager – highest privilege level -->
     <record id="group_nettrades_manager" model="res.groups">
         <field name="name">NETTRADES Manager</field>
-        <field name="category_id" ref="base.module_category_hidden"/>
+        <!-- <field name="category_id" ref="base.module_category_hidden"/> -->
         <!-- Implied groups: system administrators (base.group_system) would typically
              be granted this group manually; we don't imply it here to avoid over-permission. -->
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
@@ -35,14 +35,14 @@
     <!-- 2. NETTRADES User – standard user -->
     <record id="group_nettrades_user" model="res.groups">
         <field name="name">NETTRADES User</field>
-        <field name="category_id" ref="base.module_category_hidden"/>
+        <!-- <field name="category_id" ref="base.module_category_hidden"/> -->
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
 
     <!-- 3. NETTRADES API – for API calls -->
     <record id="group_nettrades_api" model="res.groups">
         <field name="name">NETTRADES API</field>
-        <field name="category_id" ref="base.module_category_hidden"/>
+        <!-- <field name="category_id" ref="base.module_category_hidden"/> -->
         <!-- API users should have read access but not full write, we rely on record rules -->
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
