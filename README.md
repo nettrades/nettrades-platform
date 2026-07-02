@@ -84,7 +84,7 @@ PURPOSE:
 
 ## What is NETTRADES?
 
-**NETTRADES is an open-source, autonomous enterprise platform** built to power self‑improving AI startups, companies and smart cities. It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
+**NETTRADES is an open-source, autonomous enterprise platform** built to power self-improving AI startups, companies and smart cities. It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
 
 It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers. 
 
