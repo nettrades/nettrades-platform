@@ -84,7 +84,7 @@ PURPOSE:
 
 ## What is NETTRADES?
 
-**NETTRADES is an open-source, autonomous enterprise platform** built to power self improving AI startups, companies and smart cities. 
+**NETTRADES is an open-source, autonomous enterprise platform** built to power self‑improving AI startups, companies and smart cities. It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
 
 It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers. 
 
@@ -347,21 +347,38 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 
 #### ❓ Troubleshooting
 
+
 ##### Odoo fails to start with “password authentication failed”
 
-* Ensure the password in .env, odoo.conf, and the PostgreSQL container match.
+* Ensure db_password in odoo.conf matches POSTGRES_PASSWORD in .env.
 
 * Use a simple password (e.g., odoo123) without special characters.
 
-* Update the PostgreSQL user password with ALTER USER odoo WITH PASSWORD 'your_password';.
+* Update the PostgreSQL user password with ALTER USER odoo WITH PASSWORD 'your_password';.   or in wsl run Run: docker exec -it docker-postgres-1 psql -U odoo -c "ALTER USER odoo WITH PASSWORD 'odoo123';"
+
+##### Modules show "Activate" not "Upgrade"	
+
+* Modules are not installed. Run ./scripts/install-modules.sh --force or install via Odoo UI: Apps → Update Apps List → Install nettrades_* modules.
+
+##### postgres host not found	
+
+##### You are running Odoo outside Docker. In WSL terminal window run `cd /mnt/c/nettrades-platform/deploy/docker` then run `docker compose up -d` instead.
+
+##### Odoo returns 502 / Connection refused	
+
+Wait 30 seconds for PostgreSQL to start. Check docker compose logs postgres.
 
 ##### “No such container: odoo” during module installation
 
 * Add container_name: odoo to the Odoo service in docker-compose.yaml and recreate the container.
 
-##### Port 8069 already in use
+Port 8069 already in use
 
 * Change the host port in docker-compose.yaml (e.g., "8069:8069" → "8069:8069" is fixed; if you need a different port, change the left side).
+
+##### LangGraph returns 500
+
+* Check docker compose logs langgraph. Verify LANGGRAPH_API_KEY in .env.
 
 ##### LangGraph agent fails to start
 
@@ -378,6 +395,21 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 * GPU not detected: Ensure NVIDIA drivers are installed and nvidia-smi works.
 
 For more detailed information, see the docs/ folder.
+
+
+# All services
+
+To read the logs on all servers in WSL terminal window run `cd /mnt/c/nettrades-platform/deploy/docker` then run:
+`docker compose logs -f`
+
+# Specific service
+
+To read the logs on specific servers in WSL terminal window run `cd /mnt/c/nettrades-platform/deploy/docker` then run:
+`docker compose logs -f odoo`
+`docker compose logs -f postgres`
+`docker compose logs -f langgraph`
+
+
 
 #### 🧪 Advanced: Kubernetes / Distributed Deployment
 
