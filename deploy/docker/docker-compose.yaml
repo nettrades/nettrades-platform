@@ -307,7 +307,7 @@ services:
       - PROXY_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
-      - "3000:3000"
+      - "8080:8080"
     depends_on:
       - odoo
     healthcheck:                          # <-- this must be outside of logging
