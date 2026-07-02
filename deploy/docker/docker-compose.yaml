@@ -271,6 +271,8 @@ services:
       - ODOO_DB=${ODOO_DB:-odoo}
       - ODOO_USER=${ODOO_USER:-1}
       - ODOO_PASSWORD=${ADMIN_PASSWORD}
+    ports:
+      - "8000:8000"
     command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
     labels:
       - traefik.enable=true
@@ -307,7 +309,7 @@ services:
       - PROXY_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
-      - "8080:8080"
+      - "8090:8080"
     depends_on:
       - odoo
     healthcheck:                          # <-- this must be outside of logging
