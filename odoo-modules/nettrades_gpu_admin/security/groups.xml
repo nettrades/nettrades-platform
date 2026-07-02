@@ -66,7 +66,7 @@
     ===================================================================== -->
     <record id="group_gpu_operator" model="res.groups">
         <field name="name">GPU Operator</field>
-        <field name="category_id" ref="base.module_category_hidden"/>
+        <!-- <field name="category_id" ref="base.module_category_hidden"/> -->
         <field name="comment">
             Can view GPU resources and use registered nodes, but cannot
             create, edit, or delete configurations.
