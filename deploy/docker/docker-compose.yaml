@@ -310,16 +310,16 @@ services:
       - "3000:3000"
     depends_on:
       - odoo
+    healthcheck:                          # <-- this must be outside of logging
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-      healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-        interval: 30s
-        timeout: 10s
-        retries: 3
   
   # =========================================================================
   # 9. GPUSTACK – GPU Management and Inference
