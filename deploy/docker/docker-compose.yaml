@@ -172,7 +172,11 @@ services:
   # 5. ODOO 19 CE – ERP, Marketplace, and AI Hub
   # =========================================================================
   odoo:
-    image: odoo:19.0
+    build:
+      context: .
+      dockerfile: Dockerfile.odoo
+      # image: odoo:19.0  
+      #image: odoo:19.0
     container_name: odoo
     ports:
       - "8069:8069"
