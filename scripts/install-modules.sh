@@ -134,7 +134,7 @@ MODULES=(
     "nettrades_research"
     "nettrades_chatbot"
     "nettrades_notifications"
-    "nettrades_pwa"
+#   "nettrades_pwa"
 )
 
 # -----------------------------------------------------------------------------
