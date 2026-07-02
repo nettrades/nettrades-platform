@@ -43,33 +43,20 @@ import logging
 import json
 import time
 import traceback
-import asyncio
 from contextlib import asynccontextmanager
+from typing import Any, Dict
 
+import psycopg
 from fastapi import FastAPI, HTTPException, Header, Request, status
 from fastapi.responses import JSONResponse, Response
-
-# LangGraph imports with fallback for AsyncPostgresSaver
-try:
-    from langgraph.checkpoint.postgres import AsyncPostgresSaver
-except ImportError:
-    from langgraph.checkpoint.postgres import PostgresSaver as AsyncPostgresSaver
-
 from dotenv import load_dotenv
 from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 
+# Use the synchronous PostgresSaver – this is what works with sync connections
+from langgraph.checkpoint.postgres import PostgresSaver
+
 from supervisor import build_supervisor, invoke_supervisor_with_retry
 from security.prompt_injection import sanitise_input
-
-# -----------------------------------------------------------------------------
-# DATABASE CONNECTION
-# -----------------------------------------------------------------------------
-# We try to import AsyncConnection (async) and fallback to psycopg2 for sync.
-try:
-    from psycopg import AsyncConnection
-    HAS_ASYNC_CONN = True
-except ImportError:
-    HAS_ASYNC_CONN = False
 
 # Load environment variables
 load_dotenv()
@@ -86,27 +73,16 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-# Database connection string for PostgresSaver (LangGraph checkpoints)
-# This is read from the environment variable DATABASE_URL.
-# In Docker Compose, it is set to: postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
 DB_URI = os.getenv("DATABASE_URL", "postgresql://odoo:password@postgres:5432/odoo")
-
-# API Key for the /invoke endpoint
-# ⚠️ CRITICAL SECURITY FIX: This MUST be set in production.
-# If it's not set, we return a 500 error instead of bypassing authentication.
 LANGGRAPH_API_KEY = os.getenv("LANGGRAPH_API_KEY")
 
-# Check if the API key is configured
-# If not, log a critical error and the application will still start,
-# but the /invoke endpoint will return a 500 error.
 if not LANGGRAPH_API_KEY:
     logger.critical(
         "⚠️ LANGGRAPH_API_KEY environment variable is not set. "
-        "The /invoke endpoint will not function correctly. "
-        "Please set this variable in your .env file or environment."
+        "The /invoke endpoint will not function correctly."
     )
 
-# Global dictionary to hold the compiled graph (shared across requests)
+# Global dictionary to hold the compiled graph
 ml_models = {}
 
 # =============================================================================
@@ -123,87 +99,58 @@ REQUEST_DURATION = Histogram(
 )
 
 # =============================================================================
-# APPLICATION LIFESPAN
+# APPLICATION LIFESPAN (Startup / Shutdown)
 # =============================================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Lifespan context manager for FastAPI – runs on startup and shutdown.
+    Lifespan context manager – runs on startup and shutdown.
 
     Startup:
-      1. Establish an asynchronous connection to PostgreSQL.
-      2. Enable autocommit on the connection to avoid transaction-block errors
-         during index creation (CREATE INDEX CONCURRENTLY).
-      3. Create the AsyncPostgresSaver and call setup() to initialise the
+      1. Establish a synchronous connection to PostgreSQL using psycopg.
+      2. Set autocommit=True so that CREATE INDEX CONCURRENTLY can run
+         without being inside a transaction block.
+      3. Create a PostgresSaver (sync) and call setup() to initialise the
          checkpoint schema.
       4. Build the supervisor graph and attach the checkpointer.
-      5. Store the compiled graph in ml_models for later use.
+      5. Store the compiled graph in ml_models.
 
     Shutdown:
-      Clear ml_models and close the connection (implicitly via async with).
+      Clear ml_models and close the connection.
 
-    Why we use a single connection (not a pool):
-      - The LangGraph library expects a single async connection for the
-        checkpointer. Using a pool with getconn() caused type mismatches.
-      - A single connection is sufficient for the checkpointing needs of a
-        single LangGraph instance. It will be reused for all requests via
-        the same connection.
-
-    This function now detects whether the checkpointer's `setup()` method is
-    async or sync, and calls it correctly. It also handles the connection type
-    (async or sync) based on the available import.
+    Why we use a synchronous connection:
+      - The langgraph library's PostgresSaver (sync) works reliably with
+        psycopg2 connections. The async version (AsyncPostgresSaver) does
+        not accept the async connections from psycopg correctly.
+      - This approach is proven to work with the current library version.
     """
-    logger.info("Starting LangGraph agent...")
 
-    # Determine which checkpointer class we actually have
-    # If AsyncPostgresSaver exists, we use it; otherwise we use the fallback.
-    # We'll create the connection based on whether we have async support.
-    checkpointer = None
-    conn = None
+    # Create a synchronous connection using psycopg (version 3)
+    # This allows CREATE INDEX CONCURRENTLY to run without errors.    
+    conn = psycopg.connect(DB_URI)
+    conn.autocommit = True
+    logger.info("PostgreSQL connection established (sync, psycopg)")
 
     try:
-        # Try to create an async connection and async checkpointer
-        if HAS_ASYNC_CONN:
-            # Use async connection
-            async with await AsyncConnection.connect(DB_URI) as conn:
-                await conn.set_autocommit(True)
-                checkpointer = AsyncPostgresSaver(conn)
-                # Now check if setup is a coroutine
-                if asyncio.iscoroutinefunction(checkpointer.setup):
-                    await checkpointer.setup()
-                else:
-                    checkpointer.setup()
-                logger.info("PostgresSaver setup complete (async)")
-        else:
-            # Fallback to sync connection (using psycopg2)
-            import psycopg2
-            sync_conn = psycopg2.connect(DB_URI)
-            sync_conn.autocommit = True
-            checkpointer = AsyncPostgresSaver(sync_conn)
-            # If AsyncPostgresSaver is actually PostgresSaver (sync), setup may be sync
-            if asyncio.iscoroutinefunction(checkpointer.setup):
-                await checkpointer.setup()
-            else:
-                checkpointer.setup()
-            logger.info("PostgresSaver setup complete (sync)")
+        # Create the checkpointer (sync) and initialise the schema.
+        checkpointer = PostgresSaver(conn)
+        checkpointer.setup()
+        logger.info("PostgresSaver setup complete")
 
-        # Build supervisor and attach checkpointer
+        # Build the supervisor graph and attach the checkpointer.
         graph = build_supervisor()
         graph.checkpointer = checkpointer
         ml_models["graph"] = graph
         logger.info("Supervisor graph built with checkpointing")
-
-        # Yield control to the application – keep connection open
+        # Yield control to the application – the connection stays open.
         yield
 
     except Exception as e:
         logger.error(f"Lifespan startup failed: {e}")
         raise
     finally:
-        # Clean up connections
-        if conn:
-            await conn.close() if HAS_ASYNC_CONN else conn.close()
         ml_models.clear()
+        conn.close()
         logger.info("LangGraph agent shutdown complete")
 
 # =============================================================================
