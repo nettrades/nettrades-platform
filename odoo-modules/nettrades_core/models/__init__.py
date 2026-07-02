@@ -22,3 +22,5 @@ from . import nettrades_skill
 from . import nettrades_field
 from . import nettrades_experience      # NEW: Work Experience model
 from . import nettrades_review          # NEW: Review modelfrom . import review
+from . import review
+from . sandbox_policy
