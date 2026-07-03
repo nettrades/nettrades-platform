@@ -1,5 +1,5 @@
 # =============================================================================
-# Section H – WireGuard interface management for the GPU agent.
+# Section H - WireGuard interface management for the GPU agent.
 # 
 # =============================================================================
 import subprocess

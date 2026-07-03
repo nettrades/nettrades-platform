@@ -8,8 +8,8 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Professional" name="professional">
                     <group>
-                        <field name="user_type"/>
-                        <field name="professional_summary"/>
+                        <!-- <field name="user_type"/> -->
+                        <!-- <field name="professional_summary"/> -->
                         <field name="skill_ids" widget="many2many_tags"/>
                         <field name="hourly_rate" invisible="user_type != 'freelancer'"/>
                         <field name="forgejo_username"/>

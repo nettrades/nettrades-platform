@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Self-Improving Config – Configuration Model
+# NETTRADES Self-Improving Config - Configuration Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_self_improving_config/models/self_improving_config.py
 #
@@ -20,7 +20,7 @@ _logger = logging.getLogger(__name__)
 
 class SelfImprovingConfig(models.Model):
     """
-    Self-Improving AI Configuration – Administration settings.
+    Self-Improving AI Configuration - Administration settings.
 
     This singleton model stores all configuration for the self-improving
     system, including loop settings, data quality, and A/B testing.
@@ -43,7 +43,7 @@ class SelfImprovingConfig(models.Model):
     def _compute_display_name(self):
         for record in self:
             status = "Enabled" if record.loop_enabled else "Disabled"
-            record.display_name = f"Self-Improving AI – {status}"
+            record.display_name = f"Self-Improving AI - {status}"
 
     # =========================================================================
     # 2. Loop Control

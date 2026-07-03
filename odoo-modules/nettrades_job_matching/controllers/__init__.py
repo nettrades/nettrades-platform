@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION F – JOB MATCHING CONTROLLERS
+# SECTION F - JOB MATCHING CONTROLLERS
 # =============================================================================
 # FILE: odoo-modules/nettrades_job_matching/controllers/__init__.py
 #

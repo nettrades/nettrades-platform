@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Models Initialisation
+# NETTRADES Data Collection - Models Initialisation
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/models/__init__.py
 #

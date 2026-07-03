@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Good Answer – LLM Feedback Model
+# NETTRADES Good Answer - LLM Feedback Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_good_answer/models/llm_feedback.py
 #
@@ -33,7 +33,7 @@ _logger = logging.getLogger(__name__)
 
 class LLMFeedback(models.Model):
     """
-    LLM Feedback – stores (question, answer) pairs for training.
+    LLM Feedback - stores (question, answer) pairs for training.
 
     Each record corresponds to a Good Answer vote on an AI-generated
     answer. The input_text is the user's question, output_text is the

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES loop – Models Initialisation
+# NETTRADES loop - Models Initialisation
 # =============================================================================
 # FILE: odoo-modules/nettrades_loop/models/__init__.py
 #

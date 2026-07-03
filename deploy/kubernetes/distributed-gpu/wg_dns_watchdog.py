@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Section H – WireGuard DNS Re-Resolution Watchdog
+# Section H - WireGuard DNS Re-Resolution Watchdog
 # =============================================================================
 # WireGuard resolves the endpoint hostname to an IP address only once, at
 # startup.  If the peer's public IP changes (common for freelancers with
@@ -130,7 +130,7 @@ def _update_endpoint(public_key: str, new_ip: str, port: str, interface: str = W
             ["wg", "set", interface, "peer", public_key, "endpoint", new_endpoint],
             capture_output=True, text=True, check=True, timeout=10
         )
-        _logger.info("Updated WireGuard endpoint for peer %s → %s", public_key[:16], new_endpoint)
+        _logger.info("Updated WireGuard endpoint for peer %s -> %s", public_key[:16], new_endpoint)
     except subprocess.CalledProcessError as e:
         _logger.error("Failed to update WireGuard endpoint: %s", e.stderr)
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION E – PROFESSIONAL FIELD EXTENSION (Good Answer)
+# SECTION E - PROFESSIONAL FIELD EXTENSION (Good Answer)
 # =============================================================================
 # FILE: odoo-modules/nettrades_good_answer/models/nettrades_field.py
 #
@@ -27,7 +27,7 @@ _logger = logging.getLogger(__name__)
 
 class NettradesField(models.Model):
     """
-    Extended Professional Field Model – adds Good Answer specific fields.
+    Extended Professional Field Model - adds Good Answer specific fields.
 
     This extension adds all the fields needed for the Good Answer voting
     system and the fine-tuning pipeline.
@@ -81,7 +81,7 @@ class NettradesField(models.Model):
         default=False,
         help="""If enabled, expert answers from 'Ask Someone' sessions are
             included in the fine-tuning dataset. Only the expert's answer is
-            stored – the requester's question is omitted.
+            stored - the requester's question is omitted.
             This is off by default for medical fields for privacy reasons.
         """
     )

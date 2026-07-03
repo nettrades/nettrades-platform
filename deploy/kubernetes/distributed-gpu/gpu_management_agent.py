@@ -1,5 +1,5 @@
 # =============================================================================
-# GPU-Management Agent – monitors GPU health, suggests scaling actions.
+# GPU-Management Agent - monitors GPU health, suggests scaling actions.
 # =============================================================================
 import json, logging
 from langgraph.graph import StateGraph, END, START

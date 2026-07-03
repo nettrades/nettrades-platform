@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section F.8 – Notifications, Reviews & Disputes
+# Section F.8 - Notifications, Reviews & Disputes
 {
     'name': 'NETTRADES Notifications & Reviews',
     'version': '1.0',

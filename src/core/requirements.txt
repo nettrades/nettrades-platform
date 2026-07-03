@@ -77,3 +77,4 @@ python-multipart>=0.0.9,<1.0.0
 numpy
 opencv-python-headless
 psycopg_pool
+psycopg

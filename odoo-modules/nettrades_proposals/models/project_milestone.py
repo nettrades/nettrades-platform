@@ -1,4 +1,4 @@
-# Section F.4 – Milestone model for freelancer projects.
+# Section F.4 - Milestone model for freelancer projects.
 from odoo import fields, models
 
 class ProjectMilestone(models.Model):

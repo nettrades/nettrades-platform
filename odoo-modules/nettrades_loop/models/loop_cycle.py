@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Loop – Self-Improving Loop Cycle Model
+# NETTRADES Loop - Self-Improving Loop Cycle Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_loop/models/loop_cycle.py
 #
@@ -9,12 +9,12 @@
 #   It stores the status, progress, and results of the cycle.
 #
 #   Each cycle goes through the following stages:
-#   1. pending – Triggered but not yet started
-#   2. running – Currently executing
-#   3. training – Fine-tuning in progress
-#   4. deploying – Model being deployed
-#   5. completed – Cycle successfully completed
-#   6. failed – Cycle failed
+#   1. pending - Triggered but not yet started
+#   2. running - Currently executing
+#   3. training - Fine-tuning in progress
+#   4. deploying - Model being deployed
+#   5. completed - Cycle successfully completed
+#   6. failed - Cycle failed
 #
 #   The cycle record provides traceability for the self-improving system,
 #   allowing administrators to see what changes were made, when, and why.
@@ -29,7 +29,7 @@ _logger = logging.getLogger(__name__)
 
 class LoopCycle(models.Model):
     """
-    Self-Improving Loop Cycle – tracks a single improvement cycle.
+    Self-Improving Loop Cycle - tracks a single improvement cycle.
     """
     _name = 'loop.cycle'
     _description = 'Self-Improving Loop Cycle'

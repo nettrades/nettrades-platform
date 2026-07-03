@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES LLM Configuration – Company LLM Settings
+# NETTRADES LLM Configuration - Company LLM Settings
 # =============================================================================
 # FILE: odoo-modules/nettrades_llm_config/models/llm_company_config.py
 #

@@ -20,20 +20,28 @@ NETTRADES.AI can be deployed in two ways:
 ### For a Single VM Deployment
 
 1. Prepare an Ubuntu 24.04 VM with root access.
-2. Run the one-command installer:
+2. Run the unified setup script:
+   ```bash
+   git clone https://github.com/nettrades/nettrades-platform.git
+   cd nettrades-platform
+   ./scripts/nettrades-setup.sh all --auto
+   ```
+    Access your platform at https://your-domain (or http://localhost:8069 for local testing).
 
-```bash
-curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/deploy/docker/install-nettrades.sh | sudo bash
-```
-
-3. Follow the interactive wizard (auto-detects hardware).
-4. Access your platform at https://your-domain
 [Full Single VM Guide](single-vm-deployment.md) →
 
-### For Kubernetes on Talos
-1. Prepare a Proxmox host (or bare metal) and create Talos VMs.
-2. Bootstrap the Kubernetes cluster with talosctl.
-3. Deploy services using the provided manifests.
+##### Full Single VM Guide 
+For Kubernetes on Talos
+
+    Prepare a Proxmox host (or bare metal) and create Talos VMs.
+
+    Bootstrap the Kubernetes cluster with talosctl.
+
+    Deploy services using the provided manifests:
+    ```bash
+
+    ./scripts/nettrades-setup.sh k8s --auto
+    ```
 [Full Kubernetes Guide](kubernetes-deployment.md) →
 
 ### Deployment Options Comparison
@@ -63,6 +71,7 @@ curl -sSL https://raw.githubusercontent.com/nettrades/nettrades-platform/main/de
 | Scale the platform	| [Kubernetes scaling](kubernetes-deployment.md#scaling)|
 | Optimise performance	| [Performance Tuning](performance-tuning.md)|
 | Configure fairness	| [Fairness Configuration](fairness-configuration.md)|
+| Install/upgrade Odoo modules | ./scripts/install-modules.sh --force |
 
 ### Fairness Configuration
 
@@ -82,27 +91,168 @@ The fairness system evaluates AI responses for rationality and bias, with config
 
 ### Fairness Configuration Steps
 
-    Navigate to Settings → Technical → Fairness → Global Configuration.
+* Navigate to Settings → Technical → Fairness → Global Configuration.
 
-    Enable or disable features as needed.
+* Enable or disable features as needed. 
 
-    Adjust thresholds for rationality and bias.
+* Adjust thresholds for rationality and bias. 
 
-    Select the evaluation model.
+* Select the evaluation model. 
 
-    Configure protected attributes for bias detection.
+* Configure protected attributes for bias detection.
 
 ### Fairness Monitoring
 
-    Navigate to Settings → Technical → Fairness → Dashboard.
+* Navigate to Settings → Technical → Fairness → Dashboard.
 
-    View recent audits and flags.
+* View recent audits and flags.
 
-    Review flagged responses manually.
+* Review flagged responses manually.
 
-    Accept or reject flagged responses.
+* Accept or reject flagged responses.
 
 [Full Fairness Documentation](./developer/fairness.md)
+
+### System Requirements
+    
+Before you deploy, review the [System Requirements](system-requirements.md) page for hardware and software prerequisites.
+
+
+### Common Operations
+#### Viewing Logs
+
+```bash
+
+# Docker Compose
+cd deploy/docker
+docker compose logs -f [service]
+
+# Kubernetes
+kubectl logs -n <namespace> <pod>
+```
+
+#### Restarting a Service
+
+```bash
+
+# Docker Compose
+docker compose restart <service>
+
+# Kubernetes
+kubectl rollout restart deployment/<deployment> -n <namespace>
+```
+
+#### Updating the Platform
+
+```bash
+
+# Pull latest changes
+git pull
+
+# Re-run deployment (idempotent)
+./scripts/nettrades-setup.sh all --auto --force
+```
+
+#### Installing Odoo Modules
+
+```bash
+
+./scripts/install-modules.sh --force
+```
+
+#### Checking Platform Health
+
+```bash
+
+# Check all containers
+docker ps
+
+# Check service health endpoints
+curl http://localhost:8069          # Odoo
+curl http://localhost:8000/health   # LangGraph
+curl http://localhost:9090          # Prometheus
+```
+
+#### Environment Variables
+
+The platform uses a .env file for configuration. Key variables include:
+
+| Variable | Purpose	| Default |
+|---------|-------------|---------|
+| `POSTGRES_PASSWORD` | Database password | `odoo123` |
+| `ODOO_ADMIN_PASSWORD` | Odoo admin password | `admin` |
+| `DOMAIN` | Public domain for SSL | `localhost` |
+| `ADMIN_EMAIL` | Email for Let's Encrypt | (empty) |
+| `LANGGRAPH_API_KEY` | API key for LangGraph | (empty – must be set) |
+| `PROXY_API_KEY` | Odoo proxy API key | (generated) |
+| `GRAFANA_PASSWORD` | Grafana admin password | `admin` |
+
+#### Security Considerations
+Default Passwords
+
+* Odoo: `admin` / `admin`
+
+* Grafana: `admin` / `admin`
+
+* PostgreSQL: `odoo` / `odoo123`
+
+Change these before production deployment.
+
+#### Firewall
+
+* Port 22 (SSH) – restrict to trusted IPs
+
+* Port 80 (HTTP) – required for Let's Encrypt
+
+* Port 443 (HTTPS) – public access
+
+* Port 51820 (WireGuard) – GPU node communication
+
+#### TLS / SSL
+
+* Traefik automatically obtains Let's Encrypt certificates when DOMAIN is set.
+
+* For local development, use `http://localhost`.
+
+#### gVisor Sandboxing
+
+* Untrusted code (freelancer workloads) runs in gVisor sandboxes.
+
+* Trusted workloads (company‑owned) run without sandbox overhead.
+
+* Configurable via Odoo admin screens.
+
+#### Troubleshooting Quick Reference
+
+Issue	Solution
+Password authentication failed	`ALTER USER odoo WITH PASSWORD 'odoo123';`
+Modules show "Activate"	Install via UI: Apps → Update Apps List → Install
+postgres host not found	Use Docker Compose, not direct `odoo-bin`
+Odoo 502	Wait for PostgreSQL; check logs
+LangGraph 500	Check `LANGGRAPH_API_KEY` in `.env`
+
+#### Next Steps
+
+After deploying, consider:
+
+* Configuring fairness settings: Settings → Technical → Fairness → Global Configuration
+
+* Setting up GPU registration tokens: GPU → Registration Tokens
+
+* Enabling bridge routing: Settings → Technical → Bridge → Global Configuration
+
+* Configuring self‑service onboarding: Settings → General Settings → Sign Up → Allow external users to sign up
+
+* Installing all NETTRADES modules: `./scripts/install-modules.sh --force`
+
+#### Support
+
+* [GitHub Issues](https://github.com/nettrades/nettrades-platform/issues)
+
+* [Documentation](https://nettrades.github.io/nettrades-platform/)
+
+* Community channels (coming soon)  
+
 
 ### System Requirements
 Before you deploy, review the [System Requirements](system-requirements.md) page to ensure your infrastructure meets the minimum hardware, OS, and network specifications.

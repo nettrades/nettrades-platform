@@ -1,4 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_expert_session_user,expert.session.user,model_expert_session,base.group_user,1,1,1,1
-access_escrow_hold_user,escrow.hold.user,model_escrow_hold,base.group_user,1,0,0,0
-access_expert_agreement_user,expert.agreement.user,model_expert_agreement,base.group_user,1,1,1,0

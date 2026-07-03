@@ -74,7 +74,7 @@ class AskSomeoneController(http.Controller):
     
 # FIX THIS AND PUT THE TEXT WHERE EVERY IT IS NEEDED
 # When the "Ask Someone" button is clicked and the field is restricted (e.g., medicine with only_qualified=True), the matching algorithm in _match_experts applies a hard filter. Only professionals who have been manually verified by an administrator and have an active qualified_professional record for that field are shown as candidates.
-# A medical question therefore reaches only verified doctors — not the general pool of freelancers. If no qualified professional is online, the user receives "No experts available at this time.
+# A medical question therefore reaches only verified doctors -- not the general pool of freelancers. If no qualified professional is online, the user receives "No experts available at this time.
 #	field = request.env['nettrades.field'].browse(field_id)
 #	if field.only_qualified:
 #	    qualified_ids = request.env['qualified.professional'].search([

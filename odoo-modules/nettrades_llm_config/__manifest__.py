@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES LLM Configuration – Provider Management for AI Agents
+# NETTRADES LLM Configuration - Provider Management for AI Agents
 # =============================================================================
 # FILE: odoo-modules/nettrades_llm_config/__manifest__.py
 #

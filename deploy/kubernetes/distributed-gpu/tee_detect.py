@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Section H – TEE / Confidential Computing Auto-Detection
+# Section H - TEE / Confidential Computing Auto-Detection
 # =============================================================================
 # Detects whether the GPU node supports hardware-backed Trusted Execution
 # Environments.  The detection runs once during agent startup and the
@@ -8,11 +8,11 @@
 # nodes for high-sensitivity workloads.
 #
 # Detection methods (all non-privileged for querying):
-#   - NVIDIA CC:  nvidia-smi conf-compute -f  →  "CC status: ON"
-#   - Intel SGX:  cpuid -l 0x12 | grep SGX    →  flag present
-#   - AMD SEV-SNP: CPUID 0x8000001f bit 1     →  SEV supported
+#   - NVIDIA CC:  nvidia-smi conf-compute -f  ->  "CC status: ON"
+#   - Intel SGX:  cpuid -l 0x12 | grep SGX    ->  flag present
+#   - AMD SEV-SNP: CPUID 0x8000001f bit 1     ->  SEV supported
 #   - Intel TDX:  /sys/devices/system/cpu/microcode/tdx exists
-#   - Generic TEE: /dev/tee[0-9]* exists       →  kernel TEE framework active
+#   - Generic TEE: /dev/tee[0-9]* exists       ->  kernel TEE framework active
 #
 # IMPORTANT: Consumer GPUs (RTX 4090, RTX 3090, Apple Silicon) do NOT
 # support any TEE technology.  Detection will return False for all checks

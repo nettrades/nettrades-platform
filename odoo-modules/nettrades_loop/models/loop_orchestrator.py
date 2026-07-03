@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Loop – Self-Improving Loop Orchestrator
+# NETTRADES Loop - Self-Improving Loop Orchestrator
 # =============================================================================
 # FILE: odoo-modules/nettrades_loop/models/loop_orchestrator.py
 #

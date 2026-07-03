@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Fairness – Models Package
+# NETTRADES Fairness - Models Package
 # =============================================================================
 # FILE: odoo-modules/nettrades_fairness/models/__init__.py
 #

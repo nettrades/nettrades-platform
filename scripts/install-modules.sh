@@ -134,7 +134,7 @@ MODULES=(
     "nettrades_research"
     "nettrades_chatbot"
     "nettrades_notifications"
-    "nettrades_pwa"
+#   "nettrades_pwa"
 )
 
 # -----------------------------------------------------------------------------
@@ -145,10 +145,16 @@ install_module() {
     local action="install"
     local flag="-i"
 
-    if [ "$UPGRADE" = true ] || [ "$FORCE" = true ]; then
+    if [ "$UPGRADE" = true ]; then
         action="upgrade"
         flag="-u"
+    else
+        action="install"
+        flag="-i"
     fi
+# --upgrade → uses -u (upgrade existing modules).
+# --force (without --upgrade) → uses -i (install, even if already installed, but reinstall).
+# No flags → uses -i (install).
 
     log_info "${action^}ing module: $module"
 

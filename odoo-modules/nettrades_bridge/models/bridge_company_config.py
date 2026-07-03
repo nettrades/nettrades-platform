@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Bridge – Per-Company Configuration Model
+# NETTRADES Bridge - Per-Company Configuration Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_bridge/models/bridge_company_config.py
 #
@@ -54,7 +54,7 @@ class NettradesBridgeCompanyConfig(models.Model):
         [
             ('local', 'Local Only'),
             ('remote', 'Remote Only'),
-            ('hybrid', 'Hybrid – Local first, fallback to Remote'),
+            ('hybrid', 'Hybrid - Local first, fallback to Remote'),
         ],
         string='Bridge Mode',
         help="Company-specific bridge mode."

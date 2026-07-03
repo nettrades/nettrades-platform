@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Bridge – Usage Log Model
+# NETTRADES Bridge - Usage Log Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_bridge/models/bridge_usage_log.py
 #
@@ -9,7 +9,7 @@
 #   Each request routed through the bridge is logged with details about
 #   the intent, source, success/failure, and response data.
 #
-#   This is essential for the commercial model – billing companies for
+#   This is essential for the commercial model - billing companies for
 #   remote brain usage and tracking token consumption.
 #
 # =============================================================================
@@ -22,7 +22,7 @@ _logger = logging.getLogger(__name__)
 
 class NettradesBridgeUsageLog(models.Model):
     """
-    Bridge Usage Log – tracks all routed requests.
+    Bridge Usage Log - tracks all routed requests.
 
     This model stores a record for every request that passes through
     the bridge, enabling usage tracking, billing, and monitoring.

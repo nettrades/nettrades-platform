@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Fairness & Rationality – Module Manifest
+# NETTRADES Fairness & Rationality - Module Manifest
 # =============================================================================
 # FILE: odoo-modules/nettrades_fairness/__manifest__.py
 #

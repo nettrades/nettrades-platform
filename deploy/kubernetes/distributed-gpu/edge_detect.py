@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Edge-Device Detection – identifies Jetson, Raspberry Pi, and Coral TPU.
+# Edge-Device Detection - identifies Jetson, Raspberry Pi, and Coral TPU.
 # =============================================================================
 import subprocess, logging, os
 

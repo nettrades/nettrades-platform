@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Loop – Training Pipeline Model
+# NETTRADES Loop - Training Pipeline Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_loop/models/training_pipeline.py
 #
@@ -25,7 +25,7 @@ _logger = logging.getLogger(__name__)
 
 class TrainingPipeline(models.Model):
     """
-    Training Pipeline – configuration for fine-tuning.
+    Training Pipeline - configuration for fine-tuning.
 
     Each pipeline defines how training data is prepared and how models
     are trained and deployed.

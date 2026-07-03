@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION H – Token economic configuration per company.
+# SECTION H - Token economic configuration per company.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# IMPORTS – Each import MUST be on its own line for valid Python syntax.
+# IMPORTS - Each import MUST be on its own line for valid Python syntax.
 # -----------------------------------------------------------------------------
 from odoo import fields, models
 

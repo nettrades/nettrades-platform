@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section A-F – Simple skill model used for Many2many tagging on partner profiles.
+# Section A-F - Simple skill model used for Many2many tagging on partner profiles.
 from odoo import fields, models
 
 class NettradesSkill(models.Model):

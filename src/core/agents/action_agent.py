@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Action Agent – translates natural language into robotic actions.
+# Action Agent - translates natural language into robotic actions.
 # =============================================================================
 # This agent is a LangGraph sub-graph.  It receives a command (e.g.
 # "move the arm to position X"), calls a Vision-Language-Action model
-# to generate a robot trajectory, and dispatches it via ROS 2 or an
+# to generate a robot trajectory, and dispatches it via ROS???2 or an
 # MCP-Robotics bridge.
 #
 # REQUIREMENTS:
 #   1. The administrator must enable "Robotics Integration" in the
-#      GPU Admin → Multi-Modal & Edge Settings screen.
+#      GPU Admin -> Multi-Modal & Edge Settings screen.
 #   2. A VLA model must be deployed in GPUStack/vLLM.
-#   3. The ROS 2 master URI must be reachable from the LangGraph container.
+#   3. The ROS???2 master URI must be reachable from the LangGraph container.
 #
 # FUTURE ENHANCEMENT: Support for multi-step task planning, feedback
 # loops, and real-time sensor fusion.

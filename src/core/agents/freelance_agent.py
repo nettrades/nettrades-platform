@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# FREELANCE AGENT – Project / Freelancer Matching
+# FREELANCE AGENT - Project / Freelancer Matching
 # =============================================================================
 # FILE: src/core/agents/freelance_agent.py
 #
@@ -53,10 +53,10 @@ def create_freelance_agent() -> StateGraph:
     Build and return a compiled freelance sub-graph.
 
     The workflow consists of four nodes:
-    1. fetch_project – Get the project details from Odoo
-    2. search_freelancers – Find matching freelancers
-    3. rank_freelancers – Rank freelancers using LLM
-    4. create_matches – Create project matches in Odoo
+    1. fetch_project - Get the project details from Odoo
+    2. search_freelancers - Find matching freelancers
+    3. rank_freelancers - Rank freelancers using LLM
+    4. create_matches - Create project matches in Odoo
 
     Returns:
         StateGraph: Compiled LangGraph workflow

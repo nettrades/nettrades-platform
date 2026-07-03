@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section F.9 – Mobile PWA
+# Section F.9 - Mobile PWA
 {
     'name': 'NETTRADES Mobile PWA',
     'version': '1.0',

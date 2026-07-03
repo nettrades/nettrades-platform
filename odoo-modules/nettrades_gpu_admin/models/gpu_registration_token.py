@@ -23,7 +23,7 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# IMPORTS – Each import MUST be on its own line for valid Python syntax.
+# IMPORTS - Each import MUST be on its own line for valid Python syntax.
 # -----------------------------------------------------------------------------
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError

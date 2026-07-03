@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION F – CHATBOT CONTROLLERS
+# SECTION F - CHATBOT CONTROLLERS
 # =============================================================================
 # FILE: odoo-modules/nettrades_chatbot/controllers/__init__.py
 #

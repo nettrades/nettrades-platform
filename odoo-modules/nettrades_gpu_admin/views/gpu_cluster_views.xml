@@ -14,17 +14,15 @@
         <field name="name">gpu.cluster.tree</field>
         <field name="model">gpu.cluster</field>
         <field name="arch" type="xml">
-            <list decoration-info="status == 'online'"
-                  decoration-warning="status == 'degraded'"
-                  decoration-danger="status == 'offline'">
+            <list>
                 <field name="name"/>
                 <field name="trust_mode"/>
-                <field name="status" widget="badge"/>
+                <!--  <field name="status" widget="badge"/>  -->
                 <field name="node_count"/>
                 <field name="online_node_count"/>
                 <field name="total_gpu_count"/>
                 <field name="total_vram_gb" string="VRAM (GB)"/>
-                <field name="total_earnings" widget="monetary"/>
+                <!--  <field name="total_earnings" widget="monetary"/>  -->
             </list>
         </field>
     </record>
@@ -36,9 +34,7 @@
         <field name="arch" type="xml">
             <form string="GPU Cluster Configuration">
                 <header>
-                    <button name="action_scan_network" string="Scan Network" type="object"
-                            class="btn-primary" icon="fa-search"
-                            help="Automatically discover GPU-capable machines on registered subnets."/>
+                    <!-- <button name="action_scan_network" string="Scan Network" type="object" class="btn-primary" icon="fa-search" help="Automatically discover GPU-capable machines on registered subnets."/> -->
                     <button name="action_generate_wireguard_keys" string="Generate WireGuard Keys"
                             type="object" class="btn-secondary"
                             help="Create a new WireGuard keypair for the controller. Existing peers will need their configs updated."/>
@@ -104,15 +100,14 @@
                         <!-- GPU Nodes -->
                         <page string="GPU Nodes">
                             <field name="node_ids" context="{'default_cluster_id': id}">
-                                <list decoration-info="status == 'online'"
-                                      decoration-danger="status == 'offline'">
+                                <list>
                                     <field name="hostname"/>
                                     <field name="ip_address"/>
                                     <field name="pool"
                                            help="Internal: free, company-wide, multi-GPU. Public: shared with NETTRADES marketplace, earns tokens."/>
                                     <field name="gpu_count"/>
                                     <field name="total_vram_gb" string="VRAM (GB)"/>
-                                    <field name="status" widget="badge"/>
+                                     <!-- <field name="status" widget="badge"/>  -->
                                     <field name="reputation_score"/>
                                     <field name="token_earnings" widget="monetary"/>
                                     <button name="action_remove_node" string="Remove"
@@ -127,7 +122,7 @@
                         <page string="Token Economics">
                             <group string="Earnings">
                                 <field name="total_tokens_served"/>
-                                <field name="total_earnings" widget="monetary"/>
+                                <!--  <field name="total_earnings" widget="monetary"/>  -->
                             </group>
                         </page>
 

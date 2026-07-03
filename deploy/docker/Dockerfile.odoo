@@ -18,11 +18,15 @@ FROM odoo:19.0
 USER root
 
 # Install additional packages needed for fairness and data processing
+# Install WireGuard (wg) in the Odoo Container
+# The Odoo container needs the wg binary to satisfy the external dependency. 
 RUN apt-get update && apt-get install -y \
     curl \
     git \
     gcc \
     python3-dev \
+    wireguard-tools \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages for fairness evaluation

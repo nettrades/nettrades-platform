@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Trigger – Self-Improving System Analyze Phase
+# NETTRADES Trigger - Self-Improving System Analyze Phase
 # =============================================================================
 # FILE: odoo-modules/nettrades_trigger/__manifest__.py
 #

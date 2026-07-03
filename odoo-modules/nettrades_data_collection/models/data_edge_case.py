@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Data Edge Case Model
+# NETTRADES Data Collection - Data Edge Case Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/models/data_edge_case.py
 #
@@ -25,7 +25,7 @@ _logger = logging.getLogger(__name__)
 
 class DataEdgeCase(models.Model):
     """
-    Data Edge Case – novel or problematic interactions.
+    Data Edge Case - novel or problematic interactions.
 
     Each edge case record is linked to a specific episode.
     """

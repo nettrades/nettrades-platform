@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section F.5 – Company Lead Scoring
+# Section F.5 - Company Lead Scoring
 {
     'name': 'NETTRADES Company Lead Scoring',
     'version': '1.0',

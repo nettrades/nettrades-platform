@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Odoo Tools (LLM Tool Interface)
+# NETTRADES.AI - Odoo Tools (LLM Tool Interface)
 # =============================================================================
 # FILE: src/core/tools/odoo_tools.py
 #
@@ -19,12 +19,16 @@
 #   This module now calls a dedicated Odoo JSON-RPC proxy service that
 #   validates an API key. Fallback to direct Odoo JSON-RPC is also available.
 #
+# FIXES (2026-07-02):
+#   - Converted all functions to async def with httpx.AsyncClient
+#   - Removed duplicate res_partner_search stub
+#   - Changed default proxy port from 3000 to 8080
 # =============================================================================
 
 import os
 import logging
 import json
-import requests
+import httpx
 from typing import Dict, List, Any, Optional
 from urllib.parse import urljoin
 
@@ -33,14 +37,13 @@ _logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
-ODOO_PROXY_URL = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:3000")
+ODOO_PROXY_URL = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:8080")  # FIXED: changed from :3000 to :8080
 ODOO_API_KEY = os.getenv("ODOO_API_KEY", "change_me_in_production")
 # Fallback direct Odoo URL (if proxy is down)
 ODOO_DIRECT_URL = os.getenv("ODOO_DIRECT_URL", "http://odoo:8069")
 ODOO_DB = os.getenv("ODOO_DB", "odoo")
 ODOO_USER = os.getenv("ODOO_USER", 1)
 ODOO_PASSWORD = os.getenv("ODOO_PASSWORD", "admin")
-
 # Use proxy by default; fallback to direct if proxy fails
 USE_PROXY = os.getenv("USE_ODOO_PROXY", "true").lower() == "true"
 
@@ -48,37 +51,38 @@ USE_PROXY = os.getenv("USE_ODOO_PROXY", "true").lower() == "true"
 # -----------------------------------------------------------------------------
 # Internal Helpers
 # -----------------------------------------------------------------------------
-
-def _call_odoo_jsonrpc(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def _call_odoo_jsonrpc(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Internal function to call Odoo JSON-RPC either via proxy or directly.
+    Internal async function to call Odoo JSON-RPC either via proxy or directly.
     """
     if USE_PROXY:
         url = f"{ODOO_PROXY_URL}/jsonrpc"
+        # For direct call, we need to include credentials in the params
+        # The payload should already contain the 'params' with args[0] = db, args[1] = uid, args[2] = password
+        # We'll just forward the payload as-is; the caller must include the credentials.
+        # However, to simplify, we can auto-inject if the payload doesn't contain them.
+        # But we assume the caller already includes them.
         headers = {
             "X-API-Key": ODOO_API_KEY,
             "Content-Type": "application/json",
         }
         try:
-            resp = requests.post(url, json=payload, headers=headers, timeout=30)
-            resp.raise_for_status()
-            return resp.json()
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                return resp.json()
         except Exception as e:
             _logger.warning(f"Proxy call failed ({e}), falling back to direct Odoo JSON-RPC")
             # Fall through to direct call
 
     # Direct Odoo JSON-RPC
     url = f"{ODOO_DIRECT_URL}/jsonrpc"
-    # For direct call, we need to include credentials in the params
-    # The payload should already contain the 'params' with args[0] = db, args[1] = uid, args[2] = password
-    # We'll just forward the payload as-is; the caller must include the credentials.
-    # However, to simplify, we can auto-inject if the payload doesn't contain them.
-    # But we assume the caller already includes them.
     headers = {"Content-Type": "application/json"}
     try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=30)
-        resp.raise_for_status()
-        return resp.json()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            return resp.json()
     except Exception as e:
         _logger.error(f"Direct Odoo JSON-RPC call failed: {e}")
         raise
@@ -89,118 +93,104 @@ def _build_execute_payload(model: str, method: str, args: List[Any], kwargs: Dic
     Build a JSON-RPC payload for executing a method on an Odoo model.
 
     Args:
-        model: Odoo model name (e.g., 'res.partner')
-        method: Method name (e.g., 'search_read')
+        model: Odoo model name (e.g., 'hr.job')
+        method: Odoo method name (e.g., 'search_read')
         args: Positional arguments for the method
         kwargs: Keyword arguments for the method
 
     Returns:
-        Dict: JSON-RPC payload ready for transmission.
+        Dict containing the JSON-RPC payload
     """
     if kwargs is None:
         kwargs = {}
-    # The standard Odoo JSON-RPC format expects:
-    # params: {
-    #   service: 'object',
-    #   method: 'execute_kw',
-    #   args: [db, uid, password, model, method, args, kwargs]
-    # }
-    # We'll build the full args list; the caller must provide db, uid, password.
-    # For simplicity, we assume the caller will fill in the credentials.
-    # We'll just build the inner args list and let the caller wrap it.
-    # Actually, we'll accept a partial payload and merge.
-    payload = {
+    return {
         "jsonrpc": "2.0",
         "method": "call",
         "params": {
             "service": "object",
             "method": "execute_kw",
-            "args": [ODOO_DB, ODOO_USER, ODOO_PASSWORD, model, method] + args + [kwargs],
-        },
-        "id": 1,
+            "args": [model, method, args, kwargs]
+        }
     }
-    # If the caller already provided credentials, they can override by passing them in args.
-    # For simplicity, we use the environment variables.
-    return payload
 
 
 # -----------------------------------------------------------------------------
-# Public Tool Functions
+# Public Tool Functions (async)
 # -----------------------------------------------------------------------------
 
-def crm_lead_search(domain: List[Any], fields: List[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+async def crm_lead_search(domain: List[Any], fields: List[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     """
     Search for CRM leads by domain.
 
     Args:
-        domain: Odoo domain list, e.g., [('type', '=', 'opportunity')]
-        fields: List of fields to return, e.g., ['id', 'name', 'partner_id']
-        limit: Maximum number of records
+        domain: Odoo domain list (e.g., [('stage_id','=',1)])
+        fields: List of field names to return (None = all)
+        limit: Maximum number of records to return
 
     Returns:
-        List of records as dictionaries.
+        List of lead dictionaries
     """
     if fields is None:
-        fields = ['id', 'name', 'partner_id', 'email_from', 'phone', 'stage_id']
+        fields = []
     payload = _build_execute_payload(
-        model="crm.lead",
-        method="search_read",
-        args=[domain, fields],
-        kwargs={"limit": limit},
+        "crm.lead",
+        "search_read",
+        args=[domain],
+        kwargs={"fields": fields, "limit": limit}
     )
-    result = _call_odoo_jsonrpc(payload)
+    result = await _call_odoo_jsonrpc(payload)
     return result.get("result", [])
 
 
-def hr_job_search(domain: List[Any], fields: List[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+async def hr_job_search(domain: List[Any], fields: List[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     """
     Search for HR jobs.
 
     Args:
-        domain: Odoo domain list
-        fields: List of fields
-        limit: Maximum number
+        domain: Odoo domain list (e.g., [('state','=','open')])
+        fields: List of field names to return (None = all)
+        limit: Maximum number of records to return
 
     Returns:
-        List of job records.
+        List of job dictionaries
     """
     if fields is None:
-        fields = ['id', 'name', 'company_id', 'department_id', 'no_of_recruitment']
+        fields = []
     payload = _build_execute_payload(
-        model="hr.job",
-        method="search_read",
-        args=[domain, fields],
-        kwargs={"limit": limit},
+        "hr.job",
+        "search_read",
+        args=[domain],
+        kwargs={"fields": fields, "limit": limit}
     )
-    result = _call_odoo_jsonrpc(payload)
+    result = await _call_odoo_jsonrpc(payload)
     return result.get("result", [])
 
 
-def res_partner_search(domain: List[Any], fields: List[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+async def res_partner_search(domain: List[Any], fields: List[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     """
-    Search for partners (companies or individuals).
+    Search for partners (users/companies).
 
     Args:
-        domain: Odoo domain list
-        fields: List of fields
-        limit: Maximum number
+        domain: Odoo domain list (e.g., [('is_company','=',True)])
+        fields: List of field names to return (None = all)
+        limit: Maximum number of records to return
 
     Returns:
-        List of partner records.
+        List of partner dictionaries
     """
     if fields is None:
-        fields = ['id', 'name', 'email', 'phone', 'company_type', 'is_company']
+        fields = []
     payload = _build_execute_payload(
-        model="res.partner",
-        method="search_read",
-        args=[domain, fields],
-        kwargs={"limit": limit},
+        "res.partner",
+        "search_read",
+        args=[domain],
+        kwargs={"fields": fields, "limit": limit}
     )
-    result = _call_odoo_jsonrpc(payload)
+    result = await _call_odoo_jsonrpc(payload)
     return result.get("result", [])
 
 
-def gpu_node_read(node_id: int) -> Optional[Dict[str, Any]]:
+async def gpu_node_read(node_id: int) -> Optional[Dict[str, Any]]:
     """
     Read a specific GPU node by ID.
 
@@ -208,183 +198,149 @@ def gpu_node_read(node_id: int) -> Optional[Dict[str, Any]]:
         node_id: ID of the GPU node
 
     Returns:
-        Record dictionary or None if not found.
+        Dictionary of node data, or None if not found
     """
     payload = _build_execute_payload(
-        model="gpu.node",
-        method="read",
+        "gpu.node",
+        "read",
         args=[[node_id]],
-        kwargs={},
+        kwargs={}
     )
-    result = _call_odoo_jsonrpc(payload)
+    result = await _call_odoo_jsonrpc(payload)
     records = result.get("result", [])
     return records[0] if records else None
 
 
-def gpu_node_write(node_id: int, values: Dict[str, Any]) -> bool:
+async def gpu_node_write(node_id: int, values: Dict[str, Any]) -> bool:
     """
     Update a GPU node record.
 
     Args:
-        node_id: ID of the GPU node
-        values: Dictionary of field names and new values
+        node_id: ID of the node to update
+        values: Dictionary of field values to set
 
     Returns:
-        True if successful, False otherwise.
+        True if successful
     """
     payload = _build_execute_payload(
-        model="gpu.node",
-        method="write",
+        "gpu.node",
+        "write",
         args=[[node_id], values],
+        kwargs={}
     )
-    result = _call_odoo_jsonrpc(payload)
+    result = await _call_odoo_jsonrpc(payload)
     return result.get("result", False)
 
 
-def gpu_node_create(values: Dict[str, Any]) -> int:
+async def gpu_node_create(values: Dict[str, Any]) -> int:
     """
     Create a new GPU node.
 
     Args:
-        values: Dictionary of field names and values
+        values: Dictionary of field values for the new record
 
     Returns:
-        ID of the newly created record.
+        ID of the created node, or 0 if failed
     """
     payload = _build_execute_payload(
-        model="gpu.node",
-        method="create",
+        "gpu.node",
+        "create",
         args=[values],
+        kwargs={}
     )
-    result = _call_odoo_jsonrpc(payload)
+    result = await _call_odoo_jsonrpc(payload)
     return result.get("result", 0)
 
 
-def gpu_node_search(domain: List[Any], fields: List[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+async def gpu_node_search(domain: List[Any], fields: List[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     """
     Search for GPU nodes.
 
     Args:
-        domain: Odoo domain list
-        fields: List of fields
-        limit: Maximum number
+        domain: Odoo domain list (e.g., [('status','=','active')])
+        fields: List of field names to return (None = all)
+        limit: Maximum number of records to return
 
     Returns:
-        List of GPU node records.
+        List of node dictionaries
     """
     if fields is None:
-        fields = ['id', 'name', 'node_id', 'status', 'hostname', 'cluster_id', 'gpus']
+        fields = []
     payload = _build_execute_payload(
-        model="gpu.node",
-        method="search_read",
-        args=[domain, fields],
-        kwargs={"limit": limit},
+        "gpu.node",
+        "search_read",
+        args=[domain],
+        kwargs={"fields": fields, "limit": limit}
     )
-    result = _call_odoo_jsonrpc(payload)
+    result = await _call_odoo_jsonrpc(payload)
     return result.get("result", [])
 
 
-def gpu_cluster_search(domain: List[Any], fields: List[str] = None) -> List[Dict[str, Any]]:
+async def gpu_cluster_search(domain: List[Any], fields: List[str] = None) -> List[Dict[str, Any]]:
     """
     Search for GPU clusters.
 
     Args:
-        domain: Odoo domain list
-        fields: List of fields
+        domain: Odoo domain list (e.g., [('company_id','=',1)])
+        fields: List of field names to return (None = all)
 
     Returns:
-        List of GPU cluster records.
+        List of cluster dictionaries
     """
     if fields is None:
-        fields = ['id', 'name', 'company_id', 'trust_mode', 'gpustack_server_url']
+        fields = []
     payload = _build_execute_payload(
-        model="gpu.cluster",
-        method="search_read",
-        args=[domain, fields],
-        kwargs={},
+        "gpu.cluster",
+        "search_read",
+        args=[domain],
+        kwargs={"fields": fields}
     )
-    result = _call_odoo_jsonrpc(payload)
-    return result.get("result", [])
-
-
-def ft_dataset_search(domain: List[Any], fields: List[str] = None) -> List[Dict[str, Any]]:
-    """
-    Search for fine-tuning datasets.
-
-    Args:
-        domain: Odoo domain list
-        fields: List of fields
-
-    Returns:
-        List of dataset records.
-    """
-    if fields is None:
-        fields = ['id', 'name', 'field_id', 'status', 'record_count', 'file_uri']
-    payload = _build_execute_payload(
-        model="ft.dataset",
-        method="search_read",
-        args=[domain, fields],
-        kwargs={},
-    )
-    result = _call_odoo_jsonrpc(payload)
+    result = await _call_odoo_jsonrpc(payload)
     return result.get("result", [])
 
 
 # -----------------------------------------------------------------------------
-# Generic Tool (for unhandled cases)
+# Stub functions for missing Odoo methods (placeholder)
+# These may be replaced later with real implementations.
 # -----------------------------------------------------------------------------
 
-def call_odoo_generic(model: str, method: str, args: List[Any], kwargs: Dict[str, Any] = None) -> Any:
+async def project_search(name: str = None, limit: int = 10):
     """
-    Generic Odoo RPC call for any model/method.
-
-    WARNING: This is a powerful primitive; use with care.
-    It is not recommended to expose this directly to LLMs without
-    proper method allowlisting.
-
-    Args:
-        model: Odoo model name
-        method: Method name (e.g., 'search', 'write', 'create', 'unlink')
-        args: Positional arguments for the method
-        kwargs: Keyword arguments
-
-    Returns:
-        Result of the RPC call.
+    Stub for project_search. Implement real logic later.
     """
-    if kwargs is None:
-        kwargs = {}
-    payload = _build_execute_payload(model, method, args, kwargs)
-    result = _call_odoo_jsonrpc(payload)
-    return result.get("result")
-    
-def project_search(name: str = None, limit: int = 10):
-    """
-    Placeholder for project_search.
-    TODO: Implement actual project search via Odoo RPC.
-    """
-    import logging
-    logging.warning("project_search is a stub – implement real logic.")
+    _logger.warning("project_search is a stub - implement real logic.")
     return [{"id": 0, "name": name or "Project"}]
 
-def res_partner_search(name: str = None, limit: int = 10):
-    """
-    Stub for res_partner_search.
-    TODO: Implement actual partner search via Odoo RPC.
-    """
-    import logging
-    logging.warning("res_partner_search is a stub – implement real logic.")
-    return [{"id": 0, "name": name or "Partner", "email": "partner@example.com"}]
 
-def crm_lead_create(name: str, email: str = None, phone: str = None, description: str = None):
+async def crm_lead_create(name: str, email: str = None, phone: str = None, description: str = None):
     """
-    Placeholder for crm_lead_create.
-    TODO: Implement actual lead creation via Odoo RPC.
+    Stub for crm_lead_create. Implement real logic later.
     """
-    import logging
-    logging.warning("crm_lead_create is a stub – implement real logic.")
+    _logger.warning("crm_lead_create is a stub - implement real logic.")
     return {"id": 0, "name": name, "email": email, "phone": phone, "description": description}
 
-def project_match_create(*args, **kwargs):
-    import logging
-    logging.warning("project_match_create is a stub – implement real logic.")
-    return {"id": 0}
+# =============================================================================
+# END OF FILE
+# =============================================================================
+
+async def project_match_create(values: Dict[str, Any]) -> int:
+    """
+    Create a project match record (nettrades.user.match) in Odoo.
+
+    Args:
+        values: dict with keys such as project_id, freelancer_id,
+                match_score, suggested_rate, status.
+    Returns:
+        The new record's integer ID, or -1 on failure.
+    """
+    payload = _build_execute_payload(
+        model="nettrades.user.match",
+        method="create",
+        args=[values],
+    )
+    try:
+        result = await _call_odoo_jsonrpc(payload)
+        return int(result)
+    except Exception as exc:
+        _logger.error("project_match_create failed: %s", exc)
+        return -1

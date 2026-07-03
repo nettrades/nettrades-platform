@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Self-Improving Config – Administration Module
+# NETTRADES Self-Improving Config - Administration Module
 # =============================================================================
 # FILE: odoo-modules/nettrades_self_improving_config/__manifest__.py
 #

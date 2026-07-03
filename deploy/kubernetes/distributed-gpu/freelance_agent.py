@@ -1,5 +1,5 @@
 # =============================================================================
-# Freelance Agent – matches freelancers to projects, generates proposals.
+# Freelance Agent - matches freelancers to projects, generates proposals.
 # =============================================================================
 import json, logging
 from langgraph.graph import StateGraph, END, START

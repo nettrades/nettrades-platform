@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Bridge – Hub-and-Spoke Routing Module
+# NETTRADES Bridge - Hub-and-Spoke Routing Module
 # =============================================================================
 # FILE: odoo-modules/nettrades_bridge/__manifest__.py
 #
@@ -38,9 +38,9 @@
         ============================================================
         CONFIGURATION
         ============================================================
-        1. Global Settings: Settings → Technical → Bridge → Global Config
-        2. Company Settings: Settings → Technical → Bridge → Company Config
-        3. Usage Logs: Settings → Technical → Bridge → Usage Logs
+        1. Global Settings: Settings -> Technical -> Bridge -> Global Config
+        2. Company Settings: Settings -> Technical -> Bridge -> Company Config
+        3. Usage Logs: Settings -> Technical -> Bridge -> Usage Logs
     """,
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',

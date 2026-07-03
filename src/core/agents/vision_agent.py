@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Vision Agent
+# NETTRADES.AI - Vision Agent
 # =============================================================================
 # FILE: src/core/agents/vision_agent.py
 #
@@ -573,7 +573,7 @@ class VisionAgent:
         logger.info("VisionAgent shutdown complete")
 
 # =============================================================================
-# 12. FACTORY FUNCTION – This is what supervisor.py imports
+# 12. FACTORY FUNCTION - This is what supervisor.py imports
 # =============================================================================
 
 def create_vision_agent():

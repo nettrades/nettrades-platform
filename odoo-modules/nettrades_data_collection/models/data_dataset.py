@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Dataset Model
+# NETTRADES Data Collection - Dataset Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/models/data_dataset.py
 #

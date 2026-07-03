@@ -1,4 +1,4 @@
-# Section H – Trusted multi-GPU mode (company internal).
+# Section H - Trusted multi-GPU mode (company internal).
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from wg_setup import generate_keys, create_config, apply_config

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# SECTION H – GPU ADMIN CONTROLLERS
+# SECTION H - GPU ADMIN CONTROLLERS
 # =============================================================================
 # FILE: odoo-modules/nettrades_gpu_admin/controllers/__init__.py
 #

@@ -3,12 +3,12 @@
 # FILE: odoo-modules/nettrades_gpu_admin/models/gpu_node.py
 # =============================================================================
 # DESCRIPTION:
-#   GPU Node Model – represents a single GPU machine (physical or virtual)
+#   GPU Node Model - represents a single GPU machine (physical or virtual)
 #   that is part of a GPU cluster. Stores hardware inventory, WireGuard
 #   configuration, GPU details, and operational status.
 #
 # RELATIONSHIPS:
-#   - cluster_id → gpu.cluster (the cluster this node belongs to)
+#   - cluster_id -> gpu.cluster (the cluster this node belongs to)
 #
 # KEY FEATURES:
 #   - Hardware inventory (GPUs, VRAM, OS, TEE capabilities)
@@ -24,7 +24,7 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# IMPORTS – Each import MUST be on its own line for valid Python syntax.
+# IMPORTS - Each import MUST be on its own line for valid Python syntax.
 # -----------------------------------------------------------------------------
 import logging
 import json
@@ -42,11 +42,20 @@ _logger = logging.getLogger(__name__)
 
 class GPUNode(models.Model):
     """
-    GPU Node Model – represents a single GPU machine in a cluster.
+    GPU Node Model - represents a single GPU machine in a cluster.
 
     This model stores all information about a GPU node, including its
     hardware inventory, WireGuard configuration, and operational status.
     """
+    
+    partner_id = fields.Many2one(
+            'res.partner',
+            string='Partner',
+            required=True,
+            ondelete='cascade',
+            help="The partner (company or user) that owns this GPU node."
+    )
+    
     _name = 'gpu.node'
     _description = 'GPU Node'
     _rec_name = 'name'

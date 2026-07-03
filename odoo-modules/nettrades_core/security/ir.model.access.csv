@@ -2,6 +2,5 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_nettrades_experience_user,nettrades.experience.user,model_nettrades_experience,base.group_user,1,1,1,1
 access_nettrades_review_user,nettrades.review.user,model_nettrades_review,base.group_user,1,1,1,1
 access_nettrades_user_match_user,nettrades.user_match.user,model_nettrades_user_match,base.group_user,1,1,1,1
-access_forgejo_repo_user,forgejo.repo.user,model_forgejo_repo,base.group_user,1,1,1,1
 access_nettrades_skill_user,nettrades.skill.user,model_nettrades_skill,base.group_user,1,1,1,1
 access_nettrades_field_user,nettrades.field.user,model_nettrades_field,base.group_user,1,1,1,1

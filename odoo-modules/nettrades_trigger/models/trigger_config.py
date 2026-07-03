@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Trigger – Trigger Configuration Model
+# NETTRADES Trigger - Trigger Configuration Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_trigger/models/trigger_config.py
 #
@@ -36,7 +36,7 @@ _logger = logging.getLogger(__name__)
 
 class TriggerConfig(models.Model):
     """
-    Trigger Configuration – defines conditions for self-improvement.
+    Trigger Configuration - defines conditions for self-improvement.
 
     Each trigger specifies a condition that, when met, initiates a
     self-improvement cycle.

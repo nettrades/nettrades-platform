@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Data Episode Model
+# NETTRADES Data Collection - Data Episode Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/models/data_episode.py
 #
@@ -36,7 +36,7 @@ _logger = logging.getLogger(__name__)
 
 class DataEpisode(models.Model):
     """
-    Data Episode – Complete interaction record.
+    Data Episode - Complete interaction record.
 
     Each episode represents a single interaction between a user and the AI,
     including the input, output, and any feedback received.

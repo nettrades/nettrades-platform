@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Self-Improving System Monitor Phase
+# NETTRADES Data Collection - Self-Improving System Monitor Phase
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/__manifest__.py
 #
@@ -9,18 +9,18 @@
 #   It is the "Monitor" phase of the self-improving MAPE loop.
 #
 #   The module stores:
-#     - Episodes: Complete interaction records (input → output → feedback)
+#     - Episodes: Complete interaction records (input -> output -> feedback)
 #     - Annotations: Human or expert evaluations
 #     - Feedback: User ratings, "Good Answer" votes
 #     - Metrics: Performance data (latency, quality, success rate)
 #     - Edge Cases: Novel or problematic interactions
 #
 # INTEGRATION POINTS:
-#   - Good Answer votes → Creates feedback records
-#   - Ask Someone sessions → Creates episodes from expert answers
-#   - LangGraph agents → Creates episodes from user interactions
-#   - GPUStack → Collects performance metrics
-#   - ROS 2 / robotics → Collects sensor and action data
+#   - Good Answer votes -> Creates feedback records
+#   - Ask Someone sessions -> Creates episodes from expert answers
+#   - LangGraph agents -> Creates episodes from user interactions
+#   - GPUStack -> Collects performance metrics
+#   - ROS 2 / robotics -> Collects sensor and action data
 #
 # =============================================================================
 {

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# GPU MANAGEMENT AGENT – GPU Cluster Health & Scaling
+# GPU MANAGEMENT AGENT - GPU Cluster Health & Scaling
 # =============================================================================
 # FILE: src/core/agents/gpu_management_agent.py
 #
@@ -55,9 +55,9 @@ def create_gpu_management_agent() -> StateGraph:
     Build and return a compiled GPU management sub-graph.
 
     The workflow consists of three nodes:
-    1. fetch_cluster – Get the cluster details from Odoo
-    2. check_health – Check node health and utilisation
-    3. generate_recommendations – Generate scaling recommendations
+    1. fetch_cluster - Get the cluster details from Odoo
+    2. check_health - Check node health and utilisation
+    3. generate_recommendations - Generate scaling recommendations
 
     Returns:
         StateGraph: Compiled LangGraph workflow

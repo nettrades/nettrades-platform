@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section H – GPUStack Adapter
+# Section H - GPUStack Adapter
 {
     'name': 'NETTRADES GPUStack Adapter',
     'version': '1.0',

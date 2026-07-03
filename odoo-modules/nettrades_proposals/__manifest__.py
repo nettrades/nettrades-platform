@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Section F.4 – Freelancer Proposals & Milestones
+# Section F.4 - Freelancer Proposals & Milestones
 {
     'name': 'NETTRADES Freelancer Proposals',
     'version': '1.0',

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Module Name – Models
+# Module Name - Models
 # =============================================================================
 # FILE: odoo-modules/nettrades_trigger/models/__init__.py
 #
@@ -16,7 +16,7 @@
 # Import all model files in this module
 # -----------------------------------------------------------------------------
 #
-from . import trigger_config.py
-from . import trigger_event.py
+from . import trigger_config
+from . import trigger_event
 #
 # -----------------------------------------------------------------------------

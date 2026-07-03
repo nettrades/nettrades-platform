@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Fairness – Metrics Calculator
+# NETTRADES Fairness - Metrics Calculator
 # =============================================================================
 # FILE: odoo-modules/nettrades_fairness/models/fairness_metrics.py
 #
@@ -29,7 +29,7 @@ _logger = logging.getLogger(__name__)
 
 class FairnessMetrics(models.TransientModel):
     """
-    Fairness Metrics Calculator – computes fairness metrics for the system.
+    Fairness Metrics Calculator - computes fairness metrics for the system.
     """
     _name = 'nettrades.fairness.metrics'
     _description = 'Fairness Metrics Calculator'

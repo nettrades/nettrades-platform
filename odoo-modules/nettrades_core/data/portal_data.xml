@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Enable self-signup for portal users -->
+    <record id="auth_signup_auth_signup" model="res.config.settings">
+        <field name="auth_signup_enabled" eval="True"/>
+        <field name="auth_signup_uninvited" eval="'b2c'"/>  <!-- anyone can sign up -->
+    </record>
+
+    <!-- Add a portal menu for freelancers -->
+    <menuitem id="portal_menu_nettrades_root" name="NETTRADES Portal" parent="portal.menu_portal" sequence="10"/>
+    <menuitem id="portal_menu_nettrades_jobs" name="Jobs" parent="portal_menu_nettrades_root" action="action_nettrades_job_list" sequence="10"/>
+    <menuitem id="portal_menu_nettrades_gpu" name="GPU Marketplace" parent="portal_menu_nettrades_root" action="action_nettrades_gpu_list" sequence="20"/>
+
+    <!-- Actions for portal views -->
+    <record id="action_nettrades_job_list" model="ir.actions.act_window">
+        <field name="name">Available Jobs</field>
+        <field name="res_model">nettrades.project</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state','=','open')]</field>
+        <field name="context">{'search_default_state_open': 1}</field>
+        <field name="help" type="html">
+            <p>Browse open job postings and apply as a freelancer.</p>
+        </field>
+    </record>
+    <record id="action_nettrades_gpu_list" model="ir.actions.act_window">
+        <field name="name">GPU Nodes</field>
+        <field name="res_model">nettrades.gpu.node</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_active','=',True)]</field>
+    </record>
+
+    <!-- Update default user groups to include portal access -->
+    <record id="base.group_portal" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('nettrades_core.group_nettrades_portal'))]"/>
+    </record>
+</odoo>

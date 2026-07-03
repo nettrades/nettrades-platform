@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Res Partner Extension
+# NETTRADES.AI - Res Partner Extension
 # =============================================================================
 # FILE: odoo-modules/nettrades_core/models/res_partner.py
 #

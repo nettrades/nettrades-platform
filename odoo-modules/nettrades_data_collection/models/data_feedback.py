@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Data Collection – Data Feedback Model
+# NETTRADES Data Collection - Data Feedback Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_data_collection/models/data_feedback.py
 #
@@ -24,7 +24,7 @@ _logger = logging.getLogger(__name__)
 
 class DataFeedback(models.Model):
     """
-    Data Feedback – user ratings and votes for episodes.
+    Data Feedback - user ratings and votes for episodes.
 
     Each feedback record is linked to a specific episode and user.
     """

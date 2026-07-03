@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Loop – Self-Improving Loop Model
+# NETTRADES Loop - Self-Improving Loop Model
 # =============================================================================
 # FILE: odoo-modules/nettrades_loop/models/self_improving_loop.py
 #
@@ -9,12 +9,12 @@
 #   system. It stores the status, progress, and results of the cycle.
 #
 #   Each loop goes through the following stages:
-#   1. Pending – Triggered but not yet started
-#   2. Running – Currently executing
-#   3. Training – Fine-tuning in progress
-#   4. Deploying – Model being deployed
-#   5. Completed – Cycle successfully completed
-#   6. Failed – Cycle failed
+#   1. Pending - Triggered but not yet started
+#   2. Running - Currently executing
+#   3. Training - Fine-tuning in progress
+#   4. Deploying - Model being deployed
+#   5. Completed - Cycle successfully completed
+#   6. Failed - Cycle failed
 #
 # KEY FEATURES:
 #   - Tracks the complete lifecycle of a self-improvement cycle
@@ -44,10 +44,10 @@ _logger = logging.getLogger(__name__)
 
 class SelfImprovingLoop(models.Model):
     """
-    Self-Improving Loop – tracks a single improvement cycle.
+    Self-Improving Loop - tracks a single improvement cycle.
 
     Each loop represents one complete pass through the closed-loop
-    system: Monitor → Analyze → Plan → Execute.
+    system: Monitor -> Analyze -> Plan -> Execute.
 
     The loop is orchestrated by the LangGraph supervisor and tracked
     in Odoo for monitoring and audit purposes.
