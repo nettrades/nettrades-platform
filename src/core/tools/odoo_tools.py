@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Odoo Tools (LLM Tool Interface)
+# NETTRADES.AI - Odoo Tools (LLM Tool Interface)
 # =============================================================================
 # FILE: src/core/tools/odoo_tools.py
 #
@@ -308,7 +308,7 @@ async def project_search(name: str = None, limit: int = 10):
     """
     Stub for project_search. Implement real logic later.
     """
-    _logger.warning("project_search is a stub – implement real logic.")
+    _logger.warning("project_search is a stub - implement real logic.")
     return [{"id": 0, "name": name or "Project"}]
 
 
@@ -316,9 +316,31 @@ async def crm_lead_create(name: str, email: str = None, phone: str = None, descr
     """
     Stub for crm_lead_create. Implement real logic later.
     """
-    _logger.warning("crm_lead_create is a stub – implement real logic.")
+    _logger.warning("crm_lead_create is a stub - implement real logic.")
     return {"id": 0, "name": name, "email": email, "phone": phone, "description": description}
 
 # =============================================================================
 # END OF FILE
 # =============================================================================
+
+async def project_match_create(values: Dict[str, Any]) -> int:
+    """
+    Create a project match record (nettrades.user.match) in Odoo.
+
+    Args:
+        values: dict with keys such as project_id, freelancer_id,
+                match_score, suggested_rate, status.
+    Returns:
+        The new record's integer ID, or -1 on failure.
+    """
+    payload = _build_execute_payload(
+        model="nettrades.user.match",
+        method="create",
+        args=[values],
+    )
+    try:
+        result = await _call_odoo_jsonrpc(payload)
+        return int(result)
+    except Exception as exc:
+        _logger.error("project_match_create failed: %s", exc)
+        return -1

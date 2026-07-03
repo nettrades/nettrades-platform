@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Section H – Container runtime isolation for GPU nodes.
+# Section H - Container runtime isolation for GPU nodes.
 # =============================================================================
 # gVisor is the preferred runtime for ALL GPU pools (Trusted & Untrusted).
 # It uses a userspace kernel (Sentry) that intercepts syscalls, providing
 # strong isolation WITHOUT the memory-hoarding problem of VM-based solutions.
 #
 # gVisor avoids memory hoarding because freed memory returns to the host
-# immediately — there is no guest VM retaining physical pages.
+# immediately -- there is no guest VM retaining physical pages.
 #
 # GPU support is provided by nvproxy, which "proxies the application's
 # interactions with NVIDIA's driver on the host" and "supports a wide range
@@ -50,7 +50,7 @@ def start_isolated(server_url, token):
     
     gVisor mode (preferred):
         Uses runsc with --nvproxy flag for GPU passthrough.
-        Memory is managed by the host kernel — no hoarding, no balloon drivers.
+        Memory is managed by the host kernel -- no hoarding, no balloon drivers.
     
     Docker mode (fallback, trusted internal pools only):
         Standard Docker with --gpus all.
@@ -71,7 +71,7 @@ def start_isolated(server_url, token):
         ], check=True)
     elif runtime == 'docker':
         _logger.warning(
-            "gVisor not found — falling back to Docker (trusted internal pool only)."
+            "gVisor not found -- falling back to Docker (trusted internal pool only)."
         )
         # Use Popen (non-blocking) so agent main loop can continue
         subprocess.Popen(["gpustack", "start", "--server-url", server_url, "--token", token])
@@ -79,7 +79,7 @@ def start_isolated(server_url, token):
         raise RuntimeError("No suitable runtime available for GPU isolation.")
 
 
-# For informational purposes only — no Kata-specific code remains.
+# For informational purposes only -- no Kata-specific code remains.
 # gVisor avoids the following Kata limitations:
 #   - Memory hoarding (guest VM retains physical pages)
 #   - virtio-mem configuration complexity

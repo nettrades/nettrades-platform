@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Inference Backend
+# NETTRADES.AI - Inference Backend
 # =============================================================================
 # FILE: src/core/tools/inference.py
 #
@@ -31,7 +31,7 @@ from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass, field
 
 # -----------------------------------------------------------------------------
-# Optional imports – each backend is optional so we can fall back gracefully
+# Optional imports - each backend is optional so we can fall back gracefully
 # -----------------------------------------------------------------------------
 try:
     import openai
@@ -134,7 +134,7 @@ class OpenAIBackend(InferenceBackend):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.base_url = base_url or os.environ.get("OPENAI_BASE_URL")
         if not HAS_OPENAI:
-            _logger.warning("OpenAI library not installed – OpenAI backend will not work")
+            _logger.warning("OpenAI library not installed - OpenAI backend will not work")
         self.client = None
         if HAS_OPENAI and self.api_key:
             self.client = openai.AsyncOpenAI(
@@ -189,7 +189,7 @@ class OllamaBackend(InferenceBackend):
     def __init__(self, base_url: Optional[str] = None):
         self.base_url = base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
         if not HAS_AIOHTTP:
-            _logger.warning("aiohttp not installed – Ollama backend may not work")
+            _logger.warning("aiohttp not installed - Ollama backend may not work")
 
     async def generate(
         self,
@@ -255,8 +255,8 @@ def get_inference_backend() -> InferenceBackend:
     Get the configured inference backend based on environment variables.
 
     The backend is determined by the `INFERENCE_BACKEND` environment variable:
-        - "openai" → OpenAIBackend (default if OPENAI_API_KEY is set)
-        - "ollama" → OllamaBackend
+        - "openai" -> OpenAIBackend (default if OPENAI_API_KEY is set)
+        - "ollama" -> OllamaBackend
         - If not set, tries OpenAI first, then Ollama.
 
     Returns:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Self-Improving Integration Service
+# NETTRADES.AI - Self-Improving Integration Service
 # =============================================================================
 # FILE: src/core/self_improving_integration.py
 #
@@ -17,7 +17,7 @@
 #   the platform self-improving over time.
 #
 # KEY FEATURES:
-#   - Records interaction episodes (input → output → feedback)
+#   - Records interaction episodes (input -> output -> feedback)
 #   - Stores episodes in Odoo's data.episode model
 #   - Detects edge cases and low-confidence responses
 #   - Triggers self-improvement cycles when data thresholds are met
@@ -187,7 +187,7 @@ class SelfImprovingService:
         field_id = self._get_field_id(intent)
 
         if not partner_id:
-            _logger.warning("No partner_id available – skipping episode recording")
+            _logger.warning("No partner_id available - skipping episode recording")
             return None
 
         # =====================================================================
@@ -197,7 +197,7 @@ class SelfImprovingService:
         if 0 <= quality_score <= 1:
             quality_score = quality_score * 10
 
-        # Apply quality threshold – skip low-quality episodes
+        # Apply quality threshold - skip low-quality episodes
         if quality_score < self.threshold_quality:
             _logger.info(
                 f"Skipping low-quality episode: {quality_score:.2f} < {self.threshold_quality}"
@@ -315,7 +315,7 @@ class SelfImprovingService:
     async def _create_episode(self, episode_data: EpisodeData) -> Optional[int]:
         """Create an episode record in Odoo."""
         if not self.odoo_env:
-            _logger.warning("No Odoo environment – cannot create episode")
+            _logger.warning("No Odoo environment - cannot create episode")
             return None
 
         try:

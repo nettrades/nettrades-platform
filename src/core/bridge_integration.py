@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Bridge Integration Service
+# NETTRADES.AI - Bridge Integration Service
 # =============================================================================
 # FILE: src/core/bridge_integration.py
 #
@@ -36,7 +36,7 @@ import logging
 from typing import Dict, Any, Optional
 
 # -----------------------------------------------------------------------------
-# Optional imports – fallback if aiohttp is not available
+# Optional imports - fallback if aiohttp is not available
 # -----------------------------------------------------------------------------
 try:
     import aiohttp
@@ -142,7 +142,7 @@ class BridgeService:
         # Option 2: HTTP API call to Odoo
         # =====================================================================
         if not HAS_AIOHTTP:
-            _logger.warning("aiohttp not available – bridge routing disabled")
+            _logger.warning("aiohttp not available - bridge routing disabled")
             return None
 
         try:

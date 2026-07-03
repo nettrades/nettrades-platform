@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# IoT Tools – MQTT subscriber for sensor data streams.
+# IoT Tools - MQTT subscriber for sensor data streams.
 # =============================================================================
 import json, logging, os
 import paho.mqtt.client as mqtt

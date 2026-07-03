@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# LEAD GEN AGENT – Lead Scoring & Creation
+# LEAD GEN AGENT - Lead Scoring & Creation
 # =============================================================================
 # FILE: src/core/agents/lead_gen_agent.py
 #
@@ -54,9 +54,9 @@ def create_lead_gen_agent() -> StateGraph:
     Build and return a compiled lead generation sub-graph.
 
     The workflow consists of three nodes:
-    1. fetch_source – Get the job or project details
-    2. generate_leads – Generate leads from the source
-    3. create_leads – Create leads in Odoo CRM
+    1. fetch_source - Get the job or project details
+    2. generate_leads - Generate leads from the source
+    3. create_leads - Create leads in Odoo CRM
 
     Returns:
         StateGraph: Compiled LangGraph workflow

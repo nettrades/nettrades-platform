@@ -1,5 +1,5 @@
 # =============================================================================
-# Recruitment Agent – matches candidates to job postings.
+# Recruitment Agent - matches candidates to job postings.
 # =============================================================================
 # This agent is a LangGraph sub-graph.  It receives a job ID, searches for
 # matching freelancers/job-seekers, calls the LLM for ranking, and creates

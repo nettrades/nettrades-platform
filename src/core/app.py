@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES LangGraph Agent – Durable AI Orchestration
+# NETTRADES LangGraph Agent - Durable AI Orchestration
 # =============================================================================
 # FILE: src/core/app.py
 #
 # PURPOSE:
 #   Main entry point for the LangGraph service. It provides a FastAPI
 #   application that exposes:
-#     - /invoke   – main inference endpoint (authenticated)
-#     - /health   – liveness probe for container orchestration
-#     - /metrics  – Prometheus metrics endpoint
+#     - /invoke   - main inference endpoint (authenticated)
+#     - /health   - liveness probe for container orchestration
+#     - /metrics  - Prometheus metrics endpoint
 #
 # KEY FEATURES:
 #   - Auto-detects inference backend (GPUStack / vLLM / llama.cpp)
-#   - Uses a supervisor to dispatch to business sub‑agents
+#   - Uses a supervisor to dispatch to business sub???agents
 #   - Exposes Prometheus metrics for observability
 #   - Uses PostgresSaver for durable checkpointing
 #
@@ -52,7 +52,7 @@ from fastapi.responses import JSONResponse, Response
 from dotenv import load_dotenv
 from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 
-# Use the synchronous PostgresSaver – this is what works with sync connections
+# Use the synchronous PostgresSaver - this is what works with sync connections
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from supervisor import build_supervisor, invoke_supervisor_with_retry
@@ -78,7 +78,7 @@ LANGGRAPH_API_KEY = os.getenv("LANGGRAPH_API_KEY")
 
 if not LANGGRAPH_API_KEY:
     logger.critical(
-        "⚠️ LANGGRAPH_API_KEY environment variable is not set. "
+        "?????? LANGGRAPH_API_KEY environment variable is not set. "
         "The /invoke endpoint will not function correctly."
     )
 
@@ -104,7 +104,7 @@ REQUEST_DURATION = Histogram(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Lifespan context manager – runs on startup and shutdown.
+    Lifespan context manager - runs on startup and shutdown.
 
     Startup:
       1. Establish a synchronous connection to PostgreSQL using psycopg.
@@ -142,7 +142,7 @@ async def lifespan(app: FastAPI):
         graph.checkpointer = checkpointer
         ml_models["graph"] = graph
         logger.info("Supervisor graph built with checkpointing")
-        # Yield control to the application – the connection stays open.
+        # Yield control to the application - the connection stays open.
         yield
 
     except Exception as e:
@@ -264,7 +264,7 @@ async def invoke(
     - Requires the 'X-API-Key' header with a valid API key.
     - The API key must match the LANGGRAPH_API_KEY environment variable.
 
-    ⚠️ CRITICAL SECURITY FIX: Previously, if LANGGRAPH_API_KEY was unset,
+    ?????? CRITICAL SECURITY FIX: Previously, if LANGGRAPH_API_KEY was unset,
     authentication was silently bypassed. This is a security vulnerability
     that has been fixed. Now the API key is required and validated.
 
@@ -295,7 +295,7 @@ async def invoke(
     # =========================================================================
     # STEP 1: AUTHENTICATION
     # =========================================================================
-    # ⚠️ CRITICAL SECURITY FIX:
+    # ?????? CRITICAL SECURITY FIX:
     # Previously, if LANGGRAPH_API_KEY was unset, authentication was skipped.
     # This is now fixed: we REQUIRE the API key to be set.
     if not LANGGRAPH_API_KEY:

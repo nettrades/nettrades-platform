@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Odoo JSON-RPC Proxy
+# NETTRADES.AI - Odoo JSON-RPC Proxy
 # =============================================================================
 # FILE: src/core/odoo_proxy/main.py
 #

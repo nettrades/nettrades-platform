@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# RECRUITMENT AGENT – CV / Job Matching
+# RECRUITMENT AGENT - CV / Job Matching
 # =============================================================================
 # FILE: src/core/agents/recruitment_agent.py
 #
@@ -30,7 +30,7 @@ from langgraph.graph import StateGraph, END, START
 from langchain_openai import ChatOpenAI
 
 # =============================================================================
-# IMPORTS – Updated to point to the correct locations
+# IMPORTS - Updated to point to the correct locations
 # =============================================================================
 # Note: The tools are now imported from src.core.tools
 from tools.inference_tools import get_inference_backend
@@ -61,10 +61,10 @@ def create_recruitment_agent() -> StateGraph:
     Build and return a compiled recruitment sub-graph.
 
     The workflow consists of four nodes:
-    1. fetch_job – Get the job details from Odoo
-    2. search_candidates – Find matching candidates
-    3. rank_candidates – Rank candidates using LLM
-    4. create_leads – Create CRM leads for top matches
+    1. fetch_job - Get the job details from Odoo
+    2. search_candidates - Find matching candidates
+    3. rank_candidates - Rank candidates using LLM
+    4. create_leads - Create CRM leads for top matches
 
     Returns:
         StateGraph: Compiled LangGraph workflow

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Supervisor Agent
+# NETTRADES.AI - Supervisor Agent
 # =============================================================================
 # FILE: src/core/supervisor.py
 #
@@ -155,7 +155,7 @@ async def invoke_supervisor_with_retry(supervisor, state: Dict[str, Any]) -> Dic
         result = await _supervisor_breaker.call_async(_invoke)
         return result
     except CircuitBreakerError:
-        _logger.error("Circuit breaker is open – supervisor invocation temporarily blocked.")
+        _logger.error("Circuit breaker is open - supervisor invocation temporarily blocked.")
         raise
 
 # =============================================================================
@@ -171,7 +171,7 @@ gpu_management_agent = create_gpu_management_agent()
 vision_agent = create_vision_agent()
 action_agent = create_action_agent()
 
-_logger.info("✅ All sub-agents loaded successfully")
+_logger.info("??? All sub-agents loaded successfully")
 
 # =============================================================================
 # NODE 1: CLASSIFY INTENT
@@ -215,7 +215,7 @@ async def classify(state: dict) -> dict:
     if has_image:
         state["intent"] = "vision"
         state["followup_count"] = 0
-        _logger.info("Image detected – routing to vision agent")
+        _logger.info("Image detected - routing to vision agent")
         return state
 
     # Retrieve the company-specific LLM using the LLMFactory.
@@ -323,7 +323,7 @@ async def medical_screening(state: dict) -> dict:
         if "SUFFICIENT" in answer.upper():
             # The question is complete; mark screening as done
             state["screening_done"] = True
-            _logger.info("Medical screening complete – sufficient information")
+            _logger.info("Medical screening complete - sufficient information")
         else:
             # More information is needed; ask a follow-up question
             # Append the assistant's follow-up message to the conversation
@@ -404,14 +404,14 @@ async def route(state: dict) -> dict:
     3. If not, it dispatches to the appropriate sub-agent based on intent
 
     The mapping of intents to sub-agents is:
-    - recruitment → Recruitment Agent
-    - freelance → Freelance Agent
-    - lead_gen → Lead Generation Agent
-    - gpu_management → GPU Management Agent
-    - vision → Vision Agent
-    - action → Action Agent
-    - medical/legal → General LLM (after screening)
-    - general → General LLM (fallback)
+    - recruitment -> Recruitment Agent
+    - freelance -> Freelance Agent
+    - lead_gen -> Lead Generation Agent
+    - gpu_management -> GPU Management Agent
+    - vision -> Vision Agent
+    - action -> Action Agent
+    - medical/legal -> General LLM (after screening)
+    - general -> General LLM (fallback)
 
     If the bridge already provided a response, it is used directly without
     calling a sub-agent.
@@ -561,11 +561,11 @@ def build_supervisor_workflow():
     Build the complete LangGraph workflow for the supervisor.
 
     The workflow flow:
-    1. classify → classify the user's intent
-    2. medical_screening → multi-turn screening for medical/legal (loops back if needed)
-    3. bridge_route → check if request should go remote (hub-and-spoke routing)
-    4. route → route to appropriate sub-agent
-    5. post_process → record for self-improving loop
+    1. classify -> classify the user's intent
+    2. medical_screening -> multi-turn screening for medical/legal (loops back if needed)
+    3. bridge_route -> check if request should go remote (hub-and-spoke routing)
+    4. route -> route to appropriate sub-agent
+    5. post_process -> record for self-improving loop
 
     The graph uses a conditional edge from medical_screening to either loop back
     (follow-up) or proceed to bridge_route.
@@ -585,7 +585,7 @@ def build_supervisor_workflow():
     # Set entry point
     workflow.add_edge(START, "classify")
 
-    # classify → medical_screening
+    # classify -> medical_screening
     workflow.add_edge("classify", "medical_screening")
 
     # medical_screening conditional: continue or done
@@ -598,13 +598,13 @@ def build_supervisor_workflow():
         }
     )
 
-    # bridge_route → route
+    # bridge_route -> route
     workflow.add_edge("bridge_route", "route")
 
-    # route → post_process
+    # route -> post_process
     workflow.add_edge("route", "post_process")
 
-    # post_process → END
+    # post_process -> END
     workflow.add_edge("post_process", "__end__")
 
     return workflow.compile()

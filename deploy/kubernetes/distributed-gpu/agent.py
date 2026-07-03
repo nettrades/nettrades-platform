@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES AI GPU Agent – runs on every GPU node.
+# NETTRADES AI GPU Agent - runs on every GPU node.
 # =============================================================================
 # This agent detects GPUs, generates a hardware-bound node ID, registers with
 # Odoo, brings up WireGuard, and starts the GPUStack worker inside the
@@ -309,7 +309,7 @@ def main():
     if not get_wireguard_pubkey():
         generate_wireguard_keys()
 
-    # Registration – keep trying forever with backoff
+    # Registration - keep trying forever with backoff
     while True:
         try:
             config = register_with_odoo(api_key)

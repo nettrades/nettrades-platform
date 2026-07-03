@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Common injection patterns – can be extended via Odoo admin later
+# Common injection patterns - can be extended via Odoo admin later
 INJECTION_PATTERNS = [
     r"(?i)ignore previous instructions",
     r"(?i)forget all previous instructions",

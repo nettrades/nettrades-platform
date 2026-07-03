@@ -1,5 +1,5 @@
 # =============================================================================
-# Lead-Gen Agent – monitors platform activity, scores and creates leads.
+# Lead-Gen Agent - monitors platform activity, scores and creates leads.
 # =============================================================================
 import json, logging
 from langgraph.graph import StateGraph, END, START

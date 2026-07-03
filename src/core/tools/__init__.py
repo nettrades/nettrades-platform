@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Tools Package
+# NETTRADES.AI - Tools Package
 # =============================================================================
 # FILE: src/core/tools/__init__.py
 #

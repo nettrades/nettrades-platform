@@ -268,7 +268,7 @@ services:
       # Database connection (PostgreSQL + pgvector)
       - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
       # Odoo Proxy Integration (NEW – replaces the old mcp-odoo)
-      - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:3000}
+      - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:8080}
       - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
       # Odoo connection details (used by the proxy to talk to Odoo)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – Agents Package
+# NETTRADES.AI - Agents Package
 # =============================================================================
 # FILE: src/core/agents/__init__.py
 #
