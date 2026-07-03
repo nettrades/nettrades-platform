@@ -9,20 +9,21 @@
     FUTURE IMPROVEMENT: add a "Test WireGuard Connection" button.
 -->
 <odoo>
-    <!-- Tree View -->
+    <!-- =====================================================================
+         GPU CLUSTER VIEWS
+         ===================================================================== -->
     <record id="view_gpu_cluster_tree" model="ir.ui.view">
         <field name="name">gpu.cluster.tree</field>
         <field name="model">gpu.cluster</field>
         <field name="arch" type="xml">
-            <list>
+            <list string="GPU Clusters">
                 <field name="name"/>
-                <field name="trust_mode"/>
-                <!--  <field name="status" widget="badge"/>  -->
-                <field name="node_count"/>
-                <field name="online_node_count"/>
-                <field name="total_gpu_count"/>
-                <field name="total_vram_gb" string="VRAM (GB)"/>
-                <!--  <field name="total_earnings" widget="monetary"/>  -->
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="wireguard_mesh_subnet"/>
+                <field name="trust_mode" widget="badge"/>
+                <field name="status" widget="badge"/>
+                <field name="node_count" sum="Total"/>
+                <field name="active" widget="boolean"/>
             </list>
         </field>
     </record>
@@ -34,16 +35,30 @@
         <field name="arch" type="xml">
             <form string="GPU Cluster Configuration">
                 <header>
-                    <!-- <button name="action_scan_network" string="Scan Network" type="object" class="btn-primary" icon="fa-search" help="Automatically discover GPU-capable machines on registered subnets."/> -->
-                    <button name="action_generate_wireguard_keys" string="Generate WireGuard Keys"
-                            type="object" class="btn-secondary"
-                            help="Create a new WireGuard keypair for the controller. Existing peers will need their configs updated."/>
-                    <field name="status" widget="statusbar"/>
+                    <button name="action_scan_network" string="Scan Network" type="object" class="btn-primary" help="Scans the network for new GPU nodes and registers them automatically."/>
+                    <button name="action_generate_controller_keys" string="Generate WireGuard Keys" type="object" help="Generates a new WireGuard key pair for the cluster controller. This will overwrite existing keys."/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,active,archived"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
-                        <h1><field name="name" placeholder="Cluster Name"/></h1>
+                        <h1>
+                            <field name="name" placeholder="Cluster Name..."/>
+                        </h1>
                     </div>
+                    <group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="trust_mode" help="Select 'Trusted Multi-GPU' for internal company clusters, or 'Untrusted Public' for freelancer/ public sharing pools."/>
+                            <field name="active" help="Uncheck to archive this cluster (nodes will be deactivated)."/>
+                        </group>
+                        <group>
+                            <field name="wireguard_mesh_subnet" help="The IP subnet for the WireGuard mesh network (e.g., 10.0.0.0/24). Must not overlap with other networks."/>
+                            <field name="controller_endpoint" placeholder="Public IP or DNS:51820" help="The public endpoint (IP:port) of the WireGuard controller."/>
+                            <field name="wireguard_controller_public_key" help="The WireGuard public key of the cluster controller (generated automatically)."/>
+                            <field name="gpustack_server_url" placeholder="http://gpustack:8000" help="URL of the GPUStack server for worker registration."/>
+                            <field name="gpustack_api_key" password="True" help="API key for authenticating with GPUStack."/>
+                        </group>
+                    </group>
                     <notebook>
                         <!-- Configuration -->
                         <page string="Configuration">
@@ -156,13 +171,17 @@
         <field name="name">gpu.cluster.search</field>
         <field name="model">gpu.cluster</field>
         <field name="arch" type="xml">
-            <search>
-                <field name="name"/>
+            <search string="Search GPU Clusters">
+                <field name="name" string="Cluster Name" help="Search by cluster name."/>
                 <field name="trust_mode"/>
-                <filter name="online" string="Online" domain="[('status','=','online')]"/>
-                <filter name="degraded" string="Degraded" domain="[('status','=','degraded')]"/>
-                <filter name="offline" string="Offline" domain="[('status','=','offline')]"/>
+                <filter name="active" string="Active" domain="[('active','=',True)]" help="Show only active clusters."/>
+                <filter name="inactive" string="Inactive" domain="[('active','=',False)]" help="Show archived clusters."/>
+                <separator/>
+                <filter name="company" string="Company" domain="[]" context="{'group_by':'company_id'}" help="Group by company."/>
             </search>
         </field>
     </record>
+    <menuitem id="menu_gpu_cluster" name="GPU Clusters" parent="menu_gpu_root" sequence="10"/>
+    <menuitem id="menu_gpu_cluster_list" name="All Clusters" parent="menu_gpu_cluster" action="action_gpu_cluster"/>
+    <menuitem id="menu_gpu_cluster_config" name="Configuration" parent="menu_gpu_cluster" action="action_gpu_cluster_config"/>
 </odoo>
