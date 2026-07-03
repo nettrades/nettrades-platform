@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES.AI – LLM Factory
+# NETTRADES.AI - LLM Factory
 # =============================================================================
 # FILE: src/core/tools/llm_factory.py
 #
