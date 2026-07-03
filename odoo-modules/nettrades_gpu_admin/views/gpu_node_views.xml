@@ -12,24 +12,38 @@
     to the agent via the WireGuard tunnel.
 -->
 <odoo>
+
+    <!-- =====================================================================
+         GPU NODE VIEWS
+         ===================================================================== -->
+    <record id="view_gpu_node_tree" model="ir.ui.view">
+        <field name="name">gpu.node.tree</field>
+        <field name="model">gpu.node</field>
+        <field name="arch" type="xml">
+            <tree string="GPU Nodes">
+                <field name="name"/>
+                <field name="cluster_id"/>
+                <field name="partner_id"/>
+                <field name="status" widget="badge"/>
+                <field name="gpu_count"/>
+                <field name="total_vram_gb"/>
+                <field name="gpu_pool" widget="badge"/>
+                <field name="uptime_hours"/>
+                <field name="last_seen"/>
+            </tree>
+        </field>
+    </record>
+
+
     <record id="view_gpu_node_form" model="ir.ui.view">
         <field name="name">gpu.node.form</field>
         <field name="model">gpu.node</field>
         <field name="arch" type="xml">
             <form string="GPU Node Detail">
                 <header>
-                    <button name="action_remove_node" string="Remove Node" type="object"
-                            class="btn-danger"
-                            confirm="Permanently remove this node? WireGuard peer will be revoked."
-                            help="Deletes the node record, revokes WireGuard access and deregisters the GPUStack worker."/>
-                    <button name="action_enable_maintenance" string="Maintenance Mode"
-                            type="object"
-                            attrs="{'invisible': [('status', '=', 'maintenance')]}"
-                            help="Put the node into maintenance.  No new inference requests will be sent to it."/>
-                    <button name="action_disable_maintenance" string="Exit Maintenance"
-                            type="object"
-                            attrs="{'invisible': [('status', '!=', 'maintenance')]}"
-                            help="Return the node to active duty."/>
+                    <button name="action_remove_node" string="Remove Node" type="object" class="btn-danger" confirm="Permanently remove this node? WireGuard peer will be revoked."   help="Deletes the node record, revokes WireGuard access and deregisters the GPUStack worker."/>
+                    <button name="action_enable_maintenance" string="Maintenance Mode" type="object" attrs="{'invisible': [('status', '=', 'maintenance')]}" help="Put the node into maintenance.  No new inference requests will be sent to it."/>
+                    <button name="action_disable_maintenance" string="Exit Maintenance" type="object" attrs="{'invisible': [('status', '!=', 'maintenance')]}" help="Return the node to active duty."/> 
                     <field name="status" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -152,4 +166,28 @@
             </form>
         </field>
     </record>
+    
+        <record id="view_gpu_node_search" model="ir.ui.view">
+            <field name="name">gpu.node.search</field>
+            <field name="model">gpu.node</field>
+            <field name="arch" type="xml">
+                <search string="Search GPU Nodes">
+                    <field name="name"/>
+                    <field name="cluster_id"/>
+                    <field name="status"/>
+                    <field name="gpu_pool"/>
+                    <filter name="online" string="Online" domain="[('status','=','online')]"/>
+                    <filter name="offline" string="Offline" domain="[('status','=','offline')]"/>
+                    <filter name="internal" string="Internal Pool" domain="[('gpu_pool','=','internal')]"/>
+                    <filter name="public" string="Public Pool" domain="[('gpu_pool','=','public')]"/>
+                    <separator/>
+                    <filter name="group_by_cluster" string="Cluster" domain="[]" context="{'group_by':'cluster_id'}"/>
+                    <filter name="group_by_pool" string="Pool" domain="[]" context="{'group_by':'gpu_pool'}"/>
+                </search>
+            </field>
+    </record>
+    
+    <menuitem id="menu_gpu_node" name="GPU Nodes" parent="menu_gpu_root" sequence="20"/>
+    <menuitem id="menu_gpu_node_list" name="All Nodes" parent="menu_gpu_node" action="action_gpu_node"/>    
+    
 </odoo>

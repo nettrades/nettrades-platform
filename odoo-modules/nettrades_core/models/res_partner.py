@@ -379,3 +379,99 @@ class ResPartner(models.Model):
         _logger.info(f"Partner {self.id} karma changed from {old_karma} to {self.karma} ({reason})")
         
         return self.karma
+        
+        
+    # =========================================================================
+    # 11. USER TYPE CLASSIFICATION
+    # =========================================================================
+    user_type = fields.Selection(
+        [
+            ('company', 'Company'),
+            ('freelancer', 'Freelancer'),
+            ('employee', 'Employee'),
+            ('student', 'Student'),
+            ('other', 'Other'),
+        ],
+        string="User Type",
+        default='company',
+        help="Classifies the partner type for platform features"
+    )
+
+    # =========================================================================
+    # 12. FREELANCER-SPECIFIC FIELDS
+    # =========================================================================
+    professional_summary = fields.Text(
+        string="Professional Summary",
+        help="A brief summary of the freelancer's professional background and expertise"
+    )
+
+    hourly_rate = fields.Float(
+        string="Hourly Rate",
+        digits=(16, 2),
+        help="The freelancer's standard hourly rate in the default currency"
+    )
+
+    # =========================================================================
+    # 13. COMPANY REGISTRY AND DUPLICATE DETECTION
+    # =========================================================================
+    company_registry = fields.Char(
+        string="Company Registry Number",
+        help="Official company registration number for verification"
+    )
+
+    # Computed fields for duplicate detection (used in the view)
+    same_vat_partner_id = fields.Many2one(
+        'res.partner',
+        string="Same VAT Partner",
+        compute='_compute_same_vat_partner',
+        help="Partner with the same VAT number (computed)"
+    )
+
+    same_company_registry_partner_id = fields.Many2one(
+        'res.partner',
+        string="Same Registry Partner",
+        compute='_compute_same_registry_partner',
+        help="Partner with the same company registry number (computed)"
+    )
+
+    vat_label = fields.Char(
+        string="VAT Label",
+        compute='_compute_vat_label',
+        help="Display label for VAT field"
+    )
+
+    # =========================================================================
+    # 14. COMPUTATION METHODS
+    # =========================================================================
+    @api.depends('vat')
+    def _compute_same_vat_partner(self):
+        """Find partners with the same VAT number."""
+        for partner in self:
+            if not partner.vat:
+                partner.same_vat_partner_id = False
+                continue
+            same = self.search([
+                ('vat', '=', partner.vat),
+                ('id', '!=', partner.id),
+                ('vat', '!=', False)
+            ], limit=1)
+            partner.same_vat_partner_id = same.id if same else False
+
+    @api.depends('company_registry')
+    def _compute_same_registry_partner(self):
+        """Find partners with the same company registry number."""
+        for partner in self:
+            if not partner.company_registry:
+                partner.same_company_registry_partner_id = False
+                continue
+            same = self.search([
+                ('company_registry', '=', partner.company_registry),
+                ('id', '!=', partner.id),
+                ('company_registry', '!=', False)
+            ], limit=1)
+            partner.same_company_registry_partner_id = same.id if same else False
+
+    def _compute_vat_label(self):
+        """Get the display label for VAT field."""
+        for partner in self:
+            partner.vat_label = "VAT" 
