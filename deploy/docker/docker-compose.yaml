@@ -189,7 +189,7 @@ services:
       - HOST=postgres
       - PORT=5432
       - USER=odoo
-      - PASSWORD=odoo123
+      - PASSWORD=${POSTGRES_PASSWORD}
       # Fairness evaluation API keys
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
