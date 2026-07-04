@@ -8,11 +8,7 @@
 -->
 <odoo>
     <!-- Top-level menu -->
-    <menuitem id="menu_gpu_root"
-              name="GPU Manager"
-              web_icon="nettrades_gpu_admin,static/description/icon.png"
-              sequence="90"
-              groups="group_gpu_administrator,group_gpu_operator"/>
+    <menuitem id="menu_gpu_root" name="GPU Manager" sequence="10" web_icon="nettrades_gpu_admin,static/description/icon.png"/>
 
     <!-- Dashboard (client action) -->
     <menuitem id="menu_gpu_dashboard"

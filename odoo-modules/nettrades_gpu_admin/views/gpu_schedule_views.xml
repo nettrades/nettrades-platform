@@ -1,16 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- =====================================================================
+         GPU SHARING SCHEDULE VIEWS
+         ===================================================================== -->
     <record id="view_gpu_schedule_tree" model="ir.ui.view">
         <field name="name">gpu.sharing.schedule.tree</field>
         <field name="model">gpu.sharing.schedule</field>
         <field name="arch" type="xml">
-            <list editable="bottom">
+            <tree string="Sharing Schedules" editable="bottom">
+                <field name="node_id"/>
                 <field name="day_of_week"/>
                 <field name="start_time"/>
                 <field name="end_time"/>
-                <field name="is_enabled"/>
-                <field name="min_vram_free_gb"/>
-            </list>
+                <field name="enabled"/>
+            </tree>
         </field>
     </record>
+
+    <record id="view_gpu_schedule_form" model="ir.ui.view">
+        <field name="name">gpu.sharing.schedule.form</field>
+        <field name="model">gpu.sharing.schedule</field>
+        <field name="arch" type="xml">
+            <form string="Sharing Schedule">
+                <sheet>
+                    <group>
+                        <field name="node_id"/>
+                        <field name="day_of_week"/>
+                        <field name="start_time"/>
+                        <field name="end_time"/>
+                        <field name="enabled"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <menuitem id="menu_gpu_schedule" name="Sharing Schedules" parent="menu_gpu_root" sequence="30"/>
+    <menuitem id="menu_gpu_schedule_list" name="All Schedules" parent="menu_gpu_schedule" action="action_gpu_schedule"/>
+
 </odoo>

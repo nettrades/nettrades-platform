@@ -1,23 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_multimodal_config" model="ir.ui.view">
+    <!-- =====================================================================
+         MULTIMODAL CONFIGURATION VIEWS
+         ===================================================================== -->
+    <record id="view_multimodal_config_form" model="ir.ui.view">
         <field name="name">multimodal.config.form</field>
         <field name="model">multimodal.config</field>
         <field name="arch" type="xml">
-            <form string="Multi-Modal &amp; Edge Settings">
+            <form string="Multimodal Configuration">
                 <sheet>
-                    <!-- ====== Multi-Modal Inferencing ====== -->
-                    <group string="Multi-Modal Inferencing (Vision + Text)">
-                        <field name="enable_multimodal"
-                               help="When enabled, users can upload images in the chat and the AI will analyse them using a Vision-Language Model (VLM)."/>
-                        <field name="multimodal_vlm_model"
-                               attrs="{'invisible': [('enable_multimodal', '=', False)], 'required': [('enable_multimodal', '=', True)]}"
-                               help="The VLM to use, e.g. 'Qwen2-VL-7B-Instruct'.  This model must already be deployed in GPUStack."/>
-                        <field name="multimodal_vlm_endpoint"
-                               attrs="{'invisible': [('enable_multimodal', '=', False)]}"
-                               help="Override the inference endpoint.  Leave blank to use the default GPUStack server."/>
+                    <group string="Vision Model">
+                        <field name="vision_enabled"  help="When enabled, users can upload images in the chat and the AI will analyse them using a Vision-Language Model (VLM)."/>
+                        <field name="vision_model_name" attrs="{'invisible': [('vision_enabled','=',False)], 'required': [('vision_enabled','=',True)]}  help="The VLM to use, e.g. 'Qwen2-VL-7B-Instruct'.  This model must already be deployed in GPUStack."/>
+                        <field name="vision_model_provider" help="Override the inference endpoint.  Leave blank to use the default GPUStack server." help="Override the inference endpoint.  Leave blank to use the default GPUStack server."/>
                     </group>
-                    <div class="text-muted" attrs="{'invisible': [('enable_multimodal', '=', False)]}">
+                    <div class="text-muted" attrs="{'invisible': [('vision_enabled', '=', False)]}">
                         <p><b>Before enabling:</b></p>
                         <ol>
                             <li>Deploy a VLM (e.g. Qwen2-VL-7B-Instruct) in GPUStack.</li>
@@ -25,19 +22,12 @@
                             <li>GPUStack will automatically handle the multimodal projector file.</li>
                         </ol>
                     </div>
-
-                    <!-- ====== Robotics Integration ====== -->
-                    <group string="Robotics Integration (ROS 2 / VLA)">
-                        <field name="enable_robotics"
-                               help="Enable the LangGraph supervisor to call ROS 2 actions and services.  Requires an MCP-to-ROS bridge (e.g. RoboNeuron)."/>
-                        <field name="robotics_ros2_master_uri"
-                               attrs="{'invisible': [('enable_robotics', '=', False)], 'required': [('enable_robotics', '=', True)]}"
-                               help="The URI of the ROS 2 master node, e.g. http://robot-ip:11311."/>
-                        <field name="robotics_vla_model"
-                               attrs="{'invisible': [('enable_robotics', '=', False)]}"
-                               help="Vision-Language-Action model for robotic control, e.g. 'OpenVLA-7B'.  Must be deployed in GPUStack/vLLM."/>
+                    <group string="Robotics (VLA)">
+                        <field name="robotics_enabled"/>
+                        <field name="vla_model_name" attrs="{'invisible': [('robotics_enabled','=',False)], 'required': [('robotics_enabled','=',True)]}"/>
+                        <field name="ros_master_uri" attrs="{'invisible': [('robotics_enabled','=',False)]}"/>
                     </group>
-                    <div class="text-muted" attrs="{'invisible': [('enable_robotics', '=', False)]}">
+                    <div class="text-muted" attrs="{'invisible': [('robotics_enabled', '=', False)]}">
                         <p><b>Before enabling:</b></p>
                         <ol>
                             <li>Install the MCP-to-ROS bridge (RoboNeuron) on the robot controller.</li>
@@ -45,35 +35,23 @@
                             <li>Verify network connectivity between the LangGraph container and the ROS 2 master.</li>
                         </ol>
                     </div>
-
-                    <!-- ====== IoT Integration ====== -->
-                    <group string="IoT Integration (MQTT)">
-                        <field name="enable_iot"
-                               help="Enable MQTT subscriber for sensor data streams."/>
-                        <field name="iot_mqtt_broker"
-                               attrs="{'invisible': [('enable_iot', '=', False)], 'required': [('enable_iot', '=', True)]}"
-                               help="Hostname or IP of the MQTT broker (e.g. Eclipse Mosquitto)."/>
-                        <field name="iot_mqtt_port"
-                               attrs="{'invisible': [('enable_iot', '=', False)]}"
-                               help="Port of the MQTT broker (default 1883)."/>
+                    <group string="IoT">
+                        <field name="iot_enabled"/>
+                        <field name="mqtt_broker_url" attrs="{'invisible': [('iot_enabled','=',False)], 'required': [('iot_enabled','=',True)]}"/>
+                        <field name="mqtt_topic_prefix"/>
                     </group>
-                    <div class="text-muted" attrs="{'invisible': [('enable_iot', '=', False)]}">
+                    <div class="text-muted" attrs="{'invisible': [('iot_enabled', '=', False)]}">
                         <p><b>Before enabling:</b></p>
                         <ol>
                             <li>Deploy an MQTT broker (e.g. <code>docker run -d --name mosquitto eclipse-mosquitto</code>).</li>
                             <li>Ensure the broker is reachable from the LangGraph container.</li>
                         </ol>
                     </div>
-
-                    <!-- ====== Edge Device Support ====== -->
-                    <group string="Edge Device Support">
-                        <field name="enable_edge_deployment"
-                               help="Enable automatic deployment of quantized models on Jetson, Raspberry Pi, and Coral TPU devices."/>
-                        <field name="edge_default_quantization"
-                               attrs="{'invisible': [('enable_edge_deployment', '=', False)]}"
-                               help="Choose the quantization level.  4-bit is recommended for most edge devices to save memory."/>
+                    <group string="Edge Devices">
+                        <field name="edge_enabled"/>
+                        <field name="default_quantization"/>
                     </group>
-                    <div class="text-muted" attrs="{'invisible': [('enable_edge_deployment', '=', False)]}">
+                    <div class="text-muted" attrs="{'invisible': [('edge_enabled', '=', False)]}">
                         <p><b>Before enabling:</b></p>
                         <ol>
                             <li>Ensure the target edge device runs the NETTRADES GPU Agent.</li>
@@ -86,15 +64,18 @@
         </field>
     </record>
 
-    <menuitem id="menu_multimodal_config"
-              name="Multi-Modal &amp; Edge Settings"
-              parent="menu_gpu_root"
-              action="action_multimodal_config"
-              sequence="60"/>
+    <record id="view_multimodal_config_tree" model="ir.ui.view">
+        <field name="name">multimodal.config.tree</field>
+        <field name="model">multimodal.config</field>
+        <field name="arch" type="xml">
+            <tree string="Multimodal Configurations">
+                <field name="name"/>
+                <field name="vision_enabled" widget="boolean"/>
+                <field name="robotics_enabled" widget="boolean"/>
+                <field name="iot_enabled" widget="boolean"/>
+                <field name="edge_enabled" widget="boolean"/>
+            </tree>
+        </field>
+    </record>
 
-    <act_window id="action_multimodal_config"
-                name="Multi-Modal &amp; Edge Settings"
-                res_model="multimodal.config"
-                view_mode="form"
-                target="inline"/>
 </odoo>

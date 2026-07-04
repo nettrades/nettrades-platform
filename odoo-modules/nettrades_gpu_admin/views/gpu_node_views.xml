@@ -175,17 +175,14 @@
                         </page>
 
                         <!-- ========== Earnings & Reputation ========== -->
-                        <page string="Earnings &amp; Reputation">
+                        <page string="Economics">
                             <group>
                                 <field name="tokens_served"/>
-                                <field name="token_earnings" widget="monetary"/>
-                                <field name="reputation_score"
-                                       help="100 = perfect. Drops if attestation fails or the node misbehaves."/>
-                                <field name="attestation_passed"/>
-                                <field name="attestation_last_check"/>
+                                <field name="token_earnings"/>
+                                <field name="reputation_score"/>
+                                <field name="scheduled_share"/>
                             </group>
                         </page>
-
                         <!-- ========== Administrator Checklist ========== -->
                         <page string="Checklist">
                             <div class="text-muted">

@@ -145,16 +145,10 @@
                         <page string="Fine-Tuning"
                               attrs="{'invisible': [('trust_mode', 'not in', ['company_multi_gpu', 'company_single_gpu'])]}">
                             <group string="Training Configuration">
-                                <field name="dataset_id" string="Dataset"
-                                       domain="[('field_id.company_id', '=', company_id)]"
-                                       help="Select a fine-tuning dataset that was prepared from Good Answer feedback."/>
-                                <field name="base_model" string="Base Model"
-                                       help="Hugging Face model identifier (e.g. deepseek-ai/DeepSeek-R1-Distill-Qwen-14B)."/>
-                                <field name="training_mode" string="Mode"
-                                       help="Multi-GPU uses Axolotl FSDP2 across the internal WireGuard mesh. Single-GPU uses Unsloth."/>
-                                <field name="gpu_ids" widget="many2many_tags"
-                                       domain="[('cluster_id', '=', id), ('pool', '=', 'internal')]"
-                                       help="Select one or more internal-pool GPUs to use for training."/>
+                                <field name="dataset_id" string="Dataset" domain="[('field_id.company_id', '=', company_id)]" help="Select a fine-tuning dataset that was prepared from Good Answer feedback."/>
+                                <field name="base_model" string="Base Model" help="Hugging Face model identifier (e.g. deepseek-ai/DeepSeek-R1-Distill-Qwen-14B)."/> 
+                                <field name="training_mode" string="Mode" help="Multi-GPU uses Axolotl FSDP2 across the internal WireGuard mesh. Single-GPU uses Unsloth."/> 
+                                <field name="gpu_ids" widget="many2many_tags" domain="[('cluster_id', '=', id), ('pool', '=', 'internal')]" help="Select one or more internal-pool GPUs to use for training."/>
                             </group>
                             <button name="action_start_finetune" string="Start Fine-Tuning"
                                     type="object" class="btn-primary"
@@ -162,6 +156,11 @@
                         </page>
                     </notebook>
                 </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>                
             </form>
         </field>
     </record>
