@@ -3,21 +3,22 @@
 # FILE: scripts/phase-deploy.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 2: Single_VM Docker deployment.
+#   Phase 2: Single-VM Docker deployment.
 #   This script deploys the entire NETTRADES stack using Docker Compose.
-#   It is idempotent and safe to re_run.
+#   It is idempotent and safe to re-run.
 #
 #   It performs the following steps (in order):
-#     1. Create required directories.
-#     2. Download DeepSeek model (if not cached).
-#     3. Build custom Docker images (Odoo, LangGraph) if missing.
-#     4. Generate `init-db.sql` with all NETTRADES database tables.
-#     5. Run security hardening (if Phase 0 not completed).
-#     6. Start the Docker Compose stack (using `--no-recreate`).
-#     7. Initialise PostgreSQL database with `init-db.sql`.
-#     8. Install all NETTRADES Odoo modules.
-#     9. Set up cron for daily backups.
-#    10. Verify service health.
+#   1. Create required directories.
+#   2. Download DeepSeek model (if not cached).
+#   3. Build custom Docker images (Odoo, LangGraph) if missing.
+#   4. Generate `init-db.sql` with all NETTRADES database tables.
+#   5. Run security hardening (if Phase 0 not completed).
+#   6. Start the Docker Compose stack (using `--no-recreate`).
+#   7. Initialise PostgreSQL database with `init-db.sql`.
+#   8. Install all NETTRADES Odoo modules.
+#   9. Set up cron for daily backups.
+#   10. Verify service health.
+#   11. Display final status.
 #
 # USAGE:
 #   ./phase-deploy.sh [--auto] [--force] [--upgrade]
@@ -45,6 +46,12 @@ source "$SCRIPT_DIR/lib/common.sh"
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
 UPGRADE="${UPGRADE:-false}"
+export FORCE  # <-- FIX: Ensure FORCE is available to phase_completed()
+
+# -----------------------------------------------------------------------------
+# Production Safety Check
+# -----------------------------------------------------------------------------
+confirm_force_production "2"
 
 # -----------------------------------------------------------------------------
 # Phase marker
@@ -228,7 +235,6 @@ CREATE TABLE IF NOT EXISTS nettrades_projects (
 -- =============================================================================
 -- Good Answer / Self-Improving AI
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_good_answers (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -254,7 +260,6 @@ CREATE TABLE IF NOT EXISTS nettrades_votes (
 -- =============================================================================
 -- Ask Someone – Expert Marketplace
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_ask_someone_requests (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -281,7 +286,6 @@ CREATE TABLE IF NOT EXISTS nettrades_ask_someone_offers (
 -- =============================================================================
 -- GPU Marketplace
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_gpu_nodes (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -323,7 +327,6 @@ CREATE TABLE IF NOT EXISTS nettrades_gpu_usage_logs (
 -- =============================================================================
 -- Bridge / Hub-and-Spoke Routing
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_bridge_routes (
     id SERIAL PRIMARY KEY,
     source_node VARCHAR(255),
@@ -338,7 +341,6 @@ CREATE TABLE IF NOT EXISTS nettrades_bridge_routes (
 -- =============================================================================
 -- Job Matching & Proposals
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_job_matches (
     id SERIAL PRIMARY KEY,
     project_id INTEGER REFERENCES nettrades_projects(id),
@@ -363,7 +365,6 @@ CREATE TABLE IF NOT EXISTS nettrades_proposals (
 -- =============================================================================
 -- Fairness & Reputation
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_fairness_scores (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -376,7 +377,6 @@ CREATE TABLE IF NOT EXISTS nettrades_fairness_scores (
 -- =============================================================================
 -- Notifications
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_notifications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -390,7 +390,6 @@ CREATE TABLE IF NOT EXISTS nettrades_notifications (
 -- =============================================================================
 -- Research Module
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_research_projects (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -404,7 +403,6 @@ CREATE TABLE IF NOT EXISTS nettrades_research_projects (
 -- =============================================================================
 -- Queue / Task Management
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_queue_tasks (
     id SERIAL PRIMARY KEY,
     task_type VARCHAR(100),
@@ -421,7 +419,6 @@ CREATE TABLE IF NOT EXISTS nettrades_queue_tasks (
 -- =============================================================================
 -- Self-Improving Config
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_self_improving_config (
     id SERIAL PRIMARY KEY,
     key VARCHAR(255) UNIQUE NOT NULL,
@@ -433,7 +430,6 @@ CREATE TABLE IF NOT EXISTS nettrades_self_improving_config (
 -- =============================================================================
 -- Lead Scoring
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_leads (
     id SERIAL PRIMARY KEY,
     company_id INTEGER REFERENCES nettrades_companies(id),
@@ -447,7 +443,6 @@ CREATE TABLE IF NOT EXISTS nettrades_leads (
 -- =============================================================================
 -- Chatbot
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_chatbot_conversations (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -460,7 +455,6 @@ CREATE TABLE IF NOT EXISTS nettrades_chatbot_conversations (
 -- =============================================================================
 -- PWA / Offline
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_pwa_cache (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -473,7 +467,6 @@ CREATE TABLE IF NOT EXISTS nettrades_pwa_cache (
 -- =============================================================================
 -- Indexes for Performance
 -- =============================================================================
-
 CREATE INDEX IF NOT EXISTS idx_good_answers_user_id ON nettrades_good_answers(user_id);
 CREATE INDEX IF NOT EXISTS idx_gpu_nodes_status ON nettrades_gpu_nodes(status);
 CREATE INDEX IF NOT EXISTS idx_gpu_bookings_user_id ON nettrades_gpu_bookings(user_id);
@@ -506,8 +499,13 @@ fi
 # 6. Start Docker Compose stack
 # -----------------------------------------------------------------------------
 cd "$DEPLOY_DIR"
-
 log_step "Starting Docker Compose stack..."
+
+# Source .env for environment variables
+set -a
+source "$ENV_FILE"
+set +a
+
 if [[ "$FORCE" == true ]]; then
     log_info "Force mode – recreating containers..."
     docker compose down --remove-orphans
@@ -522,9 +520,12 @@ log_success "Docker Compose stack started"
 # 7. Initialise PostgreSQL database
 # -----------------------------------------------------------------------------
 log_step "Initialising PostgreSQL database..."
+
 # Wait for PostgreSQL to be ready
+log_info "Waiting for PostgreSQL to be ready..."
 for i in {1..30}; do
     if docker exec postgres pg_isready -U odoo &>/dev/null; then
+        log_success "PostgreSQL is ready"
         break
     fi
     sleep 2
@@ -548,6 +549,7 @@ log_step "Installing NETTRADES Odoo modules..."
 log_info "Waiting for Odoo to be ready..."
 for i in {1..30}; do
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
+        log_success "Odoo is ready"
         break
     fi
     sleep 2
@@ -567,6 +569,7 @@ fi
 # 9. Set up cron for daily backups
 # -----------------------------------------------------------------------------
 log_step "Setting up cron for daily backups..."
+
 BACKUP_SCRIPT="$DEPLOY_DIR/backup.sh"
 if [[ -f "$BACKUP_SCRIPT" ]]; then
     if command -v crontab &>/dev/null; then
@@ -619,15 +622,15 @@ mark_phase_complete 2
 log_success "Phase 2 completed – Docker stack deployed with all modules"
 echo ""
 echo "============================================================"
-echo "  NETTRADES Platform is now running!"
+echo " NETTRADES Platform is now running!"
 echo "============================================================"
 echo ""
 docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 echo "Access the services:"
-echo "  Odoo:       http://localhost:8069"
-echo "  Forgejo:    http://localhost:3000"
-echo "  Grafana:    http://localhost:3001"
+echo "  Odoo:      http://localhost:8069"
+echo "  Forgejo:   http://localhost:3000"
+echo "  Grafana:   http://localhost:3001"
 echo "  Prometheus: http://localhost:9090"
 echo ""
 echo "Default Odoo credentials: admin / admin"
