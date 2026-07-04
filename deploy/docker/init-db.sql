@@ -52,7 +52,6 @@ CREATE TABLE IF NOT EXISTS nettrades_projects (
 -- =============================================================================
 -- Good Answer / Self-Improving AI
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_good_answers (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -78,7 +77,6 @@ CREATE TABLE IF NOT EXISTS nettrades_votes (
 -- =============================================================================
 -- Ask Someone – Expert Marketplace
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_ask_someone_requests (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -105,7 +103,6 @@ CREATE TABLE IF NOT EXISTS nettrades_ask_someone_offers (
 -- =============================================================================
 -- GPU Marketplace
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_gpu_nodes (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -147,7 +144,6 @@ CREATE TABLE IF NOT EXISTS nettrades_gpu_usage_logs (
 -- =============================================================================
 -- Bridge / Hub-and-Spoke Routing
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_bridge_routes (
     id SERIAL PRIMARY KEY,
     source_node VARCHAR(255),
@@ -162,7 +158,6 @@ CREATE TABLE IF NOT EXISTS nettrades_bridge_routes (
 -- =============================================================================
 -- Job Matching & Proposals
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_job_matches (
     id SERIAL PRIMARY KEY,
     project_id INTEGER REFERENCES nettrades_projects(id),
@@ -187,7 +182,6 @@ CREATE TABLE IF NOT EXISTS nettrades_proposals (
 -- =============================================================================
 -- Fairness & Reputation
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_fairness_scores (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -200,7 +194,6 @@ CREATE TABLE IF NOT EXISTS nettrades_fairness_scores (
 -- =============================================================================
 -- Notifications
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_notifications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -214,7 +207,6 @@ CREATE TABLE IF NOT EXISTS nettrades_notifications (
 -- =============================================================================
 -- Research Module
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_research_projects (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -228,7 +220,6 @@ CREATE TABLE IF NOT EXISTS nettrades_research_projects (
 -- =============================================================================
 -- Queue / Task Management
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_queue_tasks (
     id SERIAL PRIMARY KEY,
     task_type VARCHAR(100),
@@ -245,7 +236,6 @@ CREATE TABLE IF NOT EXISTS nettrades_queue_tasks (
 -- =============================================================================
 -- Self-Improving Config
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_self_improving_config (
     id SERIAL PRIMARY KEY,
     key VARCHAR(255) UNIQUE NOT NULL,
@@ -257,7 +247,6 @@ CREATE TABLE IF NOT EXISTS nettrades_self_improving_config (
 -- =============================================================================
 -- Lead Scoring
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_leads (
     id SERIAL PRIMARY KEY,
     company_id INTEGER REFERENCES nettrades_companies(id),
@@ -271,7 +260,6 @@ CREATE TABLE IF NOT EXISTS nettrades_leads (
 -- =============================================================================
 -- Chatbot
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_chatbot_conversations (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -284,7 +272,6 @@ CREATE TABLE IF NOT EXISTS nettrades_chatbot_conversations (
 -- =============================================================================
 -- PWA / Offline
 -- =============================================================================
-
 CREATE TABLE IF NOT EXISTS nettrades_pwa_cache (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES nettrades_users(id),
@@ -297,7 +284,6 @@ CREATE TABLE IF NOT EXISTS nettrades_pwa_cache (
 -- =============================================================================
 -- Indexes for Performance
 -- =============================================================================
-
 CREATE INDEX IF NOT EXISTS idx_good_answers_user_id ON nettrades_good_answers(user_id);
 CREATE INDEX IF NOT EXISTS idx_gpu_nodes_status ON nettrades_gpu_nodes(status);
 CREATE INDEX IF NOT EXISTS idx_gpu_bookings_user_id ON nettrades_gpu_bookings(user_id);
