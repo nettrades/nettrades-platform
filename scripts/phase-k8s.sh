@@ -8,24 +8,24 @@
 #   manifests, and sets up Argo CD for GitOps.
 #
 #   Technology stack supported:
-#     - Talos Linux (immutable Kubernetes OS)
-#     - Cilium (CNI)
-#     - Longhorn (storage)
-#     - MetalLB (load balancing)
-#     - cert-manager (TLS certificates)
-#     - CloudNativePG (PostgreSQL operator)
-#     - NVIDIA GPU Operator
-#     - gVisor (container runtime isolation)
-#     - WireGuard (secure pod-to-pod communication)
-#     - Argo CD (GitOps)
-#     - Prometheus & Grafana (monitoring)
-#     - GPUStack (distributed GPU orchestration)
+#   - Talos Linux (immutable Kubernetes OS)
+#   - Cilium (CNI)
+#   - Longhorn (storage)
+#   - MetalLB (load balancing)
+#   - cert-manager (TLS certificates)
+#   - CloudNativePG (PostgreSQL operator)
+#   - NVIDIA GPU Operator
+#   - gVisor (container runtime isolation)
+#   - WireGuard (secure pod-to-pod communication)
+#   - Argo CD (GitOps)
+#   - Prometheus & Grafana (monitoring)
+#   - GPUStack (distributed GPU orchestration)
 #
 #   This is a FUTURE-PHASE script. It is currently a placeholder that checks
 #   for required tools and applies manifests. To use it, you must have:
-#     - A Proxmox host with Talos QCOW2 images uploaded
-#     - talosctl, kubectl, helm, and opentofu installed
-#     - A public IP for MetalLB
+#   - A Proxmox host with Talos QCOW2 images uploaded
+#   - talosctl, kubectl, helm, and opentofu installed
+#   - A public IP for MetalLB
 #
 # USAGE:
 #   ./phase-k8s.sh [--auto] [--force]
@@ -46,6 +46,12 @@ source "$SCRIPT_DIR/lib/common.sh"
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
+export FORCE
+
+# -----------------------------------------------------------------------------
+# Production Safety Check
+# -----------------------------------------------------------------------------
+confirm_force_production "4"
 
 # -----------------------------------------------------------------------------
 # Phase marker
@@ -68,7 +74,6 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Checking required tools..."
 MISSING_TOOLS=()
-
 for tool in kubectl helm talosctl tofu; do
     if ! command -v "$tool" &>/dev/null; then
         MISSING_TOOLS+=("$tool")
@@ -78,13 +83,12 @@ done
 if [[ ${#MISSING_TOOLS[@]} -gt 0 ]]; then
     log_error "Missing required tools: ${MISSING_TOOLS[*]}"
     log_info "Please install:"
-    log_info "  kubectl:   https://kubernetes.io/docs/tasks/tools/"
-    log_info "  helm:      https://helm.sh/docs/intro/install/"
-    log_info "  talosctl:  https://www.talos.dev/docs/v1.7/introduction/getting-started/"
-    log_info "  tofu:      https://opentofu.org/docs/intro/install/"
+    log_info "  kubectl: https://kubernetes.io/docs/tasks/tools/"
+    log_info "  helm: https://helm.sh/docs/intro/install/"
+    log_info "  talosctl: https://www.talos.dev/docs/v1.7/introduction/getting-started/"
+    log_info "  tofu: https://opentofu.org/docs/intro/install/"
     exit 1
 fi
-
 log_success "All required tools are installed"
 
 # -----------------------------------------------------------------------------
@@ -125,7 +129,6 @@ fi
 # Apply Kubernetes manifests
 # -----------------------------------------------------------------------------
 APPS_DIR="$K8S_DIR/apps"
-
 if [[ -d "$APPS_DIR" ]]; then
     log_step "Applying Kubernetes manifests..."
     kubectl apply -k "$APPS_DIR" || {
@@ -193,10 +196,10 @@ kubectl get pods -A
 # Mark phase complete
 # -----------------------------------------------------------------------------
 mark_phase_complete 4
-
 log_success "Phase 4 completed – Kubernetes cluster is deployed"
+
 echo ""
 echo "Access your platform:"
-echo "  Odoo:    https://$(kubectl get svc -n ingress traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'your-domain')"
+echo "  Odoo: https://$(kubectl get svc -n ingress traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'your-domain')"
 echo "  Grafana: https://grafana.$(kubectl get svc -n ingress traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'your-domain')"
 echo "  Argo CD: https://argo.$(kubectl get svc -n ingress traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo 'your-domain')"

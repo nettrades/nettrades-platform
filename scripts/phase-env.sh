@@ -35,6 +35,12 @@ source "$SCRIPT_DIR/lib/common.sh"
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
+export FORCE
+
+# -----------------------------------------------------------------------------
+# Production Safety Check
+# -----------------------------------------------------------------------------
+confirm_force_production "1"
 
 # -----------------------------------------------------------------------------
 # Phase marker
@@ -86,12 +92,27 @@ WIREGUARD_PUBLIC_KEY=$(echo "$WIREGUARD_PRIVATE_KEY" | wg pubkey 2>/dev/null || 
 
 # Update .env file with generated secrets
 # Using '|' as delimiter to avoid conflict with '/' in secrets
+
+# PostgreSQL password
 sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$POSTGRES_PASSWORD|" "$ENV_FILE"
+
+# DB_PASSWORD – used by Odoo (FIXED: now correctly sets DB_PASSWORD, not corrupting POSTGRES_PASSWORD)
+if grep -q "^DB_PASSWORD=" "$ENV_FILE"; then
+    sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=$POSTGRES_PASSWORD|" "$ENV_FILE"
+else
+    echo "DB_PASSWORD=$POSTGRES_PASSWORD" >> "$ENV_FILE"
+fi
+
+# Odoo admin password
 sed -i "s|^ODOO_ADMIN_PASSWORD=.*|ODOO_ADMIN_PASSWORD=$ODOO_ADMIN_PASSWORD|" "$ENV_FILE"
+
+# Secret keys
 sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|" "$ENV_FILE"
 sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|" "$ENV_FILE"
 sed -i "s|^VLLM_API_KEY=.*|VLLM_API_KEY=$VLLM_API_KEY|" "$ENV_FILE"
 sed -i "s|^PROXY_API_KEY=.*|PROXY_API_KEY=$PROXY_API_KEY|" "$ENV_FILE"
+
+# WireGuard keys
 sed -i "s|^WIREGUARD_PRIVATE_KEY=.*|WIREGUARD_PRIVATE_KEY=$WIREGUARD_PRIVATE_KEY|" "$ENV_FILE"
 sed -i "s|^WIREGUARD_PUBLIC_KEY=.*|WIREGUARD_PUBLIC_KEY=$WIREGUARD_PUBLIC_KEY|" "$ENV_FILE"
 
@@ -112,6 +133,7 @@ if [[ "$AUTO" != true ]]; then
     echo ""
     echo -e "${YELLOW}Important credentials (save these):${NC}"
     echo "  POSTGRES_PASSWORD: $POSTGRES_PASSWORD"
+    echo "  DB_PASSWORD: $POSTGRES_PASSWORD"
     echo "  ODOO_ADMIN_PASSWORD: $ODOO_ADMIN_PASSWORD"
     echo "  PROXY_API_KEY: $PROXY_API_KEY"
     echo "  VLLM_API_KEY: $VLLM_API_KEY"
@@ -127,5 +149,4 @@ fi
 # Mark phase complete
 # -----------------------------------------------------------------------------
 mark_phase_complete 1
-
 log_success "Phase 1 completed – .env generated"

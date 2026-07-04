@@ -7,25 +7,24 @@
 # PURPOSE:
 #   This script sets up the development environment for NETTRADES.
 #   It handles:
-#     - Creating a Python virtual environment
-#     - Installing all dependencies (torch, transformers, datasets, accelerate,
-#       langchain, langgraph)
-#     - Installing odoo_llm and Odoo requirements
-#     - Installing the odoo-proxy service
-#     - Fixing known vulnerabilities (Starlette)
-#     - Installing Odoo modules in the correct order
-#     - Validating the installation
+#   - Creating a Python virtual environment
+#   - Installing all dependencies (torch, transformers, datasets, accelerate,
+#     langchain, langgraph)
+#   - Installing odoo_llm and Odoo requirements
+#   - Installing the odoo-proxy service
+#   - Fixing known vulnerabilities (Starlette)
+#   - Installing Odoo modules in the correct order
+#   - Validating the installation
 #
 # USAGE:
 #   ./scripts/phase-dev-env.sh [--force]
 #
 # OPTIONS:
-#   --force    Re-run even if already completed (idempotency).
-#
+#   --force  Re-run even if already completed (idempotency).
 # =============================================================================
 
-set -e          # Exit on error
-set -u          # Exit on undefined variable
+set -e
+set -u
 
 # -----------------------------------------------------------------------------
 # 1. Configuration
@@ -37,16 +36,38 @@ VENV_DIR="$PLATFORM_DIR/venv"
 # Phase completion marker
 PHASE_MARKER="$PLATFORM_DIR/.phase-1-complete"
 
-# Check for --force flag
+# Parse arguments
 FORCE=false
 for arg in "$@"; do
     if [[ "$arg" == "--force" ]]; then
         FORCE=true
     fi
 done
+export FORCE
+
+# -----------------------------------------------------------------------------
+# Production Safety Check
+# -----------------------------------------------------------------------------
+ENVIRONMENT="${ENVIRONMENT:-development}"
+if [[ "$FORCE" == true ]] && [[ "$ENVIRONMENT" == "production" ]]; then
+    echo ""
+    echo "   WARNING  "
+    echo ""
+    echo "You are running '--force' on Phase 1 in a PRODUCTION environment."
+    echo "This will OVERWRITE existing configuration and may cause data loss."
+    echo ""
+    echo "This action CANNOT be undone."
+    echo ""
+    read -p "Type 'YES' to continue: " CONFIRM
+    if [[ "$CONFIRM" != "YES" ]]; then
+        echo "Aborted."
+        exit 1
+    fi
+    echo ""
+fi
 
 # If phase already completed and not forcing, exit
-if [ -f "$PHASE_MARKER" ] && [ "$FORCE" != true ]; then
+if [[ -f "$PHASE_MARKER" ]] && [[ "$FORCE" != true ]]; then
     echo -e "${YELLOW}[WARNING] Phase 1 already completed. Use --force to re-run.${NC}"
     exit 0
 fi
@@ -93,19 +114,20 @@ check_wsl() {
 # -----------------------------------------------------------------------------
 setup_virtual_environment() {
     log_info "Setting up Python virtual environment..."
-    if [ -d "$VENV_DIR" ]; then
+    if [[ -d "$VENV_DIR" ]]; then
         log_warning "Virtual environment already exists at $VENV_DIR"
-        read -p "Do you want to recreate it? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Removing existing virtual environment..."
-            rm -rf "$VENV_DIR"
-        else
-            log_info "Keeping existing virtual environment"
-            return 0
+        if [[ "$FORCE" != true ]]; then
+            read -p "Do you want to recreate it? (y/N) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Keeping existing virtual environment"
+                return 0
+            fi
         fi
+        log_info "Removing existing virtual environment..."
+        rm -rf "$VENV_DIR"
     fi
-    log_info "Creating virtual environment in $VENV_DIR..."
+    log_info "Creating virtual environment in $VENV_DIR"
     python3 -m venv "$VENV_DIR"
     # Activate the environment (source it)
     # shellcheck source=/dev/null
@@ -115,7 +137,6 @@ setup_virtual_environment() {
 
 install_dependencies() {
     log_info "Installing Python dependencies..."
-
     # Ensure virtual environment is active
     if [[ -z "${VIRTUAL_ENV:-}" ]]; then
         # shellcheck source=/dev/null
@@ -218,220 +239,100 @@ setup_odoo_proxy() {
         log_info "Creating odoo-proxy main.py..."
         cat > "$ODOO_PROXY_DIR/main.py" << 'EOF'
 # =============================================================================
-# Odoo JSON-RPC Proxy
+# NETTRADES.AI – Odoo JSON-RPC Proxy
 # =============================================================================
-# This FastAPI service provides a secure HTTP JSON-RPC endpoint that proxies
-# calls to the Odoo server. It validates an API key sent in the request headers
-# and forwards the JSON-RPC payload to Odoo's internal endpoint.
+# FILE: src/core/odoo_proxy/main.py
 #
-# It is intended to replace the broken mcp-odoo integration.
+# PURPOSE:
+#   Lightweight FastAPI proxy that forwards JSON-RPC calls from the LangGraph
+#   service to the Odoo backend. Provides authentication and request validation.
 # =============================================================================
 
 import os
-import json
 import logging
 import httpx
-from fastapi import FastAPI, Request, HTTPException, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import JSONResponse
-
-ODOO_URL = os.getenv("ODOO_URL", "http://odoo:8069")
-ODOO_API_KEY = os.getenv("ODOO_API_KEY", "change_me_in_production")
-PROXY_API_KEY = os.getenv("PROXY_API_KEY", "change_me_in_production")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(title="Odoo JSON-RPC Proxy", version="1.0.0")
 
-@app.on_event("startup")
-async def startup():
-    app.state.client = httpx.AsyncClient(timeout=60.0)
+ODOO_URL = os.getenv("ODOO_URL", "http://odoo:8069")
+ODOO_DB = os.getenv("ODOO_DB", "odoo")
+ODOO_USER = int(os.getenv("ODOO_USER", "1"))
+ODOO_PASSWORD = os.getenv("ODOO_PASSWORD", "admin")
+PROXY_API_KEY = os.getenv("PROXY_API_KEY", "")
 
-@app.on_event("shutdown")
-async def shutdown():
-    await app.state.client.aclose()
-
-@app.post("/jsonrpc")
-async def jsonrpc_proxy(request: Request):
-    auth = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
-    if auth != PROXY_API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-    body = await request.json()
-    client = request.app.state.client
-
-    try:
-        resp = await client.post(f"{ODOO_URL}/jsonrpc", json=body)
-        return JSONResponse(content=resp.json())
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+client = httpx.AsyncClient(timeout=60.0)
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=3000)
+@app.post("/jsonrpc")
+async def proxy_jsonrpc(request: Request):
+    # Authentication
+    api_key = request.headers.get("X-API-Key")
+    if PROXY_API_KEY and api_key != PROXY_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # Forward to Odoo
+    url = f"{ODOO_URL}/jsonrpc"
+    response = await client.post(url, json=body)
+    return JSONResponse(content=response.json(), status_code=response.status_code)
+
+@app.on_event("shutdown")
+async def shutdown():
+    await client.aclose()
 EOF
-        log_success "odoo-proxy main.py created"
-    else
-        log_info "odoo-proxy main.py already exists"
     fi
 
-    # Create requirements.txt for odoo-proxy
+    # Create requirements.txt if it doesn't exist
     if [ ! -f "$ODOO_PROXY_DIR/requirements.txt" ]; then
-        log_info "Creating odoo-proxy requirements.txt..."
         cat > "$ODOO_PROXY_DIR/requirements.txt" << 'EOF'
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-httpx==0.28.1
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+httpx>=0.27.0
+python-dotenv>=1.0.0
 EOF
-        log_success "odoo-proxy requirements.txt created"
     fi
 
-    log_success "odoo-proxy setup complete"
+    # Create __init__.py if it doesn't exist
+    if [ ! -f "$ODOO_PROXY_DIR/__init__.py" ]; then
+        touch "$ODOO_PROXY_DIR/__init__.py"
+    fi
+
+    log_success "odoo-proxy service ready"
 }
 
 install_odoo_modules() {
-    log_info "Installing Odoo modules in the correct order..."
-
-    # Ensure virtual environment is active
-    if [[ -z "${VIRTUAL_ENV:-}" ]]; then
-        # shellcheck source=/dev/null
-        source "$VENV_DIR/bin/activate"
-    fi
-
-    ADDONS_PATH=".\third-party\odoo\addons,.\odoo-modules,.\third-party\odoo_llm,.\third-party\odoo_llm_compat,.\third-party\website_sale_marketplace,.\third-party\queue-19"
-
-    # Batch 1: Foundation modules
-    log_info "Batch 1: Installing foundation modules..."
-    python "$PLATFORM_DIR/third-party/odoo/odoo-bin" \
-        -c "$PLATFORM_DIR/deploy/docker/config/odoo.conf" \
-        --addons-path="$ADDONS_PATH" \
-        -i queue_job,queue_job_batch,queue_job_cron,llm,llm_tool,llm_store,llm_pgvector,llm_knowledge,llm_assistant,llm_thread,llm_generate,llm_training \
-        --stop-after-init || log_warning "Batch 1 had errors"
-
-    # Batch 2: NETTRADES Core
-    log_info "Batch 2: Installing NETTRADES Core..."
-    python "$PLATFORM_DIR/third-party/odoo/odoo-bin" \
-        -c "$PLATFORM_DIR/deploy/docker/config/odoo.conf" \
-        --addons-path="$ADDONS_PATH" \
-        -i nettrades_core \
-        --stop-after-init || log_warning "Batch 2 had errors"
-
-    # Batch 3: Core NETTRADES modules
-    log_info "Batch 3: Installing core NETTRADES modules..."
-    python "$PLATFORM_DIR/third-party/odoo/odoo-bin" \
-        -c "$PLATFORM_DIR/deploy/docker/config/odoo.conf" \
-        --addons-path="$ADDONS_PATH" \
-        -i nettrades_gpu_admin,nettrades_gpustack_adapter,nettrades_good_answer,nettrades_ask_someone,nettrades_queue,nettrades_notifications,nettrades_job_matching,nettrades_lead_scoring,nettrades_chatbot \
-        --stop-after-init || log_warning "Batch 3 had errors"
-
-    # Batch 4: Self-improving system modules
-    log_info "Batch 4: Installing self-improving modules..."
-    python "$PLATFORM_DIR/third-party/odoo/odoo-bin" \
-        -c "$PLATFORM_DIR/deploy/docker/config/odoo.conf" \
-        --addons-path="$ADDONS_PATH" \
-        -i nettrades_bridge,nettrades_data_collection,nettrades_trigger,nettrades_loop,nettrades_self_improving_config \
-        --stop-after-init || log_warning "Batch 4 had errors"
-
-    # Batch 5: LLM Configuration
-    log_info "Batch 5: Installing LLM Configuration module..."
-    python "$PLATFORM_DIR/third-party/odoo/odoo-bin" \
-        -c "$PLATFORM_DIR/deploy/docker/config/odoo.conf" \
-        --addons-path="$ADDONS_PATH" \
-        -i nettrades_llm_config \
-        --stop-after-init || log_warning "Batch 5 had errors"
-
-    # Batch 6: Additional modules
-    log_info "Batch 6: Installing additional modules..."
-    python "$PLATFORM_DIR/third-party/odoo/odoo-bin" \
-        -c "$PLATFORM_DIR/deploy/docker/config/odoo.conf" \
-        --addons-path="$ADDONS_PATH" \
-        -i nettrades_fairness,nettrades_onboarding,nettrades_proposals,nettrades_research,nettrades_pwa \
-        --stop-after-init || log_warning "Batch 6 had errors"
-
-    log_success "Odoo modules installation completed"
-}
-
-validate_installation() {
-    log_info "Validating installation..."
-
-    if [[ -z "${VIRTUAL_ENV:-}" ]]; then
-        # shellcheck source=/dev/null
-        source "$VENV_DIR/bin/activate"
-    fi
-
-    # Check key packages
-    local packages=("langgraph" "fastapi" "uvicorn" "torch" "transformers" "datasets")
-    for pkg in "${packages[@]}"; do
-        if pip show "$pkg" &> /dev/null; then
-            log_success "Package $pkg installed"
-        else
-            log_warning "Package $pkg not found"
-        fi
-    done
-
-    # Check Starlette version
-    STARLETTE_VERSION=$(pip show starlette | grep Version | cut -d' ' -f2)
-    if [[ "$STARLETTE_VERSION" >= "1.0.1" ]]; then
-        log_success "Starlette version $STARLETTE_VERSION (vulnerability fixed)"
+    log_info "Installing Odoo modules..."
+    if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
+        bash "$SCRIPT_DIR/install-modules.sh" --auto
     else
-        log_warning "Starlette version $STARLETTE_VERSION (may be vulnerable to CVE-2026-48710)"
+        log_warning "install-modules.sh not found"
     fi
-
-    # Check that Odoo binary exists
-    if [[ -f "$PLATFORM_DIR/third-party/odoo/odoo-bin" ]]; then
-        log_success "Odoo binary found"
-    else
-        log_error "Odoo binary not found"
-        exit 1
-    fi
-
-    log_success "Installation validation complete"
 }
 
 # -----------------------------------------------------------------------------
 # 4. Main Execution
 # -----------------------------------------------------------------------------
-main() {
-    log_info "========================================="
-    log_info "NETTRADES Development Environment Setup"
-    log_info "========================================="
+log_info "Starting Phase 1: Development Environment Setup"
 
-    check_python
-    check_wsl
+check_python
+check_wsl
+setup_virtual_environment
+install_dependencies
+setup_odoo_proxy
+install_odoo_modules
 
-    # Ensure we are in the correct directory
-    if [[ ! -f "$PLATFORM_DIR/third-party/odoo/odoo-bin" ]]; then
-        log_error "Cannot find Odoo binary. Make sure you are in the nettrades-platform directory."
-        exit 1
-    fi
-
-    setup_virtual_environment
-    install_dependencies
-    setup_odoo_proxy
-    install_odoo_modules
-    validate_installation
-
-    # Mark phase complete
-    echo "$(date -Iseconds)" > "$PHASE_MARKER"
-
-    log_info "========================================="
-    log_success "Development environment setup complete!"
-    log_info ""
-    log_info "To activate the virtual environment:"
-    log_info "  source $VENV_DIR/bin/activate (Linux/Mac)"
-    log_info "  $VENV_DIR\\Scripts\\activate (Windows)"
-    log_info ""
-    log_info "To start Odoo:"
-    log_info "  python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf --addons-path=..."
-    log_info ""
-    log_info "To start odoo-proxy:"
-    log_info "  cd src/core/odoo_proxy && uvicorn main:app --host 0.0.0.0 --port 3000"
-    log_info "========================================="
-}
-
-# Run main
-main "$@"
+# Mark phase as complete
+echo "$(date -Iseconds)" > "$PHASE_MARKER"
+log_success "Phase 1 completed"

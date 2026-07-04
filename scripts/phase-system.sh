@@ -5,18 +5,18 @@
 # PURPOSE:
 #   Phase 0: System Preparation & Security Hardening.
 #   This phase prepares the host system for NETTRADES deployment by:
-#     - Installing system dependencies (Docker, Docker Compose, NVIDIA drivers)
-#     - Configuring firewall (UFW/iptables)
-#     - Hardening SSH (disable root login, key-only auth)
-#     - Installing fail2ban
-#     - Configuring system limits for high-performance workloads
-#     - Setting up WireGuard (if requested)
-#     - Enabling gVisor runtime for container isolation (if on Kubernetes)
+#   - Installing system dependencies (Docker, Docker Compose, NVIDIA drivers)
+#   - Configuring firewall (UFW/iptables)
+#   - Hardening SSH (disable root login, key-only auth)
+#   - Installing fail2ban
+#   - Configuring system limits for high-performance workloads
+#   - Setting up WireGuard (if requested)
+#   - Enabling gVisor runtime for container isolation (if on Kubernetes)
 #
 #   It is idempotent and safe to re-run.
 #
 # USAGE:
-#   ./phase-system.sh [--auto]
+#   ./phase-system.sh [--auto] [--force]
 # =============================================================================
 
 set -euo pipefail
@@ -33,6 +33,13 @@ source "$SCRIPT_DIR/lib/common.sh"
 # Parse arguments
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
+FORCE="${FORCE:-false}"
+export FORCE
+
+# -----------------------------------------------------------------------------
+# Production Safety Check
+# -----------------------------------------------------------------------------
+confirm_force_production "0"
 
 # -----------------------------------------------------------------------------
 # Phase marker
@@ -138,6 +145,7 @@ fi
 # -----------------------------------------------------------------------------
 if detect_gpu; then
     log_success "NVIDIA GPU detected: $(get_gpu_name)"
+
     log_step "Checking NVIDIA drivers..."
     if ! nvidia-smi &>/dev/null; then
         log_info "Installing NVIDIA drivers..."
@@ -161,6 +169,7 @@ if detect_gpu; then
             sudo apt-get install -y nvidia-container-toolkit
             sudo nvidia-ctk runtime configure --runtime=docker
             sudo systemctl restart docker
+            log_success "NVIDIA Container Toolkit installed"
         else
             log_warning "Please install NVIDIA Container Toolkit manually for $OS"
         fi
@@ -198,22 +207,17 @@ if [[ -f /etc/ssh/sshd_config ]]; then
     # Disable root login
     if ! grep -q "^PermitRootLogin no" /etc/ssh/sshd_config; then
         sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-        sudo systemctl restart sshd
-        log_success "SSH root login disabled"
-    else
-        log_success "SSH root login already disabled"
+        sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
     fi
 
-    # Disable password authentication (if key-based auth is set up)
-    if [[ -f ~/.ssh/authorized_keys ]] && [[ -s ~/.ssh/authorized_keys ]]; then
-        if ! grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
-            sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-            sudo systemctl restart sshd
-            log_success "SSH password authentication disabled"
-        else
-            log_success "SSH password authentication already disabled"
-        fi
+    # Disable password authentication
+    if ! grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
+        sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+        sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
     fi
+
+    sudo systemctl restart sshd 2>/dev/null || sudo systemctl restart ssh 2>/dev/null || true
+    log_success "SSH hardened"
 else
     log_warning "sshd_config not found – skipping SSH hardening"
 fi
@@ -222,49 +226,50 @@ fi
 # 7. Install fail2ban
 # -----------------------------------------------------------------------------
 log_step "Installing fail2ban..."
-if ! command -v fail2ban-client &>/dev/null; then
+if command -v fail2ban-client &>/dev/null; then
+    log_success "fail2ban already installed"
+else
     if [[ "$OS" == "linux" ]]; then
         sudo apt-get install -y fail2ban
         sudo systemctl enable fail2ban
         sudo systemctl start fail2ban
-        log_success "fail2ban installed and started"
+        log_success "fail2ban installed"
     else
-        log_warning "Please install fail2ban manually for $OS"
+        log_warning "Please install fail2ban manually"
     fi
-else
-    log_success "fail2ban already installed"
 fi
 
 # -----------------------------------------------------------------------------
-# 8. System limits for high-performance workloads
+# 8. Configure system limits
 # -----------------------------------------------------------------------------
 log_step "Configuring system limits..."
-if [[ -f /etc/security/limits.conf ]]; then
-    if ! grep -q "nofile 65536" /etc/security/limits.conf; then
-        echo "* soft nofile 65536" | sudo tee -a /etc/security/limits.conf
-        echo "* hard nofile 65536" | sudo tee -a /etc/security/limits.conf
-        echo "* soft nproc 65536" | sudo tee -a /etc/security/limits.conf
-        echo "* hard nproc 65536" | sudo tee -a /etc/security/limits.conf
+LIMITS_FILE="/etc/security/limits.conf"
+if [[ -f "$LIMITS_FILE" ]]; then
+    if ! grep -q "nofile 65535" "$LIMITS_FILE"; then
+        echo "* soft nofile 65535" | sudo tee -a "$LIMITS_FILE"
+        echo "* hard nofile 65535" | sudo tee -a "$LIMITS_FILE"
+        echo "* soft nproc 65535" | sudo tee -a "$LIMITS_FILE"
+        echo "* hard nproc 65535" | sudo tee -a "$LIMITS_FILE"
         log_success "System limits configured"
     else
         log_success "System limits already configured"
     fi
+else
+    log_warning "limits.conf not found – skipping"
 fi
 
 # -----------------------------------------------------------------------------
-# 9. gVisor runtime (for Kubernetes)
+# 9. Check gVisor installation
 # -----------------------------------------------------------------------------
 log_step "Checking gVisor installation..."
 if command -v runsc &>/dev/null; then
     log_success "gVisor already installed"
 else
     log_info "gVisor not installed – will be installed during Kubernetes phase if needed"
-    # gVisor is installed via Talos extensions in Phase 4
 fi
 
 # -----------------------------------------------------------------------------
-# 10. Mark phase complete
+# Mark phase complete
 # -----------------------------------------------------------------------------
 mark_phase_complete 0
-
 log_success "Phase 0 completed – system is prepared and hardened"

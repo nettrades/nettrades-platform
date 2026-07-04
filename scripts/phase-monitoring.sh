@@ -6,10 +6,10 @@
 #   Phase 6: Monitoring Setup – deploys Prometheus and Grafana.
 #   This phase can be run on either Docker Compose or Kubernetes deployments.
 #   It configures:
-#     - Prometheus for metrics collection
-#     - Grafana for visualisation
-#     - Alertmanager for alerting
-#     - Pre-configured dashboards for NETTRADES
+#   - Prometheus for metrics collection
+#   - Grafana for visualisation
+#   - Alertmanager for alerting
+#   - Pre-configured dashboards for NETTRADES
 #
 # USAGE:
 #   ./phase-monitoring.sh [--auto] [--force]
@@ -30,6 +30,12 @@ source "$SCRIPT_DIR/lib/common.sh"
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
+export FORCE
+
+# -----------------------------------------------------------------------------
+# Production Safety Check
+# -----------------------------------------------------------------------------
+confirm_force_production "6"
 
 # -----------------------------------------------------------------------------
 # Phase marker
@@ -106,6 +112,7 @@ if [[ -d "$DASHBOARD_DIR" ]]; then
     for dashboard in "$DASHBOARD_DIR"/*.json; do
         if [[ -f "$dashboard" ]]; then
             log_info "Importing dashboard: $(basename "$dashboard")"
+
             # Import via Grafana API
             if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
                 curl -X POST http://localhost:3000/api/dashboards/db \
@@ -121,18 +128,19 @@ if [[ -d "$DASHBOARD_DIR" ]]; then
             fi
         fi
     done
+    log_success "Dashboards imported"
 else
-    log_warning "Dashboard directory not found – skipping import"
+    log_warning "Dashboard directory not found at $DASHBOARD_DIR – skipping import"
 fi
 
 # -----------------------------------------------------------------------------
 # Mark phase complete
 # -----------------------------------------------------------------------------
 mark_phase_complete 6
-
 log_success "Phase 6 completed – monitoring stack deployed"
+
 echo ""
 echo "Access monitoring:"
 echo "  Prometheus: http://localhost:9090"
-echo "  Grafana:    http://localhost:3000 (admin/admin)"
+echo "  Grafana: http://localhost:3000 (admin/admin)"
 echo "  Alertmanager: http://localhost:9093"

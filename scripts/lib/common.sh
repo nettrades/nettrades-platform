@@ -56,9 +56,7 @@ get_phase_marker() {
 
 phase_completed() {
     local phase="$1"
-    local marker
-    marker=$(get_phase_marker "$phase")
-    # Phase is considered completed if the marker exists AND force is NOT true
+    local marker="$PROJECT_ROOT/.phase-${phase}-complete"
     if [[ -f "$marker" ]] && [[ "${FORCE:-false}" != "true" ]]; then
         return 0
     else
@@ -72,6 +70,30 @@ mark_phase_complete() {
     marker=$(get_phase_marker "$phase")
     echo "$(date -Iseconds)" > "$marker"
     log_success "Phase $phase completed"
+}
+
+confirm_force_production() {
+    local phase_name="$1"
+    local env="${ENVIRONMENT:-development}"
+    if [[ "${FORCE:-false}" != "true" ]]; then
+        return 0
+    fi
+    if [[ "$env" == "production" ]]; then
+        echo ""
+        echo "      WARNING      "
+        echo ""
+        echo "You are running '--force' on Phase $phase_name in a PRODUCTION environment."
+        echo "This will OVERWRITE existing configuration and may cause data loss."
+        echo ""
+        echo "This action CANNOT be undone."
+        echo ""
+        read -p "Type 'YES' to continue: " CONFIRM
+        if [[ "$CONFIRM" != "YES" ]]; then
+            echo "Aborted."
+            exit 1
+        fi
+        echo ""
+    fi
 }
 
 # -----------------------------------------------------------------------------
