@@ -6,7 +6,7 @@
 #   Checks container status, service endpoints, PostgreSQL, and installed modules.
 # =============================================================================
 
-echo "🔍 NETTRADES Platform Health Check"
+echo "NETTRADES Platform Health Check"
 echo "=================================="
 
 # -----------------------------------------------------------------------------
@@ -17,20 +17,30 @@ docker ps --format "table {{.Names}}\t{{.Status}}"
 # -----------------------------------------------------------------------------
 # 2. Service endpoints
 # -----------------------------------------------------------------------------
+echo ""
+echo "Service Health:"
 curl -s -o /dev/null -w "Odoo: %{http_code}\n" http://localhost:8069
 curl -s -o /dev/null -w "LangGraph: %{http_code}\n" http://localhost:8000/health
 
 # -----------------------------------------------------------------------------
 # 3. PostgreSQL
 # -----------------------------------------------------------------------------
-docker exec docker-postgres-1 pg_isready -U odoo && echo "PostgreSQL: OK" || echo "PostgreSQL: FAILED"
+echo ""
+if docker exec docker-postgres-1 pg_isready -U odoo &>/dev/null; then
+    echo "PostgreSQL: OK"
+else
+    echo "PostgreSQL: FAILED"
+fi
 
 # -----------------------------------------------------------------------------
-# 4. Installed NETTRADES modules (count)
+# 4. Installed NETTRADES modules (dynamic count)
 # -----------------------------------------------------------------------------
+echo ""
 MODULE_COUNT=$(docker exec docker-postgres-1 psql -U odoo -d odoo -t -c "SELECT COUNT(*) FROM ir_module_module WHERE name LIKE 'nettrades%' AND state='installed';" | tr -d ' ')
-if [ "$MODULE_COUNT" -eq 20 ]; then
-    echo "Modules: Installed ($MODULE_COUNT/20)"
+TOTAL_MODULES=$(docker exec docker-postgres-1 psql -U odoo -d odoo -t -c "SELECT COUNT(*) FROM ir_module_module WHERE name LIKE 'nettrades%';" | tr -d ' ')
+
+if [[ -n "$MODULE_COUNT" && -n "$TOTAL_MODULES" ]]; then
+    echo "Modules: Installed ($MODULE_COUNT/$TOTAL_MODULES)"
 else
-    echo "Modules: Not installed ($MODULE_COUNT/20)"
+    echo "Modules: Unable to determine (PostgreSQL may not be ready)"
 fi

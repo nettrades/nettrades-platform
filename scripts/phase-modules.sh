@@ -8,26 +8,26 @@
 #   It calls the existing install-modules.sh script.
 #
 #   Modules installed:
-#     - nettrades_core
-#     - nettrades_good_answer
-#     - nettrades_ask_someone
-#     - nettrades_gpu_admin
-#     - nettrades_gpustack_adapter
-#     - nettrades_queue
-#     - nettrades_bridge
-#     - nettrades_data_collection
-#     - nettrades_trigger
-#     - nettrades_loop
-#     - nettrades_self_improving_config
-#     - nettrades_fairness
-#     - nettrades_onboarding
-#     - nettrades_job_matching
-#     - nettrades_proposals
-#     - nettrades_lead_scoring
-#     - nettrades_research
-#     - nettrades_chatbot
-#     - nettrades_notifications
-#     - nettrades_pwa
+#   - nettrades_core
+#   - nettrades_good_answer
+#   - nettrades_ask_someone
+#   - nettrades_gpu_admin
+#   - nettrades_gpustack_adapter
+#   - nettrades_queue
+#   - nettrades_bridge
+#   - nettrades_data_collection
+#   - nettrades_trigger
+#   - nettrades_loop
+#   - nettrades_self_improving_config
+#   - nettrades_fairness
+#   - nettrades_onboarding
+#   - nettrades_job_matching
+#   - nettrades_proposals
+#   - nettrades_lead_scoring
+#   - nettrades_research
+#   - nettrades_chatbot
+#   - nettrades_notifications
+#   - nettrades_pwa
 #
 # USAGE:
 #   ./phase-modules.sh [--auto] [--force] [--upgrade]
@@ -50,6 +50,12 @@ AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
 UPGRADE="${UPGRADE:-false}"
 SKIP_INSTALLED="${SKIP_INSTALLED:-true}"
+export FORCE
+
+# -----------------------------------------------------------------------------
+# Production Safety Check
+# -----------------------------------------------------------------------------
+confirm_force_production "5"
 
 # -----------------------------------------------------------------------------
 # Phase marker
@@ -76,7 +82,7 @@ if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
     ARGS=""
     [[ "$FORCE" == true ]] && ARGS="$ARGS --force"
     [[ "$UPGRADE" == true ]] && ARGS="$ARGS --upgrade"
-
+    [[ "$AUTO" == true ]] && ARGS="$ARGS --auto"
     bash "$SCRIPT_DIR/install-modules.sh" $ARGS
 else
     log_error "install-modules.sh not found at $SCRIPT_DIR"
@@ -87,5 +93,4 @@ fi
 # Mark phase complete
 # -----------------------------------------------------------------------------
 mark_phase_complete 5
-
 log_success "Phase 5 completed – modules installed"

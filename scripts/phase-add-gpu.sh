@@ -32,6 +32,12 @@ source "$SCRIPT_DIR/lib/common.sh"
 # -----------------------------------------------------------------------------
 FORCE="${FORCE:-false}"
 AUTO="${AUTO:-false}"
+export FORCE
+
+# -----------------------------------------------------------------------------
+# Production Safety Check
+# -----------------------------------------------------------------------------
+confirm_force_production "3"
 
 # -----------------------------------------------------------------------------
 # Phase marker
@@ -89,7 +95,6 @@ DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
 cd "$DEPLOY_DIR"
 
 log_step "Running GPU migration..."
-
 if [[ -f "$DEPLOY_DIR/migrate-to-gpu.sh" ]]; then
     if [[ "$AUTO" == true ]]; then
         sudo bash "$DEPLOY_DIR/migrate-to-gpu.sh" --auto
@@ -108,9 +113,14 @@ cd "$PROJECT_ROOT"
 # -----------------------------------------------------------------------------
 log_step "Configuring GPUStack..."
 if [[ -f "$DEPLOY_DIR/gpustack-config.yaml" ]]; then
-    # Apply GPUStack configuration
-    docker compose -f "$DEPLOY_DIR/docker-compose.yaml" exec -T gpustack gpustack configure --config /etc/gpustack/config.yaml || \
-        log_warning "GPUStack configuration may already be applied"
+    log_info "GPUStack configuration found at $DEPLOY_DIR/gpustack-config.yaml"
+    # Apply configuration if needed
+    if [[ "$FORCE" == true ]] || ! docker exec gpustack gpustack status &>/dev/null; then
+        docker compose -f "$DEPLOY_DIR/docker-compose.yaml" restart gpustack
+        log_success "GPUStack restarted"
+    fi
+else
+    log_warning "gpustack-config.yaml not found – skipping GPUStack configuration"
 fi
 
 # -----------------------------------------------------------------------------
@@ -128,7 +138,6 @@ fi
 # Mark phase complete
 # -----------------------------------------------------------------------------
 mark_phase_complete 3
-
 log_success "Phase 3 completed – GPU migration successful"
 echo ""
 echo "  GPU:           $GPU_NAME"
