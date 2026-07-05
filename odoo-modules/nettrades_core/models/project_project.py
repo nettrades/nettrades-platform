@@ -7,10 +7,10 @@ from odoo.exceptions import UserError
 _logger = logging.getLogger(__name__)
 
 class ProjectProject(models.Model):
-    """
-    Adds Forgejo Git repository links and a budget field.
-    Provides actions to create a repository and to leave a review.
-    """
+
+#    Adds Forgejo Git repository links and a budget field.
+#    Provides actions to create a repository and to leave a review.
+
     _inherit = 'project.project'
 
     forgejo_repo_url = fields.Char(
@@ -64,10 +64,10 @@ class ProjectProject(models.Model):
             raise UserError(_("Could not create repository."))
 
     def action_leave_review(self):
-        """
-        Open a wizard to leave a review for the project.
-        The review is linked to the project and the project's assigned user.
-        """
+
+#        Open a wizard to leave a review for the project.
+#        The review is linked to the project and the project's assigned user.
+
         return {
             'type': 'ir.actions.act_window',
             'name': 'Leave Review',

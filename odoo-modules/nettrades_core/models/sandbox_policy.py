@@ -64,7 +64,7 @@ class SandboxPolicy(models.Model):
 
     # === Helpers ===
     def get_runtime_class(self, user, code_source, requires_gpu):
-        """Determine runtime class for a given job."""
+# Determine runtime class for a given job.
         self.ensure_one()
         if self.trust_level == 'always_sandbox':
             return self.sandbox_runtime if self.sandbox_runtime != 'none' else 'gvisor'
@@ -87,7 +87,7 @@ class SandboxPolicy(models.Model):
 
     @api.model
     def get_active_policy(self):
-        """Return the first active policy, or create a default one."""
+# Return the first active policy, or create a default one.
         policy = self.search([('active', '=', True)], limit=1)
         if not policy:
             policy = self.create({

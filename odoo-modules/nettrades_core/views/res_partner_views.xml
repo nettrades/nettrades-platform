@@ -1,18 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/res_partner_views.xml
+    =============================================================================
+    PURPOSE:
+        Extends the res.partner form view with NETTRADES-specific fields.
+    =============================================================================
+-->
 <odoo>
     <record id="view_partner_form_inherit" model="ir.ui.view">
         <field name="name">res.partner.form.inherit</field>
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
+            <!-- Professional Profile Fields -->
             <field name="email" position="after">
                 <field name="user_type" placeholder="Select user type..."/>
             </field>
+
             <field name="phone" position="after">
                 <field name="professional_summary" placeholder="Professional summary..."/>
                 <field name="hourly_rate" invisible="user_type != 'freelancer'"/>
                 <field name="resume_pdf" filename="resume_filename"/>
             </field>
+
+            <!-- Social Media / Contact Fields -->
             <field name="website" position="after">
                 <group string="Social Media / Platforms" name="social_media_group">
                     <field name="forgejo_username" placeholder="Forgejo username"/>
@@ -22,9 +34,12 @@
                     <field name="blog_url" placeholder="Blog URL"/>
                 </group>
             </field>
+
+            <!-- Duplicate Detection -->
             <field name="vat" position="after">
                 <field name="company_registry" placeholder="Company registry number"/>
             </field>
+
             <field name="company_registry" position="after">
                 <div class="alert alert-warning oe_edit_only" role="alert"
                      name="warning_duplicates"
@@ -44,15 +59,21 @@
                     </span>
                 </div>
             </field>
+
+            <!-- Average Rating -->
             <field name="company_registry" position="after">
                 <field name="average_rating" widget="star" invisible="average_rating == 0"/>
             </field>
+
+            <!-- Karma and Reputation -->
             <field name="company_registry" position="after">
                 <group string="NETTRADES Reputation" name="reputation_group">
                     <field name="karma" readonly="1"/>
                     <field name="reputation_score" readonly="1"/>
                 </group>
             </field>
+
+            <!-- Worker Agent -->
             <xpath expr="//notebook" position="inside">
                 <page string="Worker Agent" name="worker_agent_page">
                     <group string="Autonomous Worker Agent" name="worker_agent_group">
@@ -71,6 +92,8 @@
                     </group>
                 </page>
             </xpath>
+
+            <!-- Expert Profile -->
             <xpath expr="//notebook" position="inside">
                 <page string="Expert Profile" name="expert_profile_page">
                     <group string="Expert Settings" name="expert_group">
@@ -80,6 +103,8 @@
                     </group>
                 </page>
             </xpath>
+
+            <!-- NETTRADES Profile Page (No inline <tree>!) -->
             <xpath expr="//notebook" position="inside">
                 <page string="NETTRADES Profile" name="nettrades_profile_page">
                     <group string="Fields and Skills" name="fields_skills_group">
@@ -87,25 +112,12 @@
                         <field name="skill_ids" widget="many2many_tags"/>
                     </group>
                     <group string="Experience" name="experience_group">
-                        <field name="experience_ids">
-                            <tree editable="bottom">
-                                <field name="job_title"/>
-                                <field name="company"/>
-                                <field name="start_date"/>
-                                <field name="end_date"/>
-                                <field name="is_current"/>
-                            </tree>
-                        </field>
+                        <!-- Simple field – no inline <tree> -->
+                        <field name="experience_ids"/>
                     </group>
                     <group string="Reviews" name="reviews_group">
-                        <field name="review_ids">
-                            <tree editable="bottom">
-                                <field name="reviewer_id"/>
-                                <field name="rating" widget="star"/>
-                                <field name="comment"/>
-                                <field name="project_id"/>
-                            </tree>
-                        </field>
+                        <!-- Simple field – no inline <tree> -->
+                        <field name="review_ids"/>
                     </group>
                 </page>
             </xpath>

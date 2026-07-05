@@ -28,12 +28,10 @@ _logger = logging.getLogger(__name__)
 
 
 class NettradesExperience(models.Model):
-    """
-    Work Experience - represents a single job or role in a user's career.
+#   Work Experience - represents a single job or role in a user's career.
+#   Each record stores the job title, company, start/end dates, and a
+#    description of responsibilities and achievements.
 
-    Each record stores the job title, company, start/end dates, and a
-    description of responsibilities and achievements.
-    """
     _name = 'nettrades.experience'
     _description = 'Work Experience'
     _order = 'start_date DESC'
@@ -91,9 +89,9 @@ class NettradesExperience(models.Model):
 
     @api.depends('end_date')
     def _compute_is_current(self):
-        """
-        Automatically set is_current based on whether end_date is empty.
-        """
+
+#        Automatically set is_current based on whether end_date is empty.
+
         for record in self:
             record.is_current = not bool(record.end_date)
 
@@ -115,9 +113,9 @@ class NettradesExperience(models.Model):
     # =========================================================================
 
     def name_get(self):
-        """
-        Custom name_get to show job title and company.
-        """
+
+#        Custom name_get to show job title and company.
+
         result = []
         for record in self:
             name = f"{record.job_title} at {record.company}"
@@ -128,9 +126,9 @@ class NettradesExperience(models.Model):
 
     @api.model
     def _name_search(self, name, args=None, operator='ilike', limit=100):
-        """
-        Search by job title or company.
-        """
+
+ #       Search by job title or company.
+
         args = args or []
         domain = []
         if name:

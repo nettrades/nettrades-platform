@@ -29,12 +29,12 @@ _logger = logging.getLogger(__name__)
 
 
 class NettradesReview(models.Model):
-    """
-    User Review - ratings and comments left by one user about another.
 
-    Each review is linked to a reviewer (the person giving the review),
-    a reviewee (the person receiving the review), and optionally a project.
-    """
+#    User Review - ratings and comments left by one user about another.
+
+#    Each review is linked to a reviewer (the person giving the review),
+#    a reviewee (the person receiving the review), and optionally a project.
+
     _name = 'nettrades.review'
     _description = 'User Review'
     _order = 'create_date DESC'
@@ -88,18 +88,18 @@ class NettradesReview(models.Model):
 
     @api.constrains('rating')
     def _check_rating(self):
-        """
-        Ensure that rating is between 1 and 5.
-        """
+
+#        Ensure that rating is between 1 and 5.
+
         for record in self:
             if not (1 <= record.rating <= 5):
                 raise ValidationError(_("Rating must be between 1 and 5."))
 
     @api.constrains('reviewer_id', 'reviewed_partner_id')
     def _check_not_self(self):
-        """
-        Prevent a user from reviewing themselves.
-        """
+
+#        Prevent a user from reviewing themselves.
+
         for record in self:
             if record.reviewer_id.id == record.reviewed_partner_id.id:
                 raise ValidationError(_("You cannot review yourself."))
@@ -116,19 +116,19 @@ class NettradesReview(models.Model):
 
     @api.model
     def create_review(self, reviewer_id, reviewed_id, rating, comment=None, project_id=None):
-        """
-        Helper method to create a new review with validation.
 
-        Args:
-            reviewer_id (int): ID of the partner giving the review.
-            reviewed_id (int): ID of the partner receiving the review.
-            rating (int): Rating (1-5).
-            comment (str): Optional comment.
-            project_id (int): Optional project ID.
+#        Helper method to create a new review with validation.
 
-        Returns:
-            NettradesReview: The created review record.
-        """
+#        Args:
+#            reviewer_id (int): ID of the partner giving the review.
+#            reviewed_id (int): ID of the partner receiving the review.
+#            rating (int): Rating (1-5).
+#            comment (str): Optional comment.
+#            project_id (int): Optional project ID.
+
+#        Returns:
+#            NettradesReview: The created review record.
+
         return self.create({
             'reviewer_id': reviewer_id,
             'reviewed_partner_id': reviewed_id,

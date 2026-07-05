@@ -38,12 +38,11 @@ _logger = logging.getLogger(__name__)
 
 
 class NettradesField(models.Model):
-    """
-    Professional Field Model - represents a domain of expertise.
 
-    This model stores all configuration for a professional field, including
-    qualification rules, voting weights, and fine-tuning settings.
-    """
+#   Professional Field Model - represents a domain of expertise.
+#   This model stores all configuration for a professional field, including
+#   qualification rules, voting weights, and fine-tuning settings.
+
     _name = 'nettrades.field'
     _description = 'Professional Field'
     _rec_name = 'name'
@@ -307,14 +306,13 @@ class NettradesField(models.Model):
 
     @api.depends('name')
     def _compute_qualified_stats(self):
-        """
-        Compute statistics about qualified professionals and voters.
 
-        This method calculates:
-        - The number of active qualified professionals in this field
-        - The total number of voters in this field
-        - A suggested qualified weight based on the ratio
-        """
+#       Compute statistics about qualified professionals and voters.
+#       This method calculates:
+#       - The number of active qualified professionals in this field
+#       - The total number of voters in this field
+#       - A suggested qualified weight based on the ratio
+
         qualified_model = self._get_optional_model('qualified.professional')
         vote_model = self._get_optional_model('good.answer.vote')
 
@@ -352,12 +350,12 @@ class NettradesField(models.Model):
     # =========================================================================
 
     def get_qualified_experts(self):
-        """
-        Get all qualified experts for this field.
 
-        Returns:
-            recordset: The res.partner records of all qualified experts.
-        """
+#        Get all qualified experts for this field.
+
+#        Returns:
+#            recordset: The res.partner records of all qualified experts.
+
         self.ensure_one()
 
         qualified_model = self._get_optional_model('qualified.professional')
@@ -400,11 +398,11 @@ class NettradesField(models.Model):
             return self.base_points_per_vote
 
     def action_auto_adjust_weights(self):
-        """
-        Automatically adjust voting weights based on community composition.
 
-        This method is called by the cron job when auto_adjust_weights is enabled.
-        """
+#       Automatically adjust voting weights based on community composition.
+
+#       This method is called by the cron job when auto_adjust_weights is enabled.
+
         fields_to_adjust = self.search([('auto_adjust_weights', '=', True)])
 
         for field in fields_to_adjust:
@@ -422,11 +420,11 @@ class NettradesField(models.Model):
 
     @api.constrains('reputation_threshold_for_charging')
     def _check_reputation_threshold(self):
-        """
-        Validate the reputation threshold.
 
-        Ensures the threshold is a positive number.
-        """
+#        Validate the reputation threshold.
+
+#        Ensures the threshold is a positive number.
+
         for field in self:
             if field.reputation_threshold_for_charging < 0:
                 raise ValidationError(_(
@@ -435,11 +433,11 @@ class NettradesField(models.Model):
 
     @api.constrains('base_points_per_vote', 'qualified_points_per_vote')
     def _check_voting_weights(self):
-        """
-        Validate voting weights.
 
-        Ensures the weights are positive numbers.
-        """
+#        Validate voting weights.
+
+#       Ensures the weights are positive numbers.
+
         for field in self:
             if field.base_points_per_vote < 0:
                 raise ValidationError(_("Base points per vote must be a positive number."))
@@ -448,9 +446,9 @@ class NettradesField(models.Model):
 
     @api.constrains('data_juicer_min_quality_score')
     def _check_quality_score(self):
-        """
-        Validate the quality score range.
-        """
+
+#        Validate the quality score range.
+
         for field in self:
             if field.enable_data_juicer and not (0 <= field.data_juicer_min_quality_score <= 1):
                 raise ValidationError(_(
@@ -459,9 +457,9 @@ class NettradesField(models.Model):
 
     @api.constrains('deita_min_complexity')
     def _check_complexity_score(self):
-        """
-        Validate the complexity score range.
-        """
+
+#        Validate the complexity score range.
+
         for field in self:
             if field.enable_deita_scoring and not (0 <= field.deita_min_complexity <= 1):
                 raise ValidationError(_(
@@ -470,9 +468,9 @@ class NettradesField(models.Model):
 
     @api.constrains('ab_testing_traffic_split')
     def _check_traffic_split(self):
-        """
-        Validate the traffic split range.
-        """
+
+#        Validate the traffic split range.
+
         for field in self:
             if field.enable_ab_testing and not (0 < field.ab_testing_traffic_split < 100):
                 raise ValidationError(_(
@@ -485,9 +483,9 @@ class NettradesField(models.Model):
 
     @api.model
     def default_get(self, fields_list):
-        """
-        Set default values for new fields.
-        """
+
+#        Set default values for new fields.
+
         defaults = super().default_get(fields_list)
         defaults.update({
             'finetune_provider': 'unsloth',

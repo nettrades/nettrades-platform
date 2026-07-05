@@ -9,14 +9,13 @@ from odoo.exceptions import UserError
 _logger = logging.getLogger(__name__)
 
 class HrJob(models.Model):
-    """
-    Enhancements for job postings:
-    - required_skills: free-text or structured list of skills needed
-    - min_years_experience: minimum experience required
-    - is_freelance_project: flag indicating a freelancer gig rather than a full-time role
-    - budget: project budget (only relevant for freelance projects)
-    - forgejo_repo_url: link to the automatically created Git repository
-    """
+#     Enhancements for job postings:
+#    - required_skills: free-text or structured list of skills needed
+#    - min_years_experience: minimum experience required
+#    - is_freelance_project: flag indicating a freelancer gig rather than a full-time role
+#    - budget: project budget (only relevant for freelance projects)
+#    - forgejo_repo_url: link to the automatically created Git repository
+
     _inherit = 'hr.job'
 
     required_skills = fields.Text(
@@ -41,16 +40,16 @@ class HrJob(models.Model):
     )
 
     def action_match_candidates(self):
-        """
-        Run AI matching synchronously.  All Odoo writes happen inside this
-        transaction - if the LangGraph call fails the transaction rolls back.
-        For very long matches, use the `_do_ai_matching` queue job instead.
-        """
+
+#        Run AI matching synchronously.  All Odoo writes happen inside this
+#       transaction - if the LangGraph call fails the transaction rolls back.
+#        For very long matches, use the `_do_ai_matching` queue job instead.
+
         self.ensure_one()
         self._do_ai_matching()
 
     def _do_ai_matching(self):
-        """Core matching logic - can be called from a queue job."""
+#  Core matching logic - can be called from a queue job.
         self.ensure_one()
         url = self.env['ir.config_parameter'].sudo().get_param(
             'langgraph_invoke_url', 'http://langgraph:8000/invoke')
@@ -92,7 +91,7 @@ class HrJob(models.Model):
             })
 
     def action_match_candidates_async(self):
-        """Enqueue matching as a background job."""
+# Enqueue matching as a background job.
         self.ensure_one()
         self.with_delay()._do_ai_matching()
         return {

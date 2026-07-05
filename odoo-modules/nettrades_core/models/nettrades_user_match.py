@@ -3,10 +3,10 @@
 from odoo import fields, models
 
 class NettradesUserMatch(models.Model):
-    """
-    Each record represents one match result produced by the LangGraph agent.
-    It links a job with a user (partner) and stores the computed score and analysis text.
-    """
+
+#    Each record represents one match result produced by the LangGraph agent.
+#    It links a job with a user (partner) and stores the computed score and analysis text.
+
     _name = 'nettrades.user_match'
     _description = 'AI Match between Job and User'
 

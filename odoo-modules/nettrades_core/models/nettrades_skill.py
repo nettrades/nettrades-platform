@@ -3,10 +3,10 @@
 from odoo import fields, models
 
 class NettradesSkill(models.Model):
-    """
-    Represents a skill (e.g. "Python", "Django") that can be linked to a partner.
-    Used for AI matching and search filters.
-    """
+
+#    Represents a skill (e.g. "Python", "Django") that can be linked to a partner.
+#    Used for AI matching and search filters.
+
     _name = 'nettrades.skill'
     _description = 'Skill'
 

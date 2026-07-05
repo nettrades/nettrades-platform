@@ -30,9 +30,9 @@ _logger = logging.getLogger(__name__)
 
 
 class ResPartner(models.Model):
-    """
-    Extended res.partner model for nettrades platform.
-    """
+
+#    Extended res.partner model for nettrades platform.
+
     _inherit = 'res.partner'
     _description = 'Partner with Nettrades extensions'
 
@@ -85,7 +85,7 @@ class ResPartner(models.Model):
 
     @api.depends('karma', 'review_ids.rating')
     def _compute_reputation(self):
-        """Calculate reputation score."""
+# Calculate reputation score.
         for partner in self:
             avg_review = sum(
                 review.rating for review in partner.review_ids
@@ -178,12 +178,12 @@ class ResPartner(models.Model):
     # -------------------------------------------------------------------------
 
     def action_start_worker_agent(self):
-        """
-        Start the worker agent for this partner.
 
-        This method initializes a LangGraph agent with the partner's
-        context and starts the autonomous worker loop.
-        """
+#        Start the worker agent for this partner.
+
+#        This method initializes a LangGraph agent with the partner's
+#        context and starts the autonomous worker loop.
+
         self.ensure_one()
 
         if self.worker_started:
@@ -226,9 +226,9 @@ class ResPartner(models.Model):
             raise ValidationError(_("Failed to start worker agent: {}").format(str(e)))
 
     def action_stop_worker_agent(self):
-        """
-        Stop the worker agent for this partner.
-        """
+
+#        Stop the worker agent for this partner.
+
         self.ensure_one()
 
         if not self.worker_started:
@@ -293,15 +293,15 @@ class ResPartner(models.Model):
     # -------------------------------------------------------------------------
 
     def action_check_qualification(self):
-        """
-        Check if the partner meets the qualification criteria.
 
-        Qualification criteria:
-        - Minimum karma: 50
-        - Minimum reputation score: 2.0
-        - At least one skill
-        - At least one field
-        """
+#        Check if the partner meets the qualification criteria.
+
+#        Qualification criteria:
+#        - Minimum karma: 50
+#        - Minimum reputation score: 2.0
+#        - At least one skill
+#        - At least one field
+
         self.ensure_one()
 
         criteria = []
@@ -352,13 +352,13 @@ class ResPartner(models.Model):
     # -------------------------------------------------------------------------
 
     def add_karma(self, amount, reason):
-        """
-        Add karma points to the partner.
 
-        Args:
-            amount (int): The amount of karma to add (can be negative).
-            reason (str): The reason for the karma change.
-        """
+#        Add karma points to the partner.
+
+#        Args:
+#            amount (int): The amount of karma to add (can be negative).
+#            reason (str): The reason for the karma change.
+
         self.ensure_one()
 
         if not isinstance(amount, int):
@@ -493,7 +493,7 @@ class ResPartner(models.Model):
 
     @api.depends('vat')
     def _compute_same_vat_partner(self):
-        """Find partners with the same VAT number."""
+# Find partners with the same VAT number.
         for partner in self:
             if not partner.vat:
                 partner.same_vat_partner_id = False
@@ -507,7 +507,7 @@ class ResPartner(models.Model):
 
     @api.depends('company_registry')
     def _compute_same_registry_partner(self):
-        """Find partners with the same company registry number."""
+# Find partners with the same company registry number.
         for partner in self:
             if not partner.company_registry:
                 partner.same_company_registry_partner_id = False
@@ -520,17 +520,17 @@ class ResPartner(models.Model):
             partner.same_company_registry_partner_id = same.id if same else False
 
     def _compute_vat_label(self):
-        """Get the display label for VAT field."""
+# Get the display label for VAT field.
         for partner in self:
             partner.vat_label = "VAT"
 
     def _compute_company_registry_label(self):
-        """Get the display label for company registry field."""
+# Get the display label for company registry field.
         for partner in self:
             partner.company_registry_label = partner.company_registry or ''
 
     def _compute_average_rating(self):
-        """Compute average rating from reviews."""
+# Compute average rating from reviews.
         for partner in self:
             ratings = partner.review_ids.mapped('rating')
             partner.average_rating = sum(ratings) / len(ratings) if ratings else 0.0
