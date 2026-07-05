@@ -71,29 +71,19 @@ class NettradesField(models.Model):
     only_qualified = fields.Boolean(
         string='Require Manual Verification',
         default=False,
-        help="""If enabled, only professionals who are manually verified
-            by an administrator can answer questions in this field.
-            This is typically enabled for restricted fields like medical
-            or legal domains.
-        """
+        help="If enabled, only professionals who are manually verified by an administrator can answer questions in this field. This is typically enabled for restricted fields like medical or legal domains."
     )
 
     auto_karma_qualify = fields.Boolean(
         string='Auto-Qualify by Karma',
         default=False,
-        help="""If enabled, users who reach the reputation threshold
-            are automatically added to the Qualified Professionals list.
-            This allows high-reputation users to gain expert status
-            without manual intervention.
-        """
+        help="If enabled, users who reach the reputation threshold are automatically added to the Qualified Professionals list. This allows high-reputation users to gain expert status without manual intervention."
     )
 
     reputation_threshold_for_charging = fields.Integer(
         string='Minimum Reputation to Charge',
         default=100,
-        help="""The minimum reputation points a professional must have
-            to be able to charge for 'Ask Someone' sessions in this field.
-        """
+        help="The minimum reputation points a professional must have to be able to charge for 'Ask Someone' sessions in this field."
     )
 
     # =========================================================================
@@ -130,18 +120,13 @@ class NettradesField(models.Model):
         string='Suggested Qualified Weight',
         compute='_compute_qualified_stats',
         store=False,
-        help="""Automatically calculated suggestion for qualified_points_per_vote.
-            Higher when many qualified professionals exist, lower when the field
-            relies on community voting.
-        """
+        help="Automatically calculated suggestion for qualified_points_per_vote. Higher when many qualified professionals exist, lower when the field relies on community voting."
     )
 
     auto_adjust_weights = fields.Boolean(
         string='Auto-Adjust Weights',
         default=False,
-        help="""If enabled, the system automatically adjusts voting weights
-            based on the ratio of qualified professionals to total voters.
-        """
+        help="If enabled, the system automatically adjusts voting weights based on the ratio of qualified professionals to total voters."
     )
 
     # =========================================================================
@@ -151,20 +136,13 @@ class NettradesField(models.Model):
     expert_answers_trainable = fields.Boolean(
         string='Use Expert Answers for Training',
         default=False,
-        help="""If enabled, expert answers from 'Ask Someone' sessions are
-            included in the fine-tuning dataset. Only the expert's answer is
-            stored - the requester's question is omitted.
-            This is off by default for medical fields for privacy reasons.
-        """
+        help="If enabled, expert answers from 'Ask Someone' sessions are included in the fine-tuning dataset. Only the expert's answer is stored - the requester's question is omitted. This is off by default for medical fields for privacy reasons."
     )
 
     indirect_reputation_points = fields.Float(
         string='Indirect Reputation Points',
         default=1.0,
-        help="""When an AI answer trained on a professional's expert answer
-            receives a 'Good Answer' vote, the original professional receives
-            this many reputation points.
-        """
+        help="When an AI answer trained on a professional's expert answer receives a 'Good Answer' vote, the original professional receives this many reputation points."
     )
 
     # =========================================================================
@@ -178,10 +156,7 @@ class NettradesField(models.Model):
         ],
         string='Fine-tuning Backend',
         default='unsloth',
-        help="""The backend to use for fine-tuning models in this field:
-            - Unsloth: Single-GPU fine-tuning (2x faster, 70% less VRAM)
-            - Axolotl: Multi-GPU fine-tuning with FSDP2 (for larger models)
-        """
+        help="The backend to use for fine-tuning models in this field: Unsloth: Single-GPU fine-tuning (2x faster, 70% less VRAM). Axolotl: Multi-GPU fine-tuning with FSDP2 (for larger models)."
     )
 
     base_model = fields.Char(
@@ -192,9 +167,7 @@ class NettradesField(models.Model):
 
     hyperparameters = fields.Json(
         string='Hyperparameters',
-        help="""JSON object containing fine-tuning hyperparameters.
-            Example: {"lora_r": 16, "epochs": 3, "lr": 2e-4, "batch_size": 4}
-        """
+        help='JSON object containing fine-tuning hyperparameters. Example: {"lora_r": 16, "epochs": 3, "lr": 2e-4, "batch_size": 4}.'
     )
 
     # =========================================================================
@@ -204,10 +177,7 @@ class NettradesField(models.Model):
     enable_data_juicer = fields.Boolean(
         string='Enable Data-Juicer Quality Pipeline',
         default=False,
-        help="""If enabled, the fine-tuning pipeline runs Data-Juicer on the
-            exported dataset for quality filtering, deduplication, and PII removal.
-            This requires the 'py-data-juicer[generic,nlp]' package to be installed.
-        """
+        help="If enabled, the fine-tuning pipeline runs Data-Juicer on the exported dataset for quality filtering, deduplication, and PII removal. This requires the 'py-data-juicer[generic,nlp]' package to be installed."
     )
 
     data_juicer_min_quality_score = fields.Float(
@@ -235,10 +205,7 @@ class NettradesField(models.Model):
     enable_deita_scoring = fields.Boolean(
         string='Enable DEITA LLM-as-Judge Scoring',
         default=False,
-        help="""If enabled, the fine-tuning pipeline runs DEITA scoring
-            on the dataset via distilabel. This scores examples on complexity,
-            quality, and diversity. Requires 'distilabel[vllm]' to be installed.
-        """
+        help="If enabled, the fine-tuning pipeline runs DEITA scoring on the dataset via distilabel. This scores examples on complexity, quality, and diversity. Requires 'distilabel[vllm]' to be installed."
     )
 
     deita_min_complexity = fields.Float(
@@ -260,9 +227,7 @@ class NettradesField(models.Model):
     enable_ab_testing = fields.Boolean(
         string='Enable A/B Testing',
         default=False,
-        help="""If enabled, new models are deployed in shadow mode for A/B testing.
-            A percentage of traffic is routed to the new model to compare performance.
-        """
+        help="If enabled, new models are deployed in shadow mode for A/B testing. A percentage of traffic is routed to the new model to compare performance."
     )
 
     ab_testing_traffic_split = fields.Float(
@@ -280,9 +245,7 @@ class NettradesField(models.Model):
     enable_grpo_training = fields.Boolean(
         string='Enable GRPO Training',
         default=False,
-        help="""If enabled, GRPO reinforcement learning is used to train
-            models from Good Answer preferences. Requires Unsloth support.
-        """
+        help="If enabled, GRPO reinforcement learning is used to train models from Good Answer preferences. Requires Unsloth support."
     )
 
     min_votes_for_training = fields.Integer(
@@ -300,9 +263,7 @@ class NettradesField(models.Model):
     enable_benchmark_evaluation = fields.Boolean(
         string='Enable Benchmark Evaluation',
         default=False,
-        help="""If enabled, fine-tuned models are evaluated against field-specific
-            benchmarks before deployment. Requires NeMo Evaluator.
-        """
+        help="If enabled, fine-tuned models are evaluated against field-specific benchmarks before deployment. Requires NeMo Evaluator."
     )
 
     # =========================================================================

@@ -16,6 +16,8 @@
 #   - Autonomous administration flags
 #   - GPU and token management
 #   - Expert marketplace integration
+#   - Social media / contact fields
+#   - Resume and rating fields
 #
 # =============================================================================
 
@@ -141,13 +143,6 @@ class ResPartner(models.Model):
         help="Current token balance for GPU usage."
     )
 
-    gpu_nodes = fields.One2many(
-        'gpu.node',
-        'partner_id',
-        string='GPU Nodes',
-        help="GPU nodes owned by this partner."
-    )
-
     # -------------------------------------------------------------------------
     # 6. Expert Marketplace
     # -------------------------------------------------------------------------
@@ -185,15 +180,15 @@ class ResPartner(models.Model):
     def action_start_worker_agent(self):
         """
         Start the worker agent for this partner.
-        
+
         This method initializes a LangGraph agent with the partner's
         context and starts the autonomous worker loop.
         """
         self.ensure_one()
-        
+
         if self.worker_started:
             raise ValidationError(_("Worker agent already started."))
-        
+
         # Create worker context if not exists
         if not self.worker_context:
             self.worker_context = {
@@ -204,7 +199,7 @@ class ResPartner(models.Model):
                 'skills': [s.id for s in self.skill_ids],
                 'token_balance': self.token_balance
             }
-        
+
         # Call the LangGraph supervisor to start the worker
         try:
             # In production: call the LangGraph supervisor
@@ -212,10 +207,10 @@ class ResPartner(models.Model):
             #     'partner_id': self.id,
             #     'context': self.worker_context
             # })
-            
+
             self.worker_started = True
             _logger.info(f"Worker agent started for partner {self.id}")
-            
+
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -235,20 +230,20 @@ class ResPartner(models.Model):
         Stop the worker agent for this partner.
         """
         self.ensure_one()
-        
+
         if not self.worker_started:
             raise ValidationError(_("Worker agent is not running."))
-        
+
         # Call the LangGraph supervisor to stop the worker
         try:
             # In production: call the LangGraph supervisor
             # result = self._call_langgraph_supervisor('stop_worker', {
             #     'partner_id': self.id
             # })
-            
+
             self.worker_started = False
             _logger.info(f"Worker agent stopped for partner {self.id}")
-            
+
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -268,10 +263,10 @@ class ResPartner(models.Model):
         Update the worker context with new data.
         """
         self.ensure_one()
-        
+
         if not self.worker_context:
             self.worker_context = {}
-        
+
         # Update context
         if isinstance(context_updates, dict):
             self.worker_context.update(context_updates)
@@ -281,7 +276,7 @@ class ResPartner(models.Model):
                 self.worker_context.update(updates)
             except json.JSONDecodeError:
                 raise ValidationError(_("Invalid JSON format for context updates."))
-        
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -300,7 +295,7 @@ class ResPartner(models.Model):
     def action_check_qualification(self):
         """
         Check if the partner meets the qualification criteria.
-        
+
         Qualification criteria:
         - Minimum karma: 50
         - Minimum reputation score: 2.0
@@ -308,9 +303,9 @@ class ResPartner(models.Model):
         - At least one field
         """
         self.ensure_one()
-        
+
         criteria = []
-        
+
         if self.karma < 50:
             criteria.append("Karma score must be at least 50 (currently {})".format(self.karma))
         if self.reputation_score < 2.0:
@@ -321,7 +316,7 @@ class ResPartner(models.Model):
             criteria.append("At least one skill is required")
         if not self.field_ids:
             criteria.append("At least one professional field is required")
-        
+
         if criteria:
             self.is_qualified = False
             self.qualification_reason = "; ".join(criteria)
@@ -337,10 +332,10 @@ class ResPartner(models.Model):
                     'sticky': True,
                 }
             }
-        
+
         self.is_qualified = True
         self.qualification_reason = "All qualification criteria met."
-        
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -359,31 +354,31 @@ class ResPartner(models.Model):
     def add_karma(self, amount, reason):
         """
         Add karma points to the partner.
-        
+
         Args:
             amount (int): The amount of karma to add (can be negative).
             reason (str): The reason for the karma change.
         """
         self.ensure_one()
-        
+
         if not isinstance(amount, int):
             raise ValidationError(_("Karma amount must be an integer."))
-        
+
         old_karma = self.karma
         self.karma += amount
-        
+
         # Prevent negative karma
         if self.karma < 0:
             self.karma = 0
-        
+
         _logger.info(f"Partner {self.id} karma changed from {old_karma} to {self.karma} ({reason})")
-        
+
         return self.karma
-        
-        
+
     # =========================================================================
     # 11. USER TYPE CLASSIFICATION
     # =========================================================================
+
     user_type = fields.Selection(
         [
             ('company', 'Company'),
@@ -400,6 +395,7 @@ class ResPartner(models.Model):
     # =========================================================================
     # 12. FREELANCER-SPECIFIC FIELDS
     # =========================================================================
+
     professional_summary = fields.Text(
         string="Professional Summary",
         help="A brief summary of the freelancer's professional background and expertise"
@@ -411,9 +407,15 @@ class ResPartner(models.Model):
         help="The freelancer's standard hourly rate in the default currency"
     )
 
+    resume_pdf = fields.Binary(
+        string="Resume PDF",
+        help="Upload the resume as a PDF file."
+    )
+
     # =========================================================================
     # 13. COMPANY REGISTRY AND DUPLICATE DETECTION
     # =========================================================================
+
     company_registry = fields.Char(
         string="Company Registry Number",
         help="Official company registration number for verification"
@@ -440,9 +442,55 @@ class ResPartner(models.Model):
         help="Display label for VAT field"
     )
 
+    company_registry_label = fields.Char(
+        string="Company Registry Label",
+        compute='_compute_company_registry_label',
+        help="Display label for company registry field."
+    )
+
     # =========================================================================
-    # 14. COMPUTATION METHODS
+    # 14. SOCIAL / CONTACT FIELDS
     # =========================================================================
+
+    forgejo_username = fields.Char(
+        string="Forgejo Username",
+        help="Username on the Forgejo Git platform."
+    )
+
+    github_username = fields.Char(
+        string="GitHub Username",
+        help="Username on GitHub."
+    )
+
+    linkedin_username = fields.Char(
+        string="LinkedIn Username",
+        help="Username on LinkedIn."
+    )
+
+    twitter_username = fields.Char(
+        string="Twitter/X Username",
+        help="Username on Twitter/X."
+    )
+
+    blog_url = fields.Char(
+        string="Blog URL",
+        help="URL of the user's blog or personal website."
+    )
+
+    # =========================================================================
+    # 15. AVERAGE RATING (Computed)
+    # =========================================================================
+
+    average_rating = fields.Float(
+        string="Average Rating",
+        compute='_compute_average_rating',
+        help="Average rating from reviews."
+    )
+
+    # =========================================================================
+    # 16. COMPUTATION METHODS
+    # =========================================================================
+
     @api.depends('vat')
     def _compute_same_vat_partner(self):
         """Find partners with the same VAT number."""
@@ -474,4 +522,15 @@ class ResPartner(models.Model):
     def _compute_vat_label(self):
         """Get the display label for VAT field."""
         for partner in self:
-            partner.vat_label = "VAT" 
+            partner.vat_label = "VAT"
+
+    def _compute_company_registry_label(self):
+        """Get the display label for company registry field."""
+        for partner in self:
+            partner.company_registry_label = partner.company_registry or ''
+
+    def _compute_average_rating(self):
+        """Compute average rating from reviews."""
+        for partner in self:
+            ratings = partner.review_ids.mapped('rating')
+            partner.average_rating = sum(ratings) / len(ratings) if ratings else 0.0

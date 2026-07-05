@@ -556,6 +556,21 @@ for i in {1..30}; do
 done
 
 if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
+    # -----------------------------------------------------------------------------
+    # 8a. Install required Odoo base modules (website, portal, etc.)
+    # -----------------------------------------------------------------------------
+    log_step "Installing Odoo base modules required by NETTRADES..."
+    for base_module in website portal mail auth_signup; do
+        log_info "Installing module: $base_module"
+        docker exec odoo odoo -c /etc/odoo/odoo.conf -d odoo -i "$base_module" --stop-after-init --log-level=info 2>&1 | grep -i "error\|warning" || true
+    done
+    log_success "Base modules installed"
+    
+    # -----------------------------------------------------------------------------
+    # 8b. Install NETTRADES Odoo modules (existing step)
+    # -----------------------------------------------------------------------------
+    log_step "Installing NETTRADES Odoo modules..."
+    
     log_info "Running install-modules.sh..."
     ARGS=""
     [[ "$FORCE" == true ]] && ARGS="$ARGS --force"
