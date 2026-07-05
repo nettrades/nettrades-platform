@@ -17,9 +17,7 @@ PURPOSE:
 =============================================================================
 -->
 <odoo>
-    <!-- ---------------------------------------------------------------------
-    ACTION: Dashboard
-    --------------------------------------------------------------------- -->
+<!-- ACTION: Dashboard -->
     <record id="action_fairness_dashboard" model="ir.actions.act_window">
         <field name="name">Fairness Dashboard</field>
         <field name="res_model">nettrades.fairness.audit</field>
@@ -35,10 +33,7 @@ PURPOSE:
             </ul>
         </field>
     </record>
-
-    <!-- ---------------------------------------------------------------------
-    ACTION: Flags
-    --------------------------------------------------------------------- -->
+<!-- ACTION: Flags -->
     <record id="action_fairness_flags" model="ir.actions.act_window">
         <field name="name">Fairness Flags</field>
         <field name="res_model">nettrades.fairness.flag</field>
@@ -48,10 +43,9 @@ PURPOSE:
             <p>Flags are created automatically when responses exceed thresholds.</p>
         </field>
     </record>
+<!-- MENU ITEMS -->
 
-    <!-- ---------------------------------------------------------------------
-    ACTION: Audit Logs
-    --------------------------------------------------------------------- -->
+<!-- ACTION: Audit Logs -->
     <record id="action_fairness_audit_log" model="ir.actions.act_window">
         <field name="name">Fairness Audit Log</field>
         <field name="res_model">nettrades.fairness.audit</field>
@@ -61,10 +55,6 @@ PURPOSE:
             <p>Each record includes rationality and bias scores, rationale, and timestamps.</p>
         </field>
     </record>
-
-    <!-- ---------------------------------------------------------------------
-    MENU ITEMS
-    --------------------------------------------------------------------- -->
     <menuitem id="menu_fairness_dashboard"
               name="Dashboard"
               parent="nettrades_fairness.menu_fairness_root"

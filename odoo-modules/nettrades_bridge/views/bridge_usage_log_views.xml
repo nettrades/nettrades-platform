@@ -11,9 +11,9 @@ PURPOSE:
 =============================================================================
 -->
 <odoo>
-    <!-- ---------------------------------------------------------------------
+    <!-- =============================================================
     ACTION
-    --------------------------------------------------------------------- -->
+    ============================================================ -->
     <record id="action_bridge_usage" model="ir.actions.act_window">
         <field name="name">Bridge Usage Logs</field>
         <field name="res_model">nettrades.bridge.usage.log</field>
@@ -24,9 +24,7 @@ PURPOSE:
         </field>
     </record>
 
-    <!-- ---------------------------------------------------------------------
-    TREE VIEW
-    --------------------------------------------------------------------- -->
+    <!-- TREE VIEW -->
     <record id="view_bridge_usage_log_tree" model="ir.ui.view">
         <field name="name">nettrades.bridge.usage.log.tree</field>
         <field name="model">nettrades.bridge.usage.log</field>

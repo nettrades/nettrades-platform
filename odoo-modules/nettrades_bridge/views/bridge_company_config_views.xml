@@ -12,9 +12,7 @@ PURPOSE:
 =============================================================================
 -->
 <odoo>
-    <!-- ---------------------------------------------------------------------
-    ACTION
-    --------------------------------------------------------------------- -->
+<!-- ACTION -->
     <record id="action_bridge_company_config" model="ir.actions.act_window">
         <field name="name">Company Bridge Configurations</field>
         <field name="res_model">nettrades.bridge.company.config</field>
@@ -25,9 +23,7 @@ PURPOSE:
         </field>
     </record>
 
-    <!-- ---------------------------------------------------------------------
-    TREE VIEW
-    --------------------------------------------------------------------- -->
+<!-- TREE VIEW -->
     <record id="view_bridge_company_config_tree" model="ir.ui.view">
         <field name="name">nettrades.bridge.company.config.tree</field>
         <field name="model">nettrades.bridge.company.config</field>
@@ -41,10 +37,7 @@ PURPOSE:
             </tree>
         </field>
     </record>
-
-    <!-- ---------------------------------------------------------------------
-    FORM VIEW
-    --------------------------------------------------------------------- -->
+<!-- FORM VIEW -->
     <record id="view_bridge_company_config_form" model="ir.ui.view">
         <field name="name">nettrades.bridge.company.config.form</field>
         <field name="model">nettrades.bridge.company.config</field>

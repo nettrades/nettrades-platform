@@ -17,9 +17,9 @@ PURPOSE:
 =============================================================================
 -->
 <odoo>
-    <!-- ---------------------------------------------------------------------
+    <!-- =============================================================
     TREE VIEW
-    --------------------------------------------------------------------- -->
+    ============================================================ -->
     <record id="view_fairness_flag_tree" model="ir.ui.view">
         <field name="name">nettrades.fairness.flag.tree</field>
         <field name="model">nettrades.fairness.flag</field>
@@ -36,9 +36,7 @@ PURPOSE:
         </field>
     </record>
 
-    <!-- ---------------------------------------------------------------------
-    FORM VIEW
-    --------------------------------------------------------------------- -->
+    <!-- FORM VIEW -->
     <record id="view_fairness_flag_form" model="ir.ui.view">
         <field name="name">nettrades.fairness.flag.form</field>
         <field name="model">nettrades.fairness.flag</field>
@@ -79,9 +77,7 @@ PURPOSE:
         </field>
     </record>
 
-    <!-- ---------------------------------------------------------------------
-    ACTION BUTTONS
-    --------------------------------------------------------------------- -->
+    <!-- ACTION BUTTONS -->
     <record id="action_fairness_flag_accept" model="ir.actions.act_window">
         <field name="name">Accept Flag</field>
         <field name="res_model">nettrades.fairness.flag</field>

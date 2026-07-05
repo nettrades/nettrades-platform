@@ -21,18 +21,16 @@ PURPOSE:
 =============================================================================
 -->
 <odoo>
-    <!-- ---------------------------------------------------------------------
+    <!-- =============================================================
     MENU
-    --------------------------------------------------------------------- -->
+    ============================================================ -->
     <menuitem id="menu_bridge_root" name="Bridge" parent="nettrades_core.menu_nettrades_root" sequence="50"/>
 
     <menuitem id="menu_bridge_config" name="Global Configuration" parent="menu_bridge_root" action="action_bridge_config"/>
     <menuitem id="menu_bridge_company_config" name="Company Configuration" parent="menu_bridge_root" action="action_bridge_company_config"/>
     <menuitem id="menu_bridge_usage" name="Usage Logs" parent="menu_bridge_root" action="action_bridge_usage"/>
 
-    <!-- ---------------------------------------------------------------------
-    ACTION
-    --------------------------------------------------------------------- -->
+    <!-- ACTION -->
     <record id="action_bridge_config" model="ir.actions.act_window">
         <field name="name">Bridge Global Configuration</field>
         <field name="res_model">nettrades.bridge.config</field>
@@ -43,9 +41,7 @@ PURPOSE:
         </field>
     </record>
 
-    <!-- ---------------------------------------------------------------------
-    FORM VIEW
-    --------------------------------------------------------------------- -->
+    <!-- FORM VIEW -->
     <record id="view_bridge_config_form" model="ir.ui.view">
         <field name="name">nettrades.bridge.config.form</field>
         <field name="model">nettrades.bridge.config</field>

@@ -12,16 +12,13 @@ PURPOSE:
 =============================================================================
 -->
 <odoo>
-    <!-- ---------------------------------------------------------------------
-    MENU
-    --------------------------------------------------------------------- -->
+<!-- MENUS -->
     <menuitem id="menu_llm_config_root" name="LLM Configuration" parent="nettrades_core.menu_nettrades_root" sequence="60"/>
 
     <menuitem id="menu_llm_company_config" name="Company LLM Settings" parent="menu_llm_config_root" action="action_llm_company_config"/>
 
-    <!-- ---------------------------------------------------------------------
-    ACTION
-    --------------------------------------------------------------------- -->
+<!-- ACTION -->
+
     <record id="action_llm_company_config" model="ir.actions.act_window">
         <field name="name">Company LLM Settings</field>
         <field name="res_model">nettrades.llm.company.config</field>
@@ -38,9 +35,7 @@ PURPOSE:
         </field>
     </record>
 
-    <!-- ---------------------------------------------------------------------
-    TREE VIEW
-    --------------------------------------------------------------------- -->
+<!-- TREE VIEW -->
     <record id="view_llm_company_config_tree" model="ir.ui.view">
         <field name="name">nettrades.llm.company.config.tree</field>
         <field name="model">nettrades.llm.company.config</field>
@@ -56,9 +51,7 @@ PURPOSE:
         </field>
     </record>
 
-    <!-- ---------------------------------------------------------------------
-    FORM VIEW
-    --------------------------------------------------------------------- -->
+    <!-- FORM VIEW -->
     <record id="view_llm_company_config_form" model="ir.ui.view">
         <field name="name">nettrades.llm.company.config.form</field>
         <field name="model">nettrades.llm.company.config</field>

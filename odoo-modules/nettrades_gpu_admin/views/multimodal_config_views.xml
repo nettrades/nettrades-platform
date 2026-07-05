@@ -11,8 +11,8 @@
                 <sheet>
                     <group string="Vision Model">
                         <field name="vision_enabled"  help="When enabled, users can upload images in the chat and the AI will analyse them using a Vision-Language Model (VLM)."/>
-                        <field name="vision_model_name" attrs="{'invisible': [('vision_enabled','=',False)], 'required': [('vision_enabled','=',True)]}  help="The VLM to use, e.g. 'Qwen2-VL-7B-Instruct'.  This model must already be deployed in GPUStack."/>
-                        <field name="vision_model_provider" help="Override the inference endpoint.  Leave blank to use the default GPUStack server." help="Override the inference endpoint.  Leave blank to use the default GPUStack server."/>
+                        <field name="vision_model_name" attrs="{'invisible': [('vision_enabled','=',False)], 'required': [('vision_enabled','=',True)]}" help="The VLM to use, e.g. 'Qwen2-VL-7B-Instruct'.  This model must already be deployed in GPUStack."/>
+                        <field name="vision_model_provider" help="Override the inference endpoint.  Leave blank to use the default GPUStack server."/>
                     </group>
                     <div class="text-muted" attrs="{'invisible': [('vision_enabled', '=', False)]}">
                         <p><b>Before enabling:</b></p>
