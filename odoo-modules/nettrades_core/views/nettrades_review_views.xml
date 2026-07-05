@@ -14,14 +14,14 @@ PURPOSE:
         <field name="name">nettrades.review.tree</field>
         <field name="model">nettrades.review</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="create_date"/>
                 <field name="reviewer_id"/>
                 <field name="reviewed_partner_id"/>
                 <field name="rating" widget="star"/>
                 <field name="project_id"/>
                 <field name="comment"/>
-            </tree>
+            </list>
         </field>
     </record>
 

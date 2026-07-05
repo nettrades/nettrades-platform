@@ -32,7 +32,7 @@
         <field name="name">gpu.registration.token.tree</field>
         <field name="model">gpu.registration.token</field>
         <field name="arch" type="xml">
-            <tree string="Registration Tokens">
+            <list string="Registration Tokens">
                 <field name="name"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="token_hash"/>
@@ -42,7 +42,7 @@
                 <field name="expiration_date"/>
                 <field name="used"/>
                 <field name="revoked"/>
-            </tree>
+            </list>
         </field>
     </record>
 

@@ -7,13 +7,13 @@
         <field name="name">gpu.token.economics.tree</field>
         <field name="model">gpu.token.economics</field>
         <field name="arch" type="xml">
-            <tree string="Token Economics">
+            <list string="Token Economics">
                 <field name="node_id"/>
                 <field name="tokens_earned"/>
                 <field name="tokens_spent"/>
                 <field name="balance"/>
                 <field name="last_transaction"/>
-            </tree>
+            </list>
         </field>
     </record>
 

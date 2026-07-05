@@ -68,13 +68,13 @@
         <field name="name">multimodal.config.tree</field>
         <field name="model">multimodal.config</field>
         <field name="arch" type="xml">
-            <tree string="Multimodal Configurations">
+            <list string="Multimodal Configurations">
                 <field name="name"/>
                 <field name="vision_enabled" widget="boolean"/>
                 <field name="robotics_enabled" widget="boolean"/>
                 <field name="iot_enabled" widget="boolean"/>
                 <field name="edge_enabled" widget="boolean"/>
-            </tree>
+            </list>
         </field>
     </record>
 
