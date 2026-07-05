@@ -104,7 +104,7 @@
                 </page>
             </xpath>
 
-            <!-- NETTRADES Profile Page (No inline <tree>!) -->
+            <!-- NETTRADES Profile Page (no inline <tree>!) -->
             <xpath expr="//notebook" position="inside">
                 <page string="NETTRADES Profile" name="nettrades_profile_page">
                     <group string="Fields and Skills" name="fields_skills_group">
@@ -112,11 +112,9 @@
                         <field name="skill_ids" widget="many2many_tags"/>
                     </group>
                     <group string="Experience" name="experience_group">
-                        <!-- Simple field – no inline <tree> -->
                         <field name="experience_ids"/>
                     </group>
                     <group string="Reviews" name="reviews_group">
-                        <!-- Simple field – no inline <tree> -->
                         <field name="review_ids"/>
                     </group>
                 </page>

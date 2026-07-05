@@ -38,11 +38,12 @@ _logger = logging.getLogger(__name__)
 
 
 class NettradesField(models.Model):
+    """
+    Professional Field Model - represents a domain of expertise.
 
-#   Professional Field Model - represents a domain of expertise.
-#   This model stores all configuration for a professional field, including
-#   qualification rules, voting weights, and fine-tuning settings.
-
+    This model stores all configuration for a professional field, including
+    qualification rules, voting weights, and fine-tuning settings.
+    """
     _name = 'nettrades.field'
     _description = 'Professional Field'
     _rec_name = 'name'
@@ -214,14 +215,12 @@ class NettradesField(models.Model):
         help="The minimum quality score for an example to be included in training."
     )
 
-    # RENAMED: was data_juicer_dedup ? data_juicer_enable_dedup
     data_juicer_enable_dedup = fields.Boolean(
         string='Enable Deduplication',
         default=True,
         help="If enabled, Data-Juicer removes exact and near-duplicate entries."
     )
 
-    # RENAMED: was data_juicer_pii_removal ? data_juicer_enable_pii
     data_juicer_enable_pii = fields.Boolean(
         string='Enable PII Removal',
         default=True,
@@ -300,38 +299,26 @@ class NettradesField(models.Model):
     # 9. COMPUTED FIELDS
     # =========================================================================
 
-    def _get_optional_model(self, model_name):
-        """Return the model if it is installed, otherwise None."""
-        return self.env.registry.get(model_name) and self.env[model_name] or None
-
     @api.depends('name')
     def _compute_qualified_stats(self):
+        """
+        Compute statistics about qualified professionals and voters.
 
-#       Compute statistics about qualified professionals and voters.
-#       This method calculates:
-#       - The number of active qualified professionals in this field
-#       - The total number of voters in this field
-#       - A suggested qualified weight based on the ratio
-
-        qualified_model = self._get_optional_model('qualified.professional')
-        vote_model = self._get_optional_model('good.answer.vote')
-
+        This method calculates:
+        - The number of active qualified professionals in this field
+        - The total number of voters in this field
+        - A suggested qualified weight based on the ratio
+        """
         for field in self:
-            if not qualified_model or not vote_model:
-                field.qualified_professional_count = 0
-                field.total_voter_count = 0
-                field.suggested_qualified_weight = 1
-                continue
-
             # Count active qualified professionals
-            qualified = qualified_model.search([
+            qualified = self.env['qualified.professional'].search([
                 ('field_id', '=', field.id),
                 ('is_active', '=', True),
             ])
             field.qualified_professional_count = len(qualified)
 
             # Count unique voters in this field
-            votes = vote_model.search([
+            votes = self.env['good.answer.vote'].search([
                 ('field_id', '=', field.id),
             ])
             field.total_voter_count = len(votes.mapped('user_id'))
@@ -350,19 +337,15 @@ class NettradesField(models.Model):
     # =========================================================================
 
     def get_qualified_experts(self):
+        """
+        Get all qualified experts for this field.
 
-#        Get all qualified experts for this field.
-
-#        Returns:
-#            recordset: The res.partner records of all qualified experts.
-
+        Returns:
+            recordset: The res.partner records of all qualified experts.
+        """
         self.ensure_one()
 
-        qualified_model = self._get_optional_model('qualified.professional')
-        if not qualified_model:
-            return self.env['res.partner']
-
-        qualified = qualified_model.search([
+        qualified = self.env['qualified.professional'].search([
             ('field_id', '=', self.id),
             ('is_active', '=', True),
         ])
@@ -382,11 +365,7 @@ class NettradesField(models.Model):
         self.ensure_one()
 
         # Check if the user is a qualified professional in this field
-        qualified_model = self._get_optional_model('qualified.professional')
-        if not qualified_model:
-            return self.base_points_per_vote
-
-        is_qualified = qualified_model.search([
+        is_qualified = self.env['qualified.professional'].search([
             ('field_id', '=', self.id),
             ('partner_id', '=', user.id),
             ('is_active', '=', True),
@@ -398,11 +377,11 @@ class NettradesField(models.Model):
             return self.base_points_per_vote
 
     def action_auto_adjust_weights(self):
+        """
+        Automatically adjust voting weights based on community composition.
 
-#       Automatically adjust voting weights based on community composition.
-
-#       This method is called by the cron job when auto_adjust_weights is enabled.
-
+        This method is called by the cron job when auto_adjust_weights is enabled.
+        """
         fields_to_adjust = self.search([('auto_adjust_weights', '=', True)])
 
         for field in fields_to_adjust:
@@ -420,11 +399,11 @@ class NettradesField(models.Model):
 
     @api.constrains('reputation_threshold_for_charging')
     def _check_reputation_threshold(self):
+        """
+        Validate the reputation threshold.
 
-#        Validate the reputation threshold.
-
-#        Ensures the threshold is a positive number.
-
+        Ensures the threshold is a positive number.
+        """
         for field in self:
             if field.reputation_threshold_for_charging < 0:
                 raise ValidationError(_(
@@ -433,11 +412,11 @@ class NettradesField(models.Model):
 
     @api.constrains('base_points_per_vote', 'qualified_points_per_vote')
     def _check_voting_weights(self):
+        """
+        Validate voting weights.
 
-#        Validate voting weights.
-
-#       Ensures the weights are positive numbers.
-
+        Ensures the weights are positive numbers.
+        """
         for field in self:
             if field.base_points_per_vote < 0:
                 raise ValidationError(_("Base points per vote must be a positive number."))
@@ -446,9 +425,9 @@ class NettradesField(models.Model):
 
     @api.constrains('data_juicer_min_quality_score')
     def _check_quality_score(self):
-
-#        Validate the quality score range.
-
+        """
+        Validate the quality score range.
+        """
         for field in self:
             if field.enable_data_juicer and not (0 <= field.data_juicer_min_quality_score <= 1):
                 raise ValidationError(_(
@@ -457,9 +436,9 @@ class NettradesField(models.Model):
 
     @api.constrains('deita_min_complexity')
     def _check_complexity_score(self):
-
-#        Validate the complexity score range.
-
+        """
+        Validate the complexity score range.
+        """
         for field in self:
             if field.enable_deita_scoring and not (0 <= field.deita_min_complexity <= 1):
                 raise ValidationError(_(
@@ -468,9 +447,9 @@ class NettradesField(models.Model):
 
     @api.constrains('ab_testing_traffic_split')
     def _check_traffic_split(self):
-
-#        Validate the traffic split range.
-
+        """
+        Validate the traffic split range.
+        """
         for field in self:
             if field.enable_ab_testing and not (0 < field.ab_testing_traffic_split < 100):
                 raise ValidationError(_(
@@ -483,9 +462,9 @@ class NettradesField(models.Model):
 
     @api.model
     def default_get(self, fields_list):
-
-#        Set default values for new fields.
-
+        """
+        Set default values for new fields.
+        """
         defaults = super().default_get(fields_list)
         defaults.update({
             'finetune_provider': 'unsloth',

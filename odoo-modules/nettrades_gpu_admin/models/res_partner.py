@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-# =============================================================================
+# 
 # FILE: odoo-modules/nettrades_gpu_admin/models/res_partner.py
-# =============================================================================
+# 
 # PURPOSE:
 #   Extends res.partner with GPU-related fields.
 #   This is defined in nettrades_gpu_admin to avoid circular dependency
@@ -11,7 +11,7 @@
 #
 # RELATIONSHIPS:
 #   - gpu_nodes: One2many to gpu.node (GPU nodes owned by this partner)
-# =============================================================================
+# 
 
 from odoo import fields, models
 
