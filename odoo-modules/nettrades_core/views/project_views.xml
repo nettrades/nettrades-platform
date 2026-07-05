@@ -1,22 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/project_views.xml
+    =============================================================================
+    PURPOSE:
+        Extends the project.project form view with NETTRADES-specific fields:
+        - Forgejo repository integration
+        - Freelance project budget
+        - Create Forgejo repository button
+        - Leave Review button (for project completion)
+    =============================================================================
+-->
 <odoo>
     <record id="view_project_form_inherit" model="ir.ui.view">
         <field name="name">project.project.form.inherit</field>
         <field name="model">project.project</field>
         <field name="inherit_id" ref="project.edit_project"/>
         <field name="arch" type="xml">
+            <!-- Forgejo Repository URL and Budget -->
             <field name="company_id" position="after">
                 <field name="forgejo_repo_url" placeholder="Forgejo repository URL..."
                        help="URL of the Forgejo repository for this project."/>
                 <field name="budget" placeholder="Project budget..."
                        help="Budget for this project (for freelance projects)."/>
             </field>
+
+            <!-- Create Forgejo Repository Button -->
             <xpath expr="//field[@name='name']" position="after">
                 <button name="action_create_forgejo_repo"
                         string="Create Forgejo Repository"
                         type="object"
                         class="btn-primary"
                         help="Create a Forgejo repository for this project."/>
+            </xpath>
+
+            <!-- Leave Review Button (added by Copilot) -->
+            <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_leave_review"
                         string="Leave Review"
                         type="object"

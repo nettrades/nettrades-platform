@@ -1,5 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/nettrades_field_views.xml
+    =============================================================================
+    PURPOSE:
+        Provides views for the nettrades.field model (Professional Fields):
+        - Tree/list view showing all fields
+        - Form view with all configuration options including:
+          * Qualification rules (manual verification, auto-qualify by karma)
+          * Voting weights (regular and qualified points)
+          * Expert answer usage for training
+          * Fine-tuning configuration (backend, base model, hyperparameters)
+          * Data-Juicer quality pipeline with status, endpoint, thresholds, filters
+            (Full explanation of Data-Juicer included as help text)
+          * DEITA LLM-as-Judge scoring with complexity threshold and judge model
+            (Full explanation of DEITA included as help text)
+          * Advanced training (A/B testing, GRPO, benchmark evaluation)
+        - Search view with filters
+    =============================================================================
+-->
 <odoo>
+    <!-- =====================================================================
+         TREE / LIST VIEW
+         ===================================================================== -->
     <record id="view_nettrades_field_tree" model="ir.ui.view">
         <field name="name">nettrades.field.tree</field>
         <field name="model">nettrades.field</field>
@@ -17,6 +40,10 @@
             </list>
         </field>
     </record>
+
+    <!-- =====================================================================
+         FORM VIEW
+         ===================================================================== -->
     <record id="view_nettrades_field_form" model="ir.ui.view">
         <field name="name">nettrades.field.form</field>
         <field name="model">nettrades.field</field>
@@ -37,7 +64,15 @@
                             <field name="auto_karma_qualify"/>
                         </group>
                     </group>
+
+                    <!-- =============================================================
+                         NOTEBOOK PAGES
+                         ============================================================= -->
                     <notebook>
+
+                        <!-- =============================================================
+                             PAGE 1: Qualification & Voting Rules
+                             ============================================================= -->
                         <page string="Qualification &amp; Voting" name="qualification_voting_page">
                             <group string="Qualification Rules" name="qualification_group">
                                 <field name="reputation_threshold_for_charging"/>
@@ -57,6 +92,10 @@
                             <button name="action_auto_adjust_weights" string="Auto-Adjust Weights Now"
                                     type="object" class="btn-primary" invisible="not auto_adjust_weights"/>
                         </page>
+
+                        <!-- =============================================================
+                             PAGE 2: Fine-Tuning Configuration
+                             ============================================================= -->
                         <page string="Fine-Tuning" name="finetune_page">
                             <group string="Model Configuration" name="model_config_group">
                                 <field name="finetune_provider"/>
@@ -75,6 +114,10 @@
                                 <field name="auto_promote_threshold" invisible="not enable_ab_testing"/>
                             </group>
                         </page>
+
+                        <!-- =============================================================
+                             PAGE 3: Data-Juicer Quality Pipeline
+                             ============================================================= -->
                         <page string="Data-Juicer" name="data_juicer_page">
                             <group string="Quality Pipeline Configuration" name="quality_group">
                                 <field name="enable_data_juicer"/>
@@ -94,6 +137,8 @@
                                 <field name="data_juicer_enable_dedup"/>
                                 <field name="data_juicer_enable_pii"/>
                             </group>
+
+                            <!-- Preserved original Data-Juicer comments as help text -->
                             <div class="text-muted" invisible="enable_data_juicer">
                                 Enable Data-Juicer to configure quality filtering.
                             </div>
@@ -103,6 +148,10 @@
                                 <p><strong>Dependencies:</strong> Data-Juicer must be installed in the Python environment (`pip install 'py-data-juicer[generic,nlp]'`). If it is not available, the quality pipeline will be skipped and the unfiltered dataset will be used.</p>
                             </div>
                         </page>
+
+                        <!-- =============================================================
+                             PAGE 4: DEITA LLM-as-Judge Scoring
+                             ============================================================= -->
                         <page string="DEITA Scoring" name="deita_page">
                             <group string="DEITA Configuration" name="deita_group">
                                 <field name="enable_deita_scoring"/>
@@ -111,6 +160,8 @@
                                 <field name="deita_judge_model"
                                        invisible="not enable_deita_scoring"/>
                             </group>
+
+                            <!-- Preserved original DEITA comments as help text -->
                             <div class="text-muted" invisible="enable_deita_scoring">
                                 Enable DEITA scoring to use LLM-as-Judge for dataset quality evaluation.
                             </div>
@@ -120,6 +171,7 @@
                                 <p><strong>Dependencies:</strong> `distilabel[vllm]` must be installed. If missing, the DEITA step will be skipped silently.</p>
                             </div>
                         </page>
+
                     </notebook>
                 </sheet>
                 <div class="oe_chatter">
@@ -130,6 +182,10 @@
             </form>
         </field>
     </record>
+
+    <!-- =====================================================================
+         SEARCH VIEW
+         ===================================================================== -->
     <record id="view_nettrades_field_search" model="ir.ui.view">
         <field name="name">nettrades.field.search</field>
         <field name="model">nettrades.field</field>
@@ -151,6 +207,10 @@
             </search>
         </field>
     </record>
+
+    <!-- =====================================================================
+         ACTIONS
+         ===================================================================== -->
     <record id="action_nettrades_field" model="ir.actions.act_window">
         <field name="name">Professional Fields</field>
         <field name="res_model">nettrades.field</field>
@@ -168,6 +228,7 @@
             ]]>
         </field>
     </record>
+
     <record id="action_nettrades_skill" model="ir.actions.act_window">
         <field name="name">Skills</field>
         <field name="res_model">nettrades.skill</field>
