@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- =============================================================================
-     FILE: odoo-modules/nettrades_core/views/res_partner_views.xml
-     =============================================================================
-     PURPOSE:
-       Extends the res.partner form view with NETTRADES-specific fields for:
-       - Professional profiles (summary, hourly rate, resume)
-       - Social media / contact fields (Forgejo, GitHub, LinkedIn, Twitter, Blog)
-       - Duplicate detection (VAT, Company Registry)
-       - Average rating display
-     ============================================================================= -->
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/res_partner_views.xml
+    =============================================================================
+    PURPOSE:
+        Extends the res.partner form view with NETTRADES-specific fields for:
+        - Professional profiles (summary, hourly rate, resume)
+        - Social media / contact fields (Forgejo, GitHub, LinkedIn, Twitter, Blog)
+        - Duplicate detection (VAT, Company Registry)
+        - Average rating display
+        - Worker agent configuration
+    =============================================================================
+-->
 <odoo>
     <record id="view_partner_form_inherit" model="ir.ui.view">
         <field name="name">res.partner.form.inherit</field>
@@ -24,7 +27,7 @@
 
             <field name="phone" position="after">
                 <field name="professional_summary" placeholder="Professional summary..."/>
-                <field name="hourly_rate" attrs="{'invisible': [('user_type', '!=', 'freelancer')]}"/>
+                <field name="hourly_rate" invisible="user_type != 'freelancer'"/>
                 <field name="resume_pdf" filename="resume_filename"/>
             </field>
 
@@ -77,7 +80,7 @@
             </field>
 
             <!-- =====================================================================
-                 SECTION 5: Karma and Reputation (if not already displayed)
+                 SECTION 5: Karma and Reputation
                  ===================================================================== -->
             <field name="company_registry" position="after">
                 <group string="NETTRADES Reputation" name="reputation_group">
@@ -87,7 +90,7 @@
             </field>
 
             <!-- =====================================================================
-                 SECTION 6: Worker Agent (if autonomous administration is enabled)
+                 SECTION 6: Worker Agent (Autonomous Administration)
                  ===================================================================== -->
             <xpath expr="//notebook" position="inside">
                 <page string="Worker Agent" name="worker_agent_page">
@@ -100,10 +103,23 @@
                         <button name="action_start_worker_agent" string="Start Worker" type="object"
                                 class="btn-primary" invisible="worker_started or not worker_agent"/>
                         <button name="action_stop_worker_agent" string="Stop Worker" type="object"
-                                class="btn-danger" visible="worker_started"/>
+                                class="btn-danger" invisible="not worker_started"/>
                     </group>
                     <group string="Worker Context (JSON)" name="worker_context_group">
                         <field name="worker_context" widget="json"/>
+                    </group>
+                </page>
+            </xpath>
+
+            <!-- =====================================================================
+                 SECTION 7: Expert Marketplace
+                 ===================================================================== -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Expert Profile" name="expert_profile_page">
+                    <group string="Expert Settings" name="expert_group">
+                        <field name="is_expert"/>
+                        <field name="expert_rate" invisible="not is_expert"/>
+                        <field name="expert_bio" invisible="not is_expert"/>
                     </group>
                 </page>
             </xpath>

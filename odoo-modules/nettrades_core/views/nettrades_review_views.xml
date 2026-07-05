@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- =============================================================================
-     FILE: odoo-modules/nettrades_core/views/nettrades_review_views.xml
-     =============================================================================
-     PURPOSE:
-       Provides list and form views for the nettrades.review model:
-       - Tree/list view showing reviews with ratings
-       - Form view for creating/editing reviews
-       - Search view with filters
-     ============================================================================= -->
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/nettrades_review_views.xml
+    =============================================================================
+    PURPOSE:
+        Provides list and form views for the nettrades.review model:
+        - Tree/list view showing reviews with ratings
+        - Form view for creating/editing reviews
+        - Search view with filters
+        - Menu and action definitions
+    =============================================================================
+-->
 <odoo>
     <!-- =====================================================================
          TREE / LIST VIEW

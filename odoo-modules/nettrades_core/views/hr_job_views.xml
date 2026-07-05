@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- =============================================================================
-     FILE: odoo-modules/nettrades_core/views/hr_job_views.xml
-     =============================================================================
-     PURPOSE:
-       Extends the hr.job form view with NETTRADES-specific AI matching fields:
-       - Required skills for AI matching
-       - Minimum years of experience
-       - Freelance project flag with budget
-       - Forgejo repository URL for integration
-     ============================================================================= -->
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/hr_job_views.xml
+    =============================================================================
+    PURPOSE:
+        Extends the hr.job form view with NETTRADES-specific AI matching fields:
+        - Required skills for AI matching
+        - Minimum years of experience
+        - Freelance project flag with budget
+        - Forgejo repository URL for integration
+    =============================================================================
+-->
 <odoo>
     <record id="view_hr_job_form_inherit" model="ir.ui.view">
         <field name="name">hr.job.form.inherit</field>
@@ -16,7 +18,7 @@
         <field name="inherit_id" ref="hr_recruitment.hr_job_view_form"/>
         <field name="arch" type="xml">
             <!-- =====================================================================
-                 SECTION 1: AI Match Candidates Button (inside button_box)
+                 SECTION 1: AI Match Candidates Button
                  ===================================================================== -->
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_match_candidates"
@@ -27,14 +29,14 @@
             </xpath>
 
             <!-- =====================================================================
-                 SECTION 2: AI Matching Configuration Group (inside sheet)
+                 SECTION 2: AI Matching Configuration
                  ===================================================================== -->
             <xpath expr="//sheet" position="inside">
                 <group string="AI Matching Configuration" name="ai_matching_group">
                     <field name="required_skills" placeholder="Skills required for this job..."/>
                     <field name="min_years_experience" placeholder="Minimum years of experience"/>
                     <field name="is_freelance_project" widget="boolean"/>
-                    <field name="budget" attrs="{'invisible': [('is_freelance_project', '=', False)]}"
+                    <field name="budget" invisible="not is_freelance_project"
                            placeholder="Project budget"/>
                     <field name="forgejo_repo_url" placeholder="Forgejo repository URL"
                            readonly="1" help="URL of the Forgejo repository for this job/project."/>
