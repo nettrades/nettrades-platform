@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 # Section A-F - AI-matching with direct LangGraph call, no n8n.
-import json, logging, requests
+import json
+import logging
+import requests
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
-import requests
-import logging
+
 _logger = logging.getLogger(__name__)
 
 class HrJob(models.Model):

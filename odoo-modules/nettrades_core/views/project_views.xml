@@ -17,6 +17,11 @@
                         type="object"
                         class="btn-primary"
                         help="Create a Forgejo repository for this project."/>
+                <button name="action_leave_review"
+                        string="Leave Review"
+                        type="object"
+                        class="btn-secondary"
+                        help="Open the review form for the assigned project user."/>
             </xpath>
         </field>
     </record>

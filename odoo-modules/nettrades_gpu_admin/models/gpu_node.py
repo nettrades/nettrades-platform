@@ -47,7 +47,7 @@ class GPUNode(models.Model):
     This model stores all information about a GPU node, including its
     hardware inventory, WireGuard configuration, and operational status.
     """
-    
+
     partner_id = fields.Many2one(
             'res.partner',
             string='Partner',
@@ -55,7 +55,7 @@ class GPUNode(models.Model):
             ondelete='cascade',
             help="The partner (company or user) that owns this GPU node."
     )
-    
+
     _name = 'gpu.node'
     _description = 'GPU Node'
     _rec_name = 'name'
@@ -209,9 +209,52 @@ class GPUNode(models.Model):
         help="The IP address assigned to this node on the WireGuard network."
     )
 
+    wireguard_ip = fields.Char(
+        string='WireGuard IP',
+        related='wireguard_assigned_ip',
+        readonly=False,
+        store=True,
+        help="Backward compatibility alias for the WireGuard assigned IP."
+    )
+
     endpoint = fields.Char(
         string='WireGuard Endpoint',
         help="The public endpoint of this node (IP:port) for WireGuard."
+    )
+
+    state = fields.Selection(
+        [
+            ('pending', 'Pending'),
+            ('active', 'Active'),
+            ('inactive', 'Inactive'),
+            ('failed', 'Failed'),
+        ],
+        string='Registration State',
+        default='pending',
+        copy=False,
+        help="The registration lifecycle state of the node."
+    )
+
+    registration_token_id = fields.Many2one(
+        'gpu.registration.token',
+        string='Registration Token',
+        help='The registration token used to onboard this node.'
+    )
+
+    company_id = fields.Many2one(
+        'res.company',
+        string='Company',
+        required=True,
+        default=lambda self: self.env.company,
+        help='The company that owns this GPU node.'
+    )
+
+    pool = fields.Selection(
+        related='gpu_pool',
+        string='Pool',
+        readonly=False,
+        store=True,
+        help='Backward compatibility alias for the GPU pool field.'
     )
 
     # =========================================================================
@@ -526,14 +569,13 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         self.ensure_one()
         node_name = self.name
 
-        # Step 1: Remove from WireGuard peers (the peer manager will sync)
+        # Step 1: Revoke the node from the cluster's WireGuard peer list
         try:
             cluster = self.cluster_id
-            if cluster.controller_endpoint:
-                _logger.info(f"Requesting peer removal for node {self.name}")
-                # In production, this would call the peer manager API
+            if cluster and cluster.exists():
+                cluster._revoke_wireguard_peer(self)
         except Exception as e:
-            _logger.warning(f"Failed to remove WireGuard peer: {e}")
+            _logger.warning(f"Failed to revoke WireGuard peer for node {self.name}: {e}")
 
         # Step 2: Deregister from GPUStack
         if self.gpustack_worker_id:

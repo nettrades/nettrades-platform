@@ -61,7 +61,7 @@ class ResPartner(models.Model):
 
     review_ids = fields.One2many(
         'nettrades.review',
-        'partner_id',
+        'reviewed_partner_id',
         string='Reviews',
         help="Reviews from other users."
     )

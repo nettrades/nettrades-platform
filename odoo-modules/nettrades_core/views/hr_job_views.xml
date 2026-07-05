@@ -11,6 +11,11 @@
                         type="object"
                         class="btn-primary"
                         help="Use AI to match candidates for this job position."/>
+                <button name="action_match_candidates_async"
+                        string="Match Candidates in Background"
+                        type="object"
+                        class="btn-secondary"
+                        help="Queue AI candidate matching as a background job."/>
             </xpath>
             <xpath expr="//sheet" position="inside">
                 <group string="AI Matching Configuration" name="ai_matching_group">

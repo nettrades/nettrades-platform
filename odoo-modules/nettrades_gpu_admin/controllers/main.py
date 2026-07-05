@@ -588,16 +588,19 @@ class GpuAdminController(http.Controller):
         if not node.exists():
             return {'error': 'Node not found'}, 404
 
-        # Revoke WireGuard peer entry (placeholder - implement actual revocation)
-        # TODO: Implement WireGuard peer revocation via cluster._revoke_wireguard_peer(node)
-        _logger.info(f"Revoking WireGuard peer for node {node.id} (placeholder)")
+        # Revoke the WireGuard peer and cleanup node registration state
+        try:
+            if node.cluster_id and node.cluster_id.exists():
+                node.cluster_id._revoke_wireguard_peer(node)
+        except Exception as e:
+            _logger.warning("Failed to revoke WireGuard peer for node %s: %s", node.id, e)
 
         # Delete the node record
         node.unlink()
 
         return {
             'success': True,
-            'message': f"Node {node_id} removed successfully (WireGuard peer revocation is a placeholder)"
+            'message': f"Node {node_id} removed successfully"
         }
 
     # =========================================================================

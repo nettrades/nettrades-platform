@@ -25,4 +25,20 @@
               name="Skills"
               parent="menu_nettrades_skills_root"
               action="action_nettrades_skill"/>
+    <menuitem id="menu_nettrades_experience_root"
+              name="Experience"
+              parent="menu_nettrades_config_root"
+              sequence="30"/>
+    <menuitem id="menu_nettrades_experience_list"
+              name="Experience"
+              parent="menu_nettrades_experience_root"
+              action="action_nettrades_experience"/>
+    <menuitem id="menu_nettrades_ai_matches_root"
+              name="AI Match Results"
+              parent="nettrades_core_menu_root"
+              sequence="50"/>
+    <menuitem id="menu_nettrades_ai_matches_list"
+              name="AI Match Results"
+              parent="menu_nettrades_ai_matches_root"
+              action="action_nettrades_user_match"/>
 </odoo>

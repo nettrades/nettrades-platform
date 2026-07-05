@@ -57,6 +57,7 @@
         'project',
         'website_sale_marketplace',
         'auth_signup',          # <-- ADDED: Enables self-service onboarding
+        'queue_job',            # <-- Required for asynchronous AI matching (with_delay)
     ],
     'data': [
         'security/nettrades_security.xml',
@@ -64,8 +65,11 @@
         'views/res_partner_views.xml',
         'views/hr_job_views.xml',
         'views/project_views.xml',
-        'views/nettrades_review_views.xml',
         'views/nettrades_field_views.xml',
+        'views/nettrades_review_views.xml',
+        'views/nettrades_experience_views.xml',
+        'views/nettrades_user_match_views.xml',
+        'views/nettrades_core_menu.xml',
         'data/nettrades.skill.csv',
         'data/portal_data.xml',  # <-- ADDED: Portal menus and sign-up settings
     ],

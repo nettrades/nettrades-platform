@@ -17,5 +17,4 @@ from . import nettrades_skill
 from . import nettrades_field
 from . import nettrades_experience
 from . import nettrades_review
-from . import review
 from . import sandbox_policy

@@ -228,7 +228,7 @@ class NettradesField(models.Model):
         default=True,
         help="If enabled, Data-Juicer attempts to remove personally identifiable information."
     )
-    
+
     # =========================================================================
     # 7. DEITA LLM-AS-JUDGE SCORING
     # =========================================================================
@@ -301,6 +301,10 @@ class NettradesField(models.Model):
     # 9. COMPUTED FIELDS
     # =========================================================================
 
+    def _get_optional_model(self, model_name):
+        """Return the model if it is installed, otherwise None."""
+        return self.env.registry.get(model_name) and self.env[model_name] or None
+
     @api.depends('name')
     def _compute_qualified_stats(self):
         """
@@ -311,16 +315,25 @@ class NettradesField(models.Model):
         - The total number of voters in this field
         - A suggested qualified weight based on the ratio
         """
+        qualified_model = self._get_optional_model('qualified.professional')
+        vote_model = self._get_optional_model('good.answer.vote')
+
         for field in self:
+            if not qualified_model or not vote_model:
+                field.qualified_professional_count = 0
+                field.total_voter_count = 0
+                field.suggested_qualified_weight = 1
+                continue
+
             # Count active qualified professionals
-            qualified = self.env['qualified.professional'].search([
+            qualified = qualified_model.search([
                 ('field_id', '=', field.id),
                 ('is_active', '=', True),
             ])
             field.qualified_professional_count = len(qualified)
 
             # Count unique voters in this field
-            votes = self.env['good.answer.vote'].search([
+            votes = vote_model.search([
                 ('field_id', '=', field.id),
             ])
             field.total_voter_count = len(votes.mapped('user_id'))
@@ -347,7 +360,11 @@ class NettradesField(models.Model):
         """
         self.ensure_one()
 
-        qualified = self.env['qualified.professional'].search([
+        qualified_model = self._get_optional_model('qualified.professional')
+        if not qualified_model:
+            return self.env['res.partner']
+
+        qualified = qualified_model.search([
             ('field_id', '=', self.id),
             ('is_active', '=', True),
         ])
@@ -367,7 +384,11 @@ class NettradesField(models.Model):
         self.ensure_one()
 
         # Check if the user is a qualified professional in this field
-        is_qualified = self.env['qualified.professional'].search([
+        qualified_model = self._get_optional_model('qualified.professional')
+        if not qualified_model:
+            return self.base_points_per_vote
+
+        is_qualified = qualified_model.search([
             ('field_id', '=', self.id),
             ('partner_id', '=', user.id),
             ('is_active', '=', True),
