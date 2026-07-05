@@ -1,18 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/res_partner_views.xml
+    =============================================================================
+    PURPOSE:
+        Extends the res.partner form view with NETTRADES-specific fields for:
+        - Professional profiles (summary, hourly rate, resume)
+        - Social media / contact fields (Forgejo, GitHub, LinkedIn, Twitter, Blog)
+        - Duplicate detection (VAT, Company Registry)
+        - Average rating display
+        - Worker agent configuration
+    =============================================================================
+-->
 <odoo>
     <record id="view_partner_form_inherit" model="ir.ui.view">
         <field name="name">res.partner.form.inherit</field>
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
+            <!-- Professional Profile Fields -->
             <field name="email" position="after">
                 <field name="user_type" placeholder="Select user type..."/>
             </field>
+
             <field name="phone" position="after">
                 <field name="professional_summary" placeholder="Professional summary..."/>
                 <field name="hourly_rate" invisible="user_type != 'freelancer'"/>
                 <field name="resume_pdf" filename="resume_filename"/>
             </field>
+
+            <!-- Social / Contact Fields -->
             <field name="website" position="after">
                 <group string="Social Media / Platforms" name="social_media_group">
                     <field name="forgejo_username" placeholder="Forgejo username"/>
@@ -22,9 +39,12 @@
                     <field name="blog_url" placeholder="Blog URL"/>
                 </group>
             </field>
+
+            <!-- Duplicate Detection -->
             <field name="vat" position="after">
                 <field name="company_registry" placeholder="Company registry number"/>
             </field>
+
             <field name="company_registry" position="after">
                 <div class="alert alert-warning oe_edit_only" role="alert"
                      name="warning_duplicates"
@@ -44,15 +64,21 @@
                     </span>
                 </div>
             </field>
+
+            <!-- Average Rating -->
             <field name="company_registry" position="after">
                 <field name="average_rating" widget="star" invisible="average_rating == 0"/>
             </field>
+
+            <!-- Karma and Reputation -->
             <field name="company_registry" position="after">
                 <group string="NETTRADES Reputation" name="reputation_group">
                     <field name="karma" readonly="1"/>
                     <field name="reputation_score" readonly="1"/>
                 </group>
             </field>
+
+            <!-- Worker Agent -->
             <xpath expr="//notebook" position="inside">
                 <page string="Worker Agent" name="worker_agent_page">
                     <group string="Autonomous Worker Agent" name="worker_agent_group">
@@ -71,6 +97,8 @@
                     </group>
                 </page>
             </xpath>
+
+            <!-- Expert Profile -->
             <xpath expr="//notebook" position="inside">
                 <page string="Expert Profile" name="expert_profile_page">
                     <group string="Expert Settings" name="expert_group">

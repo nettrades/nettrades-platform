@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/nettrades_review_views.xml
+    =============================================================================
+    PURPOSE:
+        Provides list and form views for the nettrades.review model:
+        - Tree/list view showing reviews with ratings
+        - Form view for creating/editing reviews
+        - Search view with filters
+        - Menu and action definitions
+    =============================================================================
+-->
 <odoo>
+    <!-- TREE / LIST VIEW -->
     <record id="view_nettrades_review_tree" model="ir.ui.view">
         <field name="name">nettrades.review.tree</field>
         <field name="model">nettrades.review</field>
@@ -14,6 +27,8 @@
             </list>
         </field>
     </record>
+
+    <!-- FORM VIEW -->
     <record id="view_nettrades_review_form" model="ir.ui.view">
         <field name="name">nettrades.review.form</field>
         <field name="model">nettrades.review</field>
@@ -50,6 +65,8 @@
             </form>
         </field>
     </record>
+
+    <!-- SEARCH VIEW -->
     <record id="view_nettrades_review_search" model="ir.ui.view">
         <field name="name">nettrades.review.search</field>
         <field name="model">nettrades.review</field>
@@ -68,6 +85,8 @@
             </search>
         </field>
     </record>
+
+    <!-- ACTIONS AND MENUS -->
     <record id="action_nettrades_review" model="ir.actions.act_window">
         <field name="name">Reviews</field>
         <field name="res_model">nettrades.review</field>
@@ -83,6 +102,7 @@
             ]]>
         </field>
     </record>
+
     <menuitem id="menu_nettrades_review_root" name="Reviews" parent="nettrades_core_menu_root" sequence="40"/>
     <menuitem id="menu_nettrades_review_list" name="All Reviews" parent="menu_nettrades_review_root"
               action="action_nettrades_review"/>

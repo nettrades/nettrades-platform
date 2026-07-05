@@ -1,26 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/nettrades_core_menu.xml
+    =============================================================================
+    PURPOSE:
+        Defines the main menu structure for the NETTRADES Core module:
+        - Root menu for NETTRADES
+        - Sub-menus for different sections (Reviews, Fields, Skills, etc.)
+    =============================================================================
+-->
 <odoo>
     <menuitem id="nettrades_core_menu_root"
               name="NETTRADES"
               sequence="10"
               web_icon="nettrades_core,static/description/icon.png"/>
+
     <menuitem id="menu_nettrades_config_root"
               name="Configuration"
               parent="nettrades_core_menu_root"
               sequence="90"
               groups="base.group_system"/>
+
     <menuitem id="menu_nettrades_fields_root"
               name="Professional Fields"
               parent="menu_nettrades_config_root"
               sequence="10"/>
+
     <menuitem id="menu_nettrades_fields_list"
               name="Fields"
               parent="menu_nettrades_fields_root"
               action="action_nettrades_field"/>
+
     <menuitem id="menu_nettrades_skills_root"
               name="Skills"
               parent="menu_nettrades_config_root"
               sequence="20"/>
+
     <menuitem id="menu_nettrades_skills_list"
               name="Skills"
               parent="menu_nettrades_skills_root"

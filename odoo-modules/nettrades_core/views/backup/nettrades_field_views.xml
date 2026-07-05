@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/nettrades_field_views.xml
+    =============================================================================
+    PURPOSE:
+        Provides views for the nettrades.field model (Professional Fields):
+        - Tree/list view showing all fields
+        - Form view with all configuration options
+        - Search view with filters
+    =============================================================================
+-->
 <odoo>
+    <!-- TREE / LIST VIEW -->
     <record id="view_nettrades_field_tree" model="ir.ui.view">
         <field name="name">nettrades.field.tree</field>
         <field name="model">nettrades.field</field>
@@ -17,6 +29,8 @@
             </list>
         </field>
     </record>
+
+    <!-- FORM VIEW -->
     <record id="view_nettrades_field_form" model="ir.ui.view">
         <field name="name">nettrades.field.form</field>
         <field name="model">nettrades.field</field>
@@ -37,7 +51,9 @@
                             <field name="auto_karma_qualify"/>
                         </group>
                     </group>
+
                     <notebook>
+                        <!-- Qualification & Voting -->
                         <page string="Qualification &amp; Voting" name="qualification_voting_page">
                             <group string="Qualification Rules" name="qualification_group">
                                 <field name="reputation_threshold_for_charging"/>
@@ -57,6 +73,8 @@
                             <button name="action_auto_adjust_weights" string="Auto-Adjust Weights Now"
                                     type="object" class="btn-primary" invisible="not auto_adjust_weights"/>
                         </page>
+
+                        <!-- Fine-Tuning -->
                         <page string="Fine-Tuning" name="finetune_page">
                             <group string="Model Configuration" name="model_config_group">
                                 <field name="finetune_provider"/>
@@ -75,6 +93,8 @@
                                 <field name="auto_promote_threshold" invisible="not enable_ab_testing"/>
                             </group>
                         </page>
+
+                        <!-- Data-Juicer -->
                         <page string="Data-Juicer" name="data_juicer_page">
                             <group string="Quality Pipeline Configuration" name="quality_group">
                                 <field name="enable_data_juicer"/>
@@ -103,6 +123,8 @@
                                 <p><strong>Dependencies:</strong> Data-Juicer must be installed in the Python environment (`pip install 'py-data-juicer[generic,nlp]'`). If it is not available, the quality pipeline will be skipped and the unfiltered dataset will be used.</p>
                             </div>
                         </page>
+
+                        <!-- DEITA Scoring -->
                         <page string="DEITA Scoring" name="deita_page">
                             <group string="DEITA Configuration" name="deita_group">
                                 <field name="enable_deita_scoring"/>
@@ -130,6 +152,8 @@
             </form>
         </field>
     </record>
+
+    <!-- SEARCH VIEW -->
     <record id="view_nettrades_field_search" model="ir.ui.view">
         <field name="name">nettrades.field.search</field>
         <field name="model">nettrades.field</field>
@@ -151,6 +175,8 @@
             </search>
         </field>
     </record>
+
+    <!-- ACTIONS -->
     <record id="action_nettrades_field" model="ir.actions.act_window">
         <field name="name">Professional Fields</field>
         <field name="res_model">nettrades.field</field>
@@ -168,6 +194,7 @@
             ]]>
         </field>
     </record>
+
     <record id="action_nettrades_skill" model="ir.actions.act_window">
         <field name="name">Skills</field>
         <field name="res_model">nettrades.skill</field>
