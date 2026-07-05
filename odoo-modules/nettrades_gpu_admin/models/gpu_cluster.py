@@ -107,6 +107,30 @@ class GPUCluster(models.Model):
         """
     )
 
+    wireguard_subnet = fields.Char(
+        related='wireguard_mesh_subnet',
+        string='WireGuard Subnet',
+        readonly=False,
+        store=True,
+        help='Backward compatibility alias for WireGuard subnet configuration.'
+    )
+
+    wireguard_server_public_key = fields.Char(
+        related='wireguard_controller_public_key',
+        string='WireGuard Server Public Key',
+        readonly=False,
+        store=True,
+        help='Backward compatibility alias for the WireGuard controller public key.'
+    )
+
+    wireguard_server_endpoint = fields.Char(
+        related='controller_endpoint',
+        string='WireGuard Server Endpoint',
+        readonly=False,
+        store=True,
+        help='Backward compatibility alias for the WireGuard controller endpoint.'
+    )
+
     wireguard_controller_public_key = fields.Char(
         string='WireGuard Controller Public Key',
         readonly=True,
@@ -168,6 +192,13 @@ class GPUCluster(models.Model):
         help="The subnets registered for this cluster. Used for network scanning."
     )
 
+    node_ids = fields.One2many(
+        'gpu.node',
+        'cluster_id',
+        string='GPU Nodes',
+        help='GPU nodes that belong to this cluster.'
+    )
+
     # =========================================================================
     # 6. COMPUTED FIELDS - CLUSTER-WIDE STATISTICS
     # =========================================================================
@@ -205,6 +236,20 @@ class GPUCluster(models.Model):
         compute='_compute_gpu_count',
         store=False,
         help="Total number of physical GPUs across all nodes."
+    )
+
+    total_tokens_served = fields.Integer(
+        string='Total Tokens Served',
+        compute='_compute_token_economics',
+        store=False,
+        help='Total tokens served by all nodes in this cluster.'
+    )
+
+    total_earnings = fields.Float(
+        string='Total Earnings',
+        compute='_compute_token_economics',
+        store=False,
+        help='Total token earnings earned by all nodes in this cluster.'
     )
 
     # =========================================================================
@@ -322,6 +367,21 @@ class GPUCluster(models.Model):
                         pass
 
             cluster.total_gpu_count = gpu_count
+
+    @api.depends('company_id')
+    def _compute_token_economics(self):
+        """
+        Compute cluster-level token economics metrics.
+
+        This method aggregates the tokens served and earnings from all
+        nodes in the cluster.
+        """
+        for cluster in self:
+            nodes = self.env['gpu.node'].search([
+                ('cluster_id', '=', cluster.id)
+            ])
+            cluster.total_tokens_served = sum((node.tokens_served or 0) for node in nodes)
+            cluster.total_earnings = sum((node.token_earnings or 0.0) for node in nodes)
 
     # =========================================================================
     # 9. WIREGUARD KEY MANAGEMENT
@@ -498,12 +558,11 @@ PrivateKey = {private_key}
                     ips = re.findall(ip_pattern, result.stdout)
 
                     for ip in ips:
-                        # For each IP, try to get GPU info via SSH or HTTP
-                        # Simplified: just add the IP with placeholder info
                         discovered.append({
                             'ip': ip,
                             'hostname': ip,
-                            'gpus': [],  # Placeholder; should query the node
+                            'gpus': [],
+                            'source': 'nmap',
                         })
                 except subprocess.TimeoutExpired:
                     _logger.warning(f"Scan timeout for subnet {subnet_cidr}")
@@ -515,41 +574,93 @@ PrivateKey = {private_key}
 
         return discovered
 
-    def _install_agent_on_host(self, ip_address, pool='internal'):
+    def _install_agent_on_host(self, ip_address, pool='internal', ssh_user='root', ssh_key=None):
         """
         Install the GPU agent on a remote host.
 
-        This method SSH's into a remote host and installs the NETTRADES
-        GPU agent. It requires SSH access with key-based authentication.
+        This method attempts to SSH into a remote host and verify the
+        connection. It does not install the agent automatically unless
+        a dedicated installer script is available.
 
         Args:
             ip_address (str): The IP address of the remote host.
             pool (str): The pool to assign the node to ('internal' or 'public').
+            ssh_user (str): SSH user for remote access.
+            ssh_key (str, optional): SSH private key path for authentication.
 
         Returns:
             dict: Status of the installation.
-
-        Note:
-            This method is a placeholder for the actual implementation.
-            In production, this would use SSH to run the installer script
-            or use a configuration management tool like Ansible.
         """
         self.ensure_one()
 
-        # This is a placeholder implementation
-        _logger.info(f"Installing agent on host {ip_address} with pool {pool}")
+        _logger.info(
+            "Attempting remote install of GPU agent on %s as %s in pool %s",
+            ip_address, ssh_user, pool
+        )
 
-        # In production, this would:
-        # 1. SSH to the host with key-based authentication
-        # 2. Download the installer script
-        # 3. Run the installer with the appropriate parameters
-        # 4. Wait for the node to register
+        try:
+            import shutil
+            import subprocess
 
-        return {
-            'status': 'pending',
-            'message': f"Installation initiated for {ip_address}",
-            'ip': ip_address,
-        }
+            ssh_bin = shutil.which('ssh')
+            if not ssh_bin:
+                raise UserError(_(
+                    "SSH client not found on the controller machine. "
+                    "Install OpenSSH client and try again."
+                ))
+
+            cmd = [ssh_bin, '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no']
+            if ssh_key:
+                cmd.extend(['-i', ssh_key])
+            cmd.append(f"{ssh_user}@{ip_address}")
+            cmd.append('echo NETTRADES GPU agent install check')
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+            if result.returncode != 0:
+                _logger.warning(
+                    "Remote SSH check failed for %s: %s",
+                    ip_address, result.stderr.strip() or result.stdout.strip()
+                )
+                return {
+                    'status': 'failed',
+                    'message': (
+                        'Unable to reach remote host via SSH. '
+                        'Verify connectivity, credentials, and that SSH is enabled.'
+                    ),
+                    'ip': ip_address,
+                }
+
+            _logger.info("Remote host %s is reachable via SSH", ip_address)
+            return {
+                'status': 'pending',
+                'message': (
+                    'Remote host is reachable. Please run the NETTRADES GPU agent '
+                    'installer on the host or configure an automated deployment script.'
+                ),
+                'ip': ip_address,
+                'ssh_user': ssh_user,
+            }
+
+        except subprocess.TimeoutExpired:
+            _logger.warning("SSH connection timed out to %s", ip_address)
+            return {
+                'status': 'failed',
+                'message': 'SSH connection timed out. Please verify network connectivity.',
+                'ip': ip_address,
+            }
+        except FileNotFoundError:
+            return {
+                'status': 'failed',
+                'message': 'SSH client executable not found. Please install OpenSSH.',
+                'ip': ip_address,
+            }
+        except Exception as e:
+            _logger.warning("Remote install check failed: %s", e)
+            return {
+                'status': 'failed',
+                'message': str(e),
+                'ip': ip_address,
+            }
 
     # =========================================================================
     # 11. CLUSTER MANAGEMENT ACTIONS
@@ -674,6 +785,38 @@ PrivateKey = {private_key}
 
         _logger.info("GPU cluster health watchdog completed")
 
+    # ==============
+
+    def _revoke_wireguard_peer(self, node):
+        """
+        Revoke a WireGuard peer from the cluster.
+
+        This method updates the node record so that it is excluded from
+        WireGuard peer synchronization and clears node-specific WireGuard
+        registration state.
+        """
+        self.ensure_one()
+        if not node or not node.exists():
+            return False
+
+        cleanup_values = {
+            'status': 'offline',
+            'endpoint': False,
+            'wireguard_public_key': False,
+            'wireguard_assigned_ip': False,
+        }
+        if hasattr(node, 'wireguard_ip'):
+            cleanup_values['wireguard_ip'] = False
+        if hasattr(node, 'state'):
+            cleanup_values['state'] = 'inactive'
+
+        node.write(cleanup_values)
+        _logger.info(
+            "WireGuard peer revoked for node %s (ID: %s)",
+            node.name, node.id
+        )
+        return True
+
     # =========================================================================
     # 14. API FOR EXTERNAL ACCESS
     # =========================================================================
@@ -710,3 +853,33 @@ PrivateKey = {private_key}
                 })
 
         return peers
+
+    def _revoke_wireguard_peer(self, node):
+        """
+        Revoke a WireGuard peer from the cluster.
+
+        This method updates the node record so that it is excluded from
+        WireGuard peer synchronization and clears node-specific WireGuard
+        registration state.
+        """
+        self.ensure_one()
+        if not node or not node.exists():
+            return False
+
+        cleanup_values = {
+            'status': 'offline',
+            'endpoint': False,
+            'wireguard_public_key': False,
+            'wireguard_assigned_ip': False,
+        }
+        if hasattr(node, 'wireguard_ip'):
+            cleanup_values['wireguard_ip'] = False
+        if hasattr(node, 'state'):
+            cleanup_values['state'] = 'inactive'
+
+        node.write(cleanup_values)
+        _logger.info(
+            "WireGuard peer revoked for node %s (ID: %s)",
+            node.name, node.id
+        )
+        return True
