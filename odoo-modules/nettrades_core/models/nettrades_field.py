@@ -180,6 +180,35 @@ class NettradesField(models.Model):
         help="If enabled, the fine-tuning pipeline runs Data-Juicer on the exported dataset for quality filtering, deduplication, and PII removal. This requires the 'py-data-juicer[generic,nlp]' package to be installed."
     )
 
+    data_juicer_status = fields.Selection(
+        [
+            ('idle', 'Idle'),
+            ('running', 'Running'),
+            ('completed', 'Completed'),
+            ('failed', 'Failed'),
+        ],
+        string='Data-Juicer Status',
+        default='idle',
+        help="Current status of the Data-Juicer quality pipeline for this field."
+    )
+
+    data_juicer_endpoint_type = fields.Selection(
+        [
+            ('local', 'Local'),
+            ('cloud', 'Cloud (AWS)'),
+            ('hybrid', 'Hybrid'),
+        ],
+        string="Data-Juicer Endpoint",
+        default="local",
+        help="Type of endpoint used for Data-Juicer processing."
+    )
+
+    data_juicer_max_rejection_rate = fields.Float(
+        string="Max Rejection Rate",
+        default=0.3,
+        help="Maximum percentage of examples that can be rejected during quality filtering."
+    )
+
     data_juicer_min_quality_score = fields.Float(
         string='Minimum Quality Score',
         default=0.6,
@@ -444,6 +473,7 @@ class NettradesField(models.Model):
             'base_points_per_vote': 1.0,
             'qualified_points_per_vote': 5.0,
             'data_juicer_min_quality_score': 0.6,
+            'data_juicer_max_rejection_rate': 0.3,
             'deita_min_complexity': 0.3,
             'indirect_reputation_points': 1.0,
             'min_votes_for_training': 1,
