@@ -215,18 +215,20 @@ class NettradesField(models.Model):
         help="The minimum quality score for an example to be included in training."
     )
 
-    data_juicer_dedup = fields.Boolean(
+    # RENAMED: was data_juicer_dedup ? data_juicer_enable_dedup
+    data_juicer_enable_dedup = fields.Boolean(
         string='Enable Deduplication',
         default=True,
         help="If enabled, Data-Juicer removes exact and near-duplicate entries."
     )
 
-    data_juicer_pii_removal = fields.Boolean(
+    # RENAMED: was data_juicer_pii_removal ? data_juicer_enable_pii
+    data_juicer_enable_pii = fields.Boolean(
         string='Enable PII Removal',
         default=True,
         help="If enabled, Data-Juicer attempts to remove personally identifiable information."
     )
-
+    
     # =========================================================================
     # 7. DEITA LLM-AS-JUDGE SCORING
     # =========================================================================

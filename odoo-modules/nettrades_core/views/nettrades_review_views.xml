@@ -1,62 +1,112 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-============================================================================
-NETTRADES Core – Review Views
-============================================================================
-FILE: odoo-modules/nettrades_core/views/nettrades_review_views.xml
-
-PURPOSE:
-   Provides list and form views for the nettrades.review model.
-============================================================================
--->
+<!-- =============================================================================
+     FILE: odoo-modules/nettrades_core/views/nettrades_review_views.xml
+     =============================================================================
+     PURPOSE:
+       Provides list and form views for the nettrades.review model:
+       - Tree/list view showing reviews with ratings
+       - Form view for creating/editing reviews
+       - Search view with filters
+     ============================================================================= -->
 <odoo>
+    <!-- =====================================================================
+         TREE / LIST VIEW
+         ===================================================================== -->
     <record id="view_nettrades_review_tree" model="ir.ui.view">
         <field name="name">nettrades.review.tree</field>
         <field name="model">nettrades.review</field>
         <field name="arch" type="xml">
-            <list>
-                <field name="create_date"/>
-                <field name="reviewer_id"/>
-                <field name="reviewed_partner_id"/>
+            <list string="Reviews" editable="bottom">
+                <field name="create_date" string="Date"/>
+                <field name="reviewer_id" string="Reviewer"/>
+                <field name="reviewed_partner_id" string="Reviewed Partner"/>
                 <field name="rating" widget="star"/>
-                <field name="project_id"/>
-                <field name="comment"/>
+                <field name="comment" string="Comment" optional="hide"/>
+                <field name="project_id" string="Project" optional="hide"/>
             </list>
         </field>
     </record>
 
+    <!-- =====================================================================
+         FORM VIEW
+         ===================================================================== -->
     <record id="view_nettrades_review_form" model="ir.ui.view">
         <field name="name">nettrades.review.form</field>
         <field name="model">nettrades.review</field>
         <field name="arch" type="xml">
-            <form>
+            <form string="Review">
                 <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="reviewer_id" placeholder="Reviewer..."/>
+                            reviewed
+                            <field name="reviewed_partner_id" placeholder="Reviewed Partner..."/>
+                        </h1>
+                    </div>
                     <group>
-                        <field name="reviewer_id" readonly="1"/>
-                        <field name="reviewed_partner_id" readonly="1"/>
-                        <field name="project_id"/>
-                        <field name="rating" widget="star"/>
+                        <group>
+                            <field name="reviewer_id" required="1"/>
+                            <field name="reviewed_partner_id" required="1"/>
+                            <field name="project_id"/>
+                        </group>
+                        <group>
+                            <field name="rating" widget="star" required="1"/>
+                            <field name="create_date" readonly="1"/>
+                        </group>
                     </group>
-                    <group>
-                        <field name="comment" nolabel="1"/>
-                    </group>
-                    <group string="Metadata">
-                        <field name="create_date" readonly="1"/>
+                    <group string="Comment" name="comment_group">
+                        <field name="comment" placeholder="Write your review here..."/>
                     </group>
                 </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
             </form>
         </field>
     </record>
 
+    <!-- =====================================================================
+         SEARCH VIEW
+         ===================================================================== -->
+    <record id="view_nettrades_review_search" model="ir.ui.view">
+        <field name="name">nettrades.review.search</field>
+        <field name="model">nettrades.review</field>
+        <field name="arch" type="xml">
+            <search string="Search Reviews">
+                <field name="reviewer_id"/>
+                <field name="reviewed_partner_id"/>
+                <field name="project_id"/>
+                <filter name="high_rating" string="High Rating" domain="[('rating','>=',4)]"/>
+                <filter name="low_rating" string="Low Rating" domain="[('rating','<=',2)]"/>
+                <separator/>
+                <filter name="group_by_reviewer" string="Reviewer" domain="[]"
+                        context="{'group_by':'reviewer_id'}"/>
+                <filter name="group_by_reviewed" string="Reviewed Partner" domain="[]"
+                        context="{'group_by':'reviewed_partner_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         ACTIONS AND MENUS
+         ===================================================================== -->
     <record id="action_nettrades_review" model="ir.actions.act_window">
         <field name="name">Reviews</field>
         <field name="res_model">nettrades.review</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add a new review
+            </p>
+            <p>
+                Reviews help build reputation and trust in the NETTRADES platform.
+            </p>
+        </field>
     </record>
 
-    <menuitem id="menu_nettrades_review"
-              name="Reviews"
-              parent="nettrades_core.menu_nettrades_core"
-              action="action_nettrades_review"
-              sequence="50"/>
+    <menuitem id="menu_nettrades_review_root" name="Reviews" parent="nettrades_core_menu_root" sequence="40"/>
+    <menuitem id="menu_nettrades_review_list" name="All Reviews" parent="menu_nettrades_review_root"
+              action="action_nettrades_review"/>
 </odoo>

@@ -15,3 +15,6 @@ from . import multimodal_config       # simple config, no dependencies
 
 # New model (2026-06-28) - no dependency on gpu.cluster, safe at the end
 from . import gpu_registration_token
+
+# Moved gpu_nodes from nettrades_core/models/res_partner.py to nettrades_gpu_admin/models/res_partner.py to eliminatecircular dependency.
+from . import res_partner

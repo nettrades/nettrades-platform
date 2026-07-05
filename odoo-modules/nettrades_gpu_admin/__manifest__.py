@@ -83,8 +83,7 @@
     'depends': [
         'base',
         'mail',
-        # If you have a custom base module, uncomment the line below:
-        'nettrades_core',  # <-- ADD THIS: For res.partner extensions
+        'nettrades_core',   # <-- ADD THIS
     ],
 
     # -------------------------------------------------------------------------
