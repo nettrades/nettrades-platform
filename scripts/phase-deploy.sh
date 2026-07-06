@@ -26,6 +26,13 @@
 
 set -euo pipefail
 
+# The web network is used by Traefik (the reverse proxy) to route incoming traffic to services like Odoo. 
+# It is defined as external in your docker-compose.yaml, which means Docker Compose expects it to already exist
+
+if ! docker network ls --format '{{.Name}}' | grep -q "^web$"; then
+    docker network create web
+fi
+
 # Set PROJECT_ROOT if not already set (for standalone execution)
 if [ -z "${PROJECT_ROOT:-}" ]; then
     PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
