@@ -182,14 +182,16 @@ services:
       - "8069:8069"
     volumes:
       - ./odoo-modules:/odoo-modules              # <-- mount the prepared addons
-      # - ./config/odoo.conf:/etc/odoo/odoo.conf
+      # - ./config/odoo.conf:/etc/odoo/odoo.conf   
+      # The Odoo container does not use the odoo.config file (the volume mount is commented out in docker-compose.yaml).
+      # Odoo gets its database settings from the environment variables (HOST, PORT, USER, PASSWORD), which are correctly passed from your .env file in nettrades-platform\deploy\docker.
       - ./odoo-data:/var/lib/odoo
       - ./odoo-logs:/var/log/odoo   # <-- odoo logs
     environment:
       - HOST=postgres
       - PORT=5432
       - USER=odoo
-      #- PASSWORD=${POSTGRES_PASSWORD}
+      - PASSWORD=${POSTGRES_PASSWORD}
       # Fairness evaluation API keys
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

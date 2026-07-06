@@ -82,7 +82,7 @@ check_docker || exit 1
 # Set up paths
 # -----------------------------------------------------------------------------
 DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
-ENV_FILE="$PROJECT_ROOT/.env"
+ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
 COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yaml"
 DATA_DIR="$PROJECT_ROOT/data"
 MODELS_DIR="$DATA_DIR/models"

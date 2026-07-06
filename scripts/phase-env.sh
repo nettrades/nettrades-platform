@@ -53,7 +53,7 @@ fi
 # -----------------------------------------------------------------------------
 # Set up paths
 # -----------------------------------------------------------------------------
-ENV_FILE="$PROJECT_ROOT/.env"
+ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
 ENV_EXAMPLE="$PROJECT_ROOT/deploy/docker/.env.example"
 ODOO_CONF="$PROJECT_ROOT/deploy/docker/config/odoo.conf"
 
@@ -145,22 +145,26 @@ chmod 600 "$ENV_FILE"
 log_success ".env generated with secure secrets"
 
 # =============================================================================
-# FIX: Hardcode the same password in odoo.conf
+# REMOVED THIS: Hardcode the same password in odoo.conf
+# The Odoo container does not use the odoo.config file (the volume mount is commented out in docker-compose.yaml).
+#
+# Odoo gets its database settings from the environment variables (HOST, PORT, USER, PASSWORD), which are correctly passed from your .env file.
+# REMOVED THE ODOO.CONFIG FILE TOO
 # =============================================================================
-log_step "Hardcoding PostgreSQL password in odoo.conf..."
-
+#log_step "Hardcoding PostgreSQL password in odoo.conf..."
+#
 # Ensure config directory exists
-mkdir -p "$(dirname "$ODOO_CONF")"
-
+#mkdir -p "$(dirname "$ODOO_CONF")"
+#
 # Update or add db_password in odoo.conf (handles spaces)
-if grep -q "^db_password\s*=" "$ODOO_CONF"; then
-    sed -i "s|^db_password\s*=.*|db_password=$POSTGRES_PASSWORD|" "$ODOO_CONF"
-else
-    echo "db_password=$POSTGRES_PASSWORD" >> "$ODOO_CONF"
-fi
-
-log_success "Password hardcoded in odoo.conf"
-
+#if grep -q "^db_password\s*=" "$ODOO_CONF"; then
+#    sed -i "s|^db_password\s*=.*|db_password=$POSTGRES_PASSWORD|" "$ODOO_CONF"
+#else
+#    echo "db_password=$POSTGRES_PASSWORD" >> "$ODOO_CONF"
+#fi
+#
+#log_success "Password hardcoded in odoo.conf"
+#
 # -----------------------------------------------------------------------------
 # Display important information
 # -----------------------------------------------------------------------------

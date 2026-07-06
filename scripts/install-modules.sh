@@ -4,7 +4,7 @@
 # =============================================================================
 # PURPOSE:
 #   Installs all NETTRADES Odoo modules in the correct dependency order.
-#   This script runs inside the Odoo container using docker exec.
+#   The script runs inside the Odoo container using docker exec.
 #
 #   It is idempotent and can be re-run safely. With --upgrade, it upgrades
 #   existing modules; with --force, it reinstalls even if already installed.
@@ -13,12 +13,21 @@
 #   ./install-modules.sh [--force] [--upgrade] [--auto]
 #
 # OPTIONS:
-#   --force    Force installation even if modules are already installed
+#   --force    Force installation (reinstall) even if modules are already installed
 #   --upgrade  Upgrade existing modules to the latest version
-#   --auto     Run in non-interactive mode (no prompts)
+#   --auto     Run in non-interactive mode (no prompts for failed modules)
 # =============================================================================
 
 set -e
+
+# -----------------------------------------------------------------------------
+# Load environment variables from .env (needed for potential future extensions)
+# -----------------------------------------------------------------------------
+set -a
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$PROJECT_ROOT/deploy/docker/.env"
+set +a
 
 # -----------------------------------------------------------------------------
 # Colours for output
@@ -70,21 +79,6 @@ for arg in "$@"; do
 done
 
 # -----------------------------------------------------------------------------
-# Load POSTGRES_PASSWORD from .env
-# -----------------------------------------------------------------------------
-ENV_FILE="$PROJECT_ROOT/.env"
-if [ -f "$ENV_FILE" ]; then
-    POSTGRES_PASSWORD=$(grep '^POSTGRES_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)
-    if [ -z "$POSTGRES_PASSWORD" ]; then
-        log_error "POSTGRES_PASSWORD not found in $ENV_FILE"
-        exit 1
-    fi
-else
-    log_error ".env file not found at $ENV_FILE"
-    exit 1
-fi
-
-# -----------------------------------------------------------------------------
 # Check if Odoo container is running
 # -----------------------------------------------------------------------------
 if ! docker ps | grep -q odoo; then
@@ -134,7 +128,7 @@ MODULES=(
     "nettrades_research"
     "nettrades_chatbot"
     "nettrades_notifications"
-#   "nettrades_pwa"
+#   "nettrades_pwa"   # (commented out – uncomment if needed)
 )
 
 # -----------------------------------------------------------------------------
@@ -148,25 +142,25 @@ install_module() {
     if [ "$UPGRADE" = true ]; then
         action="upgrade"
         flag="-u"
+    elif [ "$FORCE" = true ]; then
+        action="reinstall"
+        flag="-i"
     else
         action="install"
         flag="-i"
     fi
-# --upgrade → uses -u (upgrade existing modules).
-# --force (without --upgrade) → uses -i (install, even if already installed, but reinstall).
-# No flags → uses -i (install).
 
     log_info "${action^}ing module: $module"
 
-    # Correct flags: underscore, not hyphen
-    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" \
-        odoo python3 /usr/bin/odoo \
-        -c /etc/odoo/odoo.conf \
+    # Explicitly pass database parameters to avoid any config issues
+    if docker exec \
+        -e PGPASSWORD="$POSTGRES_PASSWORD" \
+        odoo odoo \
+        -d odoo \
         --db_host=postgres \
         --db_port=5432 \
         --db_user=odoo \
         --db_password="$POSTGRES_PASSWORD" \
-        -d odoo \
         "$flag" "$module" \
         --stop-after-init 2>&1; then
         log_success "✓ Module $module ${action}ed successfully"
