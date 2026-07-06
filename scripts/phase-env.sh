@@ -152,9 +152,9 @@ log_step "Hardcoding PostgreSQL password in odoo.conf..."
 # Ensure config directory exists
 mkdir -p "$(dirname "$ODOO_CONF")"
 
-# Update or add db_password in odoo.conf
-if grep -q "^db_password=" "$ODOO_CONF"; then
-    sed -i "s|^db_password=.*|db_password=$POSTGRES_PASSWORD|" "$ODOO_CONF"
+# Update or add db_password in odoo.conf (handles spaces)
+if grep -q "^db_password\s*=" "$ODOO_CONF"; then
+    sed -i "s|^db_password\s*=.*|db_password=$POSTGRES_PASSWORD|" "$ODOO_CONF"
 else
     echo "db_password=$POSTGRES_PASSWORD" >> "$ODOO_CONF"
 fi
