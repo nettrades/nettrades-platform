@@ -44,6 +44,32 @@ if [[ -d "$PROJECT_ROOT/third-party" ]]; then
     done
 fi
 
+# Ensure __init__.py for all modules
+log_info "Ensuring __init__.py for all modules..."
+for module_dir in "$TARGET"/*/; do
+    if [[ -d "$module_dir" ]] && [[ ! -f "$module_dir/__init__.py" ]]; then
+        echo "# -*- coding: utf-8 -*-" > "$module_dir/__init__.py"
+        echo "from . import models" >> "$module_dir/__init__.py"
+        log_info "  - Created __init__.py for $(basename "$module_dir")"
+    fi
+done
+
+# -----------------------------------------------------------------------------
+# Convert all text files in the target directory to Unix (LF) line endings
+# -----------------------------------------------------------------------------
+if command -v dos2unix &>/dev/null; then
+    log_info "Converting line endings to LF in Odoo modules..."
+    find "$TARGET" -type f \( -name "*.py" -o -name "*.xml" -o -name "*.sh" -o -name "*.conf" -o -name "*.txt" -o -name "*.md" -o -name "*.yml" -o -name "*.json" \) -exec dos2unix {} \; >/dev/null 2>&1
+    log_success "Line endings converted"
+else
+    log_warning "dos2unix not found – skipping line ending conversion"
+fi
+
+# -----------------------------------------------------------------------------
+# Done
+# -----------------------------------------------------------------------------
+log_success "$(find "$TARGET" -maxdepth 1 -type d | wc -l) modules prepared in $TARGET"
+
 # 3. Ensure every module has a top-level __init__.py
 echo "  - Ensuring __init__.py for all modules"
 for module_dir in "$TARGET"/*/; do

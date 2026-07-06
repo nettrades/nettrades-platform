@@ -240,6 +240,22 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# Install dos2unix (for fixing line endings in Windows ↔ Linux environments)
+# -----------------------------------------------------------------------------
+log_step "Installing dos2unix..."
+if command -v dos2unix &>/dev/null; then
+    log_success "dos2unix already installed"
+else
+    if [[ "$OS" == "linux" ]]; then
+        sudo apt-get update -qq
+        sudo apt-get install -y dos2unix
+        log_success "dos2unix installed"
+    else
+        log_warning "Please install dos2unix manually for $OS"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
 # 8. Configure system limits
 # -----------------------------------------------------------------------------
 log_step "Configuring system limits..."
