@@ -7,8 +7,11 @@
 #   This phase generates all required secrets (passwords, API keys, WireGuard keys)
 #   and creates the .env file for the deployment.
 #
-#   MODIFIED: Asks the user for the PostgreSQL password instead of generating a
-#   random one. This ensures the same password is used everywhere.
+#   SAFETY FEATURES:
+#   - If .env already exists, the script will NOT modify it unless --force is used.
+#   - With --force, the user is prompted for explicit confirmation and a new password.
+#   - With --auto and --force, the script ABORTS to prevent automated overwrites.
+#   - In production, additional confirmation is required (see confirm_force_production).
 #
 # USAGE:
 #   ./phase-env.sh [--auto] [--force]
@@ -38,12 +41,14 @@ FORCE="${FORCE:-false}"
 export FORCE
 
 # -----------------------------------------------------------------------------
-# Production Safety Check
+# Production Safety Check (already defined in lib/common.sh)
+# This prompts for explicit confirmation if ENVIRONMENT=production and --force is used.
 # -----------------------------------------------------------------------------
 confirm_force_production "1"
 
 # -----------------------------------------------------------------------------
 # Phase marker
+# If phase already completed and --force not used, exit safely.
 # -----------------------------------------------------------------------------
 if phase_completed 1; then
     log_warning "Phase 1 already completed. Use --force to re-run."
@@ -55,17 +60,61 @@ fi
 # -----------------------------------------------------------------------------
 ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
 ENV_EXAMPLE="$PROJECT_ROOT/deploy/docker/.env.example"
-ODOO_CONF="$PROJECT_ROOT/deploy/docker/config/odoo.conf"
 
 # -----------------------------------------------------------------------------
-# Generate .env
+# Check if .env already exists
 # -----------------------------------------------------------------------------
-log_step "Generating .env file..."
+if [[ -f "$ENV_FILE" ]]; then
+    log_warning ".env already exists at $ENV_FILE"
 
-if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" != true ]]; then
-    log_warning ".env already exists. Use --force to regenerate."
-    exit 0
+    # If --force is NOT used, exit safely (preserve existing secrets)
+    if [[ "$FORCE" != true ]]; then
+        log_info "To regenerate all secrets (which will break existing services), use --force."
+        log_info "If you only need to update the password, edit the .env file manually."
+        exit 0
+    fi
+
+    # --force is used – we need to confirm regeneration
+    log_warning "You have requested to regenerate ALL secrets in .env."
+
+    # If --auto is also used, we abort (cannot get interactive confirmation)
+    if [[ "$AUTO" == true ]]; then
+        log_error "Auto mode with --force and existing .env is not allowed for safety."
+        log_error "If you really want to regenerate secrets, remove --auto and run interactively."
+        log_error "Alternatively, delete the existing .env file and run again."
+        exit 1
+    fi
+
+    # Interactive confirmation (--force, not --auto)
+    echo ""
+    echo -e "${RED}WARNING: You are about to OVERWRITE all existing secrets in .env.${NC}"
+    echo -e "${RED}This will break all running services (Odoo, LangGraph, GPUStack, etc.).${NC}"
+    echo -e "${YELLOW}Do you have a backup of your current .env file? (y/N)${NC}"
+    read -p "> " backup_confirm
+    if [[ ! "$backup_confirm" =~ ^[Yy]$ ]]; then
+        log_error "Aborting. Please back up your current .env and try again."
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${YELLOW}Proceed with regeneration? This action CANNOT be undone. (type 'YES' to confirm)${NC}"
+    read -p "> " final_confirm
+    if [[ "$final_confirm" != "YES" ]]; then
+        log_info "Aborted."
+        exit 0
+    fi
+
+    # If we get here, user confirmed – we will overwrite .env
+    log_info "User confirmed – proceeding with regeneration."
+else
+    # .env does not exist – we will create it from template
+    log_info ".env not found – will create a new one."
 fi
+
+# -----------------------------------------------------------------------------
+# Generate .env (either from template or fresh)
+# -----------------------------------------------------------------------------
+log_step "Preparing .env file..."
 
 # Create from template if it exists
 if [[ -f "$ENV_EXAMPLE" ]]; then
@@ -82,9 +131,33 @@ fi
 log_step "Generating secure secrets..."
 
 # =============================================================================
-# FIX: Ask the user for the PostgreSQL password instead of generating random
+# Handle PostgreSQL password safely
 # =============================================================================
-if [[ "$AUTO" != true ]]; then
+
+# Determine if we should ask for a password or generate one
+if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" == true ]]; then
+    # We are regenerating an existing .env after user confirmation – ask for a new password
+    echo ""
+    echo -e "${YELLOW}Enter a NEW PostgreSQL password for the 'odoo' user:${NC}"
+    echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
+    read -s -p "Password: " POSTGRES_PASSWORD
+    echo ""
+    read -s -p "Confirm password: " POSTGRES_PASSWORD_CONFIRM
+    echo ""
+    if [[ "$POSTGRES_PASSWORD" != "$POSTGRES_PASSWORD_CONFIRM" ]]; then
+        log_error "Passwords do not match. Please re-run phase-env.sh"
+        exit 1
+    fi
+    if [[ -z "$POSTGRES_PASSWORD" ]]; then
+        log_error "Password cannot be empty"
+        exit 1
+    fi
+elif [[ "$AUTO" == true ]]; then
+    # Auto mode: generate a random password (only for fresh installs)
+    POSTGRES_PASSWORD=$(generate_password)
+    log_info "Auto mode: generated random password"
+else
+    # Interactive mode, .env does not exist – prompt for password
     echo ""
     echo -e "${YELLOW}Enter a PostgreSQL password for the 'odoo' user:${NC}"
     echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
@@ -100,13 +173,11 @@ if [[ "$AUTO" != true ]]; then
         log_error "Password cannot be empty"
         exit 1
     fi
-else
-    # Auto mode: generate a random password (for CI/CD)
-    POSTGRES_PASSWORD=$(generate_password)
-    log_info "Auto mode: generated random password"
 fi
 
-# Generate other secrets (no user interaction needed)
+# -----------------------------------------------------------------------------
+# Generate other secrets (only after we have a valid password)
+# -----------------------------------------------------------------------------
 ODOO_ADMIN_PASSWORD=$(generate_password)
 SECRET_KEY=$(generate_secret)
 JWT_SECRET=$(generate_secret)
@@ -115,7 +186,9 @@ PROXY_API_KEY=$(generate_secret)
 WIREGUARD_PRIVATE_KEY=$(generate_wireguard_key)
 WIREGUARD_PUBLIC_KEY=$(echo "$WIREGUARD_PRIVATE_KEY" | wg pubkey 2>/dev/null || echo "manual")
 
-# Update .env file with generated secrets
+# -----------------------------------------------------------------------------
+# Write secrets to .env
+# -----------------------------------------------------------------------------
 # Using '|' as delimiter to avoid conflict with '/' in secrets
 
 # PostgreSQL password
@@ -141,32 +214,18 @@ if ! grep -q "^DOMAIN=.*" "$ENV_FILE" || grep -q "^DOMAIN=$" "$ENV_FILE"; then
     log_warning "DOMAIN not set – using $RANDOM_DOMAIN"
 fi
 
+# Set secure permissions
 chmod 600 "$ENV_FILE"
 log_success ".env generated with secure secrets"
 
-# =============================================================================
-# REMOVED THIS: Hardcode the same password in odoo.conf
-# The Odoo container does not use the odoo.config file (the volume mount is commented out in docker-compose.yaml).
-#
-# Odoo gets its database settings from the environment variables (HOST, PORT, USER, PASSWORD), which are correctly passed from your .env file.
-# REMOVED THE ODOO.CONFIG FILE TOO
-# =============================================================================
-#log_step "Hardcoding PostgreSQL password in odoo.conf..."
-#
-# Ensure config directory exists
-#mkdir -p "$(dirname "$ODOO_CONF")"
-#
-# Update or add db_password in odoo.conf (handles spaces)
-#if grep -q "^db_password\s*=" "$ODOO_CONF"; then
-#    sed -i "s|^db_password\s*=.*|db_password=$POSTGRES_PASSWORD|" "$ODOO_CONF"
-#else
-#    echo "db_password=$POSTGRES_PASSWORD" >> "$ODOO_CONF"
-#fi
-#
-#log_success "Password hardcoded in odoo.conf"
-#
 # -----------------------------------------------------------------------------
-# Display important information
+# REMOVED: Writing to odoo.conf
+# The local odoo.conf is no longer used (volume mount commented out in docker-compose.yaml).
+# Odoo reads database settings from environment variables (HOST, PORT, USER, PASSWORD).
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Display important information (only in interactive mode)
 # -----------------------------------------------------------------------------
 if [[ "$AUTO" != true ]]; then
     echo ""
