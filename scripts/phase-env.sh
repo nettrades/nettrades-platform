@@ -7,8 +7,8 @@
 #   This phase generates all required secrets (passwords, API keys, WireGuard keys)
 #   and creates the .env file for the deployment.
 #
-#   It is idempotent – if .env already exists, it will only update missing variables
-#   (or regenerate everything with --force).
+#   MODIFIED: Asks the user for the PostgreSQL password instead of generating a
+#   random one. This ensures the same password is used everywhere.
 #
 # USAGE:
 #   ./phase-env.sh [--auto] [--force]
@@ -55,6 +55,7 @@ fi
 # -----------------------------------------------------------------------------
 ENV_FILE="$PROJECT_ROOT/.env"
 ENV_EXAMPLE="$PROJECT_ROOT/deploy/docker/.env.example"
+ODOO_CONF="$PROJECT_ROOT/deploy/docker/config/odoo.conf"
 
 # -----------------------------------------------------------------------------
 # Generate .env
@@ -76,12 +77,36 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Generate secure secrets
+# Generate secure secrets (with user prompt for PostgreSQL password)
 # -----------------------------------------------------------------------------
 log_step "Generating secure secrets..."
 
-# Generate passwords and keys
-POSTGRES_PASSWORD=$(generate_password)
+# =============================================================================
+# FIX: Ask the user for the PostgreSQL password instead of generating random
+# =============================================================================
+if [[ "$AUTO" != true ]]; then
+    echo ""
+    echo -e "${YELLOW}Enter a PostgreSQL password for the 'odoo' user:${NC}"
+    echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
+    read -s -p "Password: " POSTGRES_PASSWORD
+    echo ""
+    read -s -p "Confirm password: " POSTGRES_PASSWORD_CONFIRM
+    echo ""
+    if [[ "$POSTGRES_PASSWORD" != "$POSTGRES_PASSWORD_CONFIRM" ]]; then
+        log_error "Passwords do not match. Please re-run phase-env.sh"
+        exit 1
+    fi
+    if [[ -z "$POSTGRES_PASSWORD" ]]; then
+        log_error "Password cannot be empty"
+        exit 1
+    fi
+else
+    # Auto mode: generate a random password (for CI/CD)
+    POSTGRES_PASSWORD=$(generate_password)
+    log_info "Auto mode: generated random password"
+fi
+
+# Generate other secrets (no user interaction needed)
 ODOO_ADMIN_PASSWORD=$(generate_password)
 SECRET_KEY=$(generate_secret)
 JWT_SECRET=$(generate_secret)
@@ -119,6 +144,23 @@ fi
 chmod 600 "$ENV_FILE"
 log_success ".env generated with secure secrets"
 
+# =============================================================================
+# FIX: Hardcode the same password in odoo.conf
+# =============================================================================
+log_step "Hardcoding PostgreSQL password in odoo.conf..."
+
+# Ensure config directory exists
+mkdir -p "$(dirname "$ODOO_CONF")"
+
+# Update or add db_password in odoo.conf
+if grep -q "^db_password=" "$ODOO_CONF"; then
+    sed -i "s|^db_password=.*|db_password=$POSTGRES_PASSWORD|" "$ODOO_CONF"
+else
+    echo "db_password=$POSTGRES_PASSWORD" >> "$ODOO_CONF"
+fi
+
+log_success "Password hardcoded in odoo.conf"
+
 # -----------------------------------------------------------------------------
 # Display important information
 # -----------------------------------------------------------------------------
@@ -126,7 +168,6 @@ if [[ "$AUTO" != true ]]; then
     echo ""
     echo -e "${YELLOW}Important credentials (save these):${NC}"
     echo "  POSTGRES_PASSWORD: $POSTGRES_PASSWORD"
-    echo "  DB_PASSWORD: $POSTGRES_PASSWORD"
     echo "  ODOO_ADMIN_PASSWORD: $ODOO_ADMIN_PASSWORD"
     echo "  PROXY_API_KEY: $PROXY_API_KEY"
     echo "  VLLM_API_KEY: $VLLM_API_KEY"
