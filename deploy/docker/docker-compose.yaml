@@ -114,7 +114,7 @@ services:
     environment:
       POSTGRES_DB: odoo
       POSTGRES_USER: odoo
-      POSTGRES_PASSWORD: odoo123
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       # FIXED: Mount to /var/lib/postgresql (not /data) for PostgreSQL 18+ compatibility
       - postgres_data:/var/lib/postgresql
@@ -182,7 +182,7 @@ services:
       - "8069:8069"
     volumes:
       - ./odoo-modules:/odoo-modules              # <-- mount the prepared addons
-      - ./odoo.conf:/etc/odoo/odoo.conf
+      - ./config/odoo.conf:/etc/odoo/odoo.conf
       - ./odoo-data:/var/lib/odoo
       - ./odoo-logs:/var/log/odoo   # <-- odoo logs
     environment:

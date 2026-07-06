@@ -96,13 +96,6 @@ WIREGUARD_PUBLIC_KEY=$(echo "$WIREGUARD_PRIVATE_KEY" | wg pubkey 2>/dev/null || 
 # PostgreSQL password
 sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$POSTGRES_PASSWORD|" "$ENV_FILE"
 
-# DB_PASSWORD – used by Odoo (FIXED: now correctly sets DB_PASSWORD, not corrupting POSTGRES_PASSWORD)
-if grep -q "^DB_PASSWORD=" "$ENV_FILE"; then
-    sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=$POSTGRES_PASSWORD|" "$ENV_FILE"
-else
-    echo "DB_PASSWORD=$POSTGRES_PASSWORD" >> "$ENV_FILE"
-fi
-
 # Odoo admin password
 sed -i "s|^ODOO_ADMIN_PASSWORD=.*|ODOO_ADMIN_PASSWORD=$ODOO_ADMIN_PASSWORD|" "$ENV_FILE"
 
