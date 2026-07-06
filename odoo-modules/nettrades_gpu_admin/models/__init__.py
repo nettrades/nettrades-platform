@@ -1,20 +1,22 @@
-# First, models that have no dependencies on other custom models
+# -*- coding: utf-8 -*-
+# =============================================================================
+# GPU Admin Models
+# =============================================================================
 
-# Models that are referenced by others must come first.
-# gpu.cluster is the base model; all other GPU models depend on it.
-from . import gpu_cluster             # defines gpu.cluster - MUST BE FIRST
+# Base model - MUST BE FIRST
+from . import gpu_cluster
 
-# Now models that reference gpu.cluster
-from . import gpu_cluster_subnet      # references gpu.cluster via cluster_id
-from . import gpu_node                # references gpu.cluster and is referenced by gpu.cluster.gpu_ids
-from . import gpu_sharing_schedule    # references gpu.cluster
-from . import gpu_token_economics     # references gpu.cluster (if any)
+# Models that reference gpu.cluster
+from . import gpu_cluster_subnet
+from . import gpu_node
+from . import gpu_sharing_schedule
+from . import gpu_token_economics
 
-# Models with no dependencies (can be anywhere)
-from . import multimodal_config       # simple config, no dependencies
+# Models with no dependencies
+from . import multimodal_config
 
-# New model (2026-06-28) - no dependency on gpu.cluster, safe at the end
+# New model (2026-06-28)
 from . import gpu_registration_token
 
-# Moved gpu_nodes from nettrades_core/models/res_partner.py to nettrades_gpu_admin/models/res_partner.py to eliminatecircular dependency.
-from . import res_partner
+# res_partner is currently disabled to avoid circular dependency issues
+# from . import res_partner

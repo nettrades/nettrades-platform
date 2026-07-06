@@ -4,17 +4,24 @@
     FILE: odoo-modules/nettrades_core/views/nettrades_core_menu.xml
     =============================================================================
     PURPOSE:
-        Defines the main menu structure for the NETTRADES Core module.
+        Defines the main menu structure for the NETTRADES Core module:
+        - Root menu for NETTRADES
+        - Sub-menus for different sections (Reviews, Fields, Skills, etc.)
+        - Configuration menus (admin only)
     =============================================================================
 -->
 <odoo>
-    <!-- Root Menu -->
+    <!-- =====================================================================
+         ROOT MENU
+         ===================================================================== -->
     <menuitem id="nettrades_core_menu_root"
               name="NETTRADES"
               sequence="10"
               web_icon="nettrades_core,static/description/icon.png"/>
 
-    <!-- Configuration Menu (Admin only) -->
+    <!-- =====================================================================
+         CONFIGURATION MENU (Admin only)
+         ===================================================================== -->
     <menuitem id="menu_nettrades_config_root"
               name="Configuration"
               parent="nettrades_core_menu_root"
@@ -43,5 +50,23 @@
               parent="menu_nettrades_skills_root"
               action="action_nettrades_skill"/>
 
-    <!-- Reviews (defined in nettrades_review_views.xml) -->
+    <menuitem id="menu_nettrades_experience_root"
+              name="Experience"
+              parent="menu_nettrades_config_root"
+              sequence="30"/>
+              
+    <menuitem id="menu_nettrades_experience_list"
+              name="Experience"
+              parent="menu_nettrades_experience_root"
+              action="action_nettrades_experience"/>
+              
+    <menuitem id="menu_nettrades_ai_matches_root"
+              name="AI Match Results"
+              parent="nettrades_core_menu_root"
+              sequence="50"/>
+              
+    <menuitem id="menu_nettrades_ai_matches_list"
+              name="AI Match Results"
+              parent="menu_nettrades_ai_matches_root"
+              action="action_nettrades_user_match"/>
 </odoo>

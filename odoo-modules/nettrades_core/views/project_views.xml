@@ -34,7 +34,7 @@
                         help="Create a Forgejo repository for this project."/>
             </xpath>
 
-            <!-- Leave Review Button (added by Copilot) -->
+            <!-- Leave Review Button -->
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_leave_review"
                         string="Leave Review"
