@@ -86,7 +86,7 @@ PURPOSE:
 
 **NETTRADES is an open-source, autonomous enterprise platform** built to power self-improving AI startups, companies and smart cities. It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
 
-It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers. 
+It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
 
 ### It combines:
 
@@ -98,9 +98,9 @@ It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, ope
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – ACID transactions + LangGraph checkpointing.
 
-The system is highly configurable and provides greater control and flexibility to the companies using it. Company administrators could also configure it for sovereign AI, so that everything runs locally. 
+The system is highly configurable and provides greater control and flexibility to the companies using it. Company administrators could also configure it for sovereign AI, so that everything runs locally.
 
-The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI. 
+The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.
 
 ---
 
@@ -129,14 +129,14 @@ This guide will help you get the platform running on your own server, laptop, or
 
 ##### Operating System:
 
-- **Linux** (Ubuntu 22.04+) or **macOS** with Docker Desktop  
-- **Windows** with Install and run in **WSL2** (Ubuntu 22.04+ recommended)  
+- **Linux** (Ubuntu 22.04+) or **macOS** with Docker Desktop
+- **Windows** with Install and run in **WSL2** (Ubuntu 22.04+ recommended)
 - **Docker** and **Docker Compose** (installed automatically by the script if missing).
 - **Python 3.10+** and `pip` (installed automatically in Phase 0).
 - At least **8 GB RAM** (16 GB recommended) and **50 GB free disk**.
 - Optional: **NVIDIA GPU** with drivers for GPU acceleration.
 
-> 💡 **Windows users**: must run the installer inside a WSL2 terminal (Ubuntu). 
+> 💡 **Windows users**: must run the installer inside a WSL2 terminal (Ubuntu).
 
 ##### Minimum Requirements:
 
@@ -187,7 +187,7 @@ For a fully automated deployment (non-interactive), use:
 
 ```bash
 
-./scripts/nettrades-setup.sh all --auto
+./scripts/nettrades-setup.sh all --force
 ```
 This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings.
 
@@ -196,7 +196,7 @@ This will run all phases (system preparation, environment setup, deployment, and
 
 | Profile | Description |  Phase  |
 |---------|-------------|-------------|
-| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only| 
+| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only|
 | `deploy` | Full single-VM deployment (Docker Compose) without GPU |  Phases 0, 1, 2 |
 | `gpu` | Single-VM deployment with GPU (NVIDIA, vLLM, GPUStack) | Phases 0, 1, 2, 3  |
 | `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 4  |
@@ -207,13 +207,13 @@ This will run all phases (system preparation, environment setup, deployment, and
 #### ⚙️ Useful Options (CLI)
 
 | Option | Effect |
-|---------|-------------|	
+|---------|-------------|
 | `--auto` | Run non-interactively (skip all prompts) |
 | `--force` | Re-run phases even if they were already completed |
 | `--upgrade` | Upgrade Odoo modules instead of fresh install |
 | `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
 
-    
+
 #### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
 
 You can specify a profile and options directly:
@@ -233,7 +233,7 @@ You can specify a profile and options directly:
 # First-time Development environment
 ./scripts/nettrades-setup.sh dev --auto
 
-# Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website osoo module 
+# Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website osoo module
 ./scripts/nettrades-setup.sh modules
 or
 ./scripts/nettrades-setup.sh modules --upgrade
@@ -262,9 +262,9 @@ All phases are idempotent – you can safely re-run the script to fix or upgrade
 
 #### 🔑 Database Password Management
 
-During Phase 1, the script generates a random password for PostgreSQL. 
+During Phase 1, the script generates a random password for PostgreSQL.
 
-However, for compatibility with Odoo’s command-line tools, the password must not contain special characters (like +, /, =). 
+However, for compatibility with Odoo’s command-line tools, the password must not contain special characters (like +, /, =).
 
 If you encounter authentication errors, you can simplify the password by editing .env and deploy/docker/config/odoo.conf, and updating the PostgreSQL user:
 
@@ -281,7 +281,7 @@ Make sure you update the password in .env and odoo.conf and restart Odoo.
 Once the script finishes, open your browser and go to:
 
 * Odoo: http://localhost:8069
-* Login: admin / admin (or the password you set in .env as ODOO_ADMIN_PASSWORD 
+* Login: admin / admin (or the password you set in .env as ODOO_ADMIN_PASSWORD
 
 * Grafana: http://localhost:3001
 * Login: admin / admin (change password on first login)
@@ -315,7 +315,7 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 
 #### 🧰 Useful Commands
 
-	
+
 | Action | Command |
 |---------|-------------|
 | Start all services	 | cd deploy/docker && docker compose up -d |
@@ -356,15 +356,15 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 
 * Update the PostgreSQL user password with ALTER USER odoo WITH PASSWORD 'your_password';.   or in wsl run Run: docker exec -it docker-postgres-1 psql -U odoo -c "ALTER USER odoo WITH PASSWORD 'odoo123';"
 
-##### Modules show "Activate" not "Upgrade"	
+##### Modules show "Activate" not "Upgrade"
 
 * Modules are not installed. Run ./scripts/install-modules.sh --force or install via Odoo UI: Apps → Update Apps List → Install nettrades_* modules.
 
-##### postgres host not found	
+##### postgres host not found
 
 ##### You are running Odoo outside Docker. In WSL terminal window run `cd /mnt/c/nettrades-platform/deploy/docker` then run `docker compose up -d` instead.
 
-##### Odoo returns 502 / Connection refused	
+##### Odoo returns 502 / Connection refused
 
 Wait 30 seconds for PostgreSQL to start. Check docker compose logs postgres.
 
@@ -418,8 +418,8 @@ If you’re ready to scale to multiple nodes with Kubernetes, use:
 
 ./scripts/nettrades-setup.sh k8s --auto
 ```
-This requires a Proxmox host and pre-configured Talos images. For details, see docs/operations/kubernetes-deployment.md.    
-    
+This requires a Proxmox host and pre-configured Talos images. For details, see docs/operations/kubernetes-deployment.md.
+
 
 ### Accessing Your Platform On A Server
 
@@ -540,7 +540,7 @@ graph TB
     K8s --> Data
     GitOps --> K8s
     Monitoring --> K8s
-    
+
 ```
 
 
@@ -553,20 +553,20 @@ NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data so
 Companies can use `Local Internal Shell` internally for their operations and connect to `NETTRADES.AI` when they need external talent, researchers, partners, or additional GPU capacity.
 
 `Local Internal Shell`
-                                                
-• Internal job adverts and collaboration 
-• CRM, ERP, eCommerce   
-• Local GPU inferencing on your own hardware 
-• Agentic AI for internal operations  
-• Fine-tune AI on your internal data 
+
+• Internal job adverts and collaboration
+• CRM, ERP, eCommerce
+• Local GPU inferencing on your own hardware
+• Agentic AI for internal operations
+• Fine-tune AI on your internal data
 
 
 `NETTRADES.AI (The Brain) (Cloud-based)`
-                                      
+
 • Global talent pool (external recruitment)
-• Global GPU marketplace    
-• Central inference and fine-tuning  
-• Self-improving AI pipeline    
+• Global GPU marketplace
+• Central inference and fine-tuning
+• Self-improving AI pipeline
 
 ```mermaid
 
@@ -787,7 +787,7 @@ flowchart LR
 Full documentation is available at: [Full Documentation](docs/index.md).
 
 | Section | Description | Link |
-|---------|-------------|-----------|		
+|---------|-------------|-----------|
 | `User Guide`	| For end-users – companies, freelancers, job-seekers	| `docs/user/index.md |
 | `Developer Guide`	| For developers extending the platform	| `docs/developer/index.md |
 | `Operations Guide`	| For system administrators and DevOps	| `docs/operations/index.md |
