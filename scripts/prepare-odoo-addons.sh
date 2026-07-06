@@ -1,50 +1,87 @@
 #!/bin/bash
 # =============================================================================
 # FILE: scripts/prepare-odoo-addons.sh
+# =============================================================================
 # PURPOSE:
-#   Copies all Odoo addons from odoo-modules/ and third-party/
-#   into deploy/docker/odoo-modules/, flattening nested directories.
-#   It creates missing __init__.py files.
+#   Prepares Odoo addons for Docker build by copying all custom modules
+#   from the odoo-modules/ and third-party/ directories to the Docker
+#   build context (deploy/docker/odoo-modules).
+#
+#   It also ensures that every module has a top-level __init__.py,
+#   and converts all text files to Unix (LF) line endings to avoid
+#   Windows ↔ Linux corruption issues.
 # =============================================================================
 
 set -euo pipefail
 
+# -----------------------------------------------------------------------------
+# Colours and logging functions
+# -----------------------------------------------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_step() { echo -e "${BLUE}▶${NC} $1"; }
+
+# -----------------------------------------------------------------------------
+# Paths
+# -----------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ODOO_MODULES="$PROJECT_ROOT/odoo-modules"
+THIRD_PARTY="$PROJECT_ROOT/third-party"
 TARGET="$PROJECT_ROOT/deploy/docker/odoo-modules"
 
-# Remove existing target
-rm -rf "$TARGET"
-mkdir -p "$TARGET"
-
-echo "📦 Copying Odoo addons..."
-
-# 1. Copy all top-level directories from odoo-modules/
-if [[ -d "$PROJECT_ROOT/odoo-modules" ]]; then
-    cp -r "$PROJECT_ROOT/odoo-modules"/* "$TARGET/" 2>/dev/null || true
-    echo "  - Copied from odoo-modules/"
+# Parse arguments
+FORCE="${1:-}"
+if [[ "$FORCE" == "--force" ]]; then
+    log_info "Force mode – removing existing target directory"
+    rm -rf "$TARGET"
 fi
 
-# 2. Copy from third-party: find all modules and flatten them
-if [[ -d "$PROJECT_ROOT/third-party" ]]; then
-    echo "  - Scanning third-party/ (skipping the huge 'odoo' source)"
-    find "$PROJECT_ROOT/third-party" -type f \( -name "__manifest__.py" -o -name "__openerp__.py" \) -printf "%h\n" | while read -r module_dir; do
-        # Skip the full Odoo source
-        if [[ "$module_dir" == "$PROJECT_ROOT/third-party/odoo"* ]]; then
+# -----------------------------------------------------------------------------
+# Create target directory
+# -----------------------------------------------------------------------------
+mkdir -p "$TARGET"
+log_info "Preparing Odoo addons in $TARGET..."
+
+# -----------------------------------------------------------------------------
+# Copy from odoo-modules/
+# -----------------------------------------------------------------------------
+if [[ -d "$ODOO_MODULES" ]]; then
+    log_info "Copying from odoo-modules/"
+    cp -r "$ODOO_MODULES"/* "$TARGET/" 2>/dev/null || true
+else
+    log_warning "odoo-modules directory not found"
+fi
+
+# -----------------------------------------------------------------------------
+# Copy from third-party/ (skip the huge 'odoo' source)
+# -----------------------------------------------------------------------------
+if [[ -d "$THIRD_PARTY" ]]; then
+    log_info "Scanning third-party/ (skipping the huge 'odoo' source)"
+    find "$THIRD_PARTY" -maxdepth 2 -type f \( -name "__manifest__.py" -o -name "__openerp__.py" \) -print0 | while IFS= read -r -d '' manifest; do
+        module_dir="$(dirname "$manifest")"
+        module_name="$(basename "$module_dir")"
+        if [[ "$module_name" == "odoo" ]]; then
             continue
         fi
-        module_name=$(basename "$module_dir")
-        # Only copy if not already copied (priority to odoo-modules)
-        if [[ ! -d "$TARGET/$module_name" ]]; then
-            cp -r "$module_dir" "$TARGET/"
-            echo "    - Copied $module_name"
-        else
-            echo "    - Skipped $module_name (already from odoo-modules)"
-        fi
+        log_info "  - Copied $module_name"
+        cp -r "$module_dir" "$TARGET/"
     done
+else
+    log_warning "third-party directory not found"
 fi
 
-# Ensure __init__.py for all modules
+# -----------------------------------------------------------------------------
+# Ensure every module has a top-level __init__.py
+# -----------------------------------------------------------------------------
 log_info "Ensuring __init__.py for all modules..."
 for module_dir in "$TARGET"/*/; do
     if [[ -d "$module_dir" ]] && [[ ! -f "$module_dir/__init__.py" ]]; then
@@ -55,31 +92,30 @@ for module_dir in "$TARGET"/*/; do
 done
 
 # -----------------------------------------------------------------------------
-# Convert all text files in the target directory to Unix (LF) line endings
+# Convert all text files to Unix (LF) line endings
 # -----------------------------------------------------------------------------
 if command -v dos2unix &>/dev/null; then
     log_info "Converting line endings to LF in Odoo modules..."
-    find "$TARGET" -type f \( -name "*.py" -o -name "*.xml" -o -name "*.sh" -o -name "*.conf" -o -name "*.txt" -o -name "*.md" -o -name "*.yml" -o -name "*.json" \) -exec dos2unix {} \; >/dev/null 2>&1
-    log_success "Line endings converted"
+    find "$TARGET" -type f \( \
+        -name "*.py" -o \
+        -name "*.xml" -o \
+        -name "*.sh" -o \
+        -name "*.conf" -o \
+        -name "*.txt" -o \
+        -name "*.md" -o \
+        -name "*.yml" -o \
+        -name "*.yaml" -o \
+        -name "*.json" -o \
+        -name "*.csv" -o \
+        -name "*.sql" \
+    \) -exec dos2unix {} \; >/dev/null 2>&1
+    log_success "All text files in Odoo modules converted to LF"
 else
     log_warning "dos2unix not found – skipping line ending conversion"
+    log_info "Install dos2unix with: sudo apt install dos2unix"
 fi
 
 # -----------------------------------------------------------------------------
 # Done
 # -----------------------------------------------------------------------------
 log_success "$(find "$TARGET" -maxdepth 1 -type d | wc -l) modules prepared in $TARGET"
-
-# 3. Ensure every module has a top-level __init__.py
-echo "  - Ensuring __init__.py for all modules"
-for module_dir in "$TARGET"/*/; do
-    if [[ -d "$module_dir" ]]; then
-        if [[ ! -f "$module_dir/__init__.py" ]]; then
-            echo "# -*- coding: utf-8 -*-\nfrom . import models" > "$module_dir/__init__.py"
-        fi
-    fi
-done
-
-# 4. Report result
-MODULE_COUNT=$(ls -1 "$TARGET" | wc -l)
-echo "✅ $MODULE_COUNT modules prepared in $TARGET"
