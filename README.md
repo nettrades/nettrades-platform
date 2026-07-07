@@ -155,13 +155,14 @@ The quickest way to get started is with the interactive installer:
 In windows install WSL and the open the WSL.exe terminal window
 It could be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe
 And run the commands below.
+(If you want it in the C directory)
 In Linux you could run them in the terminal window
 
 ```bash
-
+cd /mnt/c/
 # Clone the repository
 git clone https://github.com/nettrades/nettrades-platform.git
-cd nettrades-platform
+cd /mnt/c/nettrades-platform
 
 ```
 
@@ -178,18 +179,18 @@ Simply run the script without any arguments:
 
 ```bash
 
-# Run the unified setup script
+# Run the interactive setup wizard
 cd /mnt/c/nettrades-platform
 ./scripts/nettrades-setup.sh
 
 ```
 The script launches an interactive wizard that lets you choose a profile and options.
-
-For a fully automated deployment (non-interactive), use:
+For a fully full automated deployment (recommended for first-time users):
 
 ```bash
-
+cd /mnt/c/nettrades-platform
 ./scripts/nettrades-setup.sh all --force
+
 ```
 This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings.
 
@@ -210,7 +211,6 @@ This will run all phases (system preparation, environment setup, deployment, and
 
 | Option | Effect |
 |---------|-------------|
-| `--auto` | Run non-interactively (skip all prompts) |
 | `--force` | Re-run phases even if they were already completed |
 | `--upgrade` | Upgrade Odoo modules instead of fresh install |
 | `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
@@ -221,19 +221,19 @@ This will run all phases (system preparation, environment setup, deployment, and
 You can specify a profile and options directly:
 ```bash
 # Full deployment with modules
-./scripts/nettrades-setup.sh all --auto
+./scripts/nettrades-setup.sh all
 
 # Deployment without GPU
-./scripts/nettrades-setup.sh deploy --auto
+./scripts/nettrades-setup.sh deploy
 
 # Deployment with GPU support
-./scripts/nettrades-setup.sh gpu --auto
+./scripts/nettrades-setup.sh gpu
 
 # Development environment only
 ./scripts/nettrades-setup.sh dev
 
 # First-time Development environment
-./scripts/nettrades-setup.sh dev --auto
+./scripts/nettrades-setup.sh dev
 
 # Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website osoo module
 ./scripts/nettrades-setup.sh modules
