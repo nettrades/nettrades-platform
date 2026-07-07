@@ -84,9 +84,9 @@ PURPOSE:
 
 ## What is NETTRADES?
 
-**NETTRADES is an open-source, autonomous enterprise platform** built to power self-improving AI startups, companies and smart cities. It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
+**NETTRADES is an open-source, autonomous enterprise platform** built to power self-improving AI startups, companies and smart cities. It provides the infrastructure layer to run Sovereign AI. The system is highly configurable and provides company administrators with the ability to run sovereign AI locally or scale up into the cloud or onto a GPU marketplace. 
 
-It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
+It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations, which then calls `NETTRADES.AI` for GPU overflow, global services and external recruitment if configured to do so by the company administrators. NETTRADES.AI the hub, also connects companies, freelancers, job-seekers, researchers, partners and customers. Users could also ask experts question and cooperate with other companies, freelancers, job-seekers, researchers, partners on projects.
 
 ### It combines:
 
@@ -98,7 +98,7 @@ It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, ope
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – ACID transactions + LangGraph checkpointing.
 
-The system is highly configurable and provides greater control and flexibility to the companies using it. Company administrators could also configure it for sovereign AI, so that everything runs locally.
+
 
 The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.
 
@@ -184,15 +184,15 @@ cd /mnt/c/nettrades-platform
 ./scripts/nettrades-setup.sh
 
 ```
-The script launches an interactive wizard that lets you choose a profile and options.
-For a fully full automated deployment (recommended for first-time users):
+The script launches an interactive wizard that lets you choose the profile and the options.
+For a fully full automated deployment (recommended for first-time development users):
 
 ```bash
 cd /mnt/c/nettrades-platform
 ./scripts/nettrades-setup.sh all --force
 
 ```
-This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings.
+This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings. (Warning do not use --force on existing systems or production systems)
 
 #### 📦 Other Installation Options
 
@@ -240,7 +240,7 @@ You can specify a profile and options directly:
 or
 ./scripts/nettrades-setup.sh modules --upgrade
 
-# Reinstall everything from scratch
+# Reinstall everything from scratch (only for developers)
 ./scripts/nettrades-setup.sh dev --force
 
 ```
