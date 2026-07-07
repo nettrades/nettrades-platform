@@ -28,6 +28,12 @@ source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
+# Set up paths early (so they are available for all steps)
+# -----------------------------------------------------------------------------
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
+
+# -----------------------------------------------------------------------------
 # Parse arguments
 # -----------------------------------------------------------------------------
 FORCE="${FORCE:-false}"
@@ -77,7 +83,50 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Check NVIDIA Container Toolkit
+# Ensure model is available for vLLM (shared with llama.cpp)
+# -----------------------------------------------------------------------------
+log_step "Ensuring model is available for vLLM..."
+
+SHARED_MODELS_DIR="$DEPLOY_DIR/models"
+MODEL_NAME="${MODEL_NAME:-deepseek-1.5b}"
+
+if [[ ! -f "$SHARED_MODELS_DIR/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf" ]]; then
+    log_info "Model not found in shared directory. Downloading..."
+    if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+        bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --dir "$SHARED_MODELS_DIR"
+    else
+        log_warning "download-model.sh not found – please place the model manually."
+    fi
+else
+    log_success "Model found in shared directory."
+fi
+
+# -----------------------------------------------------------------------------
+# Update .env with GPU variables (BEFORE migration)
+# -----------------------------------------------------------------------------
+log_step "Updating .env for GPU inference..."
+
+cd "$DEPLOY_DIR"
+
+# Add VLLM_API_KEY and VLLM_BASE_URL if missing
+if ! grep -q "^VLLM_API_KEY=" .env; then
+    echo "VLLM_API_KEY=dummy" >> .env
+fi
+if ! grep -q "^VLLM_BASE_URL=" .env; then
+    echo "VLLM_BASE_URL=http://vllm:8000/v1" >> .env
+fi
+
+# Set LLM_BASE_URL for LangGraph (override the default fallback)
+if grep -q "^LLM_BASE_URL=" .env; then
+    sed -i 's|^LLM_BASE_URL=.*|LLM_BASE_URL=http://vllm:8000/v1|' .env
+else
+    echo "LLM_BASE_URL=http://vllm:8000/v1" >> .env
+fi
+
+log_success ".env updated for GPU inference"
+
+# -----------------------------------------------------------------------------
+# Check NVIDIA Container Toolkit (optional – migrate-to-gpu.sh also does this)
 # -----------------------------------------------------------------------------
 log_step "Checking NVIDIA Container Toolkit..."
 if ! command -v nvidia-container-toolkit &>/dev/null; then
@@ -89,34 +138,50 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Run GPU migration
+# Run GPU migration (now .env is already set)
+# This also adds /usr/lib/wsl/lib to the PATH when running under sudo, without breaking other environments.
 # -----------------------------------------------------------------------------
-DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
-cd "$DEPLOY_DIR"
-
 log_step "Running GPU migration..."
-if [[ -f "$DEPLOY_DIR/migrate-to-gpu.sh" ]]; then
+if [[ -f "$SCRIPT_DIR/migrate-to-gpu.sh" ]]; then
+    # Ensure WSL path is included for sudo
+    export WSL_PATH="/usr/lib/wsl/lib"
     if [[ "$AUTO" == true ]]; then
-        sudo bash "$DEPLOY_DIR/migrate-to-gpu.sh" --auto
+        sudo -E env PATH="$PATH:$WSL_PATH" bash "$SCRIPT_DIR/migrate-to-gpu.sh" --auto
     else
-        sudo bash "$DEPLOY_DIR/migrate-to-gpu.sh"
+        sudo -E env PATH="$PATH:$WSL_PATH" bash "$SCRIPT_DIR/migrate-to-gpu.sh"
     fi
 else
-    log_error "migrate-to-gpu.sh not found at $DEPLOY_DIR"
+    log_error "migrate-to-gpu.sh not found in $SCRIPT_DIR"
     exit 1
 fi
 
-cd "$PROJECT_ROOT"
+# -----------------------------------------------------------------------------
+# Restart LangGraph to ensure it picks up the new LLM_BASE_URL
+# (Even though .env was updated before the compose up, restart to be safe)
+# -----------------------------------------------------------------------------
+log_step "Restarting LangGraph to apply GPU configuration..."
+cd "$DEPLOY_DIR"
+docker compose restart langgraph
 
 # -----------------------------------------------------------------------------
-# Configure GPUStack for distributed GPU orchestration
+# Verify vLLM is running
 # -----------------------------------------------------------------------------
-log_step "Configuring GPUStack..."
+log_step "Verifying vLLM deployment..."
+sleep 10
+if curl -s http://localhost:8001/health >/dev/null 2>&1; then
+    log_success "vLLM is running and healthy"
+else
+    log_warning "vLLM health check failed – please check logs"
+fi
+
+# -----------------------------------------------------------------------------
+# Configure GPUStack for distributed GPU orchestration (optional)
+# -----------------------------------------------------------------------------
 if [[ -f "$DEPLOY_DIR/gpustack-config.yaml" ]]; then
+    log_step "Configuring GPUStack..."
     log_info "GPUStack configuration found at $DEPLOY_DIR/gpustack-config.yaml"
-    # Apply configuration if needed
     if [[ "$FORCE" == true ]] || ! docker exec gpustack gpustack status &>/dev/null; then
-        docker compose -f "$DEPLOY_DIR/docker-compose.yaml" restart gpustack
+        docker compose restart gpustack
         log_success "GPUStack restarted"
     fi
 else
@@ -124,22 +189,16 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Verify vLLM is running
-# -----------------------------------------------------------------------------
-log_step "Verifying vLLM deployment..."
-sleep 10
-if curl -s http://localhost:8000/health >/dev/null 2>&1; then
-    log_success "vLLM is running and healthy"
-else
-    log_warning "vLLM health check failed – please check logs"
-fi
-
-# -----------------------------------------------------------------------------
 # Mark phase complete
 # -----------------------------------------------------------------------------
+cd "$PROJECT_ROOT"
 mark_phase_complete 3
 log_success "Phase 3 completed – GPU migration successful"
 echo ""
 echo "  GPU:           $GPU_NAME"
 echo "  Inference:     vLLM (GPU)"
 echo "  GPUStack:      $(docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps gpustack --format '{{.Status}}' 2>/dev/null || echo 'unknown')"
+echo ""
+echo "Next steps:"
+echo "  - LangGraph is now using vLLM at http://vllm:8000/v1"
+echo "  - To revert to CPU, uncomment the llama-cpp service in docker-compose.yaml and remove vLLM"

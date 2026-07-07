@@ -84,9 +84,9 @@ PURPOSE:
 
 ## What is NETTRADES?
 
-**NETTRADES is an open-source, autonomous enterprise platform** built to power self-improving AI startups, companies and smart cities. It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
+**NETTRADES is an open-source, autonomous enterprise platform** built to power self-improving AI startups, companies and smart cities. It provides the infrastructure layer to run Sovereign AI. The system is highly configurable and provides company administrators with the ability to run sovereign AI locally or scale up into the cloud or onto a GPU marketplace. 
 
-It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations which then calls `NETTRADES.AI` for external recruitment, GPU overflow and global services. NETTRADES.AI connects companies, freelancers, job-seekers, researchers, partners and customers.
+It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations, which then calls `NETTRADES.AI` for GPU overflow, global services and external recruitment if configured to do so by the company administrators. NETTRADES.AI the hub, also connects companies, freelancers, job-seekers, researchers, partners and customers. Users could also ask experts question and cooperate with other companies, freelancers, job-seekers, researchers, partners on projects.
 
 ### It combines:
 
@@ -98,7 +98,7 @@ It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, ope
 - **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
 - **Transaction control and error handling** – ACID transactions + LangGraph checkpointing.
 
-The system is highly configurable and provides greater control and flexibility to the companies using it. Company administrators could also configure it for sovereign AI, so that everything runs locally.
+
 
 The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.
 
@@ -155,13 +155,14 @@ The quickest way to get started is with the interactive installer:
 In windows install WSL and the open the WSL.exe terminal window
 It could be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe
 And run the commands below.
+(If you want it in the C directory)
 In Linux you could run them in the terminal window
 
 ```bash
-
+cd /mnt/c/
 # Clone the repository
 git clone https://github.com/nettrades/nettrades-platform.git
-cd nettrades-platform
+cd /mnt/c/nettrades-platform
 
 ```
 
@@ -178,20 +179,20 @@ Simply run the script without any arguments:
 
 ```bash
 
-# Run the unified setup script
+# Run the interactive setup wizard
 cd /mnt/c/nettrades-platform
 ./scripts/nettrades-setup.sh
 
 ```
-The script launches an interactive wizard that lets you choose a profile and options.
-
-For a fully automated deployment (non-interactive), use:
+The script launches an interactive wizard that lets you choose the profile and the options.
+For a fully full automated deployment (recommended for first-time development users):
 
 ```bash
-
+cd /mnt/c/nettrades-platform
 ./scripts/nettrades-setup.sh all --force
+
 ```
-This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings.
+This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings. (Warning do not use --force on existing systems or production systems)
 
 #### 📦 Other Installation Options
 
@@ -210,7 +211,6 @@ This will run all phases (system preparation, environment setup, deployment, and
 
 | Option | Effect |
 |---------|-------------|
-| `--auto` | Run non-interactively (skip all prompts) |
 | `--force` | Re-run phases even if they were already completed |
 | `--upgrade` | Upgrade Odoo modules instead of fresh install |
 | `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
@@ -221,26 +221,26 @@ This will run all phases (system preparation, environment setup, deployment, and
 You can specify a profile and options directly:
 ```bash
 # Full deployment with modules
-./scripts/nettrades-setup.sh all --auto
+./scripts/nettrades-setup.sh all
 
 # Deployment without GPU
-./scripts/nettrades-setup.sh deploy --auto
+./scripts/nettrades-setup.sh deploy
 
 # Deployment with GPU support
-./scripts/nettrades-setup.sh gpu --auto
+./scripts/nettrades-setup.sh gpu
 
 # Development environment only
 ./scripts/nettrades-setup.sh dev
 
 # First-time Development environment
-./scripts/nettrades-setup.sh dev --auto
+./scripts/nettrades-setup.sh dev
 
 # Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website osoo module
 ./scripts/nettrades-setup.sh modules
 or
 ./scripts/nettrades-setup.sh modules --upgrade
 
-# Reinstall everything from scratch
+# Reinstall everything from scratch (only for developers)
 ./scripts/nettrades-setup.sh dev --force
 
 ```

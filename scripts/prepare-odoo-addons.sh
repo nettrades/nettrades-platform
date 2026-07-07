@@ -10,6 +10,8 @@
 #   It also ensures that every module has a top-level __init__.py,
 #   and converts all text files to Unix (LF) line endings to avoid
 #   Windows ↔ Linux corruption issues.
+#
+#   NEW: Automatically clones the Odoo repository if third-party/odoo is missing.
 # =============================================================================
 
 set -euo pipefail
@@ -36,6 +38,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ODOO_MODULES="$PROJECT_ROOT/odoo-modules"
 THIRD_PARTY="$PROJECT_ROOT/third-party"
+ODOO_REPO="$THIRD_PARTY/odoo"
 TARGET="$PROJECT_ROOT/deploy/docker/odoo-modules"
 
 # Parse arguments
@@ -43,6 +46,29 @@ FORCE="${1:-}"
 if [[ "$FORCE" == "--force" ]]; then
     log_info "Force mode – removing existing target directory"
     rm -rf "$TARGET"
+fi
+
+# -----------------------------------------------------------------------------
+# NEW: Clone Odoo repository if missing
+# -----------------------------------------------------------------------------
+if [[ ! -d "$ODOO_REPO" ]] || [[ -z "$(ls -A "$ODOO_REPO" 2>/dev/null)" ]]; then
+    log_info "Odoo repository not found at $ODOO_REPO"
+    log_info "Cloning Odoo (this may take a few minutes)..."
+    
+    # Create third-party directory if it doesn't exist
+    mkdir -p "$THIRD_PARTY"
+    
+    # Clone Odoo (shallow clone to save time and bandwidth)
+    if git clone --depth 1 --branch 19.0 https://github.com/odoo/odoo.git "$ODOO_REPO"; then
+        log_success "Odoo repository cloned successfully"
+    else
+        log_error "Failed to clone Odoo repository"
+        log_info "Please clone it manually:"
+        log_info "  git clone --depth 1 --branch 19.0 https://github.com/odoo/odoo.git third-party/odoo"
+        exit 1
+    fi
+else
+    log_success "Odoo repository already exists at $ODOO_REPO"
 fi
 
 # -----------------------------------------------------------------------------

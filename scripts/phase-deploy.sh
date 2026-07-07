@@ -9,7 +9,7 @@
 #
 #   It performs the following steps (in order):
 #   1. Create required directories.
-#   2. Download DeepSeek model (if not cached).
+#   2. Download DeepSeek model (if not cached) into ./llama-cpp-data.
 #   3. Build custom Docker images (Odoo, LangGraph) if missing.
 #   4. Generate `init-db.sql` with all NETTRADES database tables.
 #   5. Run security hardening (if Phase 0 not completed).
@@ -85,7 +85,6 @@ DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
 ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
 COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yaml"
 DATA_DIR="$PROJECT_ROOT/data"
-MODELS_DIR="$DATA_DIR/models"
 ADDONS_DIR="$PROJECT_ROOT/addons"
 LOGS_DIR="$PROJECT_ROOT/logs"
 
@@ -109,29 +108,36 @@ mkdir -p "$DATA_DIR/valkey"
 mkdir -p "$DATA_DIR/forgejo"
 mkdir -p "$DATA_DIR/prometheus"
 mkdir -p "$DATA_DIR/grafana"
-mkdir -p "$MODELS_DIR"
+mkdir -p "$DATA_DIR/backups"
+mkdir -p "$DEPLOY_DIR/llama-cpp-data"   # <-- dedicated for GGUF models
+mkdir -p "$DEPLOY_DIR/vllm-data"        # <-- dedicated for HF models
 mkdir -p "$ADDONS_DIR"
 mkdir -p "$LOGS_DIR"
 mkdir -p "$DATA_DIR/backups"
 log_success "Directories created"
 
 # -----------------------------------------------------------------------------
-# 2. Download DeepSeek model (if not cached)
+# 2. Download DeepSeek model (GGUF for llama.cpp) into its dedicated folder
 # -----------------------------------------------------------------------------
-log_step "Checking DeepSeek model cache..."
-MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
-if [[ ! -f "$MODEL_FILE" ]] || [[ "$FORCE" == true ]]; then
-    log_info "Downloading DeepSeek model (this may take a while)..."
-    if [[ -f "$DEPLOY_DIR/download-model.sh" ]]; then
-        bash "$DEPLOY_DIR/download-model.sh" --output "$MODEL_FILE"
-    else
-        log_warning "No download-model.sh found. Please ensure the model is present at $MODEL_FILE."
+log_step "Downloading DeepSeek model (if not already cached)..."
+
+LLAMA_CPP_DATA_DIR="$DEPLOY_DIR/llama-cpp-data"
+mkdir -p "$LLAMA_CPP_DATA_DIR/models"
+
+MODEL_NAME="deepseek-1.5b"   # Use 1.5B for speed; change to "deepseek-7b" if desired
+
+if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+    if ! bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --format gguf --dir "$LLAMA_CPP_DATA_DIR/models"; then
+        log_warning "GGUF model download failed. You can manually download it later."
         if [[ "$AUTO" != true ]]; then
             read -rp "Press Enter to continue or Ctrl+C to abort..."
         fi
+    else
+        log_success "GGUF model is ready in $LLAMA_CPP_DATA_DIR/models"
     fi
 else
-    log_success "DeepSeek model already cached: $MODEL_FILE"
+    log_error "download-model.sh not found in $SCRIPT_DIR"
+    exit 1
 fi
 
 # -----------------------------------------------------------------------------
@@ -531,7 +537,7 @@ log_step "Initialising PostgreSQL database..."
 # Wait for PostgreSQL to be ready
 log_info "Waiting for PostgreSQL to be ready..."
 for i in {1..30}; do
-    if docker exec postgres pg_isready -U odoo &>/dev/null; then
+    if docker compose -f "$DEPLOY_DIR/docker-compose.yaml" exec postgres pg_isready -U odoo &>/dev/null; then
         log_success "PostgreSQL is ready"
         break
     fi

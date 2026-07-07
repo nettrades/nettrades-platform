@@ -1,15 +1,25 @@
-#!/bin/bash
 # =============================================================================
 # FILE: scripts/migrate-to-gpu.sh
 # =============================================================================
 # PURPOSE:
 #   Migrates the inference engine from CPU (llama.cpp) to GPU (vLLM).
-#   This script is IDEMPOTENT and can be re-run safely. It checks for
-#   existing GPU support before making changes.
+#   This script is IDEMPOTENT and can be re-run safely.
 #
-#   It detects an NVIDIA GPU, installs the NVIDIA Container Toolkit,
-#   stops and removes the llama-cpp container, adds the vLLM service,
-#   and updates the .env file.
+#   Steps performed:
+#     1. Check for root privileges (NVIDIA toolkit installation requires sudo).
+#     2. Detect NVIDIA GPU and verify drivers.
+#     3. Install NVIDIA Container Toolkit if missing.
+#     4. Configure Docker to use NVIDIA runtime.
+#     5. Stop and remove the llama-cpp container.
+#     6. (Optional) Comment out the llama-cpp service in docker-compose.yaml.
+#     7. Ensure directories for both engines exist.
+#     8. Download the Hugging Face model for vLLM (if not already present).
+#     9. Add vLLM service definition to docker-compose.yaml.
+#     10. Start the stack with vLLM.
+#     11. Verify vLLM health.
+#
+#   This script does NOT modify .env – that is handled by phase-add-gpu.sh.
+#   All model files for vLLM are stored in ./vllm-data (separate from llama-cpp).
 #
 # USAGE:
 #   ./migrate-to-gpu.sh [--auto]
@@ -17,6 +27,7 @@
 # =============================================================================
 
 set -euo pipefail
+mkdir -p ./llama-cpp-data/models ./vllm-data/models
 
 # -----------------------------------------------------------------------------
 # Source shared libraries (with fallback)
@@ -56,29 +67,48 @@ done
 # Check if running as root (required for NVIDIA toolkit installation)
 # -----------------------------------------------------------------------------
 if [ "$EUID" -ne 0 ]; then
-    log_error "This script must be run as root (sudo)."
+    log_error "This script must be run as root (use sudo)."
     exit 1
 fi
 
 # -----------------------------------------------------------------------------
-# Detect NVIDIA GPU
+# Detect NVIDIA GPU using full path (handles WSL, Ubuntu, Talos)
 # -----------------------------------------------------------------------------
-if ! command -v nvidia-smi &>/dev/null; then
+find_nvidia_smi() {
+    # List of possible locations (including WSL2)
+    local candidates=(
+        nvidia-smi
+        /usr/bin/nvidia-smi
+        /usr/local/bin/nvidia-smi
+        /usr/lib/wsl/lib/nvidia-smi
+    )
+    for cmd in "${candidates[@]}"; do
+        if command -v "$cmd" &>/dev/null; then
+            echo "$cmd"
+            return 0
+        fi
+    done
+    return 1
+}
+
+NVIDIA_SMI=$(find_nvidia_smi)
+if [ -z "$NVIDIA_SMI" ]; then
     log_error "nvidia-smi not found. NVIDIA drivers may not be installed."
     log_info "Please install NVIDIA drivers first."
     exit 1
 fi
 
-if ! nvidia-smi &>/dev/null; then
+# Verify that the GPU is accessible
+if ! $NVIDIA_SMI &>/dev/null; then
     log_error "nvidia-smi failed. NVIDIA GPU may not be available."
     exit 1
 fi
 
-GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)
+GPU_NAME=$($NVIDIA_SMI --query-gpu=name --format=csv,noheader | head -1)
 log_success "NVIDIA GPU detected: ${GPU_NAME}"
 
 # -----------------------------------------------------------------------------
-# Check if already migrated
+# Check if already migrated (vLLM container exists)
 # -----------------------------------------------------------------------------
 if docker ps -a --format '{{.Names}}' | grep -q "vllm"; then
     log_info "vLLM container already exists. Already migrated to GPU?"
@@ -94,8 +124,9 @@ fi
 # -----------------------------------------------------------------------------
 # Install NVIDIA Container Toolkit
 # -----------------------------------------------------------------------------
+log_step "Checking NVIDIA Container Toolkit..."
 if command -v nvidia-ctk &>/dev/null; then
-    log_info "NVIDIA Container Toolkit already installed."
+    log_success "NVIDIA Container Toolkit already installed."
 else
     log_info "Installing NVIDIA Container Toolkit..."
     apt-get update -qq
@@ -106,10 +137,11 @@ fi
 # -----------------------------------------------------------------------------
 # Configure Docker to use NVIDIA runtime
 # -----------------------------------------------------------------------------
+log_step "Configuring Docker for NVIDIA runtime..."
 if docker info 2>/dev/null | grep -q "nvidia"; then
     log_info "Docker already configured for NVIDIA runtime."
 else
-    log_info "Configuring Docker for NVIDIA runtime..."
+    log_info "Configuring Docker..."
     nvidia-ctk runtime configure --runtime=docker
     systemctl restart docker
     log_success "Docker configured for NVIDIA runtime"
@@ -118,29 +150,68 @@ fi
 # -----------------------------------------------------------------------------
 # Stop and remove llama-cpp container
 # -----------------------------------------------------------------------------
+log_step "Stopping and removing llama-cpp container..."
 if docker ps -a --format '{{.Names}}' | grep -q "llama-cpp"; then
-    log_info "Stopping and removing llama-cpp container..."
     docker stop llama-cpp 2>/dev/null || true
     docker rm llama-cpp 2>/dev/null || true
     log_success "llama-cpp container removed"
+else
+    log_info "llama-cpp container not running – skipping."
 fi
 
 # -----------------------------------------------------------------------------
-# Add vLLM service to docker-compose.yml
+# Comment out llama-cpp service in docker-compose.yaml
 # -----------------------------------------------------------------------------
 DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
 cd "$DEPLOY_DIR"
 
-COMPOSE_FILE="docker-compose.yml"
+COMPOSE_FILE="docker-compose.yaml"
+
+if grep -q "^  llama-cpp:" "$COMPOSE_FILE"; then
+    log_info "Commenting out llama-cpp service to prevent accidental re-creation..."
+    sed -i '/^  llama-cpp:/,/^  [^ ]/ s/^/# /' "$COMPOSE_FILE"
+    log_success "llama-cpp service commented out."
+else
+    log_info "llama-cpp service not found in compose file – skipping."
+fi
+
+# -----------------------------------------------------------------------------
+# Ensure directories for both engines exist
+# -----------------------------------------------------------------------------
+mkdir -p ./llama-cpp-data ./vllm-data
+log_info "Ensured directories: ./llama-cpp-data and ./vllm-data exist."
+
+# -----------------------------------------------------------------------------
+# Download Hugging Face model for vLLM into ./vllm-data/models
+# -----------------------------------------------------------------------------
+log_step "Downloading Hugging Face model for vLLM..."
+
+if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+    if ! bash "$SCRIPT_DIR/download-model.sh" --model deepseek-1.5b --format hf --dir ./vllm-data/models; then
+        log_warning "HF model download failed. Please download manually."
+        if [ "$AUTO" != true ]; then
+            read -rp "Continue anyway? (y/N): " continue_anyway
+            if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
+        fi
+    else
+        log_success "HF model downloaded successfully into ./vllm-data/models"
+    fi
+else
+    log_error "download-model.sh not found. Please ensure it exists in $SCRIPT_DIR"
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# Add vLLM service to docker-compose.yaml (if not already present)
+# -----------------------------------------------------------------------------
+log_step "Adding vLLM service to docker-compose.yaml..."
 
 if grep -q "vllm:" "$COMPOSE_FILE"; then
-    log_info "vLLM service already present in docker-compose.yml"
+    log_info "vLLM service already present in docker-compose.yaml"
 else
-    log_info "Adding vLLM service to docker-compose.yml..."
-    # Create a backup
     cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak"
-
-    # Insert vLLM service
     cat >> "$COMPOSE_FILE" << 'EOF'
 
   vllm:
@@ -148,11 +219,11 @@ else
     container_name: vllm
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8001:8000"
     networks:
       - internal
     volumes:
-      - ./vllm-data:/models
+      - ./vllm-data/models:/models          # Mount the models subfolder
     environment:
       - VLLM_MODEL=/models/DeepSeek-R1-Distill-Qwen-1.5B
       - VLLM_GPU_MEMORY_UTILIZATION=0.9
@@ -171,33 +242,21 @@ else
         max-size: "10m"
         max-file: "3"
 EOF
-    log_success "vLLM service added to docker-compose.yml"
+    log_success "vLLM service added to docker-compose.yaml"
 fi
 
 # -----------------------------------------------------------------------------
-# Update .env with GPU variables
+# Start the new stack (will start vLLM, and everything else)
 # -----------------------------------------------------------------------------
-if grep -q "VLLM_API_KEY" .env 2>/dev/null; then
-    log_info "VLLM_API_KEY already set in .env"
-else
-    log_info "Adding VLLM_API_KEY to .env..."
-    echo "VLLM_API_KEY=dummy" >> .env
-    echo "VLLM_BASE_URL=http://vllm:8000/v1" >> .env
-    log_success ".env updated"
-fi
-
-# -----------------------------------------------------------------------------
-# Start the new stack
-# -----------------------------------------------------------------------------
-log_info "Starting Docker Compose stack with vLLM..."
+log_step "Starting Docker Compose stack with vLLM..."
 docker compose up -d
 
 # -----------------------------------------------------------------------------
-# Verify vLLM is running (enhancement not in original)
+# Verify vLLM is running (using the host port 8001)
 # -----------------------------------------------------------------------------
 log_step "Verifying vLLM health..."
 sleep 10
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null | grep -q "200"; then
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health 2>/dev/null | grep -q "200"; then
     log_success "vLLM is healthy and responding"
 else
     log_warning "vLLM health check failed – please check logs with: docker compose logs vllm"
@@ -211,8 +270,14 @@ echo -e "${GREEN}=============================================================${
 echo -e "${GREEN} GPU migration complete!${NC}"
 echo -e "${GREEN}=============================================================${NC}"
 echo ""
-echo " GPU: ${GPU_NAME}"
-echo " Inference: vLLM (GPU)"
-echo " API endpoint: http://localhost:8000/v1"
+echo " GPU:           ${GPU_NAME}"
+echo " Inference:     vLLM (GPU)"
+echo " API endpoint:  http://vllm:8000/v1"
+echo " Model folder:  ./vllm-data/DeepSeek-R1-Distill-Qwen-1.5B"
 echo ""
-log_info "Note: You may need to update LLM_BASE_URL in .env to use vLLM."
+echo "Next steps:"
+echo "  1. Ensure LLM_BASE_URL is updated in .env (handled by phase-add-gpu.sh)"
+echo "  2. Restart LangGraph to pick up the new URL: docker compose restart langgraph"
+echo ""
+log_info "If you want to revert to CPU, uncomment the llama-cpp service in docker-compose.yaml"
+echo "and remove the vLLM service, then run: docker compose up -d"

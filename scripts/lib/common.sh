@@ -185,3 +185,57 @@ generate_secret() {
 generate_password() {
     openssl rand -base64 24 | tr -d '\n'
 }
+
+# -----------------------------------------------------------------------------
+# Model Download Functions
+# -----------------------------------------------------------------------------
+
+download_llm_model() {
+    local model_name="$1"
+    local output_dir="$2"
+    local force="${3:-false}"
+    
+    # Map model names to Hugging Face URLs
+    case "$model_name" in
+        "deepseek-1.5b")
+            local MODEL_URL="https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+            local MODEL_FILE="DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+            ;;
+        "deepseek-7b")
+            local MODEL_URL="https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf"
+            local MODEL_FILE="deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+            ;;
+        *)
+            log_error "Unknown model: $model_name"
+            return 1
+            ;;
+    esac
+    
+    mkdir -p "$output_dir"
+    local output_path="$output_dir/$MODEL_FILE"
+    
+    if [[ -f "$output_path" ]] && [[ "$force" != "true" ]]; then
+        log_success "Model already cached: $output_path"
+        return 0
+    fi
+    
+    log_info "Downloading $model_name from Hugging Face..."
+    log_info "This may take several minutes depending on your connection speed."
+    
+    if command -v wget &>/dev/null; then
+        wget -O "$output_path" "$MODEL_URL" --progress=dot:giga
+    elif command -v curl &>/dev/null; then
+        curl -L -o "$output_path" "$MODEL_URL" --progress-bar
+    else
+        log_error "Neither wget nor curl found. Please install one of them."
+        return 1
+    fi
+    
+    if [[ -f "$output_path" ]]; then
+        log_success "Model downloaded successfully: $output_path"
+        return 0
+    else
+        log_error "Failed to download model."
+        return 1
+    fi
+}
