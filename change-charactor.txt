@@ -1,4 +1,0 @@
-
-If you want to replace - with - in all the file and folder names in the folder C:\nettrades-platform then run powershell as an administrator and run
-cd c:\nettrades-platform
-Get-ChildItem -Path "C:\nettrades-platform" -Recurse | Sort-Object Length -Descending | Where-Object { $_.Name -match "-" } | Rename-Item -NewName { $_.Name -replace "-", "-" }
