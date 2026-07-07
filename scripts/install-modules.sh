@@ -93,40 +93,40 @@ fi
 MODULES=(
     # Core NETTRADES modules
     "nettrades_core"
-    "nettrades_good_answer"
+    # "nettrades_good_answer"
     "nettrades_ask_someone"
 
     # GPU Admin module
-    "nettrades_gpu_admin"
+    # "nettrades_gpu_admin"
 
     # GPUStack adapter
-    "nettrades_gpustack_adapter"
+    # "nettrades_gpustack_adapter"
 
     # Queue module
     "nettrades_queue"
 
     # Bridge module – hub-and-spoke routing
-    "nettrades_bridge"
+    # "nettrades_bridge"
 
     # Self-improving modules – continuous learning loop (MAPE cycle)
-    "nettrades_data_collection"
-    "nettrades_trigger"
-    "nettrades_loop"
-    "nettrades_self_improving_config"
+    # "nettrades_data_collection"
+    # "nettrades_trigger"
+    # "nettrades_loop"
+    # "nettrades_self_improving_config"
 
     # Fairness module
-    "nettrades_fairness"
+    # "nettrades_fairness"
 
     # LLM Configuration (depends on gpu_admin)
-    "nettrades_llm_config"
+    # "nettrades_llm_config"
 
     # End-user modules
-    "nettrades_onboarding"
+    # "nettrades_onboarding"
     "nettrades_job_matching"
-    "nettrades_proposals"
+    # "nettrades_proposals"
     "nettrades_lead_scoring"
-    "nettrades_research"
-    "nettrades_chatbot"
+    # "nettrades_research"
+    # "nettrades_chatbot"
     "nettrades_notifications"
 #   "nettrades_pwa"   # (commented out – uncomment if needed)
 )

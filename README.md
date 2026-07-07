@@ -173,11 +173,13 @@ Work on the dev-deployment1 branch not on the main branch
 You have two main ways to run the installer:
 #### 🔹 Interactive Wizard (recommended for first-time users)
 
+E.g. if you cloned it into the c drive
 Simply run the script without any arguments:
 
 ```bash
 
 # Run the unified setup script
+cd /mnt/c/nettrades-platform
 ./scripts/nettrades-setup.sh
 
 ```
