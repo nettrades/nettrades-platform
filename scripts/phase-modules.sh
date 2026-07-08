@@ -55,13 +55,13 @@ export FORCE
 # -----------------------------------------------------------------------------
 # Production Safety Check
 # -----------------------------------------------------------------------------
-confirm_force_production "5"
+confirm_force_production "4"
 
 # -----------------------------------------------------------------------------
 # Phase marker
 # -----------------------------------------------------------------------------
-if phase_completed 5 && [[ "$FORCE" != true ]]; then
-    log_warning "Phase 5 already completed. Use --force to re-run."
+if phase_completed 4 && [[ "$FORCE" != true ]]; then
+    log_warning "Phase 4 already completed. Use --force to re-run."
     exit 0
 fi
 
@@ -92,5 +92,5 @@ fi
 # -----------------------------------------------------------------------------
 # Mark phase complete
 # -----------------------------------------------------------------------------
-mark_phase_complete 5
-log_success "Phase 5 completed – modules installed"
+mark_phase_complete 4
+log_success "Phase 4 completed – modules installed"

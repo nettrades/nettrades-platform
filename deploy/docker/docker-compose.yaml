@@ -13,8 +13,7 @@
 #   - Forgejo 15.0 LTS: Self-hosted Git server
 #   - LangGraph Agent: Durable AI orchestration
 #   - Odoo Proxy: HTTP JSON-RPC shim (replaces mcp-odoo)
-#   - GPUStack: GPU management and inference
-#   - llama.cpp / vLLM: Inference engines
+#   - GPUStack: GPU management and inference (replaces standalone vLLM/llama.cpp)
 #   - Prometheus: Metrics collection
 #   - Grafana: Visualisation
 #   - Node Exporter: System metrics for Prometheus
@@ -40,22 +39,7 @@
 #   - Added node_exporter for system-level metrics.
 #   - Fixed PostgreSQL volume mount for pg17 compatibility.
 #   - Fixed build contexts for langgraph and odoo-proxy.
-#   - Updated llama.cpp image to use 'full' tag.
-#   - SEPARATE MODEL DIRECTORIES: llama-cpp uses ./llama-cpp-data, vLLM uses ./vllm-data.
 #
-#    FOR LLAMA.CPP IF YOU HAVE A NVIDIA GPU YOU COULD USE 
-#     image: ghcr.io/ggml-org/llama.cpp:server-cuda
-#
-#
-# deploy:
-#  resources:
-#    reservations:
-#      devices:
-#        - driver: nvidia
-#          count: all
-#          capabilities: [gpu]
-#
-#   Then change -ngl 0 to -ngl 999 (to load all layers onto the GPU).
 #
 # =============================================================================
 
@@ -70,6 +54,8 @@ networks:
    
 volumes:
   postgres_data:
+    driver: local
+  gpustack_data:          # <-- ADD THIS
     driver: local
 
 # -----------------------------------------------------------------------------
@@ -261,7 +247,7 @@ services:
       - web
       - internal
     environment:
-      # LLM Configuration (llama.cpp / vLLM)
+      # LLM Configuration
       - LLM_BASE_URL=${LLM_BASE_URL:-http://llama-cpp:8080/v1}
       - LLAMA_API_KEY=dummy
       - LLM_MODEL=deepseek-r1:1.5b
@@ -328,10 +314,11 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-  
+
   # =========================================================================
-  # 9. GPUSTACK - GPU Management and Inference
+  # GPUStack – GPU Management and Inference (replaces standalone engines)
   # =========================================================================
+
   gpustack:
     image: gpustack/gpustack:latest
     container_name: gpustack
@@ -344,13 +331,14 @@ services:
       - GPUSTACK_GRAFANA_URL=https://grafana.${DOMAIN}
       - GPUSTACK_MODEL_DIR=/models
     ports:
-      - "8080:80"          # host:container – GPUStack serves on port 80 internally
+      - "8080:80"
     volumes:
-      - ./gpustack-data:/data
+      - gpustack_data:/var/lib/gpustack      # named volume
+      - ./gpustack-data/models:/models       # optional bind mount
     labels:
       - traefik.enable=true
       - traefik.http.routers.gpustack.rule=Host(`gpustack.${DOMAIN}`)
-      - traefik.http.services.gpustack.loadbalancer.server.port=80   # container port
+      - traefik.http.services.gpustack.loadbalancer.server.port=80
     depends_on:
       - postgres
       - valkey
@@ -360,40 +348,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # =========================================================================
-  # 10. LLAMA.CPP - Standalone CPU Inference Engine - GPUStact replaces this
-  # =========================================================================
-#   llama-cpp:
-#     image: ghcr.io/ggml-org/llama.cpp:server
-#     # image: ghcr.io/ggml-org/llama.cpp:server-cuda
-#     container_name: llama-cpp
-#     restart: unless-stopped
-#     networks:
-#       - internal
-#     volumes:
-#       - ./llama-cpp-data/models:/models   # was ./llama-cpp-data:/models
-#     environment:
-#       - LLAMA_SERVER_MODEL=/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
-#       - LLAMA_SERVER_HOST=0.0.0.0
-#       - LLAMA_SERVER_PORT=8080
-#       - LLAMA_SERVER_N_GPU_LAYERS=0
-#     ports:
-#       - "8080:8080"
-#     command:
-#       - "-m"
-#       - "/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
-#       - "--host"
-#       - "0.0.0.0"
-#       - "--port"
-#       - "8080"
-#       - "-ngl"
-#       - "0"
-#     logging:
-#       driver: "json-file"
-#       options:
-#         max-size: "10m"
-#         max-file: "3"
-#         
   # =========================================================================
   # 11. PROMETHEUS - Metrics Collection
   # =========================================================================
@@ -479,36 +433,3 @@ services:
         max-size: "10m"
         max-file: "3"
         
-  # =========================================================================
-  # 14. VLLM - Standalone GPU Inference Engine (optimised for memory usage) - GPUStact replaces this
-  # =========================================================================
-#  vllm:
-#    runtime: nvidia
-#    image: vllm/vllm-openai:latest
-#    container_name: vllm
-#    restart: unless-stopped
-#    ports:
-#      - "8001:8000"
-#    networks:
-#      - internal
-#    volumes:
-#      - ./vllm-data/models:/models
-#    environment:
-#      - LOG_LEVEL=info
-#    deploy:
-#      resources:
-#        reservations:
-#          devices:
-#            - driver: nvidia
-#              count: all
-#              capabilities: [gpu]
-#    command: >
-#      --model /models/DeepSeek-R1-Distill-Qwen-1.5B
-#      --tensor-parallel-size 1
-#      --gpu-memory-utilization 0.7
-#      --max-model-len 4096
-#    logging:
-#      driver: "json-file"
-#      options:
-#        max-size: "10m"
-#        max-file: "3"

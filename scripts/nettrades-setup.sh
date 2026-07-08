@@ -4,8 +4,16 @@
 # =============================================================================
 # PURPOSE:
 #   NETTRADES platform unified setup orchestrator.
-#   Single entry point for installation, deployment, GPU, Kubernetes, modules.
-#   Includes comprehensive dependency checks and OS-specific setup.
+#   Single entry point for installation, deployment, modules, monitoring.
+#   GPUStack is now the default inference engine – no separate GPU profile needed.
+#
+# PHASES:
+#   0 – System Preparation & Hardening
+#   1 – Development Environment
+#   2 – Single-VM Deployment (with GPUStack)
+#   3 – Kubernetes Scaling
+#   4 – Module Installation
+#   5 – Monitoring Setup
 #
 # USAGE:
 #   ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
@@ -40,14 +48,21 @@ ${YELLOW}USAGE:${NC}
     ./nettrades-setup.sh                       (Interactive wizard)
     ./nettrades-setup.sh --help                Show this help.
 
+${YELLOW}PHASES:${NC}
+    0  System Preparation & Hardening
+    1  Development Environment
+    2  Single-VM Deployment (with GPUStack)
+    3  Kubernetes Scaling
+    4  Module Installation
+    5  Monitoring Setup
+
 ${YELLOW}PROFILES (CLI):${NC}
     dev         : Phase 1 (development environment)
-    deploy      : Phase 0 + Phase 1 + Phase 2 (single-VM deployment without GPU)
-    gpu         : Phase 0 + Phase 1 + Phase 2 + Phase 3 (single-VM deployment with GPU)
-    k8s         : Phase 0 + Phase 1 + Phase 4 (Kubernetes scaling)
-    monitoring  : Phase 6 (Prometheus & Grafana setup)
-    modules     : Phase 5 (install/upgrade Odoo modules only)
-    all         : Phase 0 + Phase 1 + Phase 2 + Phase 5 (full deployment with modules)
+    deploy      : Phase 0 + Phase 1 + Phase 2 (single-VM deployment with GPUStack)
+    k8s         : Phase 0 + Phase 1 + Phase 3 (Kubernetes scaling)
+    monitoring  : Phase 5 (Prometheus & Grafana setup)
+    modules     : Phase 4 (install/upgrade Odoo modules only)
+    all         : Phase 0 + Phase 1 + Phase 2 + Phase 4 (full deployment)
 
 ${YELLOW}OPTIONS (CLI):${NC}
     --force           Re-run phases even if already completed.
@@ -59,7 +74,7 @@ ${YELLOW}OPTIONS (CLI):${NC}
 ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh                        # Interactive wizard
     ./nettrades-setup.sh deploy --auto          # Automated deploy
-    ./nettrades-setup.sh gpu --force --upgrade  # Re-deploy with GPU and upgrade modules
+    ./nettrades-setup.sh all --force            # Full re-deployment
 EOF
 }
 
@@ -74,23 +89,21 @@ run_interactive() {
     echo ""
     echo "Available profiles:"
     echo "  1) dev         - Development environment (Phase 1 only)"
-    echo "  2) deploy      - Single-VM Docker deployment (no GPU)"
-    echo "  3) gpu         - Single-VM with GPU (vLLM, GPUStack)"
-    echo "  4) k8s         - Kubernetes scaling (Talos, Argo CD)"
-    echo "  5) monitoring  - Prometheus & Grafana monitoring stack"
-    echo "  6) modules     - Install/upgrade Odoo modules only"
-    echo "  7) all         - Full deployment (Phases 0,1,2,5)"
+    echo "  2) deploy      - Single-VM Docker deployment (with GPUStack)"
+    echo "  3) k8s         - Kubernetes scaling (Talos, Argo CD)"
+    echo "  4) monitoring  - Prometheus & Grafana monitoring stack (Phase 5)"
+    echo "  5) modules     - Install/upgrade Odoo modules only (Phase 4)"
+    echo "  6) all         - Full deployment (Phases 0,1,2,4)"
     echo ""
-    read -rp "Enter the number of your choice (1-7): " profile_choice
+    read -rp "Enter the number of your choice (1-6): " profile_choice
 
     case "$profile_choice" in
         1) PROFILE="dev" ;;
         2) PROFILE="deploy" ;;
-        3) PROFILE="gpu" ;;
-        4) PROFILE="k8s" ;;
-        5) PROFILE="monitoring" ;;
-        6) PROFILE="modules" ;;
-        7) PROFILE="all" ;;
+        3) PROFILE="k8s" ;;
+        4) PROFILE="monitoring" ;;
+        5) PROFILE="modules" ;;
+        6) PROFILE="all" ;;
         *) log_error "Invalid choice"; exit 1 ;;
     esac
     log_info "Selected profile: $PROFILE"
@@ -110,11 +123,10 @@ run_interactive() {
     case "$PROFILE" in
         dev) PHASES=(1) ;;
         deploy) PHASES=(0 1 2) ;;
-        gpu) PHASES=(0 1 2 3) ;;
-        k8s) PHASES=(0 1 4) ;;
-        monitoring) PHASES=(6) ;;
-        modules) PHASES=(5) ;;
-        all) PHASES=(0 1 2 5) ;;
+        k8s) PHASES=(0 1 3) ;;
+        monitoring) PHASES=(5) ;;
+        modules) PHASES=(4) ;;
+        all) PHASES=(0 1 2 4) ;;
     esac
 
     # --- Confirm ---
@@ -152,21 +164,7 @@ setup_dev_environment() {
         log_warning "requirements-dev.txt not found – skipping Python dependencies."
     fi
 
-    # Create .env from template if not exists
-    if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
-        if [[ -f "$PROJECT_ROOT/deploy/docker/.env.example" ]]; then
-            log_step "Creating .env from template..."
-            cp "$PROJECT_ROOT/deploy/docker/.env.example" "$PROJECT_ROOT/.env"
-            chmod 600 "$PROJECT_ROOT/.env"
-            log_warning "Created .env from .env.example. Please review and set secrets."
-        else
-            log_warning ".env.example not found – skipping .env creation."
-        fi
-    else
-        log_success ".env already exists."
-    fi
-
-    # Install Odoo module dependencies (if appropriate scripts exist)
+    # Install Odoo module dependencies
     if [[ "$os" == "windows" ]]; then
         if [[ -f "$PROJECT_ROOT/scripts/install-odoo-modules.ps1" ]]; then
             log_step "Installing Odoo module dependencies (Windows)..."
@@ -386,11 +384,10 @@ elif [[ -n "$PROFILE" ]]; then
     case "$PROFILE" in
         dev) PHASES=(1) ;;
         deploy) PHASES=(0 1 2) ;;
-        gpu) PHASES=(0 1 2 3) ;;
-        k8s) PHASES=(0 1 4) ;;
-        monitoring) PHASES=(6) ;;
-        modules) PHASES=(5) ;;
-        all) PHASES=(0 1 2 5) ;;
+        k8s) PHASES=(0 1 3) ;;
+        monitoring) PHASES=(5) ;;
+        modules) PHASES=(4) ;;
+        all) PHASES=(0 1 2 4) ;;
         *)
             log_error "Unknown profile: $PROFILE"
             show_help
@@ -440,19 +437,15 @@ for phase in "${PHASES[@]}"; do
             bash "$SCRIPT_DIR/phase-deploy.sh"
             ;;
         3)
-            log_header "Phase 3 — GPU Setup"
-            bash "$SCRIPT_DIR/phase-add-gpu.sh"
-            ;;
-        4)
-            log_header "Phase 4 — Kubernetes Scaling"
+            log_header "Phase 3 — Kubernetes Scaling"
             bash "$SCRIPT_DIR/phase-k8s.sh"
             ;;
-        5)
-            log_header "Phase 5 — Module Installation"
+        4)
+            log_header "Phase 4 — Module Installation"
             bash "$SCRIPT_DIR/phase-modules.sh"
             ;;
-        6)
-            log_header "Phase 6 — Monitoring Setup"
+        5)
+            log_header "Phase 5 — Monitoring Setup"
             bash "$SCRIPT_DIR/phase-monitoring.sh"
             ;;
         *)
@@ -471,5 +464,5 @@ echo " 2. Configure GPU marketplace settings: Settings → GPU → Marketplace"
 echo " 3. Set up WireGuard peers for secure communication"
 echo " 4. Access your platform at https://your-domain"
 if [[ "$(detect_os)" == "windows" ]]; then
-    echo "💡 You are running in WSL2. Remember to access services via localhost or use port forwarding."
+    echo "You are running in WSL2. Remember to access services via localhost or use port forwarding."
 fi

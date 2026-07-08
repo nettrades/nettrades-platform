@@ -35,13 +35,13 @@ export FORCE
 # -----------------------------------------------------------------------------
 # Production Safety Check
 # -----------------------------------------------------------------------------
-confirm_force_production "6"
+confirm_force_production "5"
 
 # -----------------------------------------------------------------------------
 # Phase marker
 # -----------------------------------------------------------------------------
-if phase_completed 6; then
-    log_warning "Phase 6 already completed. Use --force to re-run."
+if phase_completed 5; then
+    log_warning "Phase 5 already completed. Use --force to re-run."
     exit 0
 fi
 
@@ -136,8 +136,8 @@ fi
 # -----------------------------------------------------------------------------
 # Mark phase complete
 # -----------------------------------------------------------------------------
-mark_phase_complete 6
-log_success "Phase 6 completed – monitoring stack deployed"
+mark_phase_complete 5
+log_success "Phase 5 completed – monitoring stack deployed"
 
 echo ""
 echo "Access monitoring:"

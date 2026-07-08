@@ -3,7 +3,7 @@
 # FILE: scripts/phase-deploy.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 2: Single-VM Docker deployment.
+#   Phase 2: Single-VM Docker deployment with GPUStack as the inference engine.
 #   This script deploys the entire NETTRADES stack using Docker Compose.
 #   It is idempotent and safe to re-run.
 #
@@ -82,11 +82,12 @@ check_docker || exit 1
 # Set up paths
 # -----------------------------------------------------------------------------
 DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
-ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
+ENV_FILE="$DEPLOY_DIR/.env"
 COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yaml"
 DATA_DIR="$PROJECT_ROOT/data"
-ADDONS_DIR="$PROJECT_ROOT/addons"
 LOGS_DIR="$PROJECT_ROOT/logs"
+GPUSTACK_DATA_DIR="$DEPLOY_DIR/gpustack-data"
+MODELS_DIR="$GPUSTACK_DATA_DIR/models"
 
 if [[ ! -f "$ENV_FILE" ]]; then
     log_error ".env not found. Please run Phase 1 first."
@@ -109,36 +110,10 @@ mkdir -p "$DATA_DIR/forgejo"
 mkdir -p "$DATA_DIR/prometheus"
 mkdir -p "$DATA_DIR/grafana"
 mkdir -p "$DATA_DIR/backups"
-mkdir -p "$DEPLOY_DIR/llama-cpp-data"   # <-- dedicated for GGUF models
-mkdir -p "$DEPLOY_DIR/vllm-data"        # <-- dedicated for HF models
-mkdir -p "$ADDONS_DIR"
+mkdir -p "$GPUSTACK_DATA_DIR"
+mkdir -p "$MODELS_DIR"
 mkdir -p "$LOGS_DIR"
-mkdir -p "$DATA_DIR/backups"
 log_success "Directories created"
-
-# -----------------------------------------------------------------------------
-# 2. Download DeepSeek model (GGUF for llama.cpp) into its dedicated folder
-# -----------------------------------------------------------------------------
-log_step "Downloading DeepSeek model (if not already cached)..."
-
-LLAMA_CPP_DATA_DIR="$DEPLOY_DIR/llama-cpp-data"
-mkdir -p "$LLAMA_CPP_DATA_DIR/models"
-
-MODEL_NAME="deepseek-1.5b"   # Use 1.5B for speed; change to "deepseek-7b" if desired
-
-if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-    if ! bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --format gguf --dir "$LLAMA_CPP_DATA_DIR/models"; then
-        log_warning "GGUF model download failed. You can manually download it later."
-        if [[ "$AUTO" != true ]]; then
-            read -rp "Press Enter to continue or Ctrl+C to abort..."
-        fi
-    else
-        log_success "GGUF model is ready in $LLAMA_CPP_DATA_DIR/models"
-    fi
-else
-    log_error "download-model.sh not found in $SCRIPT_DIR"
-    exit 1
-fi
 
 # -----------------------------------------------------------------------------
 # Prepare Odoo addons for Docker build
@@ -530,6 +505,66 @@ fi
 log_success "Docker Compose stack started"
 
 # -----------------------------------------------------------------------------
+# 5. Wait for GPUStack and download/register model
+# -----------------------------------------------------------------------------
+log_step "Waiting for GPUStack to be ready..."
+for i in {1..30}; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/models | grep -q "200\|401"; then
+        log_success "GPUStack is ready"
+        break
+    fi
+    sleep 2
+done
+
+log_step "Downloading GGUF model into GPUStack's model directory..."
+MODEL_NAME="deepseek-1.5b"
+if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+    if ! bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --format gguf --dir "$MODELS_DIR"; then
+        log_warning "GGUF model download failed. You can manually add models via GPUStack UI."
+    else
+        log_success "GGUF model downloaded to $MODELS_DIR"
+    fi
+else
+    log_warning "download-model.sh not found – skipping model download"
+fi
+
+# Register the model with GPUStack
+log_step "Registering model with GPUStack..."
+GPUSTACK_JWT_SECRET=$(grep GPUSTACK_JWT_SECRET "$ENV_FILE" | cut -d'=' -f2)
+if [[ -n "$GPUSTACK_JWT_SECRET" ]]; then
+    GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
+    if [[ -n "$GGUF_FILE" ]]; then
+        MODEL_PATH="/models/$(basename "$GGUF_FILE")"
+        curl -X POST http://localhost:8080/v1/model-files \
+            -H "Authorization: Bearer $GPUSTACK_JWT_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{\"path\": \"$MODEL_PATH\"}" 2>/dev/null || log_warning "Model registration failed – you can register manually via GPUStack UI"
+        log_success "Model registered with GPUStack"
+    else
+        log_warning "No GGUF file found – skipping registration"
+    fi
+else
+    log_warning "GPUSTACK_JWT_SECRET not found – skipping model registration"
+fi
+
+# -----------------------------------------------------------------------------
+# 6. Update .env with LLM_BASE_URL
+# -----------------------------------------------------------------------------
+log_step "Updating .env to use GPUStack..."
+if grep -q "^LLM_BASE_URL=" "$ENV_FILE"; then
+    sed -i 's|^LLM_BASE_URL=.*|LLM_BASE_URL=http://gpustack:8080/v1|' "$ENV_FILE"
+else
+    echo "LLM_BASE_URL=http://gpustack:8080/v1" >> "$ENV_FILE"
+fi
+log_success ".env updated"
+
+# -----------------------------------------------------------------------------
+# 7. Restart LangGraph to pick up new URL
+# -----------------------------------------------------------------------------
+log_step "Restarting LangGraph..."
+docker compose restart langgraph
+
+# -----------------------------------------------------------------------------
 # 7. Initialise PostgreSQL database
 # -----------------------------------------------------------------------------
 log_step "Initialising PostgreSQL database..."
@@ -660,6 +695,7 @@ echo "  Odoo:      http://localhost:8069"
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001"
 echo "  Prometheus: http://localhost:9090"
+echo "  GPUStack:  http://localhost:8080  (default credentials: admin / password from initial_admin_password)"
 echo ""
 echo "Default Odoo credentials: admin / admin"
 echo "(Change immediately after first login)"

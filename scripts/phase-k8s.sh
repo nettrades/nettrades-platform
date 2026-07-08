@@ -51,13 +51,13 @@ export FORCE
 # -----------------------------------------------------------------------------
 # Production Safety Check
 # -----------------------------------------------------------------------------
-confirm_force_production "4"
+confirm_force_production "3"
 
 # -----------------------------------------------------------------------------
 # Phase marker
 # -----------------------------------------------------------------------------
-if phase_completed 4; then
-    log_warning "Phase 4 already completed. Use --force to re-run."
+if phase_completed 3; then
+    log_warning "Phase 3 already completed. Use --force to re-run."
     exit 0
 fi
 
@@ -195,8 +195,8 @@ kubectl get pods -A
 # -----------------------------------------------------------------------------
 # Mark phase complete
 # -----------------------------------------------------------------------------
-mark_phase_complete 4
-log_success "Phase 4 completed – Kubernetes cluster is deployed"
+mark_phase_complete 3
+log_success "Phase 3 completed – Kubernetes cluster is deployed"
 
 echo ""
 echo "Access your platform:"
