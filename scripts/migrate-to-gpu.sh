@@ -1,3 +1,5 @@
+#               THIS SCRIPT IS NO LONGER USED
+# PHASE ADD GPU WAS REMOVED BECAUSE LLAMA.CPP AND VLLM WERE REPLACED WITH GPUSTACK
 # =============================================================================
 # FILE: scripts/migrate-to-gpu.sh
 # =============================================================================
