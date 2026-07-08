@@ -219,6 +219,8 @@ services:
   # =========================================================================
   forgejo:
     image: codeberg.org/forgejo/forgejo:15.0
+    ports:
+      - "3000:3000"
     volumes:
       - ./forgejo-data:/data
     environment:
@@ -400,6 +402,8 @@ services:
     networks:
       - web
       - internal
+    ports:
+      - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus-data:/prometheus
@@ -426,6 +430,8 @@ services:
     networks:
       - web
       - internal
+    ports:
+      - "3001:3000"
     volumes:
       - ./grafana-data:/var/lib/grafana
       - ./grafana-dashboards:/etc/grafana/provisioning/dashboards
@@ -472,9 +478,10 @@ services:
         max-file: "3"
         
   # =========================================================================
-  # 14. VLLM – GPU Inference Engine (added by migrate-to-gpu.sh)
+  # 14. VLLM – GPU Inference Engine (optimised for memory usage)
   # =========================================================================
   vllm:
+    runtime: nvidia
     image: vllm/vllm-openai:latest
     container_name: vllm
     restart: unless-stopped
@@ -483,11 +490,9 @@ services:
     networks:
       - internal
     volumes:
-      - ./vllm-data/models:/models        # was ./vllm-data:/models
+      - ./vllm-data/models:/models
     environment:
-      - VLLM_MODEL=/models/DeepSeek-R1-Distill-Qwen-1.5B   # <-- HF model directory name
-      - VLLM_GPU_MEMORY_UTILIZATION=0.9
-      - VLLM_MAX_MODEL_LEN=4096
+      - LOG_LEVEL=info
     deploy:
       resources:
         reservations:
@@ -495,7 +500,11 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    command: ["--model", "/models/DeepSeek-R1-Distill-Qwen-1.5B", "--tensor-parallel-size", "1"]
+    command: >
+      --model /models/DeepSeek-R1-Distill-Qwen-1.5B
+      --tensor-parallel-size 1
+      --gpu-memory-utilization 0.7
+      --max-model-len 4096
     logging:
       driver: "json-file"
       options:
