@@ -78,7 +78,7 @@ volumes:
 services:
 
   # =========================================================================
-  # 1. TRAEFIK – Reverse Proxy with Automatic Let's Encrypt SSL
+  # 1. TRAEFIK - Reverse Proxy with Automatic Let's Encrypt SSL
   # =========================================================================
   traefik:
     image: traefik:v3.6.13
@@ -107,7 +107,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 2. POSTGRESQL with pgvector – RAG Embeddings & Main Database
+  # 2. POSTGRESQL with pgvector - RAG Embeddings & Main Database
   # =========================================================================
   postgres:
     image: pgvector/pgvector:pg17
@@ -133,7 +133,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 3. POSTGRES EXPORTER – Prometheus Metrics for PostgreSQL
+  # 3. POSTGRES EXPORTER - Prometheus Metrics for PostgreSQL
   # =========================================================================
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
@@ -149,7 +149,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 4. VALKEY – BSD-licensed in-memory store (sessions, ORM cache, bus)
+  # 4. VALKEY - BSD-licensed in-memory store (sessions, ORM cache, bus)
   # =========================================================================
   valkey:
     image: valkey/valkey:8-alpine
@@ -169,7 +169,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 5. ODOO 19 CE – ERP, Marketplace, and AI Hub
+  # 5. ODOO 19 CE - ERP, Marketplace, and AI Hub
   # =========================================================================
   odoo:
     build:
@@ -215,7 +215,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 6. FORGEJO 15.0 LTS – Self-hosted Git Server
+  # 6. FORGEJO 15.0 LTS - Self-hosted Git Server
   # =========================================================================
   forgejo:
     image: codeberg.org/forgejo/forgejo:15.0
@@ -249,7 +249,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 7. LANGGRAPH AGENT – Durable AI Orchestration
+  # 7. LANGGRAPH AGENT - Durable AI Orchestration
   # =========================================================================
   langgraph:
     # FIXED: Correct build context path
@@ -297,7 +297,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 8. ODOO PROXY – HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
+  # 8. ODOO PROXY - HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
   # =========================================================================
   odoo-proxy:
     # FIXED: Correct build context path
@@ -330,7 +330,7 @@ services:
         max-file: "3"
   
   # =========================================================================
-  # 9. GPUSTACK – GPU Management and Inference
+  # 9. GPUSTACK - GPU Management and Inference
   # =========================================================================
   gpustack:
     image: gpustack/gpustack:latest
@@ -343,12 +343,14 @@ services:
       - GPUSTACK_JWT_SECRET=${GPUSTACK_JWT_SECRET}
       - GPUSTACK_GRAFANA_URL=https://grafana.${DOMAIN}
       - GPUSTACK_MODEL_DIR=/models
+    ports:
+      - "8080:80"          # host:container – GPUStack serves on port 80 internally
     volumes:
       - ./gpustack-data:/data
     labels:
       - traefik.enable=true
       - traefik.http.routers.gpustack.rule=Host(`gpustack.${DOMAIN}`)
-      - traefik.http.services.gpustack.loadbalancer.server.port=8080
+      - traefik.http.services.gpustack.loadbalancer.server.port=80   # container port
     depends_on:
       - postgres
       - valkey
@@ -359,7 +361,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 10. LLAMA.CPP – CPU Inference Engine
+  # 10. LLAMA.CPP - Standalone CPU Inference Engine - GPUStact replaces this
   # =========================================================================
 #   llama-cpp:
 #     image: ghcr.io/ggml-org/llama.cpp:server
@@ -393,7 +395,7 @@ services:
 #         max-file: "3"
 #         
   # =========================================================================
-  # 11. PROMETHEUS – Metrics Collection
+  # 11. PROMETHEUS - Metrics Collection
   # =========================================================================
   prometheus:
     image: prom/prometheus:latest
@@ -421,7 +423,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 12. GRAFANA – Visualisation Dashboard
+  # 12. GRAFANA - Visualisation Dashboard
   # =========================================================================
   grafana:
     image: grafana/grafana:latest
@@ -452,7 +454,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 13. NODE EXPORTER – System Metrics for Prometheus
+  # 13. NODE EXPORTER - System Metrics for Prometheus
   # =========================================================================
   node_exporter:
     image: prom/node-exporter:latest
@@ -478,35 +480,35 @@ services:
         max-file: "3"
         
   # =========================================================================
-  # 14. VLLM – GPU Inference Engine (optimised for memory usage)
+  # 14. VLLM - Standalone GPU Inference Engine (optimised for memory usage) - GPUStact replaces this
   # =========================================================================
-  vllm:
-    runtime: nvidia
-    image: vllm/vllm-openai:latest
-    container_name: vllm
-    restart: unless-stopped
-    ports:
-      - "8001:8000"
-    networks:
-      - internal
-    volumes:
-      - ./vllm-data/models:/models
-    environment:
-      - LOG_LEVEL=info
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    command: >
-      --model /models/DeepSeek-R1-Distill-Qwen-1.5B
-      --tensor-parallel-size 1
-      --gpu-memory-utilization 0.7
-      --max-model-len 4096
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+#  vllm:
+#    runtime: nvidia
+#    image: vllm/vllm-openai:latest
+#    container_name: vllm
+#    restart: unless-stopped
+#    ports:
+#      - "8001:8000"
+#    networks:
+#      - internal
+#    volumes:
+#      - ./vllm-data/models:/models
+#    environment:
+#      - LOG_LEVEL=info
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: nvidia
+#              count: all
+#              capabilities: [gpu]
+#    command: >
+#      --model /models/DeepSeek-R1-Distill-Qwen-1.5B
+#      --tensor-parallel-size 1
+#      --gpu-memory-utilization 0.7
+#      --max-model-len 4096
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: "10m"
+#        max-file: "3"
