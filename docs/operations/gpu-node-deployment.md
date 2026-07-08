@@ -280,6 +280,6 @@ spec:
 
 * Deploy a WireGuard DaemonSet (if you don't have one already) that uses these configurations.
 
-* Run Phase 4 (./scripts/nettrades-setup.sh k8s --auto) to apply the ConfigMap and complete the setup.
+* Run Phase 3 (./scripts/nettrades-setup.sh k8s --auto) to apply the ConfigMap and complete the setup.
 
 Once applied, all your GPU worker nodes will have a secure, encrypted tunnel for inter-node communication, which is essential for distributed GPU workloads managed by GPUStack

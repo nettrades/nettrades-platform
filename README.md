@@ -201,11 +201,10 @@ This will run all phases (system preparation, environment setup, deployment, and
 |---------|-------------|-------------|
 | `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only|
 | `deploy` | Full single-VM deployment (Docker Compose) without GPU |  Phases 0, 1, 2 |
-| `gpu` | Single-VM deployment with GPU (NVIDIA, vLLM, GPUStack) | Phases 0, 1, 2, 3  |
-| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 4  |
-| `monitoring` | Deploys Prometheus + Grafana (on existing stack) | Phase 6  |
-| `modules` | Installs or upgrades all NETTRADES Odoo modules |  Phase 5 |
-| `all` | Full production deployment + modules (best for production) | Phases 0, 1, 2, 5  |
+| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 3  |
+| `monitoring` | Deploys Prometheus + Grafana (on existing stack) | Phase 5  |
+| `modules` | Installs or upgrades all NETTRADES Odoo modules |  Phase 4 |
+| `all` | Full production deployment + modules (best for production) | Phases 0, 1, 2, 4  |
 
 #### ⚙️ Useful Options (CLI)
 
@@ -255,10 +254,9 @@ The installer executes phases in the correct order:
 | `0` | System Preparation – installs Docker, Docker Compose, NVIDIA drivers (if GPU), configures firewall, installs fail2ban, sets system limits, and checks for gVisor. |
 | `1` | Environment & Secrets – generates secure passwords, API keys, WireGuard keys, and creates .env. |
 | `2` | Single-VM Deployment – builds custom images (Odoo, LangGraph), prepares Odoo addons, initialises the database, starts all Docker Compose services, sets up cron backups, and performs health checks. |
-| `3` | GPU Setup – migrates from CPU (llama.cpp) to GPU (vLLM) and configures GPUStack. |
-| `4` | Kubernetes Scaling – provisions Talos VMs on Proxmox, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, GPUStack, and WireGuard. |
-| `5` | Module Installation – installs all NETTRADES custom Odoo modules in the correct dependency order. |
-| `6` | Monitoring – deploys Prometheus and Grafana with pre-configured dashboards (if not already present). |
+| `3` | Kubernetes Scaling – provisions Talos VMs on Proxmox, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, GPUStack, and WireGuard. |
+| `4` | Module Installation – installs all NETTRADES custom Odoo modules in the correct dependency order. |
+| `5` | Monitoring – deploys Prometheus and Grafana with pre-configured dashboards (if not already present). |
 
 All phases are idempotent – you can safely re-run the script to fix or upgrade your deployment.
 
