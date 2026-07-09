@@ -126,6 +126,49 @@ The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessl
 This guide will help you get the platform running on your own server, laptop, or cloud VM in minutes.
 
 ### 📋 Prerequisites
+On windows make sure you have Docker Desktop is installed. 
+
+Install and Configure Docker for WSL 2
+Step 1: Install Docker Desktop for Windows
+
+* Download Docker Desktop: Go to docker.com/products/docker-desktop
+
+* Download the Windows installer (Docker Desktop for Windows)
+
+* Run the installer and follow the setup wizard
+
+* Restart your computer when prompted
+
+Step 2: Open Docker Desktop Settings
+
+* Open Docker Desktop (click the whale icon in your system tray)
+
+* Click the gear icon (⚙️) in the top-right corner to open Settings
+
+Step 3: Enable WSL Integration
+
+* In the Settings window, go to Resources → WSL Integration
+
+* Make sure the following are enabled:
+
+** "Enable integration with my default WSL distro"
+
+** "Ubuntu" (or whatever your WSL distro is called)
+
+** Click "Apply & Restart" at the bottom
+
+Step 4: Verify Docker is Working in WSL
+
+Open your WSL terminal and run:
+```bash
+
+docker --version
+```
+Should output: Docker version 24.0.x, build xxxxx
+```bash
+
+docker compose version
+```
 
 ##### Operating System:
 
@@ -157,14 +200,25 @@ It could be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe
 And run the commands below.
 (If you want it in the C directory)
 In Linux you could run them in the terminal window
+E.g. clone it into the c drive
 
 ```bash
 cd /mnt/c/
 # Clone the repository
 git clone https://github.com/nettrades/nettrades-platform.git
-cd /mnt/c/nettrades-platform
-
 ```
+
+Install dos2unix if not already installed
+And Convert all the files in the repository to have Linux line endings (\n)
+
+
+```bash
+sudo apt update
+sudo apt install dos2unix -y
+cd /mnt/c/nettrades-platform
+sudo ./scripts/fix-line-endings.sh --force
+```
+This will take about 10 minutes to run.
 
 Work on the dev-deployment1 branch not on the main branch
 
@@ -174,22 +228,19 @@ Work on the dev-deployment1 branch not on the main branch
 You have two main ways to run the installer:
 #### 🔹 Interactive Wizard (recommended for first-time users)
 
-E.g. if you cloned it into the c drive
+##### Run the interactive setup wizard
 Simply run the script without any arguments:
 
 ```bash
 
-# Run the interactive setup wizard
-cd /mnt/c/nettrades-platform
-./scripts/nettrades-setup.sh
+sudo ./scripts/nettrades-setup.sh
 
 ```
 The script launches an interactive wizard that lets you choose the profile and the options.
 For a fully full automated deployment (recommended for first-time development users):
 
 ```bash
-cd /mnt/c/nettrades-platform
-./scripts/nettrades-setup.sh all --force
+sudo ./scripts/nettrades-setup.sh all --force
 
 ```
 This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings. (Warning do not use --force on existing systems or production systems)
@@ -283,6 +334,11 @@ Once the script finishes, open your browser and go to:
 * Odoo: http://localhost:8069
 * Login: admin / admin (or the password you set in .env as ODOO_ADMIN_PASSWORD
 
+Default Odoo credentials: admin / admin
+(Change immediately after first login)
+
+LangGraph	http://localhost:8000
+
 * Grafana: http://localhost:3001
 * Login: admin / admin (change password on first login)
 
@@ -290,8 +346,12 @@ Once the script finishes, open your browser and go to:
 
 * LangGraph Health: http://localhost:8000/health
 
-Default Odoo credentials: admin / admin
-(Change immediately after first login)
+Prometheus	http://localhost:9090	
+
+GPUStack	http://localhost:8080 	
+
+Username is: Admin
+
 
 
 #### 📦 Installing Odoo Modules

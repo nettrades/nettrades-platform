@@ -240,7 +240,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Install dos2unix (for fixing line endings in Windows ↔ Linux environments)
+# Install dos2unix (for fixing line endings in Windows ↔ Linux environments) and Install jq
 # -----------------------------------------------------------------------------
 log_step "Installing dos2unix..."
 if command -v dos2unix &>/dev/null; then
@@ -250,6 +250,7 @@ else
         sudo apt-get update -qq
         sudo apt-get install -y dos2unix
         log_success "dos2unix installed"
+        sudo apt-get install -y curl wget git jq
     else
         log_warning "Please install dos2unix manually for $OS"
     fi

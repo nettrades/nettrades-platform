@@ -1,29 +1,31 @@
 #!/bin/bash
+#               THIS SCRIPT IS NO LONGER USED
+# PHASE ADD GPU WAS REMOVED BECAUSE LLAMA.CPP AND VLLM WERE REPLACED WITH GPUSTACK
 # =============================================================================
-# NETTRADES.AI – Unified Setup Orchestrator
+# NETTRADES.AI ï¿½ Unified Setup Orchestrator
 # =============================================================================
 # This is the ONLY script you need to run.  It detects your hardware,
 # asks which phase you want, and calls the appropriate scripts in order.
 #
 # Phases:
-#   1 — dev-env    : create folder structure, clone repos, install dependencies
-#   2 — deploy     : deploy single-VM production stack (no GPU required)
-#   3 — add-gpu    : add a GPU to an existing single-VM deployment
-#   4 — scale      : upgrade from single-VM to Kubernetes (Talos + K8s)
+#   1 ï¿½ dev-env    : create folder structure, clone repos, install dependencies
+#   2 ï¿½ deploy     : deploy single-VM production stack (no GPU required)
+#   3 ï¿½ add-gpu    : add a GPU to an existing single-VM deployment
+#   4 ï¿½ scale      : upgrade from single-VM to Kubernetes (Talos + K8s)
 # =============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "============================================================="
-echo " NETTRADES.AI — Setup Orchestrator"
+echo " NETTRADES.AI ï¿½ Setup Orchestrator"
 echo "============================================================="
 echo ""
 echo "Which phase would you like to run?"
-echo "  1 — Development environment (clone repos, install dependencies)"
-echo "  2 — Single-VM deployment (production, no GPU required)"
-echo "  3 — Add a GPU to an existing single-VM deployment"
-echo "  4 — Scale to Kubernetes (Talos + K8s, requires Proxmox)"
+echo "  1 ï¿½ Development environment (clone repos, install dependencies)"
+echo "  2 ï¿½ Single-VM deployment (production, no GPU required)"
+echo "  3 ï¿½ Add a GPU to an existing single-VM deployment"
+echo "  4 ï¿½ Scale to Kubernetes (Talos + K8s, requires Proxmox)"
 echo ""
 read -rp "Enter 1, 2, 3, or 4: " PHASE
 
