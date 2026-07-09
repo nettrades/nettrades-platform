@@ -353,8 +353,6 @@ GPUStack	http://localhost:8080
 Username is: Admin
 
 
- 0987654321*Aa 
-
 
 #### 📦 Installing Odoo Modules
 

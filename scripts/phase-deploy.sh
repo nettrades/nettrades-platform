@@ -677,6 +677,43 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# Get GPUStack API token
+# -----------------------------------------------------------------------------
+log_step "Getting GPUStack API token..."
+
+ADMIN_PASS=""
+INITIAL_PASS_FILE="/var/lib/gpustack/initial_admin_password"
+
+if docker exec gpustack test -f "$INITIAL_PASS_FILE"; then
+    ADMIN_PASS=$(docker exec gpustack cat "$INITIAL_PASS_FILE")
+    log_info "Using initial admin password from file"
+elif [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
+    ADMIN_PASS="${GPUSTACK_ADMIN_PASSWORD}"
+    log_info "Using admin password from environment"
+elif [[ "$AUTO" != true ]]; then
+    read -s -p "Enter GPUStack admin password: " ADMIN_PASS
+    echo
+fi
+
+TOKEN=""
+if [[ -n "$ADMIN_PASS" ]]; then
+    LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
+        -H "Content-Type: application/json" \
+        -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASS\"}")
+    TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token')
+    if [[ -n "$TOKEN" && "$TOKEN" != "null" ]]; then
+        log_success "GPUStack authentication successful"
+    else
+        log_warning "Failed to authenticate with provided password. You may need to reset it or use the UI."
+        TOKEN=""
+    fi
+fi
+
+if [[ -z "$TOKEN" ]]; then
+    log_warning "Skipping GPUStack API automation. You can deploy models manually via UI."
+fi
+
+# -----------------------------------------------------------------------------
 # 11. Display final status
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT"
