@@ -46,7 +46,7 @@ if phase_completed 4 && [[ "$FORCE" != true ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Prerequisites Check (without re-running Phase 2 due to FORCE)
+# # Check if Phase 2 marker exists (ignoring FORCE)
 # -----------------------------------------------------------------------------
 # Check if Phase 2 marker exists (ignoring FORCE) – if missing, Phase 2 must be run.
 if [[ ! -f "$PROJECT_ROOT/.phase-2-complete" ]]; then
