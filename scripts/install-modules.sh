@@ -94,7 +94,7 @@ MODULES=(
     # Core NETTRADES modules
     "nettrades_core"
     # "nettrades_good_answer"
-    "nettrades_ask_someone"
+    # "nettrades_ask_someone"
 
     # GPU Admin module
     # "nettrades_gpu_admin"
