@@ -26,6 +26,14 @@
 
 set -euo pipefail
 
+# -----------------------------------------------------------------------------
+# Session flag to prevent duplicate runs (Phase 4 re-run prevention)
+# -----------------------------------------------------------------------------
+if [[ -f /tmp/nettrades-phase2-completed ]] && [[ "${FORCE:-false}" != "true" ]]; then
+    log_info "Phase 2 already completed in this session. Skipping."
+    exit 0
+fi
+
 # The web network is used by Traefik (the reverse proxy) to route incoming traffic to services like Odoo. 
 # It is defined as external in your docker-compose.yaml, which means Docker Compose expects it to already exist
 
@@ -494,9 +502,94 @@ set -a
 source "$ENV_FILE"
 set +a
 
+# -----------------------------------------------------------------------------
+# Auto-generate strong secrets for all services (if missing or weak)
+# -----------------------------------------------------------------------------
+generate_secret() {
+    openssl rand -base64 24 | tr -d '\n'
+}
+
+# List of variables to ensure strong values
+SECRET_VARS=(
+    POSTGRES_PASSWORD
+    ADMIN_PASSWORD
+    FORGEJO_DB_PASSWORD
+    FORGEJO_SECRET_KEY
+    GRAFANA_PASSWORD
+    LANGGRAPH_API_KEY
+    GPUSTACK_ADMIN_PASSWORD
+    GPUSTACK_JWT_SECRET
+    ODOO_API_KEY
+    PROXY_API_KEY
+)
+
+for VAR in "${SECRET_VARS[@]}"; do
+    # Check if variable exists and its value is not a placeholder
+    if grep -q "^${VAR}=" "$ENV_FILE"; then
+        CURRENT_VALUE=$(grep "^${VAR}=" "$ENV_FILE" | cut -d'=' -f2-)
+        # Regenerate if value is weak (changeit or is empty)
+        if [[ -z "$CURRENT_VALUE" || "$CURRENT_VALUE" == "changeit" ]]; then
+            NEW_VALUE=$(generate_secret)
+            safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
+            log_info "Regenerated ${VAR} (was weak)"
+            export "${VAR}=${NEW_VALUE}"
+        else
+            export "${VAR}=${CURRENT_VALUE}"
+        fi
+    else
+        # Variable missing – generate and append
+        NEW_VALUE=$(generate_secret)
+        echo "${VAR}=${NEW_VALUE}" >> "$ENV_FILE"
+        log_info "Generated ${VAR}"
+        export "${VAR}=${NEW_VALUE}"
+    fi
+done
+
+# Ensure ODOO_API_KEY and PROXY_API_KEY are identical
+ODOO_API_KEY=$(grep "^ODOO_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
+PROXY_API_KEY=$(grep "^PROXY_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
+if [[ "$ODOO_API_KEY" != "$PROXY_API_KEY" ]]; then
+    NEW_KEY=$(generate_secret)
+    safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$NEW_KEY"
+    safe_sed_replace "$ENV_FILE" "PROXY_API_KEY" "$NEW_KEY"
+    export ODOO_API_KEY="${NEW_KEY}"
+    export PROXY_API_KEY="${NEW_KEY}"
+    log_info "Synchronised ODOO_API_KEY and PROXY_API_KEY"
+fi
+
+#-----------------------------------------------------------------------------------
+# Determine if we should remove the GPUStack volume
+REMOVE_VOLUME=false
+if [[ "$FORCE" == true ]]; then
+    if [[ "$AUTO" == true ]]; then
+        REMOVE_VOLUME=true
+        log_info "Auto mode: will remove gpustack_data volume without prompt."
+    else
+        echo ""
+        echo -e "${YELLOW}WARNING: You are about to DELETE ALL GPUStack data (models, configurations, statistics).${NC}"
+        echo "This action is irreversible."
+        read -rp "Are you sure you want to remove the gpustack_data volume? (y/N): " confirm
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            REMOVE_VOLUME=true
+        else
+            log_info "Skipping volume removal. The existing GPUStack data will be preserved."
+        fi
+    fi
+fi
+
 if [[ "$FORCE" == true ]]; then
     log_info "Force mode – recreating containers..."
     docker compose down --remove-orphans
+
+    if [[ "$REMOVE_VOLUME" == true ]]; then
+        if docker volume ls -q | grep -q "gpustack_data"; then
+            docker volume rm gpustack_data 2>/dev/null || true
+            log_info "Removed gpustack_data volume"
+        else
+            log_info "gpustack_data volume not found – nothing to remove"
+        fi
+    fi
+
     docker compose up -d --build
 else
     docker compose up -d --no-recreate
@@ -505,7 +598,24 @@ fi
 log_success "Docker Compose stack started"
 
 # -----------------------------------------------------------------------------
-# 5. Wait for GPUStack and download/register model
+# IMMEDIATELY capture the initial admin password (before it gets deleted)
+# -----------------------------------------------------------------------------
+log_step "Capturing initial admin password immediately..."
+INITIAL_PASS_FILE="/var/lib/gpustack/initial_admin_password"
+if docker exec gpustack test -f "$INITIAL_PASS_FILE" 2>/dev/null; then
+    INITIAL_PASS=$(docker exec gpustack cat "$INITIAL_PASS_FILE" | tr -d '\n')
+    if [[ -n "$INITIAL_PASS" ]]; then
+        log_info "Initial admin password captured: $INITIAL_PASS"
+        safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$INITIAL_PASS"
+        export GPUSTACK_ADMIN_PASSWORD="${INITIAL_PASS}"
+        log_success "Updated .env with the initial admin password"
+    fi
+else
+    log_info "Initial password file not found – using existing .env password."
+fi
+
+# -----------------------------------------------------------------------------
+# Wait for GPUStack to be ready
 # -----------------------------------------------------------------------------
 log_step "Waiting for GPUStack to be ready..."
 for i in {1..30}; do
@@ -516,45 +626,82 @@ for i in {1..30}; do
     sleep 2
 done
 
-log_step "Downloading GGUF model into GPUStack's model directory..."
-MODEL_NAME="deepseek-1.5b"
-if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-    if ! bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --format gguf --dir "$MODELS_DIR"; then
-        log_warning "GGUF model download failed. You can manually add models via GPUStack UI."
-    else
-        log_success "GGUF model downloaded to $MODELS_DIR"
-    fi
-else
-    log_warning "download-model.sh not found – skipping model download"
-fi
+# -----------------------------------------------------------------------------
+# Register model using GPUStack CLI (no token needed)
+# -----------------------------------------------------------------------------
+log_step "Registering model using GPUStack CLI..."
 
-# Register the model with GPUStack
-log_step "Registering model with GPUStack..."
-GPUSTACK_JWT_SECRET=$(grep GPUSTACK_JWT_SECRET "$ENV_FILE" | cut -d'=' -f2)
-if [[ -n "$GPUSTACK_JWT_SECRET" ]]; then
-    GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
-    if [[ -n "$GGUF_FILE" ]]; then
-        MODEL_PATH="/models/$(basename "$GGUF_FILE")"
-        curl -X POST http://localhost:8080/v1/model-files \
-            -H "Authorization: Bearer $GPUSTACK_JWT_SECRET" \
-            -H "Content-Type: application/json" \
-            -d "{\"path\": \"$MODEL_PATH\"}" 2>/dev/null || log_warning "Model registration failed – you can register manually via GPUStack UI"
-        log_success "Model registered with GPUStack"
+GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
+if [[ -n "$GGUF_FILE" ]]; then
+    MODEL_PATH="/models/$(basename "$GGUF_FILE")"
+    log_info "Adding model file: $MODEL_PATH"
+    
+    # Try CLI: gpustack model add
+    if docker exec gpustack gpustack model add "$MODEL_PATH" 2>/dev/null; then
+        log_success "Model added via CLI"
     else
-        log_warning "No GGUF file found – skipping registration"
+        log_warning "CLI 'model add' failed, trying alternative 'model create'..."
+        if docker exec gpustack gpustack model create --file "$MODEL_PATH" 2>/dev/null; then
+            log_success "Model created via CLI"
+        else
+            log_warning "CLI registration failed – falling back to REST API."
+            
+            # -----------------------------------------------------------------------------
+            # Fallback: REST API authentication (if CLI fails)
+            # -----------------------------------------------------------------------------
+            log_step "Attempting REST API authentication (fallback)..."
+            TOKEN=""
+            if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
+                for attempt in {1..5}; do
+                    log_info "Login attempt $attempt/5..."
+                    
+                    # Build JSON safely
+                    LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
+                        -H "Content-Type: application/json" \
+                        -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
+                    
+                    TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
+                    
+                    if [[ -n "$TOKEN" ]]; then
+                        log_success "GPUStack authentication successful"
+                        # Register via API
+                        curl -X POST http://localhost:8080/v2/model-files \
+                            -H "Authorization: Bearer $TOKEN" \
+                            -H "Content-Type: application/json" \
+                            -d "{\"path\": \"$MODEL_PATH\"}" 2>/dev/null && \
+                            log_success "Model registered via API" || \
+                            log_warning "Model registration via API failed"
+                        break
+                    else
+                        log_warning "Login attempt $attempt failed. Waiting $(($attempt * 2)) seconds..."
+                        sleep $((attempt * 2))
+                    fi
+                done
+                if [[ -z "$TOKEN" ]]; then
+                    log_warning "Could not obtain token after multiple attempts. You can register the model manually via UI."
+                fi
+            else
+                log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping API fallback."
+            fi
+        fi
     fi
 else
-    log_warning "GPUSTACK_JWT_SECRET not found – skipping model registration"
+    log_warning "No GGUF file found – skipping model registration"
 fi
 
 # -----------------------------------------------------------------------------
-# 6. Update .env with LLM_BASE_URL
+# Update .env with LLM_BASE_URL (only once, with proper newline)
+#
+# LangGraph runs inside the Docker network and communicates with the gpustack service by its container name gpustack hence LLM_BASE_URL=http://gpustack:8080/v1
 # -----------------------------------------------------------------------------
 log_step "Updating .env to use GPUStack..."
+LLM_URL="LLM_BASE_URL=http://gpustack:8080/v1"
 if grep -q "^LLM_BASE_URL=" "$ENV_FILE"; then
-    sed -i 's|^LLM_BASE_URL=.*|LLM_BASE_URL=http://gpustack:8080/v1|' "$ENV_FILE"
+    safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_URL"
 else
-    echo "LLM_BASE_URL=http://gpustack:8080/v1" >> "$ENV_FILE"
+    # Ensure there's a trailing newline before appending
+    echo "" >> "$ENV_FILE"
+    echo "${LLM_URL}" >> "$ENV_FILE"
 fi
 log_success ".env updated"
 
@@ -623,6 +770,7 @@ if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
     ARGS=""
     [[ "$FORCE" == true ]] && ARGS="$ARGS --force"
     [[ "$UPGRADE" == true ]] && ARGS="$ARGS --upgrade"
+    [[ "$AUTO" == true ]] && ARGS="$ARGS --auto"
     bash "$SCRIPT_DIR/install-modules.sh" $ARGS
 else
     log_warning "install-modules.sh not found – skipping module installation"
@@ -677,47 +825,11 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Get GPUStack API token
-# -----------------------------------------------------------------------------
-log_step "Getting GPUStack API token..."
-
-ADMIN_PASS=""
-INITIAL_PASS_FILE="/var/lib/gpustack/initial_admin_password"
-
-if docker exec gpustack test -f "$INITIAL_PASS_FILE"; then
-    ADMIN_PASS=$(docker exec gpustack cat "$INITIAL_PASS_FILE")
-    log_info "Using initial admin password from file"
-elif [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
-    ADMIN_PASS="${GPUSTACK_ADMIN_PASSWORD}"
-    log_info "Using admin password from environment"
-elif [[ "$AUTO" != true ]]; then
-    read -s -p "Enter GPUStack admin password: " ADMIN_PASS
-    echo
-fi
-
-TOKEN=""
-if [[ -n "$ADMIN_PASS" ]]; then
-    LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
-        -H "Content-Type: application/json" \
-        -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASS\"}")
-    TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token')
-    if [[ -n "$TOKEN" && "$TOKEN" != "null" ]]; then
-        log_success "GPUStack authentication successful"
-    else
-        log_warning "Failed to authenticate with provided password. You may need to reset it or use the UI."
-        TOKEN=""
-    fi
-fi
-
-if [[ -z "$TOKEN" ]]; then
-    log_warning "Skipping GPUStack API automation. You can deploy models manually via UI."
-fi
-
-# -----------------------------------------------------------------------------
 # 11. Display final status
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT"
 mark_phase_complete 2
+touch /tmp/nettrades-phase2-completed  # Session flag
 
 log_success "Phase 2 completed – Docker stack deployed with all modules"
 echo ""
@@ -732,7 +844,8 @@ echo "  Odoo:      http://localhost:8069"
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001"
 echo "  Prometheus: http://localhost:9090"
-echo "  GPUStack:  http://localhost:8080  (default credentials: admin / password from initial_admin_password)"
+echo "  GPUStack:  http://localhost:8080"
+echo "    Admin password stored in: $ENV_FILE (GPUSTACK_ADMIN_PASSWORD)"
 echo ""
 echo "Default Odoo credentials: admin / admin"
 echo "(Change immediately after first login)"

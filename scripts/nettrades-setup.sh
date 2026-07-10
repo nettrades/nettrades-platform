@@ -304,7 +304,7 @@ check_dependencies() {
     local missing=()
 
     if [[ "$os" == "linux" ]]; then
-        for cmd in curl wget git; do
+        for cmd in curl wget git jq; do
             if ! command -v "$cmd" &>/dev/null; then
                 missing+=("$cmd")
             fi

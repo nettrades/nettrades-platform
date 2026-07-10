@@ -3,31 +3,11 @@
 # FILE: scripts/phase-modules.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 5: Odoo Module Installation.
+#   Phase 4: Odoo Module Installation.
 #   This phase installs or upgrades all NETTRADES custom Odoo modules.
-#   It calls the existing install-modules.sh script.
 #
-#   Modules installed:
-#   - nettrades_core
-#   - nettrades_good_answer
-#   - nettrades_ask_someone
-#   - nettrades_gpu_admin
-#   - nettrades_gpustack_adapter
-#   - nettrades_queue
-#   - nettrades_bridge
-#   - nettrades_data_collection
-#   - nettrades_trigger
-#   - nettrades_loop
-#   - nettrades_self_improving_config
-#   - nettrades_fairness
-#   - nettrades_onboarding
-#   - nettrades_job_matching
-#   - nettrades_proposals
-#   - nettrades_lead_scoring
-#   - nettrades_research
-#   - nettrades_chatbot
-#   - nettrades_notifications
-#   - nettrades_pwa
+#   IMPORTANT: This script does NOT re-run Phase 2 (unlike the previous version).
+#   The main orchestrator (nettrades-setup.sh) ensures correct phase ordering.
 #
 # USAGE:
 #   ./phase-modules.sh [--auto] [--force] [--upgrade]
@@ -66,11 +46,13 @@ if phase_completed 4 && [[ "$FORCE" != true ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Prerequisites
+# Prerequisites Check (without re-running Phase 2 due to FORCE)
 # -----------------------------------------------------------------------------
-if ! phase_completed 2; then
-    log_info "Phase 2 not completed. Running Phase 2 first..."
-    bash "$SCRIPT_DIR/phase-deploy.sh"
+# Check if Phase 2 marker exists (ignoring FORCE) – if missing, Phase 2 must be run.
+if [[ ! -f "$PROJECT_ROOT/.phase-2-complete" ]]; then
+    log_error "Phase 2 (Deployment) must be completed before installing modules."
+    log_error "Please run: ./scripts/nettrades-setup.sh deploy --force"
+    exit 1
 fi
 
 # -----------------------------------------------------------------------------

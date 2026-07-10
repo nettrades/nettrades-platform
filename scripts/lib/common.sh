@@ -28,6 +28,17 @@ detect_os() {
 }
 
 # -----------------------------------------------------------------------------
+# WSL Detection
+# -----------------------------------------------------------------------------
+detect_wsl() {
+    if grep -qi "microsoft" /proc/version 2>/dev/null; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # GPU Detection
 # -----------------------------------------------------------------------------
 detect_gpu() {
@@ -81,35 +92,6 @@ confirm_force_production() {
     if [[ "$env" == "production" ]]; then
         echo ""
         echo "      WARNING      "
-        echo ""
-        echo "You are running '--force' on Phase $phase_name in a PRODUCTION environment."
-        echo "This will OVERWRITE existing configuration and may cause data loss."
-        echo ""
-        echo "This action CANNOT be undone."
-        echo ""
-        read -p "Type 'YES' to continue: " CONFIRM
-        if [[ "$CONFIRM" != "YES" ]]; then
-            echo "Aborted."
-            exit 1
-        fi
-        echo ""
-    fi
-}
-
-# -----------------------------------------------------------------------------
-# Production Safety Check for --force
-# -----------------------------------------------------------------------------
-confirm_force_production() {
-    local phase_name="$1"
-    local env="${ENVIRONMENT:-development}"
-
-    if [[ "${FORCE:-false}" != "true" ]]; then
-        return 0
-    fi
-
-    if [[ "$env" == "production" ]]; then
-        echo ""
-        echo "⚠️  ⚠️  ⚠️  WARNING  ⚠️  ⚠️  ⚠️"
         echo ""
         echo "You are running '--force' on Phase $phase_name in a PRODUCTION environment."
         echo "This will OVERWRITE existing configuration and may cause data loss."
@@ -187,9 +169,20 @@ generate_password() {
 }
 
 # -----------------------------------------------------------------------------
+# Safe sed replacement (escapes special characters)
+# -----------------------------------------------------------------------------
+safe_sed_replace() {
+    local file="$1"
+    local pattern="$2"
+    local replacement="$3"
+    # Escape replacement for sed (using '|' as delimiter)
+    local escaped_replacement=$(printf '%s' "$replacement" | sed 's/[|/]/\\&/g')
+    sed -i "s|^${pattern}=.*|${pattern}=${escaped_replacement}|" "$file"
+}
+
+# -----------------------------------------------------------------------------
 # Model Download Functions
 # -----------------------------------------------------------------------------
-
 download_llm_model() {
     local model_name="$1"
     local output_dir="$2"
