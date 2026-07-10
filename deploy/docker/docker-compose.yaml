@@ -194,6 +194,11 @@ services:
         condition: service_healthy
       valkey:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
     logging:
       driver: "json-file"
       options:
@@ -327,6 +332,7 @@ services:
       - web
       - internal
     environment:
+      - GPUSTACK_ADMIN_PASSWORD=${GPUSTACK_ADMIN_PASSWORD}   # <-- Add this
       - GPUSTACK_JWT_SECRET=${GPUSTACK_JWT_SECRET}
       - GPUSTACK_GRAFANA_URL=https://grafana.${DOMAIN}
       - GPUSTACK_MODEL_DIR=/models
@@ -342,6 +348,11 @@ services:
     depends_on:
       - postgres
       - valkey
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4'
     logging:
       driver: "json-file"
       options:
