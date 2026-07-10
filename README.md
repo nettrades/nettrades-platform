@@ -126,7 +126,7 @@ The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessl
 This guide will help you get the platform running on your own server, laptop, or cloud VM in minutes.
 
 ### 📋 Prerequisites
-On windows make sure you have Docker Desktop is installed. 
+On windows make sure you install Docker Desktop and integrate it with WSL2 
 
 Install and Configure Docker for WSL 2
 Step 1: Install Docker Desktop for Windows
@@ -146,6 +146,12 @@ Step 2: Open Docker Desktop Settings
 * Click the gear icon (⚙️) in the top-right corner to open Settings
 
 Step 3: Enable WSL Integration
+
+* In the Settings window, go to General and tick "Start Docker Desktp when you sign in to your computer" 
+(unless you remember to start Docker Desktop every time you use the nettrades-platform for development) 
+Choose container terminal - Integrated
+Choose how to run Docker container - WSL2
+then click Apply
 
 * In the Settings window, go to Resources → WSL Integration
 
