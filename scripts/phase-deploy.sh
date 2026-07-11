@@ -26,14 +26,6 @@
 
 set -euo pipefail
 
-# -----------------------------------------------------------------------------
-# Session flag to prevent duplicate runs (Phase 4 re-run prevention)
-# -----------------------------------------------------------------------------
-if [[ -f /tmp/nettrades-phase2-completed ]] && [[ "${FORCE:-false}" != "true" ]]; then
-    log_info "Phase 2 already completed in this session. Skipping."
-    exit 0
-fi
-
 # The web network is used by Traefik (the reverse proxy) to route incoming traffic to services like Odoo. 
 # It is defined as external in your docker-compose.yaml, which means Docker Compose expects it to already exist
 
@@ -56,12 +48,24 @@ source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
+# Session flag – only skip if both session flag and phase marker exist
+# -----------------------------------------------------------------------------
+if [[ -f /tmp/nettrades-phase2-completed ]] && [[ -f "$PROJECT_ROOT/.phase-2-complete" ]]; then
+    log_info "Phase 2 already completed in this session. Skipping."
+    exit 0
+elif [[ -f /tmp/nettrades-phase2-completed ]] && [[ ! -f "$PROJECT_ROOT/.phase-2-complete" ]]; then
+    # Stale session flag – remove and continue
+    log_info "Stale session flag found without phase marker. Removing and re-running Phase 2."
+    rm -f /tmp/nettrades-phase2-completed
+fi
+
+# -----------------------------------------------------------------------------
 # Parse arguments
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
 UPGRADE="${UPGRADE:-false}"
-export FORCE  # <-- FIX: Ensure FORCE is available to phase_completed()
+export FORCE # <-- FIX: Ensure FORCE is available to phase_completed()
 
 # -----------------------------------------------------------------------------
 # Production Safety Check
@@ -497,6 +501,11 @@ fi
 cd "$DEPLOY_DIR"
 log_step "Starting Docker Compose stack..."
 
+# Ensure .env has Unix line endings (fix Windows CRLF)
+if command -v dos2unix &>/dev/null; then
+    dos2unix "$ENV_FILE" 2>/dev/null || true
+fi
+
 # Source .env for environment variables
 set -a
 source "$ENV_FILE"
@@ -611,7 +620,7 @@ if docker exec gpustack test -f "$INITIAL_PASS_FILE" 2>/dev/null; then
         log_success "Updated .env with the initial admin password"
     fi
 else
-    log_info "Initial password file not found – using existing .env password."
+    log_info "Initial password file not found – will generate a new one."
 fi
 
 # -----------------------------------------------------------------------------
@@ -627,66 +636,125 @@ for i in {1..30}; do
 done
 
 # -----------------------------------------------------------------------------
-# Register model using GPUStack CLI (no token needed)
+# Generate a new admin password and capture it
 # -----------------------------------------------------------------------------
-log_step "Registering model using GPUStack CLI..."
+log_step "Generating new GPUStack admin password..."
+# Run reset without arguments to generate a random password
+RESET_OUTPUT=$(docker exec gpustack gpustack reset-admin-password 2>&1)
+GENERATED_PASS=$(echo "$RESET_OUTPUT" | grep -oP 'Reset admin password: \K.*' | head -1)
 
-GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
-if [[ -n "$GGUF_FILE" ]]; then
-    MODEL_PATH="/models/$(basename "$GGUF_FILE")"
-    log_info "Adding model file: $MODEL_PATH"
-    
-    # Try CLI: gpustack model add
-    if docker exec gpustack gpustack model add "$MODEL_PATH" 2>/dev/null; then
-        log_success "Model added via CLI"
+if [[ -n "$GENERATED_PASS" ]]; then
+    log_success "Generated password: $GENERATED_PASS"
+    # Update .env with the generated password
+    safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$GENERATED_PASS"
+    export GPUSTACK_ADMIN_PASSWORD="$GENERATED_PASS"
+else
+    log_warning "Could not capture generated password. Using existing .env value."
+    # If capture fails, use the existing password (which may be the initial one or admin123)
+    GENERATED_PASS="${GPUSTACK_ADMIN_PASSWORD:-admin123}"
+    log_info "Using password: $GENERATED_PASS"
+fi
+
+# Wait for the password change to take effect
+log_info "Waiting 10 seconds for password propagation..."
+sleep 10
+
+# -----------------------------------------------------------------------------
+# Download GGUF model
+# -----------------------------------------------------------------------------
+log_step "Downloading GGUF model into GPUStack's model directory..."
+MODEL_NAME="deepseek-1.5b"
+if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+    if ! bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --format gguf --dir "$MODELS_DIR"; then
+        log_warning "GGUF model download failed. You can manually add models via GPUStack UI."
     else
-        log_warning "CLI 'model add' failed, trying alternative 'model create'..."
-        if docker exec gpustack gpustack model create --file "$MODEL_PATH" 2>/dev/null; then
-            log_success "Model created via CLI"
-        else
-            log_warning "CLI registration failed – falling back to REST API."
-            
-            # -----------------------------------------------------------------------------
-            # Fallback: REST API authentication (if CLI fails)
-            # -----------------------------------------------------------------------------
-            log_step "Attempting REST API authentication (fallback)..."
-            TOKEN=""
-            if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
-                for attempt in {1..5}; do
-                    log_info "Login attempt $attempt/5..."
-                    
-                    # Build JSON safely
-                    LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
-                        -H "Content-Type: application/json" \
-                        -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
-                    
-                    TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
-                    
-                    if [[ -n "$TOKEN" ]]; then
-                        log_success "GPUStack authentication successful"
-                        # Register via API
-                        curl -X POST http://localhost:8080/v2/model-files \
-                            -H "Authorization: Bearer $TOKEN" \
-                            -H "Content-Type: application/json" \
-                            -d "{\"path\": \"$MODEL_PATH\"}" 2>/dev/null && \
-                            log_success "Model registered via API" || \
-                            log_warning "Model registration via API failed"
-                        break
-                    else
-                        log_warning "Login attempt $attempt failed. Waiting $(($attempt * 2)) seconds..."
-                        sleep $((attempt * 2))
-                    fi
-                done
-                if [[ -z "$TOKEN" ]]; then
-                    log_warning "Could not obtain token after multiple attempts. You can register the model manually via UI."
-                fi
-            else
-                log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping API fallback."
-            fi
-        fi
+        log_success "GGUF model downloaded to $MODELS_DIR"
     fi
 else
-    log_warning "No GGUF file found – skipping model registration"
+    log_warning "download-model.sh not found – skipping model download"
+fi
+
+# -----------------------------------------------------------------------------
+# Authenticate with GPUStack and register the model (API fallback)
+# -----------------------------------------------------------------------------
+log_step "Authenticating with GPUStack API and registering model..."
+
+TOKEN=""
+if [[ -z "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
+    log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping API automation."
+else
+    # Retry login with backoff
+    for attempt in {1..5}; do
+        log_info "Login attempt $attempt/5..."
+        # Wait for the auth endpoint to be ready
+        for i in {1..10}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/auth/login | grep -q "405\|200\|401"; then
+                break
+            fi
+            sleep 2
+        done
+
+        # Use jq to build the JSON payload safely (handles special characters)
+        LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
+
+        # Extract token, default to empty if anything fails
+        TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
+
+        if [[ -n "$TOKEN" ]]; then
+            log_success "GPUStack authentication successful"
+            break
+        else
+            log_warning "Login attempt $attempt failed. Waiting $(($attempt * 2)) seconds before retry..."
+            sleep $((attempt * 2))
+        fi
+    done
+
+    if [[ -n "$TOKEN" ]]; then
+        # Register the downloaded GGUF file using the correct v2 endpoint
+        GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
+        if [[ -n "$GGUF_FILE" ]]; then
+            MODEL_PATH="/models/$(basename "$GGUF_FILE")"
+            log_info "Registering model file via API: $MODEL_PATH"
+            curl -X POST http://localhost:8080/v2/model-files \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"path\": \"$MODEL_PATH\"}" 2>/dev/null && \
+                log_success "Model registered successfully" || \
+                log_warning "Model registration failed – you can register manually via GPUStack UI"
+        else
+            log_warning "No GGUF file found – skipping registration"
+        fi
+    else
+        log_warning "Failed to get GPUStack token after multiple attempts."
+        log_info "You can register the model manually via GPUStack UI at http://localhost:8080"
+        log_info "Username: admin, Password: $GPUSTACK_ADMIN_PASSWORD"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# Reset Grafana admin password to match .env
+# -----------------------------------------------------------------------------
+log_step "Resetting Grafana admin password..."
+# Wait for Grafana to be ready
+for i in {1..30}; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/health | grep -q "200"; then
+        log_success "Grafana is ready"
+        break
+    fi
+    sleep 2
+done
+
+if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
+    if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" 2>/dev/null; then
+        log_success "Grafana password reset successfully"
+    else
+        log_warning "Could not reset Grafana password. You may need to set it manually."
+        log_info "Grafana is accessible at http://localhost:3001 (admin / password in .env GRAFANA_PASSWORD)"
+    fi
+else
+    log_warning "GRAFANA_PASSWORD not set – skipping password reset"
 fi
 
 # -----------------------------------------------------------------------------
@@ -751,9 +819,6 @@ for i in {1..30}; do
 done
 
 if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
-    # -----------------------------------------------------------------------------
-    # 8a. Install required Odoo base modules (website, portal, etc.)
-    # -----------------------------------------------------------------------------
     log_step "Installing Odoo base modules required by NETTRADES..."
     for base_module in website portal mail auth_signup; do
         log_info "Installing module: $base_module"
@@ -761,12 +826,7 @@ if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
     done
     log_success "Base modules installed"
     
-    # -----------------------------------------------------------------------------
-    # 8b. Install NETTRADES Odoo modules (existing step)
-    # -----------------------------------------------------------------------------
     log_step "Installing NETTRADES Odoo modules..."
-    
-    log_info "Running install-modules.sh..."
     ARGS=""
     [[ "$FORCE" == true ]] && ARGS="$ARGS --force"
     [[ "$UPGRADE" == true ]] && ARGS="$ARGS --upgrade"
@@ -801,7 +861,7 @@ fi
 # 10. Verify service health
 # -----------------------------------------------------------------------------
 log_step "Verifying service health..."
-sleep 10  # Allow services to settle
+sleep 10 # Allow services to settle
 
 # Check Odoo
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
@@ -829,7 +889,7 @@ fi
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT"
 mark_phase_complete 2
-touch /tmp/nettrades-phase2-completed  # Session flag
+touch /tmp/nettrades-phase2-completed
 
 log_success "Phase 2 completed – Docker stack deployed with all modules"
 echo ""
@@ -840,12 +900,11 @@ echo ""
 docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 echo "Access the services:"
-echo "  Odoo:      http://localhost:8069"
+echo "  Odoo:      http://localhost:8069  (admin/admin)"
 echo "  Forgejo:   http://localhost:3000"
-echo "  Grafana:   http://localhost:3001"
+echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"
 echo "  Prometheus: http://localhost:9090"
-echo "  GPUStack:  http://localhost:8080"
-echo "    Admin password stored in: $ENV_FILE (GPUSTACK_ADMIN_PASSWORD)"
+echo "  GPUStack:  http://localhost:8080  (admin / password in .env GPUSTACK_ADMIN_PASSWORD)"
 echo ""
 echo "Default Odoo credentials: admin / admin"
 echo "(Change immediately after first login)"
