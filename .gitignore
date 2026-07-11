@@ -153,3 +153,4 @@ third-party/odoo/*
 .phase-1-complete
 .phase-0-complete
 third-party/odoo
+.phase-0-complete
