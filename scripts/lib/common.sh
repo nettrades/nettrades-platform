@@ -175,9 +175,10 @@ safe_sed_replace() {
     local file="$1"
     local pattern="$2"
     local replacement="$3"
-    # Escape replacement for sed (using '|' as delimiter)
-    local escaped_replacement=$(printf '%s' "$replacement" | sed 's/[|/]/\\&/g')
-    sed -i "s|^${pattern}=.*|${pattern}=${escaped_replacement}|" "$file"
+    # Escape single quotes inside the replacement: ' -> '\''
+    local escaped_replacement="${replacement//\'/\'\\\'\'}"
+    # Write as VAR='escaped_replacement'
+    sed -i "s|^${pattern}=.*|${pattern}='${escaped_replacement}'|" "$file"
 }
 
 # -----------------------------------------------------------------------------

@@ -242,17 +242,39 @@ fi
 # -----------------------------------------------------------------------------
 # Install dos2unix (for fixing line endings in Windows ↔ Linux environments) and Install jq
 # -----------------------------------------------------------------------------
-log_step "Installing dos2unix..."
-if command -v dos2unix &>/dev/null; then
-    log_success "dos2unix already installed"
+log_step "Installing dos2unix and jq..."
+if command -v dos2unix &>/dev/null && command -v jq &>/dev/null; then
+    log_success "dos2unix and jq already installed"
 else
     if [[ "$OS" == "linux" ]]; then
         sudo apt-get update -qq
-        sudo apt-get install -y dos2unix
-        log_success "dos2unix installed"
-        sudo apt-get install -y curl wget git jq
+        sudo apt-get install -y dos2unix curl wget git jq
+        log_success "dos2unix and jq installed"
     else
-        log_warning "Please install dos2unix manually for $OS"
+        log_warning "Please install dos2unix and jq manually for $OS"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# NEW: Install bcrypt for Prometheus password hashing
+# -----------------------------------------------------------------------------
+log_step "Installing bcrypt for Prometheus password hashing..."
+if python3 -c "import bcrypt" &>/dev/null; then
+    log_success "bcrypt Python module already installed"
+else
+    log_info "bcrypt not found – installing..."
+    if [[ "$OS" == "linux" ]]; then
+        # Try apt first (Ubuntu/Debian)
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y python3-bcrypt && log_success "bcrypt installed via apt"
+        else
+            # Fallback to pip
+            pip3 install bcrypt --break-system-packages 2>/dev/null || pip3 install bcrypt && log_success "bcrypt installed via pip"
+        fi
+    else
+        # For macOS or other, use pip
+        pip3 install bcrypt 2>/dev/null && log_success "bcrypt installed via pip" || log_warning "Could not install bcrypt. Please install manually."
     fi
 fi
 

@@ -512,6 +512,29 @@ source "$ENV_FILE"
 set +a
 
 # -----------------------------------------------------------------------------
+# [SAFETY] Preserve existing PostgreSQL password from running container
+# -----------------------------------------------------------------------------
+POSTGRES_PRESERVED=false
+# Get the container ID or name for the postgres service
+PG_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null)
+if [[ -n "$PG_CONTAINER" ]]; then
+    # Check if it's running
+    if docker inspect -f '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null | grep -q true; then
+        CURRENT_PG_PASS=$(docker exec "$PG_CONTAINER" env | grep POSTGRES_PASSWORD | cut -d= -f2)
+        if [[ -n "$CURRENT_PG_PASS" ]]; then
+            log_info "PostgreSQL container is running. Using its password: $CURRENT_PG_PASS"
+            safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$CURRENT_PG_PASS"
+            export POSTGRES_PASSWORD="$CURRENT_PG_PASS"
+            POSTGRES_PRESERVED=true
+        fi
+    else
+        log_info "PostgreSQL container exists but is not running. Skipping password preservation."
+    fi
+else
+    log_info "PostgreSQL container does not exist. Will generate password if weak."
+fi
+
+# -----------------------------------------------------------------------------
 # Auto-generate strong secrets for all services (if missing or weak)
 # -----------------------------------------------------------------------------
 generate_secret() {
@@ -525,6 +548,7 @@ SECRET_VARS=(
     FORGEJO_DB_PASSWORD
     FORGEJO_SECRET_KEY
     GRAFANA_PASSWORD
+    PROMETHEUS_PASSWORD
     LANGGRAPH_API_KEY
     GPUSTACK_ADMIN_PASSWORD
     GPUSTACK_JWT_SECRET
@@ -532,7 +556,18 @@ SECRET_VARS=(
     PROXY_API_KEY
 )
 
+# [SAFETY] Backup .env before any changes
+BACKUP_ENV="${ENV_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+cp "$ENV_FILE" "$BACKUP_ENV"
+log_info "Backed up .env to $BACKUP_ENV"
+
 for VAR in "${SECRET_VARS[@]}"; do
+    # Skip POSTGRES_PASSWORD if preserved from running container
+    if [[ "$VAR" == "POSTGRES_PASSWORD" ]] && [[ "$POSTGRES_PRESERVED" == true ]]; then
+        log_info "POSTGRES_PASSWORD preserved from container – skipping regeneration."
+        continue
+    fi
+
     # Check if variable exists and its value is not a placeholder
     if grep -q "^${VAR}=" "$ENV_FILE"; then
         CURRENT_VALUE=$(grep "^${VAR}=" "$ENV_FILE" | cut -d'=' -f2-)
@@ -548,7 +583,7 @@ for VAR in "${SECRET_VARS[@]}"; do
     else
         # Variable missing – generate and append
         NEW_VALUE=$(generate_secret)
-        echo "${VAR}=${NEW_VALUE}" >> "$ENV_FILE"
+        safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
         log_info "Generated ${VAR}"
         export "${VAR}=${NEW_VALUE}"
     fi
@@ -566,7 +601,77 @@ if [[ "$ODOO_API_KEY" != "$PROXY_API_KEY" ]]; then
     log_info "Synchronised ODOO_API_KEY and PROXY_API_KEY"
 fi
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Generate Prometheus web.yml with basic auth (using the password from .env)
+# -----------------------------------------------------------------------------
+log_step "Generating Prometheus web.yml with basic auth..."
+WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
+WEB_CONFIG_FILE="$WEB_CONFIG_DIR/web.yml"
+PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
+
+# Backup existing web.yml if present
+if [[ -f "$WEB_CONFIG_FILE" ]]; then
+    BACKUP_WEB="${WEB_CONFIG_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
+    cp "$WEB_CONFIG_FILE" "$BACKUP_WEB"
+    log_info "Backed up existing web.yml to $BACKUP_WEB"
+fi
+
+if command -v python3 &>/dev/null && python3 -c "import bcrypt" 2>/dev/null; then
+    PROMETHEUS_HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw(b'$PROMETHEUS_PASSWORD', bcrypt.gensalt()).decode())")
+    mkdir -p "$WEB_CONFIG_DIR"
+    cat > "$WEB_CONFIG_FILE" << EOF
+basic_auth_users:
+    admin: $PROMETHEUS_HASH
+EOF
+    log_success "Prometheus web.yml generated with basic auth"
+else
+    log_warning "python3-bcrypt not installed. Skipping automatic web.yml generation."
+    log_info "Install it with: sudo apt install python3-bcrypt"
+    # Create a placeholder file to avoid errors
+    mkdir -p "$WEB_CONFIG_DIR"
+    cat > "$WEB_CONFIG_FILE" << EOF
+# WARNING: No authentication configured. Install python3-bcrypt and re-run.
+EOF
+fi
+
+# -----------------------------------------------------------------------------
+# Generate Grafana datasource provisioning file (using the Prometheus password)
+# -----------------------------------------------------------------------------
+log_step "Generating Grafana datasource provisioning..."
+GRAFANA_DATASOURCES_DIR="$DEPLOY_DIR/grafana-datasources"
+GRAFANA_DATASOURCES_FILE="$GRAFANA_DATASOURCES_DIR/datasources.yaml"
+PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
+
+mkdir -p "$GRAFANA_DATASOURCES_DIR"
+
+# Backup existing datasources.yaml if present
+if [[ -f "$GRAFANA_DATASOURCES_FILE" ]]; then
+    BACKUP_DS="${GRAFANA_DATASOURCES_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
+    cp "$GRAFANA_DATASOURCES_FILE" "$BACKUP_DS"
+    log_info "Backed up existing datasources.yaml to $BACKUP_DS"
+fi
+
+cat > "$GRAFANA_DATASOURCES_FILE" << EOF
+# =============================================================================
+# Grafana Datasource Provisioning
+# =============================================================================
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    basicAuth: true
+    basicAuthUser: admin
+    secureJsonData:
+      basicAuthPassword: ${PROMETHEUS_PASSWORD}
+    isDefault: true
+    editable: false
+EOF
+log_success "Grafana datasource provisioning created at $GRAFANA_DATASOURCES_FILE"
+
+# -----------------------------------------------------------------------------
 # Determine if we should remove the GPUStack volume
 REMOVE_VOLUME=false
 if [[ "$FORCE" == true ]]; then
@@ -586,9 +691,28 @@ if [[ "$FORCE" == true ]]; then
     fi
 fi
 
+# [SAFETY] Make orphan removal optional
 if [[ "$FORCE" == true ]]; then
     log_info "Force mode – recreating containers..."
-    docker compose down --remove-orphans
+    
+    # Ask about removing orphans (unless auto)
+    REMOVE_ORPHANS=""
+    if [[ "$AUTO" == true ]]; then
+        REMOVE_ORPHANS="--remove-orphans"
+        log_info "Auto mode: removing orphans without prompt."
+    else
+        echo ""
+        echo -e "${YELLOW}Do you want to remove orphan containers (containers not defined in the compose file)?${NC}"
+        echo "This may affect other services on the same Docker network."
+        read -rp "Remove orphans? (y/N): " confirm_orphans
+        if [[ "$confirm_orphans" =~ ^[Yy]$ ]]; then
+            REMOVE_ORPHANS="--remove-orphans"
+        else
+            REMOVE_ORPHANS=""
+        fi
+    fi
+
+    docker compose down $REMOVE_ORPHANS
 
     if [[ "$REMOVE_VOLUME" == true ]]; then
         if docker volume ls -q | grep -q "gpustack_data"; then
@@ -675,7 +799,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Authenticate with GPUStack and register the model (API fallback)
+# Authenticate with GPUStack API and register the model (API fallback)
 # -----------------------------------------------------------------------------
 log_step "Authenticating with GPUStack API and registering model..."
 
@@ -683,10 +807,15 @@ TOKEN=""
 if [[ -z "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
     log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping API automation."
 else
-    # Retry login with backoff
-    for attempt in {1..5}; do
-        log_info "Login attempt $attempt/5..."
-        # Wait for the auth endpoint to be ready
+    # Wait longer for password propagation
+    log_info "Waiting 30 seconds for GPUStack password propagation..."
+    sleep 30
+
+    # Retry login with exponential backoff (more attempts)
+    for attempt in {1..10}; do
+        log_info "Login attempt $attempt/10..."
+        
+        # Wait for the auth endpoint to be ready (with progressive delay)
         for i in {1..10}; do
             if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/auth/login | grep -q "405\|200\|401"; then
                 break
@@ -694,20 +823,20 @@ else
             sleep 2
         done
 
-        # Use jq to build the JSON payload safely (handles special characters)
+        # Use jq to build the JSON payload safely
         LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
 
-        # Extract token, default to empty if anything fails
         TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
 
         if [[ -n "$TOKEN" ]]; then
             log_success "GPUStack authentication successful"
             break
         else
-            log_warning "Login attempt $attempt failed. Waiting $(($attempt * 2)) seconds before retry..."
-            sleep $((attempt * 2))
+            wait_time=$((attempt * 2))
+            log_warning "Login attempt $attempt failed. Waiting ${wait_time} seconds before retry..."
+            sleep $wait_time
         fi
     done
 
@@ -734,7 +863,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Reset Grafana admin password to match .env
+# [IMPROVED] Reset Grafana admin password to match .env
 # -----------------------------------------------------------------------------
 log_step "Resetting Grafana admin password..."
 # Wait for Grafana to be ready
@@ -747,11 +876,119 @@ for i in {1..30}; do
 done
 
 if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
-    if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" 2>/dev/null; then
-        log_success "Grafana password reset successfully"
-    else
-        log_warning "Could not reset Grafana password. You may need to set it manually."
-        log_info "Grafana is accessible at http://localhost:3001 (admin / password in .env GRAFANA_PASSWORD)"
+    RESET_SUCCESS=false
+
+    # -------------------------------------------------------------------------
+    # Step 1: Check if the password from .env already works
+    # -------------------------------------------------------------------------
+    if curl -s -o /dev/null -w "%{http_code}" -u "admin:$GRAFANA_PASSWORD" http://localhost:3001/api/org | grep -q "200"; then
+        log_success "Grafana password from .env is already correct – no action needed"
+        RESET_SUCCESS=true
+    fi
+
+    # -------------------------------------------------------------------------
+    # Step 2: Try API login with default admin/admin (for fresh installs)
+    # -------------------------------------------------------------------------
+    if [[ "$RESET_SUCCESS" != true ]]; then
+        if curl -s -o /dev/null -w "%{http_code}" -u "admin:admin" http://localhost:3001/api/org | grep -q "200"; then
+            log_info "Logged in with default admin/admin. Changing password via API..."
+            COOKIE_JAR=$(mktemp)
+            curl -s -X POST http://localhost:3001/login \
+                -H "Content-Type: application/json" \
+                -d '{"user":"admin","password":"admin"}' \
+                -c "$COOKIE_JAR" > /dev/null
+
+            if curl -s -X PUT http://localhost:3001/api/user/password \
+                -H "Content-Type: application/json" \
+                -H "X-Grafana-Org-Id: 1" \
+                -b "$COOKIE_JAR" \
+                -d "{\"oldPassword\":\"admin\",\"newPassword\":\"$GRAFANA_PASSWORD\",\"confirmNew\":\"$GRAFANA_PASSWORD\"}" \
+                | grep -q "message.*Password changed"; then
+                log_success "Grafana password changed successfully via API (from admin/admin)"
+                RESET_SUCCESS=true
+            else
+                log_warning "API password change failed after admin/admin login"
+            fi
+            rm -f "$COOKIE_JAR"
+        fi
+    fi
+
+    # -------------------------------------------------------------------------
+    # Step 3: Fall back to CLI methods (for existing installations)
+    # -------------------------------------------------------------------------
+    if [[ "$RESET_SUCCESS" != true ]]; then
+        log_info "API methods failed; trying CLI..."
+
+        # Try grafana-cli
+        if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
+            log_success "Grafana password reset successfully using grafana-cli"
+            RESET_SUCCESS=true
+        fi
+
+        # Try unified grafana admin
+        if [[ "$RESET_SUCCESS" != true ]]; then
+            if docker exec grafana grafana admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
+                log_success "Grafana password reset successfully using grafana admin"
+                RESET_SUCCESS=true
+            fi
+        fi
+    fi
+
+    # -------------------------------------------------------------------------
+    # Step 4: Last resort – delete grafana-data (only with --force)
+    # -------------------------------------------------------------------------
+    if [[ "$RESET_SUCCESS" != true ]] && [[ "$FORCE" == true ]]; then
+        log_warning "All automatic reset methods failed. Deleting Grafana data directory to start fresh..."
+
+        GRAFANA_DATA_DIR="$DEPLOY_DIR/grafana-data"
+        if [[ -d "$GRAFANA_DATA_DIR" ]]; then
+            if [[ "$AUTO" == true ]]; then
+                log_info "Auto mode: removing grafana-data without prompt."
+                rm -rf "$GRAFANA_DATA_DIR"
+                log_success "grafana-data removed"
+            else
+                echo ""
+                echo -e "${YELLOW}WARNING: This will DELETE ALL Grafana data (dashboards, users, etc.).${NC}"
+                echo "The action is irreversible."
+                read -rp "Delete grafana-data and restart Grafana? (y/N): " confirm_delete
+                if [[ "$confirm_delete" =~ ^[Yy]$ ]]; then
+                    rm -rf "$GRAFANA_DATA_DIR"
+                    log_success "grafana-data removed"
+                else
+                    log_info "Skipping deletion. You will need to reset the password manually."
+                fi
+            fi
+        fi
+
+        # If data was removed, restart and then use CLI directly
+        if [[ ! -d "$GRAFANA_DATA_DIR" ]]; then
+            log_info "Restarting Grafana to apply fresh database..."
+            docker compose restart grafana
+
+            # Wait for health + extra settle time
+            for i in {1..20}; do
+                if curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/health | grep -q "200"; then
+                    log_success "Grafana is ready"
+                    break
+                fi
+                sleep 3
+            done
+            sleep 10   # extra time for internal services to initialise
+
+            # Use CLI to set the password (most reliable)
+            if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
+                log_success "Grafana password set via CLI after fresh start"
+                RESET_SUCCESS=true
+            else
+                log_warning "CLI password set failed after fresh start – please set manually."
+            fi
+        fi
+    fi
+
+    if [[ "$RESET_SUCCESS" != true ]]; then
+        log_warning "Could not reset Grafana password automatically. You may need to set it manually."
+        log_info "Try: docker exec -it grafana grafana-cli admin reset-admin-password $GRAFANA_PASSWORD"
+        log_info "If that fails, delete the grafana-data directory and restart, then use admin/admin."
     fi
 else
     log_warning "GRAFANA_PASSWORD not set – skipping password reset"
@@ -903,7 +1140,7 @@ echo "Access the services:"
 echo "  Odoo:      http://localhost:8069  (admin/admin)"
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"
-echo "  Prometheus: http://localhost:9090"
+echo "  Prometheus: http://localhost:9090 (admin / password in .env PROMETHEUS_PASSWORD)"
 echo "  GPUStack:  http://localhost:8080  (admin / password in .env GPUSTACK_ADMIN_PASSWORD)"
 echo ""
 echo "Default Odoo credentials: admin / admin"

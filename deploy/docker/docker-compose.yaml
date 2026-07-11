@@ -374,9 +374,11 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus-data:/prometheus
+      - ./prometheus/web.yml:/etc/prometheus/web.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--web.config.file=/etc/prometheus/web.yml'
     labels:
       - traefik.enable=true
       - traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)
@@ -402,6 +404,7 @@ services:
     volumes:
       - ./grafana-data:/var/lib/grafana
       - ./grafana-dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana-datasources:/etc/grafana/provisioning/datasources
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
