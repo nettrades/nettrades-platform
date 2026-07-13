@@ -154,6 +154,22 @@ setup_dev_environment() {
 
     log_step "Setting up development environment..."
 
+    # [NEW] Make all scripts executable
+    log_step "Making scripts executable..."
+    chmod +x "$PROJECT_ROOT"/scripts/*.sh 2>/dev/null || true
+    chmod +x "$PROJECT_ROOT"/scripts/lib/*.sh 2>/dev/null || true
+    log_success "Scripts made executable"
+
+    # [NEW] Run fix-line-endings.sh if it exists
+    if [[ -f "$PROJECT_ROOT/scripts/fix-line-endings.sh" ]]; then
+        log_step "Fixing line endings (converting to LF)..."
+        bash "$PROJECT_ROOT/scripts/fix-line-endings.sh" --force 2>/dev/null || {
+            log_warning "fix-line-endings.sh failed – continuing anyway"
+        }
+    else
+        log_warning "fix-line-endings.sh not found – skipping line ending fix"
+    fi
+
     # Install Python dependencies if requirements-dev.txt exists
     if [[ -f "$PROJECT_ROOT/requirements-dev.txt" ]]; then
         log_step "Installing Python development dependencies..."
