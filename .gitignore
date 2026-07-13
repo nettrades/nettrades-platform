@@ -154,3 +154,5 @@ third-party/odoo/*
 .phase-0-complete
 third-party/odoo
 .phase-0-complete
+key
+key.pub
