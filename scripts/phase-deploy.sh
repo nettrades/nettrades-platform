@@ -134,6 +134,15 @@ mkdir -p "$DATA_DIR/backups"
 mkdir -p "$GPUSTACK_DATA_DIR"
 mkdir -p "$MODELS_DIR"
 mkdir -p "$LOGS_DIR"
+
+# [FIX] Determine the UID of the odoo user from the image (dynamically)
+log_step "Determining Odoo user UID from the image..."
+# First, build the Odoo image if it's not already built (we'll build it anyway)
+# We'll query the image after building, but to avoid race, we can check if image exists, else build.
+# The build step is later, so we'll handle it after the build.
+# We'll create a placeholder directory now, and we'll set permissions after the image is built.
+# So we'll just create the directory now with root ownership, and later we'll chown.
+mkdir -p "$ODOO_DATA_DIR"
 log_success "Directories created"
 
 # -----------------------------------------------------------------------------
@@ -182,6 +191,27 @@ if [[ -f "$LANGGRAPH_DOCKERFILE" ]]; then
 else
     log_warning "Dockerfile for LangGraph not found – skipping build"
 fi
+
+# -----------------------------------------------------------------------------
+# [NEW] Query the Odoo user UID from the built image
+# -----------------------------------------------------------------------------
+ODOO_UID=""
+if docker image inspect nettrades-odoo:latest &>/dev/null; then
+    ODOO_UID=$(docker run --rm nettrades-odoo:latest id -u odoo 2>/dev/null || echo "")
+fi
+if [[ -z "$ODOO_UID" ]]; then
+    log_warning "Could not determine Odoo UID from image. Falling back to UID 100."
+    ODOO_UID="100"
+fi
+log_info "Odoo user UID: $ODOO_UID"
+
+# -----------------------------------------------------------------------------
+# Ensure Odoo data directory exists and set correct permissions
+# -----------------------------------------------------------------------------
+ODOO_DATA_DIR="$DEPLOY_DIR/odoo-data"
+mkdir -p "$ODOO_DATA_DIR"
+chown -R "$ODOO_UID:$ODOO_UID" "$ODOO_DATA_DIR" 2>/dev/null || true
+log_success "Odoo data directory permissions set to UID $ODOO_UID"
 
 # -----------------------------------------------------------------------------
 # 4. Generate init-db.sql with all NETTRADES tables
