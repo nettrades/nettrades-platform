@@ -110,6 +110,9 @@ LOGS_DIR="$PROJECT_ROOT/logs"
 GPUSTACK_DATA_DIR="$DEPLOY_DIR/gpustack-data"
 MODELS_DIR="$GPUSTACK_DATA_DIR/models"
 
+# [FIX] Define Odoo data directory early
+ODOO_DATA_DIR="$DEPLOY_DIR/odoo-data"
+
 if [[ ! -f "$ENV_FILE" ]]; then
     log_error ".env not found. Please run Phase 1 first."
     exit 1
