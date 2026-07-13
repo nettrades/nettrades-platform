@@ -12,6 +12,18 @@
 #      You can use envsubst, Helm, or Kustomize to inject them.
 #   3. Apply with: kubectl apply -f wireguard-config.yaml
 #
+# How to Use It:
+# Generate the required keys (server private, peer public, peer PSK) – the comments show how.
+# Replace the placeholders (${WG_PRIVATE_KEY}, ${PEER1_PUBLIC_KEY}, etc.) with your actual values.
+#        You can use envsubst, a Helm chart, or Kustomize to inject them automatically.
+#    Apply the YAML:
+#    bash
+#    kubectl apply -f deploy/kubernetes/distributed-gpu/peers/wireguard-config.yaml
+#
+#    Verification:
+#      The ConfigMap will contain the wg0.conf with the resolved keys.
+#      The Secret will store the keys securely.
+# This is the recommended approach for production GPU marketplace deployments – it’s secure, scalable, and well-commented.
 # NOTES:
 #   - The subnet 10.100.0.0/24 is used for the GPU marketplace VPN.
 #     This is outside the admin VPN isolation range (10.0.0.0/16).
