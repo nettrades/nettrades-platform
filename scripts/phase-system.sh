@@ -7,10 +7,11 @@
 #   This phase prepares the host system for NETTRADES deployment by:
 #   - Installing system dependencies (Docker, Docker Compose, NVIDIA drivers)
 #   - Configuring firewall (UFW/iptables)
-#   - Hardening SSH (disable root login, key-only auth)
+#   - Setting up a WireGuard VPN server for administrative access
+#   - Hardening SSH (disable root login, key-only auth globally,
+#     but allow password auth from the VPN subnet)
 #   - Installing fail2ban
 #   - Configuring system limits for high-performance workloads
-#   - Setting up WireGuard (if requested)
 #   - Enabling gVisor runtime for container isolation (if on Kubernetes)
 #
 #   It is idempotent and safe to re-run.
@@ -187,10 +188,12 @@ log_step "Configuring firewall..."
 if command -v ufw &>/dev/null; then
     if ! ufw status | grep -q "active"; then
         log_info "Enabling UFW firewall..."
-        sudo ufw allow 22/tcp comment 'SSH'
+        sudo ufw allow 22/tcp comment 'SSH (main)'
+        sudo ufw allow 2222/tcp comment 'SSH (rescue)'
         sudo ufw allow 80/tcp comment 'HTTP'
         sudo ufw allow 443/tcp comment 'HTTPS'
-        sudo ufw allow 51820/udp comment 'WireGuard'
+        sudo ufw allow 51820/udp comment 'WireGuard (internal)'
+        sudo ufw allow 51821/udp comment 'WireGuard (admin VPN)'
         sudo ufw --force enable
     else
         log_success "UFW firewall already active"
@@ -200,30 +203,208 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 6. SSH hardening
+# 6. SSH Key Setup – Guide the user to create a key before hardening
 # -----------------------------------------------------------------------------
-log_step "Hardening SSH configuration..."
-if [[ -f /etc/ssh/sshd_config ]]; then
-    # Disable root login
-    if ! grep -q "^PermitRootLogin no" /etc/ssh/sshd_config; then
-        sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-        sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-    fi
+log_step "Setting up SSH keys for secure access..."
 
-    # Disable password authentication
-    if ! grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
-        sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-        sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-    fi
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
 
-    sudo systemctl restart sshd 2>/dev/null || sudo systemctl restart ssh 2>/dev/null || true
-    log_success "SSH hardened"
+# Check for existing public key
+PUB_KEY_FILE=""
+if [[ -f /root/.ssh/id_ed25519.pub ]]; then
+    PUB_KEY_FILE="/root/.ssh/id_ed25519.pub"
+elif [[ -f /root/.ssh/id_rsa.pub ]]; then
+    PUB_KEY_FILE="/root/.ssh/id_rsa.pub"
+fi
+
+add_public_key() {
+    local key="$1"
+    echo "$key" >> /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+    log_success "Public key added to authorized_keys"
+}
+
+if [[ -n "$PUB_KEY_FILE" ]]; then
+    log_info "Found existing public key: $PUB_KEY_FILE"
+    if ! grep -q -f "$PUB_KEY_FILE" /root/.ssh/authorized_keys 2>/dev/null; then
+        cat "$PUB_KEY_FILE" >> /root/.ssh/authorized_keys
+        chmod 600 /root/.ssh/authorized_keys
+        log_success "Existing public key added to authorized_keys"
+    else
+        log_success "Public key already in authorized_keys"
+    fi
 else
-    log_warning "sshd_config not found – skipping SSH hardening"
+    log_warning "No SSH public key found in /root/.ssh/"
+
+    if [[ "$AUTO" == true ]]; then
+        log_info "Auto mode: generating a new Ed25519 SSH key without a passphrase..."
+        ssh-keygen -t ed25519 -C "root@$(hostname)" -f /root/.ssh/id_ed25519 -N ""
+        cat /root/.ssh/id_ed25519.pub >> /root/.ssh/authorized_keys
+        chmod 600 /root/.ssh/authorized_keys
+        log_success "New key generated and added to authorized_keys"
+    else
+        echo ""
+        echo "To avoid being locked out after SSH hardening, you need an SSH key."
+        echo "Options:"
+        echo "  1) Generate a new SSH key pair now (recommended)"
+        echo "  2) Paste an existing public key from your local machine"
+        echo "  3) Skip (not recommended – you may lose SSH access)"
+        read -rp "Choose 1, 2, or 3: " key_choice
+
+        case "$key_choice" in
+            1)
+                log_info "Generating a new Ed25519 SSH key pair..."
+                log_info "You will be asked for a passphrase – you can leave it empty for convenience."
+                ssh-keygen -t ed25519 -C "root@$(hostname)" -f /root/.ssh/id_ed25519
+                cat /root/.ssh/id_ed25519.pub >> /root/.ssh/authorized_keys
+                chmod 600 /root/.ssh/authorized_keys
+                log_success "New key generated and added to authorized_keys"
+                echo ""
+                echo "Your new public key is:"
+                cat /root/.ssh/id_ed25519.pub
+                echo ""
+                echo "Save this key on your local machine if you need it elsewhere."
+                ;;
+            2)
+                echo "Paste your public SSH key (e.g., from ~/.ssh/id_ed25519.pub on your local machine):"
+                read -r user_key
+                if [[ -n "$user_key" ]]; then
+                    add_public_key "$user_key"
+                else
+                    log_error "No key provided. Skipping key setup."
+                fi
+                ;;
+            3)
+                log_warning "Skipping SSH key setup. You may lose SSH access after hardening."
+                ;;
+            *)
+                log_error "Invalid choice. Skipping SSH key setup."
+                ;;
+        esac
+    fi
 fi
 
 # -----------------------------------------------------------------------------
-# 7. Install fail2ban
+# 7. Rescue SSH Port (always allows password auth, as a safety net)
+# -----------------------------------------------------------------------------
+log_step "Setting up rescue SSH port (2222)..."
+
+if ! pgrep -f "sshd.*rescue" > /dev/null; then
+    cat > /etc/ssh/sshd_config_rescue << EOF
+Port 2222
+PasswordAuthentication yes
+PermitRootLogin yes
+PubkeyAuthentication yes
+LogLevel INFO
+EOF
+    /usr/sbin/sshd -f /etc/ssh/sshd_config_rescue
+    log_success "Rescue SSH server started on port 2222 (password auth allowed)"
+else
+    log_success "Rescue SSH server already running on port 2222"
+fi
+
+# -----------------------------------------------------------------------------
+# 8. WireGuard Admin VPN Server (for emergency SSH access)
+# -----------------------------------------------------------------------------
+log_step "Setting up WireGuard admin VPN server..."
+
+WG_ADMIN_DIR="/etc/wireguard/admin"
+mkdir -p "$WG_ADMIN_DIR"
+
+if [[ ! -f "$WG_ADMIN_DIR/privatekey" ]]; then
+    wg genkey | tee "$WG_ADMIN_DIR/privatekey" | wg pubkey > "$WG_ADMIN_DIR/publickey"
+fi
+
+# Create server configuration with iptables rules to isolate admin VPN from internal network
+cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
+[Interface]
+Address = 10.10.10.1/24
+ListenPort = 51821
+PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
+SaveConfig = false
+
+# Allow forwarding and NAT for VPN clients
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# Block admin VPN from accessing internal WireGuard subnet (10.0.0.0/16)
+PostUp = iptables -I FORWARD -i wg0 -d 10.0.0.0/16 -j DROP
+
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -d 10.0.0.0/16 -j DROP 2>/dev/null || true
+EOF
+
+systemctl enable wg-quick@admin-wg0 2>/dev/null || true
+systemctl start wg-quick@admin-wg0 2>/dev/null || true
+log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0/24)"
+
+# -----------------------------------------------------------------------------
+# 9. SSH hardening (with self-test to prevent lockout)
+# -----------------------------------------------------------------------------
+log_step "Hardening SSH configuration (main port 22)..."
+
+# Backup current config
+cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+
+if [[ -f /etc/ssh/sshd_config ]]; then
+    # Disable root login globally
+    sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+    sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+
+    # Disable password authentication globally (will be overridden for VPN)
+    sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+    sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+
+    # Allow password authentication from the WireGuard admin VPN subnet
+    if ! grep -q "Match Address 10.10.10.0/24" /etc/ssh/sshd_config; then
+        echo "" >> /etc/ssh/sshd_config
+        echo "Match Address 10.10.10.0/24" >> /etc/ssh/sshd_config
+        echo "    PasswordAuthentication yes" >> /etc/ssh/sshd_config
+        echo "Match All" >> /etc/ssh/sshd_config
+        log_success "SSH will allow password authentication from 10.10.10.0/24"
+    fi
+fi
+
+# Test SSH config before restart
+if ! sshd -t; then
+    log_error "SSH config test failed. Restoring backup..."
+    cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
+    systemctl restart ssh
+    log_error "SSH config reverted. Please fix manually."
+    exit 1
+fi
+
+# Restart SSH
+systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
+
+# -----------------------------------------------------------------------------
+# 10. Self-test: Verify SSH accessibility
+# -----------------------------------------------------------------------------
+log_step "Verifying SSH access (to prevent lockout)..."
+
+# Test SSH from localhost using password (rescue port)
+if ssh -o ConnectTimeout=5 -o PasswordAuthentication=yes -o BatchMode=no -p 2222 localhost "echo OK" 2>/dev/null | grep -q OK; then
+    log_success "Rescue SSH port (2222) is accessible with password auth"
+else
+    log_error "Rescue SSH port test failed! SSH may be broken."
+    log_error "Reverting SSH configuration to prevent lockout."
+    cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
+    systemctl restart ssh
+    log_error "SSH reverted to safe configuration. Please investigate."
+    exit 1
+fi
+
+# Test SSH using key from localhost (main port)
+if ssh -o ConnectTimeout=5 -o PasswordAuthentication=no -p 22 localhost "echo OK" 2>/dev/null | grep -q OK; then
+    log_success "Main SSH port (22) is accessible with key auth"
+else
+    log_warning "Main SSH port key auth test failed. Check your SSH key setup."
+    log_info "The rescue port (2222) is still available with password auth."
+fi
+
+log_success "SSH hardening complete – both main and rescue ports are accessible"
+
+# -----------------------------------------------------------------------------
+# 11. Install fail2ban
 # -----------------------------------------------------------------------------
 log_step "Installing fail2ban..."
 if command -v fail2ban-client &>/dev/null; then
@@ -240,7 +421,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Install dos2unix (for fixing line endings in Windows ↔ Linux environments) and Install jq
+# 12. Install dos2unix and jq
 # -----------------------------------------------------------------------------
 log_step "Installing dos2unix and jq..."
 if command -v dos2unix &>/dev/null && command -v jq &>/dev/null; then
@@ -256,7 +437,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# NEW: Install bcrypt for Prometheus password hashing
+# 13. Install bcrypt for Prometheus password hashing
 # -----------------------------------------------------------------------------
 log_step "Installing bcrypt for Prometheus password hashing..."
 if python3 -c "import bcrypt" &>/dev/null; then
@@ -264,22 +445,19 @@ if python3 -c "import bcrypt" &>/dev/null; then
 else
     log_info "bcrypt not found – installing..."
     if [[ "$OS" == "linux" ]]; then
-        # Try apt first (Ubuntu/Debian)
         if command -v apt-get &>/dev/null; then
             sudo apt-get update -qq
             sudo apt-get install -y python3-bcrypt && log_success "bcrypt installed via apt"
         else
-            # Fallback to pip
             pip3 install bcrypt --break-system-packages 2>/dev/null || pip3 install bcrypt && log_success "bcrypt installed via pip"
         fi
     else
-        # For macOS or other, use pip
         pip3 install bcrypt 2>/dev/null && log_success "bcrypt installed via pip" || log_warning "Could not install bcrypt. Please install manually."
     fi
 fi
 
 # -----------------------------------------------------------------------------
-# 8. Configure system limits
+# 14. Configure system limits
 # -----------------------------------------------------------------------------
 log_step "Configuring system limits..."
 LIMITS_FILE="/etc/security/limits.conf"
@@ -298,7 +476,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 9. Check gVisor installation
+# 15. Check gVisor installation
 # -----------------------------------------------------------------------------
 log_step "Checking gVisor installation..."
 if command -v runsc &>/dev/null; then
@@ -312,3 +490,22 @@ fi
 # -----------------------------------------------------------------------------
 mark_phase_complete 0
 log_success "Phase 0 completed – system is prepared and hardened"
+
+echo ""
+echo "============================================================"
+echo "Security Notes"
+echo "============================================================"
+echo "Your server is now accessible via:"
+echo "  1. SSH (port 22) – requires SSH key (root login disabled)"
+echo "  2. SSH (port 2222) – rescue port, always allows password auth"
+echo "  3. WireGuard admin VPN (port 51821) – for secure remote access"
+echo ""
+echo "The admin VPN is isolated from the internal WireGuard subnet (10.0.0.0/16)."
+echo ""
+echo "To generate a WireGuard client config, use:"
+echo "  /usr/local/bin/add-wireguard-user.sh <username>"
+echo ""
+echo "To lock down SSH to your static IP later:"
+echo "  ufw delete allow 22/tcp"
+echo "  ufw allow from YOUR_IP to any port 22 proto tcp"
+echo "============================================================"
