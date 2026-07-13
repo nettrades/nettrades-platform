@@ -233,3 +233,32 @@ download_llm_model() {
         return 1
     fi
 }
+
+# -----------------------------------------------------------------------------
+# WireGuard Helper Functions
+# -----------------------------------------------------------------------------
+
+# Generate a WireGuard client configuration
+# Usage: generate_wireguard_client <client_name> <server_public_key> <server_endpoint> <client_ip>
+generate_wireguard_client() {
+    local client_name="$1"
+    local server_pubkey="$2"
+    local server_endpoint="$3"
+    local client_ip="$4"
+
+    local client_priv=$(wg genkey)
+    local client_pub=$(echo "$client_priv" | wg pubkey)
+
+    cat << EOF
+[Interface]
+PrivateKey = $client_priv
+Address = $client_ip/24
+DNS = 8.8.8.8
+
+[Peer]
+PublicKey = $server_pubkey
+Endpoint = $server_endpoint
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 25
+EOF
+}
