@@ -305,7 +305,23 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 8. WireGuard Admin VPN Server (for emergency SSH access)
+# 8. Install WireGuard tools (if not already present)
+# -----------------------------------------------------------------------------
+log_step "Installing WireGuard tools..."
+if ! command -v wg &>/dev/null; then
+    if [[ "$OS" == "linux" ]]; then
+        sudo apt-get update -qq
+        sudo apt-get install -y wireguard-tools
+        log_success "WireGuard tools installed"
+    else
+        log_warning "Please install wireguard-tools manually for $OS"
+    fi
+else
+    log_success "WireGuard tools already installed"
+fi
+
+# -----------------------------------------------------------------------------
+# 9. WireGuard Admin VPN Server (for emergency SSH access)
 # -----------------------------------------------------------------------------
 log_step "Setting up WireGuard admin VPN server..."
 
@@ -338,7 +354,7 @@ systemctl start wg-quick@admin-wg0 2>/dev/null || true
 log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0/24)"
 
 # -----------------------------------------------------------------------------
-# 9. SSH hardening (with self-test to prevent lockout)
+# 10. SSH hardening (with self-test to prevent lockout)
 # -----------------------------------------------------------------------------
 log_step "Hardening SSH configuration (main port 22)..."
 
@@ -377,7 +393,7 @@ fi
 systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
-# 10. Self-test: Verify SSH accessibility
+# 11. Self-test: Verify SSH accessibility
 # -----------------------------------------------------------------------------
 log_step "Verifying SSH access (to prevent lockout)..."
 
@@ -404,7 +420,7 @@ fi
 log_success "SSH hardening complete – both main and rescue ports are accessible"
 
 # -----------------------------------------------------------------------------
-# 11. Install fail2ban
+# 12. Install fail2ban
 # -----------------------------------------------------------------------------
 log_step "Installing fail2ban..."
 if command -v fail2ban-client &>/dev/null; then
@@ -421,7 +437,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 12. Install dos2unix and jq
+# 13. Install dos2unix and jq
 # -----------------------------------------------------------------------------
 log_step "Installing dos2unix and jq..."
 if command -v dos2unix &>/dev/null && command -v jq &>/dev/null; then
@@ -437,7 +453,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 13. Install bcrypt for Prometheus password hashing
+# 14. Install bcrypt for Prometheus password hashing
 # -----------------------------------------------------------------------------
 log_step "Installing bcrypt for Prometheus password hashing..."
 if python3 -c "import bcrypt" &>/dev/null; then
@@ -457,7 +473,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 14. Configure system limits
+# 15. Configure system limits
 # -----------------------------------------------------------------------------
 log_step "Configuring system limits..."
 LIMITS_FILE="/etc/security/limits.conf"
@@ -476,7 +492,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 15. Check gVisor installation
+# 16. Check gVisor installation
 # -----------------------------------------------------------------------------
 log_step "Checking gVisor installation..."
 if command -v runsc &>/dev/null; then
