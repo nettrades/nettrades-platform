@@ -48,6 +48,15 @@ source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
+# SAFE PASSWORD GENERATOR – only alphanumeric characters
+# This prevents .env parsing errors caused by '+', '/', '=', "'", etc.
+# -----------------------------------------------------------------------------
+generate_safe_password() {
+    # 24 alphanumeric characters (no special characters)
+    openssl rand -base64 24 | tr -d '+/=' | tr -d '\n' | cut -c1-24
+}
+
+# -----------------------------------------------------------------------------
 # Session flag – only skip if both session flag and phase marker exist
 # -----------------------------------------------------------------------------
 if [[ -f /tmp/nettrades-phase2-completed ]] && [[ -f "$PROJECT_ROOT/.phase-2-complete" ]]; then
@@ -515,10 +524,8 @@ set +a
 # [SAFETY] Preserve existing PostgreSQL password from running container
 # -----------------------------------------------------------------------------
 POSTGRES_PRESERVED=false
-# Get the container ID or name for the postgres service
 PG_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null)
 if [[ -n "$PG_CONTAINER" ]]; then
-    # Check if it's running
     if docker inspect -f '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null | grep -q true; then
         CURRENT_PG_PASS=$(docker exec "$PG_CONTAINER" env | grep POSTGRES_PASSWORD | cut -d= -f2)
         if [[ -n "$CURRENT_PG_PASS" ]]; then
@@ -537,8 +544,9 @@ fi
 # -----------------------------------------------------------------------------
 # Auto-generate strong secrets for all services (if missing or weak)
 # -----------------------------------------------------------------------------
+# We use the safe password generator that avoids special characters
 generate_secret() {
-    openssl rand -base64 24 | tr -d '\n'
+    generate_safe_password
 }
 
 # List of variables to ensure strong values
@@ -739,9 +747,11 @@ if docker exec gpustack test -f "$INITIAL_PASS_FILE" 2>/dev/null; then
     INITIAL_PASS=$(docker exec gpustack cat "$INITIAL_PASS_FILE" | tr -d '\n')
     if [[ -n "$INITIAL_PASS" ]]; then
         log_info "Initial admin password captured: $INITIAL_PASS"
+        # The initial password might contain special chars – we don't use it directly.
+        # We will generate a new safe password later.
         safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$INITIAL_PASS"
         export GPUSTACK_ADMIN_PASSWORD="${INITIAL_PASS}"
-        log_success "Updated .env with the initial admin password"
+        log_success "Updated .env with the initial admin password (will be replaced by safe password)"
     fi
 else
     log_info "Initial password file not found – will generate a new one."
@@ -760,24 +770,15 @@ for i in {1..30}; do
 done
 
 # -----------------------------------------------------------------------------
-# Generate a new admin password and capture it
+# Generate a new admin password and capture it (safe, alphanumeric)
 # -----------------------------------------------------------------------------
 log_step "Generating new GPUStack admin password..."
-# Run reset without arguments to generate a random password
-RESET_OUTPUT=$(docker exec gpustack gpustack reset-admin-password 2>&1)
-GENERATED_PASS=$(echo "$RESET_OUTPUT" | grep -oP 'Reset admin password: \K.*' | head -1)
-
-if [[ -n "$GENERATED_PASS" ]]; then
-    log_success "Generated password: $GENERATED_PASS"
-    # Update .env with the generated password
-    safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$GENERATED_PASS"
-    export GPUSTACK_ADMIN_PASSWORD="$GENERATED_PASS"
-else
-    log_warning "Could not capture generated password. Using existing .env value."
-    # If capture fails, use the existing password (which may be the initial one or admin123)
-    GENERATED_PASS="${GPUSTACK_ADMIN_PASSWORD:-admin123}"
-    log_info "Using password: $GENERATED_PASS"
-fi
+# Use the safe password generator
+SAFE_GPUSTACK_PASS=$(generate_safe_password)
+# Update .env with the safe password
+safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$SAFE_GPUSTACK_PASS"
+export GPUSTACK_ADMIN_PASSWORD="$SAFE_GPUSTACK_PASS"
+log_success "Generated safe password: $SAFE_GPUSTACK_PASS"
 
 # Wait for the password change to take effect
 log_info "Waiting 10 seconds for password propagation..."
