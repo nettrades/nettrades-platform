@@ -93,7 +93,8 @@ if [[ -f "$ENV_FILE" ]]; then
         echo ""
         echo -e "${YELLOW}Proceed with regeneration? This action CANNOT be undone. (type 'YES' to confirm)${NC}"
         read -p "> " final_confirm
-        if [[ "$final_confirm" != "YES" ]]; then
+        # Case‑insensitive check
+        if [[ "${final_confirm^^}" != "YES" ]]; then
             log_info "Aborted."
             exit 0
         fi
