@@ -262,3 +262,37 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF
 }
+
+# ----------------------------------------------------------------------
+# pull_with_retry - Attempt to pull a Docker image with retries and fallback
+# Usage: pull_with_retry <image_name> [max_attempts] [fallback_mirror]
+# ----------------------------------------------------------------------
+pull_with_retry() {
+    local image="$1"
+    local max_attempts="${2:-5}"
+    local fallback_mirror="${3:-https://docker.mirror.example.com}"
+    local attempt=1
+    local delay=2
+
+    echo "Pulling Docker image: $image"
+    while [ $attempt -le $max_attempts ]; do
+        if docker pull "$image" 2>/dev/null; then
+            echo "Successfully pulled $image"
+            return 0
+        fi
+
+        echo "Pull failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..." >&2
+        sleep $delay
+        delay=$((delay * 2))
+        attempt=$((attempt + 1))
+    done
+
+    echo "All $max_attempts attempts failed. Trying fallback mirror: $fallback_mirror" >&2
+    if docker pull "$image" --registry-mirror="$fallback_mirror" 2>/dev/null; then
+        echo "Successfully pulled $image via fallback mirror"
+        return 0
+    fi
+
+    echo "ERROR: Failed to pull $image after all retries and fallback." >&2
+    return 1
+}
