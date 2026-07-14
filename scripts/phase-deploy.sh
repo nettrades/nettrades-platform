@@ -26,7 +26,7 @@
 
 set -euo pipefail
 
-# The web network is used by Traefik (the reverse proxy) to route incoming traffic to services like Odoo. 
+# The web network is used by Traefik (the reverse proxy) to route incoming traffic to services like Odoo.
 # It is defined as external in your docker-compose.yaml, which means Docker Compose expects it to already exist
 
 if ! docker network ls --format '{{.Name}}' | grep -q "^web$"; then
@@ -774,88 +774,58 @@ if [[ "$FORCE" == true ]]; then
     fi
 
     # -----------------------------------------------------------------------------
-    # [FIX] Pull images with retry – using correct compose pull and retry loop
+    # Pull remote images with retry, skip local images (those with build:)
+    # Then build and start the stack.
     # -----------------------------------------------------------------------------
-    log_step "Pulling all required images with retry..."
-    max_attempts=5
-    attempt=1
-    delay=2
-    while [ $attempt -le $max_attempts ]; do
-        if docker compose pull; then
-            log_success "All images pulled successfully"
-            break
-        fi
-        log_warning "Compose pull failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
-        sleep $delay
-        delay=$((delay * 2))
-        attempt=$((attempt + 1))
-    done
-    if [ $attempt -gt $max_attempts ]; then
-        log_error "Failed to pull images after $max_attempts attempts."
-        log_info "Trying individual service pulls..."
-        for svc in $(docker compose config --services); do
-            log_info "Pulling service: $svc"
-            attempt=1
-            while [ $attempt -le $max_attempts ]; do
-                if docker compose pull "$svc"; then
-                    log_success "Pulled $svc"
-                    break
-                fi
-                log_warning "Pull of $svc failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
-                sleep $delay
-                delay=$((delay * 2))
-                attempt=$((attempt + 1))
-            done
-            if [ $attempt -gt $max_attempts ]; then
-                log_error "Failed to pull $svc after $max_attempts attempts. Skipping..."
-            fi
-        done
-    fi
-
-    docker compose up -d --build
+    log_step "Pulling remote images with retry (local images will be built from source)..."
 else
     # -----------------------------------------------------------------------------
-    # [FIX] Also pull images with retry when not forcing (first install)
+    # For non-force runs (first install), also pull remote images with retry.
     # -----------------------------------------------------------------------------
-    log_step "Pulling all required images with retry..."
-    max_attempts=5
-    attempt=1
-    delay=2
-    while [ $attempt -le $max_attempts ]; do
-        if docker compose pull; then
-            log_success "All images pulled successfully"
-            break
-        fi
-        log_warning "Compose pull failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
-        sleep $delay
-        delay=$((delay * 2))
-        attempt=$((attempt + 1))
-    done
-    if [ $attempt -gt $max_attempts ]; then
-        log_error "Failed to pull images after $max_attempts attempts."
-        log_info "Trying individual service pulls..."
-        for svc in $(docker compose config --services); do
-            log_info "Pulling service: $svc"
-            attempt=1
-            while [ $attempt -le $max_attempts ]; do
-                if docker compose pull "$svc"; then
-                    log_success "Pulled $svc"
-                    break
-                fi
-                log_warning "Pull of $svc failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
-                sleep $delay
-                delay=$((delay * 2))
-                attempt=$((attempt + 1))
-            done
-            if [ $attempt -gt $max_attempts ]; then
-                log_error "Failed to pull $svc after $max_attempts attempts. Skipping..."
-            fi
-        done
-    fi
-
-    docker compose up -d --no-recreate
+    log_step "Pulling remote images with retry (local images will be built from source)..."
 fi
 
+# -----------------------------------------------------------------------------
+# Unified pull logic: identify remote services (no build context) and pull with retry
+# -----------------------------------------------------------------------------
+REMOTE_SERVICES=()
+for svc in $(docker compose config --services); do
+    # Check if the service has a 'build' directive (local image)
+    if ! docker compose config | grep -A 20 "^  $svc:" | grep -q "build:"; then
+        REMOTE_SERVICES+=("$svc")
+    else
+        log_info "Skipping pull for $svc (built locally)"
+    fi
+done
+
+if [[ ${#REMOTE_SERVICES[@]} -eq 0 ]]; then
+    log_info "No remote services to pull – all are built locally."
+else
+    max_attempts=5
+    delay=2
+    for svc in "${REMOTE_SERVICES[@]}"; do
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+            if docker compose pull "$svc"; then
+                log_success "Pulled $svc"
+                break
+            fi
+            log_warning "Pull of $svc failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
+            sleep $delay
+            delay=$((delay * 2))
+            attempt=$((attempt + 1))
+        done
+        if [ $attempt -gt $max_attempts ]; then
+            log_error "Failed to pull $svc after $max_attempts attempts. Continuing anyway – may already exist locally."
+        fi
+    done
+fi
+
+# -----------------------------------------------------------------------------
+# Build local images (if any) and start the stack
+# -----------------------------------------------------------------------------
+log_step "Building and starting Docker Compose stack..."
+docker compose up -d --build
 log_success "Docker Compose stack started"
 
 # -----------------------------------------------------------------------------
