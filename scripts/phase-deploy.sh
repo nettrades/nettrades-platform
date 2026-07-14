@@ -74,7 +74,7 @@ fi
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
 UPGRADE="${UPGRADE:-false}"
-export FORCE # <-- FIX: Ensure FORCE is available to phase_completed()
+export FORCE
 
 # -----------------------------------------------------------------------------
 # Production Safety Check
@@ -657,14 +657,23 @@ if [[ -f "$WEB_CONFIG_FILE" ]]; then
     log_info "Backed up existing web.yml to $BACKUP_WEB"
 fi
 
+# -----------------------------------------------------------------------------
+# [FIX] Use the dedicated Python script for bcrypt hashing
+# -----------------------------------------------------------------------------
 if command -v python3 &>/dev/null && python3 -c "import bcrypt" 2>/dev/null; then
-    PROMETHEUS_HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw(b'$PROMETHEUS_PASSWORD', bcrypt.gensalt()).decode())")
-    mkdir -p "$WEB_CONFIG_DIR"
-    cat > "$WEB_CONFIG_FILE" << EOF
+    # Ensure the script is executable
+    chmod +x "$SCRIPT_DIR/generate-bcrypt-hash.py" 2>/dev/null || true
+    if [[ -f "$SCRIPT_DIR/generate-bcrypt-hash.py" ]]; then
+        PROMETHEUS_HASH=$(python3 "$SCRIPT_DIR/generate-bcrypt-hash.py" <<< "$PROMETHEUS_PASSWORD")
+        mkdir -p "$WEB_CONFIG_DIR"
+        cat > "$WEB_CONFIG_FILE" << EOF
 basic_auth_users:
     admin: $PROMETHEUS_HASH
 EOF
-    log_success "Prometheus web.yml generated with basic auth"
+        log_success "Prometheus web.yml generated with basic auth"
+    else
+        log_warning "generate-bcrypt-hash.py not found – skipping web.yml generation"
+    fi
 else
     log_warning "python3-bcrypt not installed. Skipping automatic web.yml generation."
     log_info "Install it with: sudo apt install python3-bcrypt"
@@ -764,8 +773,40 @@ if [[ "$FORCE" == true ]]; then
         fi
     fi
 
+    # -----------------------------------------------------------------------------
+    # [NEW] Pull images with retry before building
+    # -----------------------------------------------------------------------------
+    log_step "Pulling all required images with retry..."
+    if command -v pull_with_retry &>/dev/null; then
+        pull_with_retry "docker compose pull" 5 || {
+            log_warning "Compose pull failed; pulling individual services..."
+            for svc in $(docker compose config --services); do
+                pull_with_retry "$svc" 5
+            done
+        }
+    else
+        log_warning "pull_with_retry not available; using plain docker compose pull"
+        docker compose pull
+    fi
+
     docker compose up -d --build
 else
+    # -----------------------------------------------------------------------------
+    # [NEW] Also pull images with retry when not forcing (first install)
+    # -----------------------------------------------------------------------------
+    log_step "Pulling all required images with retry..."
+    if command -v pull_with_retry &>/dev/null; then
+        pull_with_retry "docker compose pull" 5 || {
+            log_warning "Compose pull failed; pulling individual services..."
+            for svc in $(docker compose config --services); do
+                pull_with_retry "$svc" 5
+            done
+        }
+    else
+        log_warning "pull_with_retry not available; using plain docker compose pull"
+        docker compose pull
+    fi
+
     docker compose up -d --no-recreate
 fi
 
@@ -1108,6 +1149,20 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# [NEW] Create emergency Odoo user (break‑glass account) for lockout recovery
+# -----------------------------------------------------------------------------
+log_step "Creating emergency Odoo user..."
+EMERGENCY_PASSWORD=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-24)
+docker exec -i postgres psql -U odoo -d odoo <<EOF
+INSERT INTO res_users (login, password, active, create_date, write_date)
+VALUES ('emergency', crypt('$EMERGENCY_PASSWORD', gen_salt('bf')), true, NOW(), NOW())
+ON CONFLICT (login) DO NOTHING;
+EOF
+echo "$EMERGENCY_PASSWORD" > /root/emergency_password.txt
+chmod 600 /root/emergency_password.txt
+log_success "Emergency user created: login='emergency', password in /root/emergency_password.txt"
+
+# -----------------------------------------------------------------------------
 # 9. Set up cron for daily backups
 # -----------------------------------------------------------------------------
 log_step "Setting up cron for daily backups..."
@@ -1179,3 +1234,6 @@ echo "  GPUStack:  http://localhost:8080  (admin / password in .env GPUSTACK_ADM
 echo ""
 echo "Default Odoo credentials: admin / admin"
 echo "(Change immediately after first login)"
+echo ""
+echo "Emergency Odoo user: emergency (password in /root/emergency_password.txt)"
+echo "Use this if you get locked out of admin."
