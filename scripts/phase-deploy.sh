@@ -741,7 +741,7 @@ if [[ "$FORCE" == true ]]; then
     fi
 fi
 
-# [SAFETY] Make orphan removal optional
+# [SAFETY] Make orphan removal optional and clarify it only affects this stack
 if [[ "$FORCE" == true ]]; then
     log_info "Force mode – recreating containers..."
     
@@ -752,8 +752,8 @@ if [[ "$FORCE" == true ]]; then
         log_info "Auto mode: removing orphans without prompt."
     else
         echo ""
-        echo -e "${YELLOW}Do you want to remove orphan containers (containers not defined in the compose file)?${NC}"
-        echo "This may affect other services on the same Docker network."
+        echo -e "${YELLOW}Do you want to remove orphan containers (containers that were part of this NETTRADES stack but are no longer defined in the compose file)?${NC}"
+        echo "This will NOT affect other containers running on this server from different projects."
         read -rp "Remove orphans? (y/N): " confirm_orphans
         if [[ "$confirm_orphans" =~ ^[Yy]$ ]]; then
             REMOVE_ORPHANS="--remove-orphans"
@@ -774,37 +774,83 @@ if [[ "$FORCE" == true ]]; then
     fi
 
     # -----------------------------------------------------------------------------
-    # [NEW] Pull images with retry before building
+    # [FIX] Pull images with retry – using correct compose pull and retry loop
     # -----------------------------------------------------------------------------
     log_step "Pulling all required images with retry..."
-    if command -v pull_with_retry &>/dev/null; then
-        pull_with_retry "docker compose pull" 5 || {
-            log_warning "Compose pull failed; pulling individual services..."
-            for svc in $(docker compose config --services); do
-                pull_with_retry "$svc" 5
+    max_attempts=5
+    attempt=1
+    delay=2
+    while [ $attempt -le $max_attempts ]; do
+        if docker compose pull; then
+            log_success "All images pulled successfully"
+            break
+        fi
+        log_warning "Compose pull failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
+        sleep $delay
+        delay=$((delay * 2))
+        attempt=$((attempt + 1))
+    done
+    if [ $attempt -gt $max_attempts ]; then
+        log_error "Failed to pull images after $max_attempts attempts."
+        log_info "Trying individual service pulls..."
+        for svc in $(docker compose config --services); do
+            log_info "Pulling service: $svc"
+            attempt=1
+            while [ $attempt -le $max_attempts ]; do
+                if docker compose pull "$svc"; then
+                    log_success "Pulled $svc"
+                    break
+                fi
+                log_warning "Pull of $svc failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
+                sleep $delay
+                delay=$((delay * 2))
+                attempt=$((attempt + 1))
             done
-        }
-    else
-        log_warning "pull_with_retry not available; using plain docker compose pull"
-        docker compose pull
+            if [ $attempt -gt $max_attempts ]; then
+                log_error "Failed to pull $svc after $max_attempts attempts. Skipping..."
+            fi
+        done
     fi
 
     docker compose up -d --build
 else
     # -----------------------------------------------------------------------------
-    # [NEW] Also pull images with retry when not forcing (first install)
+    # [FIX] Also pull images with retry when not forcing (first install)
     # -----------------------------------------------------------------------------
     log_step "Pulling all required images with retry..."
-    if command -v pull_with_retry &>/dev/null; then
-        pull_with_retry "docker compose pull" 5 || {
-            log_warning "Compose pull failed; pulling individual services..."
-            for svc in $(docker compose config --services); do
-                pull_with_retry "$svc" 5
+    max_attempts=5
+    attempt=1
+    delay=2
+    while [ $attempt -le $max_attempts ]; do
+        if docker compose pull; then
+            log_success "All images pulled successfully"
+            break
+        fi
+        log_warning "Compose pull failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
+        sleep $delay
+        delay=$((delay * 2))
+        attempt=$((attempt + 1))
+    done
+    if [ $attempt -gt $max_attempts ]; then
+        log_error "Failed to pull images after $max_attempts attempts."
+        log_info "Trying individual service pulls..."
+        for svc in $(docker compose config --services); do
+            log_info "Pulling service: $svc"
+            attempt=1
+            while [ $attempt -le $max_attempts ]; do
+                if docker compose pull "$svc"; then
+                    log_success "Pulled $svc"
+                    break
+                fi
+                log_warning "Pull of $svc failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
+                sleep $delay
+                delay=$((delay * 2))
+                attempt=$((attempt + 1))
             done
-        }
-    else
-        log_warning "pull_with_retry not available; using plain docker compose pull"
-        docker compose pull
+            if [ $attempt -gt $max_attempts ]; then
+                log_error "Failed to pull $svc after $max_attempts attempts. Skipping..."
+            fi
+        done
     fi
 
     docker compose up -d --no-recreate

@@ -354,6 +354,17 @@ systemctl start wg-quick@admin-wg0 2>/dev/null || true
 log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0/24)"
 
 # -----------------------------------------------------------------------------
+# Copy WireGuard client management script to /usr/local/bin
+# -----------------------------------------------------------------------------
+if [[ -f "$SCRIPT_DIR/add-wireguard-user.sh" ]]; then
+    cp "$SCRIPT_DIR/add-wireguard-user.sh" /usr/local/bin/
+    chmod +x /usr/local/bin/add-wireguard-user.sh
+    log_success "WireGuard client script installed to /usr/local/bin/add-wireguard-user.sh"
+else
+    log_warning "add-wireguard-user.sh not found – skipping"
+fi
+
+# -----------------------------------------------------------------------------
 # 10. SSH hardening (with self-test to prevent lockout)
 # -----------------------------------------------------------------------------
 log_step "Hardening SSH configuration (main port 22)..."
@@ -500,6 +511,20 @@ if command -v runsc &>/dev/null; then
 else
     log_info "gVisor not installed – will be installed during Kubernetes phase if needed"
 fi
+
+# -----------------------------------------------------------------------------
+# WireGuard client configuration reminder
+# -----------------------------------------------------------------------------
+echo ""
+echo "============================================================"
+echo " WireGuard Admin VPN"
+echo "============================================================"
+echo "To generate a WireGuard client config, run:"
+echo "  /usr/local/bin/add-wireguard-user.sh <username>"
+echo ""
+echo "Example: /usr/local/bin/add-wireguard-user.sh mylaptop"
+echo "This will create a client config in /root/wireguard-clients/"
+echo "============================================================"
 
 # -----------------------------------------------------------------------------
 # Mark phase complete
