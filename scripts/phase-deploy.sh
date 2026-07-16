@@ -9,12 +9,12 @@
 #
 #   It performs the following steps (in order):
 #   1. Create required directories.
-#   2. Download DeepSeek model (if not cached) into ./llama-cpp-data.
+#   2. Download DeepSeek model (if not cached).
 #   3. Build custom Docker images (Odoo, LangGraph) if missing.
 #   4. Generate `init-db.sql` with all NETTRADES database tables.
 #   5. Run security hardening (if Phase 0 not completed).
-#   6. Start the Docker Compose stack (using `--no-recreate`).
-#   7. Initialise PostgreSQL database with `init-db.sql`.
+#   6. Start the Docker Compose stack (idempotent).
+#   7. Initialise PostgreSQL database (only if empty).
 #   8. Install all NETTRADES Odoo modules.
 #   9. Set up cron for daily backups.
 #   10. Verify service health.
@@ -26,14 +26,15 @@
 
 set -euo pipefail
 
+# -----------------------------------------------------------------------------
+# Network setup
 # The web network is used by Traefik (the reverse proxy) to route incoming traffic to services like Odoo.
-# It is defined as external in your docker-compose.yaml, which means Docker Compose expects it to already exist
-
+# -----------------------------------------------------------------------------
 if ! docker network ls --format '{{.Name}}' | grep -q "^web$"; then
     docker network create web
 fi
 
-# Set PROJECT_ROOT if not already set (for standalone execution)
+# Set PROJECT_ROOT if not already set
 if [ -z "${PROJECT_ROOT:-}" ]; then
     PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     export PROJECT_ROOT
@@ -57,23 +58,14 @@ generate_safe_password() {
 }
 
 # -----------------------------------------------------------------------------
-# Session flag – only skip if both session flag and phase marker exist
-# -----------------------------------------------------------------------------
-if [[ -f /tmp/nettrades-phase2-completed ]] && [[ -f "$PROJECT_ROOT/.phase-2-complete" ]]; then
-    log_info "Phase 2 already completed in this session. Skipping."
-    exit 0
-elif [[ -f /tmp/nettrades-phase2-completed ]] && [[ ! -f "$PROJECT_ROOT/.phase-2-complete" ]]; then
-    # Stale session flag – remove and continue
-    log_info "Stale session flag found without phase marker. Removing and re-running Phase 2."
-    rm -f /tmp/nettrades-phase2-completed
-fi
-
-# -----------------------------------------------------------------------------
 # Parse arguments
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
 UPGRADE="${UPGRADE:-false}"
+ENVIRONMENT="${ENVIRONMENT:-development}"
+REGENERATE_SECRETS="${REGENERATE_SECRETS:-false}"
+RESET_DATA="${RESET_DATA:-false}"
 export FORCE
 
 # -----------------------------------------------------------------------------
@@ -127,29 +119,13 @@ fi
 # 1. Create required directories
 # -----------------------------------------------------------------------------
 log_step "Creating required directories..."
-mkdir -p "$DATA_DIR/postgres"
-mkdir -p "$DATA_DIR/odoo"
-mkdir -p "$DATA_DIR/valkey"
-mkdir -p "$DATA_DIR/forgejo"
-mkdir -p "$DATA_DIR/prometheus"
-mkdir -p "$DATA_DIR/grafana"
-mkdir -p "$DATA_DIR/backups"
-mkdir -p "$GPUSTACK_DATA_DIR"
-mkdir -p "$MODELS_DIR"
-mkdir -p "$LOGS_DIR"
-
-# [FIX] Determine the UID of the odoo user from the image (dynamically)
-log_step "Determining Odoo user UID from the image..."
-# First, build the Odoo image if it's not already built (we'll build it anyway)
-# We'll query the image after building, but to avoid race, we can check if image exists, else build.
-# The build step is later, so we'll handle it after the build.
-# We'll create a placeholder directory now, and we'll set permissions after the image is built.
-# So we'll just create the directory now with root ownership, and later we'll chown.
-mkdir -p "$ODOO_DATA_DIR"
+mkdir -p "$DATA_DIR/postgres" "$DATA_DIR/odoo" "$DATA_DIR/valkey" "$DATA_DIR/forgejo"
+mkdir -p "$DATA_DIR/prometheus" "$DATA_DIR/grafana" "$DATA_DIR/backups"
+mkdir -p "$GPUSTACK_DATA_DIR" "$MODELS_DIR" "$LOGS_DIR" "$ODOO_DATA_DIR"
 log_success "Directories created"
 
 # -----------------------------------------------------------------------------
-# Prepare Odoo addons for Docker build
+# Prepare Odoo addons
 # -----------------------------------------------------------------------------
 log_step "Preparing Odoo addons for build..."
 if [[ -f "$SCRIPT_DIR/prepare-odoo-addons.sh" ]]; then
@@ -163,7 +139,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 3. Build custom Docker images
+# Build custom Docker images
 # -----------------------------------------------------------------------------
 log_step "Building custom Docker images..."
 
@@ -196,7 +172,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# [NEW] Query the Odoo user UID from the built image
+# Query the Odoo user UID from the built image
 # -----------------------------------------------------------------------------
 ODOO_UID=""
 if docker image inspect nettrades-odoo:latest &>/dev/null; then
@@ -211,17 +187,17 @@ log_info "Odoo user UID: $ODOO_UID"
 # -----------------------------------------------------------------------------
 # Ensure Odoo data directory exists and set correct permissions
 # -----------------------------------------------------------------------------
-ODOO_DATA_DIR="$DEPLOY_DIR/odoo-data"
 mkdir -p "$ODOO_DATA_DIR"
 chown -R "$ODOO_UID:$ODOO_UID" "$ODOO_DATA_DIR" 2>/dev/null || true
 log_success "Odoo data directory permissions set to UID $ODOO_UID"
 
 # -----------------------------------------------------------------------------
-# 4. Generate init-db.sql with all NETTRADES tables
+# Generate init-db.sql with all NETTRADES tables
 # -----------------------------------------------------------------------------
 log_step "Generating init-db.sql with all NETTRADES tables..."
 INIT_SQL="$DEPLOY_DIR/init-db.sql"
 if [[ ! -f "$INIT_SQL" ]] || [[ "$FORCE" == true ]]; then
+    # [The full init-db.sql content is here – omitted for brevity, but it's the same as before]
     cat > "$INIT_SQL" << 'EOF'
 -- =============================================================================
 -- NETTRADES Database Initialisation Script
@@ -554,7 +530,32 @@ source "$ENV_FILE"
 set +a
 
 # -----------------------------------------------------------------------------
-# [SAFETY] Preserve existing PostgreSQL password from running container
+# Check PostgreSQL password consistency
+# -----------------------------------------------------------------------------
+check_postgres_password() {
+    local pg_container=$(docker compose ps -q postgres 2>/dev/null)
+    if [[ -n "$pg_container" ]] && docker inspect -f '{{.State.Running}}' "$pg_container" 2>/dev/null | grep -q true; then
+        local actual_pass=$(docker exec "$pg_container" env | grep POSTGRES_PASSWORD | cut -d= -f2)
+        if [[ -n "$actual_pass" && "$actual_pass" != "$POSTGRES_PASSWORD" ]]; then
+            log_warning "PostgreSQL password mismatch."
+            log_warning "  .env password: $POSTGRES_PASSWORD"
+            log_warning "  Container password: $actual_pass"
+            if [[ "$FORCE" == true ]] || [[ "$AUTO" == true ]]; then
+                log_info "Updating .env to match the container's password."
+                safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$actual_pass"
+                export POSTGRES_PASSWORD="$actual_pass"
+            else
+                log_error "Please either set the correct password in .env or use --force to update .env."
+                exit 1
+            fi
+        fi
+    fi
+}
+
+check_postgres_password
+
+# -----------------------------------------------------------------------------
+# Preserve PostgreSQL password if container already exists
 # -----------------------------------------------------------------------------
 POSTGRES_PRESERVED=false
 PG_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null)
@@ -597,49 +598,49 @@ SECRET_VARS=(
     PROXY_API_KEY
 )
 
-# [SAFETY] Backup .env before any changes
-BACKUP_ENV="${ENV_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
-cp "$ENV_FILE" "$BACKUP_ENV"
-log_info "Backed up .env to $BACKUP_ENV"
-
-for VAR in "${SECRET_VARS[@]}"; do
-    # Skip POSTGRES_PASSWORD if preserved from running container
-    if [[ "$VAR" == "POSTGRES_PASSWORD" ]] && [[ "$POSTGRES_PRESERVED" == true ]]; then
-        log_info "POSTGRES_PASSWORD preserved from container – skipping regeneration."
-        continue
+if [[ ! -f "$ENV_FILE" ]] || [[ "$REGENERATE_SECRETS" == true ]]; then
+    if [[ "$REGENERATE_SECRETS" == true ]]; then
+        log_warning "Regenerating secrets in .env (this will break running services!)."
+        BACKUP_ENV="${ENV_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$ENV_FILE" "$BACKUP_ENV"
+        log_info "Backed up .env to $BACKUP_ENV"
     fi
 
-    # Check if variable exists and its value is not a placeholder
-    if grep -q "^${VAR}=" "$ENV_FILE"; then
-        CURRENT_VALUE=$(grep "^${VAR}=" "$ENV_FILE" | cut -d'=' -f2-)
-        # Regenerate if value is weak (changeit or is empty)
-        if [[ -z "$CURRENT_VALUE" || "$CURRENT_VALUE" == "changeit" ]]; then
+    for VAR in "${SECRET_VARS[@]}"; do
+        if [[ "$VAR" == "POSTGRES_PASSWORD" ]] && [[ "$POSTGRES_PRESERVED" == true ]]; then
+            log_info "POSTGRES_PASSWORD preserved from container – skipping regeneration."
+            continue
+        fi
+
+        if grep -q "^${VAR}=" "$ENV_FILE"; then
+            CURRENT_VALUE=$(grep "^${VAR}=" "$ENV_FILE" | cut -d'=' -f2-)
+            if [[ -z "$CURRENT_VALUE" || "$CURRENT_VALUE" == "changeit" ]]; then
+                NEW_VALUE=$(generate_secret)
+                safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
+                log_info "Regenerated ${VAR} (was weak)"
+                export "${VAR}=${NEW_VALUE}"
+            else
+                export "${VAR}=${CURRENT_VALUE}"
+            fi
+        else
             NEW_VALUE=$(generate_secret)
             safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
-            log_info "Regenerated ${VAR} (was weak)"
+            log_info "Generated ${VAR}"
             export "${VAR}=${NEW_VALUE}"
-        else
-            export "${VAR}=${CURRENT_VALUE}"
         fi
-    else
-        # Variable missing – generate and append
-        NEW_VALUE=$(generate_secret)
-        safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
-        log_info "Generated ${VAR}"
-        export "${VAR}=${NEW_VALUE}"
-    fi
-done
+    done
 
-# Ensure ODOO_API_KEY and PROXY_API_KEY are identical
-ODOO_API_KEY=$(grep "^ODOO_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
-PROXY_API_KEY=$(grep "^PROXY_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
-if [[ "$ODOO_API_KEY" != "$PROXY_API_KEY" ]]; then
-    NEW_KEY=$(generate_secret)
-    safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$NEW_KEY"
-    safe_sed_replace "$ENV_FILE" "PROXY_API_KEY" "$NEW_KEY"
-    export ODOO_API_KEY="${NEW_KEY}"
-    export PROXY_API_KEY="${NEW_KEY}"
-    log_info "Synchronised ODOO_API_KEY and PROXY_API_KEY"
+    # Ensure ODOO_API_KEY and PROXY_API_KEY are identical
+    ODOO_API_KEY=$(grep "^ODOO_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
+    PROXY_API_KEY=$(grep "^PROXY_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
+    if [[ "$ODOO_API_KEY" != "$PROXY_API_KEY" ]]; then
+        NEW_KEY=$(generate_secret)
+        safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$NEW_KEY"
+        safe_sed_replace "$ENV_FILE" "PROXY_API_KEY" "$NEW_KEY"
+        export ODOO_API_KEY="${NEW_KEY}"
+        export PROXY_API_KEY="${NEW_KEY}"
+        log_info "Synchronised ODOO_API_KEY and PROXY_API_KEY"
+    fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -661,7 +662,6 @@ fi
 # [FIX] Use the dedicated Python script for bcrypt hashing
 # -----------------------------------------------------------------------------
 if command -v python3 &>/dev/null && python3 -c "import bcrypt" 2>/dev/null; then
-    # Ensure the script is executable
     chmod +x "$SCRIPT_DIR/generate-bcrypt-hash.py" 2>/dev/null || true
     if [[ -f "$SCRIPT_DIR/generate-bcrypt-hash.py" ]]; then
         PROMETHEUS_HASH=$(python3 "$SCRIPT_DIR/generate-bcrypt-hash.py" <<< "$PROMETHEUS_PASSWORD")
@@ -676,8 +676,6 @@ EOF
     fi
 else
     log_warning "python3-bcrypt not installed. Skipping automatic web.yml generation."
-    log_info "Install it with: sudo apt install python3-bcrypt"
-    # Create a placeholder file to avoid errors
     mkdir -p "$WEB_CONFIG_DIR"
     cat > "$WEB_CONFIG_FILE" << EOF
 # WARNING: No authentication configured. Install python3-bcrypt and re-run.
@@ -706,7 +704,6 @@ cat > "$GRAFANA_DATASOURCES_FILE" << EOF
 # Grafana Datasource Provisioning
 # =============================================================================
 apiVersion: 1
-
 datasources:
   - name: Prometheus
     type: prometheus
@@ -719,12 +716,13 @@ datasources:
     isDefault: true
     editable: false
 EOF
-log_success "Grafana datasource provisioning created at $GRAFANA_DATASOURCES_FILE"
+log_success "Grafana datasource provisioning created"
 
 # -----------------------------------------------------------------------------
-# Determine if we should remove the GPUStack volume
+# Determine if we should remove the GPUStack volume (only if --reset-data)
+# -----------------------------------------------------------------------------
 REMOVE_VOLUME=false
-if [[ "$FORCE" == true ]]; then
+if [[ "$RESET_DATA" == true ]]; then
     if [[ "$AUTO" == true ]]; then
         REMOVE_VOLUME=true
         log_info "Auto mode: will remove gpustack_data volume without prompt."
@@ -736,15 +734,17 @@ if [[ "$FORCE" == true ]]; then
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
             REMOVE_VOLUME=true
         else
-            log_info "Skipping volume removal. The existing GPUStack data will be preserved."
+            log_info "Skipping volume removal."
         fi
     fi
 fi
 
-# [SAFETY] Make orphan removal optional and clarify it only affects this stack
+# -----------------------------------------------------------------------------
+# Handle orphans (only if --force)
+# -----------------------------------------------------------------------------
 if [[ "$FORCE" == true ]]; then
     log_info "Force mode – recreating containers..."
-    
+
     # Ask about removing orphans (unless auto)
     REMOVE_ORPHANS=""
     if [[ "$AUTO" == true ]]; then
@@ -762,74 +762,50 @@ if [[ "$FORCE" == true ]]; then
         fi
     fi
 
-    docker compose down $REMOVE_ORPHANS
+    if [[ "$RESET_DATA" == true ]]; then
+        docker compose down $REMOVE_ORPHANS -v
+        log_info "Removed all containers and volumes (--reset-data)"
+    else
+        docker compose down $REMOVE_ORPHANS
+        log_info "Removed containers (data preserved)"
+    fi
 
-    if [[ "$REMOVE_VOLUME" == true ]]; then
+    if [[ "$REMOVE_VOLUME" == true ]] && [[ "$RESET_DATA" != true ]]; then
         if docker volume ls -q | grep -q "gpustack_data"; then
             docker volume rm gpustack_data 2>/dev/null || true
             log_info "Removed gpustack_data volume"
         else
-            log_info "gpustack_data volume not found – nothing to remove"
+            log_info "gpustack_data volume not found"
         fi
     fi
-
-    # -----------------------------------------------------------------------------
-    # Pull remote images with retry, skip local images (those with build:)
-    # Then build and start the stack.
-    # -----------------------------------------------------------------------------
-    log_step "Pulling remote images with retry (local images will be built from source)..."
-else
-    # -----------------------------------------------------------------------------
-    # For non-force runs (first install), also pull remote images with retry.
-    # -----------------------------------------------------------------------------
-    log_step "Pulling remote images with retry (local images will be built from source)..."
 fi
 
 # -----------------------------------------------------------------------------
-# Unified pull logic: identify remote services (no build context) and pull with retry
+# Build and start the stack (with retry)
 # -----------------------------------------------------------------------------
-REMOTE_SERVICES=()
-for svc in $(docker compose config --services); do
-    # Check if the service has a 'build' directive (local image)
-    if ! docker compose config | grep -A 20 "^  $svc:" | grep -q "build:"; then
-        REMOTE_SERVICES+=("$svc")
-    else
-        log_info "Skipping pull for $svc (built locally)"
+log_step "Building and starting Docker Compose stack (with retries)..."
+
+max_attempts=3
+attempt=1
+while [ $attempt -le $max_attempts ]; do
+    if docker compose up -d --build; then
+        log_success "Docker Compose stack started successfully"
+        break
     fi
+    log_warning "Docker Compose up failed (attempt $attempt/$max_attempts). Retrying in 10s..."
+    sleep 10
+    attempt=$((attempt + 1))
 done
 
-if [[ ${#REMOTE_SERVICES[@]} -eq 0 ]]; then
-    log_info "No remote services to pull – all are built locally."
-else
-    max_attempts=5
-    delay=2
-    for svc in "${REMOTE_SERVICES[@]}"; do
-        attempt=1
-        while [ $attempt -le $max_attempts ]; do
-            if docker compose pull "$svc"; then
-                log_success "Pulled $svc"
-                break
-            fi
-            log_warning "Pull of $svc failed (attempt $attempt/$max_attempts). Retrying in ${delay}s..."
-            sleep $delay
-            delay=$((delay * 2))
-            attempt=$((attempt + 1))
-        done
-        if [ $attempt -gt $max_attempts ]; then
-            log_error "Failed to pull $svc after $max_attempts attempts. Continuing anyway – may already exist locally."
-        fi
-    done
+if [ $attempt -gt $max_attempts ]; then
+    log_error "Failed to start Docker Compose stack after $max_attempts attempts."
+    exit 1
 fi
 
-# -----------------------------------------------------------------------------
-# Build local images (if any) and start the stack
-# -----------------------------------------------------------------------------
-log_step "Building and starting Docker Compose stack..."
-docker compose up -d --build
 log_success "Docker Compose stack started"
 
 # -----------------------------------------------------------------------------
-# IMMEDIATELY capture the initial admin password (before it gets deleted)
+# Capture GPUStack initial admin password
 # -----------------------------------------------------------------------------
 log_step "Capturing initial admin password immediately..."
 INITIAL_PASS_FILE="/var/lib/gpustack/initial_admin_password"
@@ -837,11 +813,9 @@ if docker exec gpustack test -f "$INITIAL_PASS_FILE" 2>/dev/null; then
     INITIAL_PASS=$(docker exec gpustack cat "$INITIAL_PASS_FILE" | tr -d '\n')
     if [[ -n "$INITIAL_PASS" ]]; then
         log_info "Initial admin password captured: $INITIAL_PASS"
-        # The initial password might contain special chars – we don't use it directly.
-        # We will generate a new safe password later.
         safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$INITIAL_PASS"
         export GPUSTACK_ADMIN_PASSWORD="${INITIAL_PASS}"
-        log_success "Updated .env with the initial admin password (will be replaced by safe password)"
+        log_success "Updated .env with the initial admin password"
     fi
 else
     log_info "Initial password file not found – will generate a new one."
@@ -860,17 +834,15 @@ for i in {1..30}; do
 done
 
 # -----------------------------------------------------------------------------
-# Generate a new admin password and capture it (safe, alphanumeric)
+# Generate a new GPUStack admin password
 # -----------------------------------------------------------------------------
 log_step "Generating new GPUStack admin password..."
 # Use the safe password generator
 SAFE_GPUSTACK_PASS=$(generate_safe_password)
-# Update .env with the safe password
 safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$SAFE_GPUSTACK_PASS"
 export GPUSTACK_ADMIN_PASSWORD="$SAFE_GPUSTACK_PASS"
 log_success "Generated safe password: $SAFE_GPUSTACK_PASS"
 
-# Wait for the password change to take effect
 log_info "Waiting 10 seconds for password propagation..."
 sleep 10
 
@@ -890,7 +862,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Authenticate with GPUStack API and register the model (API fallback)
+# Authenticate with GPUStack API and register the model
 # -----------------------------------------------------------------------------
 log_step "Authenticating with GPUStack API and registering model..."
 
@@ -905,7 +877,7 @@ else
     # Retry login with exponential backoff (more attempts)
     for attempt in {1..10}; do
         log_info "Login attempt $attempt/10..."
-        
+
         # Wait for the auth endpoint to be ready (with progressive delay)
         for i in {1..10}; do
             if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/auth/login | grep -q "405\|200\|401"; then
@@ -954,7 +926,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# [IMPROVED] Reset Grafana admin password to match .env
+# Reset Grafana admin password to match .env
 # -----------------------------------------------------------------------------
 log_step "Resetting Grafana admin password..."
 # Wait for Grafana to be ready
@@ -995,10 +967,10 @@ if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
                 -b "$COOKIE_JAR" \
                 -d "{\"oldPassword\":\"admin\",\"newPassword\":\"$GRAFANA_PASSWORD\",\"confirmNew\":\"$GRAFANA_PASSWORD\"}" \
                 | grep -q "message.*Password changed"; then
-                log_success "Grafana password changed successfully via API (from admin/admin)"
+                log_success "Grafana password changed successfully via API"
                 RESET_SUCCESS=true
             else
-                log_warning "API password change failed after admin/admin login"
+                log_warning "API password change failed"
             fi
             rm -f "$COOKIE_JAR"
         fi
@@ -1009,13 +981,12 @@ if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
     # -------------------------------------------------------------------------
     if [[ "$RESET_SUCCESS" != true ]]; then
         log_info "API methods failed; trying CLI..."
-
+        
         # Try grafana-cli
         if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
             log_success "Grafana password reset successfully using grafana-cli"
             RESET_SUCCESS=true
         fi
-
         # Try unified grafana admin
         if [[ "$RESET_SUCCESS" != true ]]; then
             if docker exec grafana grafana admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
@@ -1025,69 +996,16 @@ if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
         fi
     fi
 
-    # -------------------------------------------------------------------------
-    # Step 4: Last resort – delete grafana-data (only with --force)
-    # -------------------------------------------------------------------------
-    if [[ "$RESET_SUCCESS" != true ]] && [[ "$FORCE" == true ]]; then
-        log_warning "All automatic reset methods failed. Deleting Grafana data directory to start fresh..."
-
-        GRAFANA_DATA_DIR="$DEPLOY_DIR/grafana-data"
-        if [[ -d "$GRAFANA_DATA_DIR" ]]; then
-            if [[ "$AUTO" == true ]]; then
-                log_info "Auto mode: removing grafana-data without prompt."
-                rm -rf "$GRAFANA_DATA_DIR"
-                log_success "grafana-data removed"
-            else
-                echo ""
-                echo -e "${YELLOW}WARNING: This will DELETE ALL Grafana data (dashboards, users, etc.).${NC}"
-                echo "The action is irreversible."
-                read -rp "Delete grafana-data and restart Grafana? (y/N): " confirm_delete
-                if [[ "$confirm_delete" =~ ^[Yy]$ ]]; then
-                    rm -rf "$GRAFANA_DATA_DIR"
-                    log_success "grafana-data removed"
-                else
-                    log_info "Skipping deletion. You will need to reset the password manually."
-                fi
-            fi
-        fi
-
-        # If data was removed, restart and then use CLI directly
-        if [[ ! -d "$GRAFANA_DATA_DIR" ]]; then
-            log_info "Restarting Grafana to apply fresh database..."
-            docker compose restart grafana
-
-            # Wait for health + extra settle time
-            for i in {1..20}; do
-                if curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/health | grep -q "200"; then
-                    log_success "Grafana is ready"
-                    break
-                fi
-                sleep 3
-            done
-            sleep 10   # extra time for internal services to initialise
-
-            # Use CLI to set the password (most reliable)
-            if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
-                log_success "Grafana password set via CLI after fresh start"
-                RESET_SUCCESS=true
-            else
-                log_warning "CLI password set failed after fresh start – please set manually."
-            fi
-        fi
-    fi
-
     if [[ "$RESET_SUCCESS" != true ]]; then
-        log_warning "Could not reset Grafana password automatically. You may need to set it manually."
+        log_warning "Could not reset Grafana password automatically."
         log_info "Try: docker exec -it grafana grafana-cli admin reset-admin-password $GRAFANA_PASSWORD"
-        log_info "If that fails, delete the grafana-data directory and restart, then use admin/admin."
     fi
 else
     log_warning "GRAFANA_PASSWORD not set – skipping password reset"
 fi
 
 # -----------------------------------------------------------------------------
-# Update .env with LLM_BASE_URL (only once, with proper newline)
-#
+# Update .env with LLM_BASE_URL
 # LangGraph runs inside the Docker network and communicates with the gpustack service by its container name gpustack hence LLM_BASE_URL=http://gpustack:8080/v1
 # -----------------------------------------------------------------------------
 log_step "Updating .env to use GPUStack..."
@@ -1095,20 +1013,19 @@ LLM_URL="LLM_BASE_URL=http://gpustack:8080/v1"
 if grep -q "^LLM_BASE_URL=" "$ENV_FILE"; then
     safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_URL"
 else
-    # Ensure there's a trailing newline before appending
     echo "" >> "$ENV_FILE"
     echo "${LLM_URL}" >> "$ENV_FILE"
 fi
 log_success ".env updated"
 
 # -----------------------------------------------------------------------------
-# 7. Restart LangGraph to pick up new URL
+# Restart LangGraph to pick up new URL
 # -----------------------------------------------------------------------------
 log_step "Restarting LangGraph..."
 docker compose restart langgraph
 
 # -----------------------------------------------------------------------------
-# 7. Initialise PostgreSQL database
+# Initialise PostgreSQL database (only if empty)
 # -----------------------------------------------------------------------------
 log_step "Initialising PostgreSQL database..."
 
@@ -1122,17 +1039,27 @@ for i in {1..30}; do
     sleep 2
 done
 
-if [[ -f "$INIT_SQL" ]]; then
-    docker exec -i postgres psql -U odoo odoo < "$INIT_SQL" 2>/dev/null || {
-        log_warning "Database initialisation may have already been done."
-    }
+# Check if database is already initialised
+if docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1 FROM ir_module_module LIMIT 1" &>/dev/null; then
+    log_success "Database already initialised – skipping init."
 else
-    log_error "init-db.sql not found!"
-    exit 1
+    log_info "Database seems empty – initialising with base modules..."
+    if [[ -f "$INIT_SQL" ]]; then
+        docker exec -i postgres psql -U odoo odoo < "$INIT_SQL" 2>/dev/null || {
+            log_warning "Database initialisation may have already been done."
+        }
+    else
+        log_error "init-db.sql not found!"
+        exit 1
+    fi
+
+    # Install base module
+    docker compose exec -T odoo odoo -d odoo -i base --stop-after-init --log-level=info
+    log_success "Base modules installed"
 fi
 
 # -----------------------------------------------------------------------------
-# 8. Install all NETTRADES Odoo modules
+# Install NETTRADES Odoo modules
 # -----------------------------------------------------------------------------
 log_step "Installing NETTRADES Odoo modules..."
 
@@ -1146,14 +1073,16 @@ for i in {1..30}; do
     sleep 2
 done
 
+# Test database connection from Odoo container
+log_info "Testing database connection..."
+if ! docker compose exec -T odoo odoo -d odoo --db_host=postgres --db_port=5432 --db_user=odoo --db_password="$POSTGRES_PASSWORD" --stop-after-init --log-level=error 2>/dev/null; then
+    log_error "Odoo cannot connect to PostgreSQL. Please check the password."
+    log_error "Current .env password: $POSTGRES_PASSWORD"
+    log_error "Try: docker compose exec odoo odoo -d odoo --db_host=postgres --db_user=odoo --db_password=... --stop-after-init"
+    exit 1
+fi
+
 if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
-    log_step "Installing Odoo base modules required by NETTRADES..."
-    for base_module in website portal mail auth_signup; do
-        log_info "Installing module: $base_module"
-        docker exec odoo odoo -c /etc/odoo/odoo.conf -d odoo -i "$base_module" --stop-after-init --log-level=info 2>&1 | grep -i "error\|warning" || true
-    done
-    log_success "Base modules installed"
-    
     log_step "Installing NETTRADES Odoo modules..."
     ARGS=""
     [[ "$FORCE" == true ]] && ARGS="$ARGS --force"
@@ -1165,11 +1094,11 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# [NEW] Create emergency Odoo user (break‑glass account) for lockout recovery
+# Create emergency Odoo user
 # -----------------------------------------------------------------------------
 log_step "Creating emergency Odoo user..."
 EMERGENCY_PASSWORD=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-24)
-docker exec -i postgres psql -U odoo -d odoo <<EOF
+docker compose exec -T postgres psql -U odoo -d odoo <<EOF
 INSERT INTO res_users (login, password, active, create_date, write_date)
 VALUES ('emergency', crypt('$EMERGENCY_PASSWORD', gen_salt('bf')), true, NOW(), NOW())
 ON CONFLICT (login) DO NOTHING;
@@ -1179,14 +1108,13 @@ chmod 600 /root/emergency_password.txt
 log_success "Emergency user created: login='emergency', password in /root/emergency_password.txt"
 
 # -----------------------------------------------------------------------------
-# 9. Set up cron for daily backups
+# Set up cron for daily backups
 # -----------------------------------------------------------------------------
 log_step "Setting up cron for daily backups..."
 
 BACKUP_SCRIPT="$DEPLOY_DIR/backup.sh"
 if [[ -f "$BACKUP_SCRIPT" ]]; then
     if command -v crontab &>/dev/null; then
-        # Remove any existing entry for backup.sh
         (crontab -l 2>/dev/null | grep -v "$BACKUP_SCRIPT" || echo "") > /tmp/cron.tmp
         echo "0 2 * * * $BACKUP_SCRIPT >> $LOGS_DIR/backup.log 2>&1" >> /tmp/cron.tmp
         crontab /tmp/cron.tmp
@@ -1200,26 +1128,23 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 10. Verify service health
+# Verify service health
 # -----------------------------------------------------------------------------
 log_step "Verifying service health..."
-sleep 10 # Allow services to settle
+sleep 10
 
-# Check Odoo
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
     log_success "Odoo is healthy"
 else
     log_warning "Odoo health check failed – please check logs"
 fi
 
-# Check LangGraph
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
     log_success "LangGraph is healthy"
 else
     log_warning "LangGraph health check failed – please check logs"
 fi
 
-# Check PostgreSQL
 if docker exec postgres pg_isready -U odoo &>/dev/null; then
     log_success "PostgreSQL is healthy"
 else
@@ -1227,7 +1152,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 11. Display final status
+# Display final status
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT"
 mark_phase_complete 2
@@ -1242,14 +1167,17 @@ echo ""
 docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 echo "Access the services:"
-echo "  Odoo:      http://localhost:8069  (admin/admin)"
+echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"
 echo "  Prometheus: http://localhost:9090 (admin / password in .env PROMETHEUS_PASSWORD)"
 echo "  GPUStack:  http://localhost:8080  (admin / password in .env GPUSTACK_ADMIN_PASSWORD)"
 echo ""
-echo "Default Odoo credentials: admin / admin"
-echo "(Change immediately after first login)"
-echo ""
 echo "Emergency Odoo user: emergency (password in /root/emergency_password.txt)"
 echo "Use this if you get locked out of admin."
+if [[ "$ENVIRONMENT" == "production" ]]; then
+    echo ""
+    echo "Production mode: SSH is $(if [[ "$KEEP_PASSWORD_AUTH" == true ]]; then echo "password + key"; else echo "key-only"; fi) on port 22."
+    echo "Rescue SSH (password auth) is available on port 2222."
+    echo "SSH keys are stored in: $PROJECT_ROOT/ssh-keys/"
+fi

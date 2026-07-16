@@ -4,17 +4,16 @@
 # =============================================================================
 # PURPOSE:
 #   Phase 1: Environment & Secrets Generation.
-#   This phase generates all required secrets (passwords, API keys, WireGuard keys)
-#   and creates the .env file for the deployment.
+#   This phase generates all required secrets and creates the .env file.
 #
 #   SAFETY FEATURES:
 #   - If .env already exists, the script will NOT modify it unless --force is used.
-#   - With --force, the user is prompted for explicit confirmation and a new password.
-#   - With --auto and --force, the script regenerates silently (for CI/CD).
+#   - With --force and --regenerate-secrets, it will regenerate (with backup).
+#   - With --auto and --force, it regenerates silently (for CI/CD).
 #   - In production, additional confirmation is required.
 #
 # USAGE:
-#   ./phase-env.sh [--auto] [--force]
+#   ./phase-env.sh [--auto] [--force] [--regenerate-secrets]
 # =============================================================================
 
 set -euo pipefail
@@ -38,6 +37,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
+REGENERATE_SECRETS="${REGENERATE_SECRETS:-false}"
 export FORCE
 
 # -----------------------------------------------------------------------------
@@ -67,14 +67,18 @@ if [[ -f "$ENV_FILE" ]]; then
 
     # If --force is NOT used, exit safely (preserve existing secrets)
     if [[ "$FORCE" != true ]]; then
-        log_info "To regenerate all secrets (which will break existing services), use --force."
+        log_info "To regenerate all secrets (which will break existing services), use --force and --regenerate-secrets."
         log_info "If you only need to update the password, edit the .env file manually."
         exit 0
     fi
 
-    # --force is used – we need to confirm regeneration
-    log_warning "You have requested to regenerate ALL secrets in .env."
+    if [[ "$REGENERATE_SECRETS" != true ]]; then
+        log_info "Use --regenerate-secrets to actually regenerate the secrets."
+        log_info "Skipping regeneration."
+        exit 0
+    fi
 
+    log_warning "You have requested to regenerate ALL secrets in .env."
     # If --auto is also used, regenerate silently (CI/CD)
     if [[ "$AUTO" == true ]]; then
         log_info "Auto mode with --force: regenerating secrets without confirmation."
@@ -93,7 +97,7 @@ if [[ -f "$ENV_FILE" ]]; then
         echo ""
         echo -e "${YELLOW}Proceed with regeneration? This action CANNOT be undone. (type 'YES' to confirm)${NC}"
         read -p "> " final_confirm
-        # Case‑insensitive check
+        # Case-insensitive check
         if [[ "${final_confirm^^}" != "YES" ]]; then
             log_info "Aborted."
             exit 0
@@ -106,7 +110,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Generate .env (either from template or fresh)
+# Generate .env
 # -----------------------------------------------------------------------------
 log_step "Preparing .env file..."
 
@@ -139,7 +143,7 @@ if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" == true ]]; then
     read -s -p "Confirm password: " POSTGRES_PASSWORD_CONFIRM
     echo ""
     if [[ "$POSTGRES_PASSWORD" != "$POSTGRES_PASSWORD_CONFIRM" ]]; then
-        log_error "Passwords do not match. Please re-run phase-env.sh"
+        log_error "Passwords do not match."
         exit 1
     fi
     if [[ -z "$POSTGRES_PASSWORD" ]]; then
@@ -160,7 +164,7 @@ else
     read -s -p "Confirm password: " POSTGRES_PASSWORD_CONFIRM
     echo ""
     if [[ "$POSTGRES_PASSWORD" != "$POSTGRES_PASSWORD_CONFIRM" ]]; then
-        log_error "Passwords do not match. Please re-run phase-env.sh"
+        log_error "Passwords do not match."
         exit 1
     fi
     if [[ -z "$POSTGRES_PASSWORD" ]]; then

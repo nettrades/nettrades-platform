@@ -5,7 +5,6 @@
 # PURPOSE:
 #   NETTRADES platform unified setup orchestrator.
 #   Single entry point for installation, deployment, modules, monitoring.
-#   GPUStack is now the default inference engine – no separate GPU profile needed.
 #
 # PHASES:
 #   0 – System Preparation & Hardening
@@ -19,6 +18,12 @@
 #   ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
 #   ./nettrades-setup.sh                       (Interactive wizard)
 #   ./nettrades-setup.sh --help                Show help.
+#
+# NEW OPTIONS:
+#   --production        Set environment to production (applies hardening)
+#   --development       Set environment to development (no hardening) [default]
+#   --regenerate-secrets Regenerate all secrets in .env (use with caution)
+#   --reset-data        Wipe all containers and volumes (destroys data!)
 # =============================================================================
 
 set -euo pipefail
@@ -37,6 +42,20 @@ source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
+# Defaults
+# -----------------------------------------------------------------------------
+ENVIRONMENT="${ENVIRONMENT:-development}"
+REGENERATE_SECRETS="${REGENERATE_SECRETS:-false}"
+RESET_DATA="${RESET_DATA:-false}"
+FORCE=false
+UPGRADE=false
+SKIP_INSTALLED=true
+AUTO=false
+PHASES_LIST=""
+PROFILE=""
+INTERACTIVE=false
+
+# -----------------------------------------------------------------------------
 # Show help
 # -----------------------------------------------------------------------------
 show_help() {
@@ -47,6 +66,10 @@ ${YELLOW}USAGE:${NC}
     ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
     ./nettrades-setup.sh                       (Interactive wizard)
     ./nettrades-setup.sh --help                Show this help.
+
+${YELLOW}ENVIRONMENTS:${NC}
+    --development   Development mode (no SSH hardening, firewall relaxed) [default]
+    --production    Production mode (SSH hardening, UFW, WireGuard, fail2ban)
 
 ${YELLOW}PHASES:${NC}
     0  System Preparation & Hardening
@@ -65,21 +88,24 @@ ${YELLOW}PROFILES (CLI):${NC}
     all         : Phase 0 + Phase 1 + Phase 2 + Phase 4 (full deployment)
 
 ${YELLOW}OPTIONS (CLI):${NC}
-    --force           Re-run phases even if already completed.
-    --upgrade         Upgrade existing modules instead of fresh install.
-    --skip-installed  Skip already installed Odoo modules.
-    --auto            Run in non-interactive mode (use defaults, no prompts).
-    --phases=LIST     Comma-separated list of phases (overrides profile).
+    --force               Re-run phases even if already completed.
+    --upgrade             Upgrade existing modules instead of fresh install.
+    --skip-installed      Skip already installed Odoo modules.
+    --auto                Run in non-interactive mode (use defaults, no prompts).
+    --regenerate-secrets  Regenerate ALL secrets in .env (breaks running services!).
+    --reset-data          Wipe ALL containers and volumes (destroys all data!).
+    --phases=LIST         Comma-separated list of phases (overrides profile).
 
 ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh                        # Interactive wizard
-    ./nettrades-setup.sh deploy --auto          # Automated deploy
-    ./nettrades-setup.sh all --force            # Full re-deployment
+    ./nettrades-setup.sh deploy --auto          # Automated deploy (development)
+    ./nettrades-setup.sh deploy --production    # Deploy with production hardening
+    ./nettrades-setup.sh all --force            # Full re-deployment (keeps data)
 EOF
 }
 
 # =============================================================================
-# INTERACTIVE WIZARD (plain Bash)
+# INTERACTIVE WIZARD
 # =============================================================================
 
 run_interactive() {
@@ -108,7 +134,18 @@ run_interactive() {
     esac
     log_info "Selected profile: $PROFILE"
 
-    # --- Options ---
+    echo ""
+    echo "Select environment:"
+    echo "  1) Development (no hardening, SSH password auth kept)"
+    echo "  2) Production (SSH hardening, UFW, WireGuard, fail2ban)"
+    read -rp "Enter 1 or 2: " env_choice
+    case "$env_choice" in
+        1) ENVIRONMENT="development" ;;
+        2) ENVIRONMENT="production" ;;
+        *) log_error "Invalid choice"; exit 1 ;;
+    esac
+    log_info "Environment: $ENVIRONMENT"
+
     echo ""
     read -rp "Force re-run completed phases? (y/N): " force_yn
     [[ "$force_yn" =~ ^[Yy]$ ]] && FORCE=true || FORCE=false
@@ -133,6 +170,7 @@ run_interactive() {
     echo ""
     echo -e "${YELLOW}Summary:${NC}"
     echo "  Profile: $PROFILE"
+    echo "  Environment: $ENVIRONMENT"
     echo "  Force: $FORCE"
     echo "  Upgrade: $UPGRADE"
     echo "  Auto: $AUTO"
@@ -141,11 +179,11 @@ run_interactive() {
     read -rp "Proceed with these settings? (y/N): " confirm
     [[ ! "$confirm" =~ ^[Yy]$ ]] && { log_info "Aborted."; exit 0; }
 
-    export FORCE UPGRADE AUTO
+    export FORCE UPGRADE AUTO ENVIRONMENT
 }
 
 # =============================================================================
-# PHASE 1: Development Environment (Integrated)
+# PHASE 1: Development Environment
 # =============================================================================
 
 setup_dev_environment() {
@@ -154,13 +192,13 @@ setup_dev_environment() {
 
     log_step "Setting up development environment..."
 
-    # [NEW] Make all scripts executable
+    # Make all scripts executable
     log_step "Making scripts executable..."
     chmod +x "$PROJECT_ROOT"/scripts/*.sh 2>/dev/null || true
     chmod +x "$PROJECT_ROOT"/scripts/lib/*.sh 2>/dev/null || true
     log_success "Scripts made executable"
 
-    # [NEW] Run fix-line-endings.sh if it exists
+    # Fix line endings
     if [[ -f "$PROJECT_ROOT/scripts/fix-line-endings.sh" ]]; then
         log_step "Fixing line endings (converting to LF)..."
         bash "$PROJECT_ROOT/scripts/fix-line-endings.sh" --force 2>/dev/null || {
@@ -170,7 +208,7 @@ setup_dev_environment() {
         log_warning "fix-line-endings.sh not found – skipping line ending fix"
     fi
 
-    # Install Python dependencies if requirements-dev.txt exists
+    # Install Python development dependencies
     if [[ -f "$PROJECT_ROOT/requirements-dev.txt" ]]; then
         log_step "Installing Python development dependencies..."
         pip3 install -r "$PROJECT_ROOT/requirements-dev.txt" 2>/dev/null || {
@@ -180,26 +218,8 @@ setup_dev_environment() {
         log_warning "requirements-dev.txt not found – skipping Python dependencies."
     fi
 
-    # Install Odoo module dependencies
-    if [[ "$os" == "windows" ]]; then
-        if [[ -f "$PROJECT_ROOT/scripts/install-odoo-modules.ps1" ]]; then
-            log_step "Installing Odoo module dependencies (Windows)..."
-            powershell -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-odoo-modules.ps1" -SkipInstalled:"$SKIP_INSTALLED" -ForceReinstall:"$FORCE" 2>/dev/null || {
-                log_warning "Odoo module dependency installation failed."
-            }
-        else
-            log_warning "install-odoo-modules.ps1 not found – skipping Odoo dependencies."
-        fi
-    else
-        if [[ -f "$PROJECT_ROOT/scripts/install-modules.sh" ]]; then
-            log_step "Installing Odoo module dependencies (Linux/macOS)..."
-            bash "$PROJECT_ROOT/scripts/install-modules.sh" --deps-only 2>/dev/null || {
-                log_warning "Odoo module dependency installation failed."
-            }
-        else
-            log_warning "install-modules.sh not found – skipping Odoo dependencies."
-        fi
-    fi
+    # NOTE: Odoo module installation has been moved to Phase 2/4.
+    # Phase 1 only sets up the local development environment.
 
     mark_phase_complete 1
 }
@@ -207,20 +227,6 @@ setup_dev_environment() {
 # =============================================================================
 # MAIN SCRIPT
 # =============================================================================
-
-# Defaults
-PROFILE=""
-FORCE=false
-UPGRADE=false
-SKIP_INSTALLED=true
-AUTO=false
-PHASES_LIST=""
-INTERACTIVE=false
-
-# If no arguments, auto-launch interactive
-if [ $# -eq 0 ]; then
-    INTERACTIVE=true
-fi
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -230,6 +236,10 @@ while [[ $# -gt 0 ]]; do
         --upgrade) UPGRADE=true; shift ;;
         --skip-installed) SKIP_INSTALLED=true; shift ;;
         --auto) AUTO=true; shift ;;
+        --production) ENVIRONMENT="production"; shift ;;
+        --development) ENVIRONMENT="development"; shift ;;
+        --regenerate-secrets) REGENERATE_SECRETS=true; shift ;;
+        --reset-data) RESET_DATA=true; shift ;;
         --phases=*) PHASES_LIST="${1#--phases=}"; shift ;;
         --help) show_help; exit 0 ;;
         -*)
@@ -250,13 +260,16 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+export ENVIRONMENT REGENERATE_SECRETS RESET_DATA
+
 # -----------------------------------------------------------------------------
-# Environment preparation (OS/WSL check)
+# Environment preparation
 # -----------------------------------------------------------------------------
 prepare_environment() {
     local os
     os=$(detect_os)
     log_info "Detected OS: $os"
+    log_info "Environment: $ENVIRONMENT"
 
     if [[ "$os" == "windows" ]]; then
         if [[ "$(detect_wsl)" == "false" ]]; then
@@ -276,7 +289,7 @@ EOF
             exit 1
         else
             log_success "Running inside WSL2."
-            
+
             # Check for Docker Desktop integration
             if ! command -v docker &>/dev/null; then
                 log_warning "Docker not found in WSL2."
@@ -351,10 +364,8 @@ check_dependencies() {
     # pip – try apt first (Ubuntu/Debian), then fallback to ensurepip
     if ! command -v pip3 &>/dev/null; then
         log_warning "pip3 not found. Attempting to install..."
-        
         # Try apt first (Ubuntu/Debian)
         if command -v apt &>/dev/null; then
-            log_info "Installing pip via apt..."
             sudo apt update -qq 2>/dev/null || true
             sudo apt install -y python3-pip 2>/dev/null || {
                 log_error "Failed to install pip via apt. Please install manually."
@@ -415,15 +426,11 @@ else
     exit 1
 fi
 
-# Export variables for phase scripts
-export PROJECT_ROOT
-export FORCE
-export UPGRADE
-export SKIP_INSTALLED
-export AUTO
+export PROJECT_ROOT FORCE UPGRADE SKIP_INSTALLED AUTO
 
 log_header "NETTRADES.AI – Unified Setup"
 log_info "Profile: ${PROFILE:-custom}"
+log_info "Environment: $ENVIRONMENT"
 log_info "Phases: ${PHASES[*]}"
 log_info "Force: $FORCE"
 log_info "Upgrade: $UPGRADE"
@@ -479,6 +486,8 @@ echo " 1. Configure fairness settings: Settings → Technical → Fairness → G
 echo " 2. Configure GPU marketplace settings: Settings → GPU → Marketplace"
 echo " 3. Set up WireGuard peers for secure communication"
 echo " 4. Access your platform at https://your-domain"
-if [[ "$(detect_os)" == "windows" ]]; then
-    echo "You are running in WSL2. Remember to access services via localhost or use port forwarding."
+if [[ "$ENVIRONMENT" == "development" ]]; then
+    echo " 5. Development mode: SSH password auth is still enabled on port 22."
+else
+    echo " 5. Production mode: SSH is key-only on port 22. Use port 2222 for password auth."
 fi

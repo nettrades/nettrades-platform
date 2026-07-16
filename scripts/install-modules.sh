@@ -4,7 +4,7 @@
 # =============================================================================
 # PURPOSE:
 #   Installs all NETTRADES Odoo modules in the correct dependency order.
-#   The script runs inside the Odoo container using docker exec.
+#   The script runs inside the Odoo container using docker compose exec.
 #
 #   It is idempotent and can be re-run safely. With --upgrade, it upgrades
 #   existing modules; with --force, it reinstalls even if already installed.
@@ -21,7 +21,7 @@
 set -e
 
 # -----------------------------------------------------------------------------
-# Load environment variables from .env (needed for potential future extensions)
+# Load environment variables
 # -----------------------------------------------------------------------------
 set -a
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,7 +30,7 @@ source "$PROJECT_ROOT/deploy/docker/.env"
 set +a
 
 # -----------------------------------------------------------------------------
-# Colours for output
+# Colours
 # -----------------------------------------------------------------------------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -48,14 +48,7 @@ echo -e "${GREEN}NETTRADES.AI – Module Installation${NC}"
 echo -e "${GREEN}=============================================================${NC}"
 
 # -----------------------------------------------------------------------------
-# Get the directory of this script and change to project root
-# -----------------------------------------------------------------------------
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$PROJECT_ROOT" || exit 1
-
-# -----------------------------------------------------------------------------
-# Parse command-line arguments
+# Parse arguments
 # -----------------------------------------------------------------------------
 FORCE=false
 UPGRADE=false
@@ -63,18 +56,9 @@ AUTO=false
 
 for arg in "$@"; do
     case $arg in
-        --force)
-            FORCE=true
-            shift
-            ;;
-        --upgrade)
-            UPGRADE=true
-            shift
-            ;;
-        --auto)
-            AUTO=true
-            shift
-            ;;
+        --force) FORCE=true; shift ;;
+        --upgrade) UPGRADE=true; shift ;;
+        --auto) AUTO=true; shift ;;
     esac
 done
 
@@ -83,12 +67,33 @@ done
 # -----------------------------------------------------------------------------
 if ! docker ps | grep -q odoo; then
     log_error "Odoo container is not running."
-    log_info "Please start the stack with: docker compose up -d"
+    log_info "Please start the stack with: cd deploy/docker && docker compose up -d"
     exit 1
 fi
 
 # -----------------------------------------------------------------------------
-# Define module installation order (dependencies first)
+# Test database connection
+# -----------------------------------------------------------------------------
+log_info "Testing database connection..."
+cd "$PROJECT_ROOT/deploy/docker"
+
+if ! docker compose exec -T postgres pg_isready -U odoo &>/dev/null; then
+    log_error "PostgreSQL is not ready. Please start the stack first."
+    exit 1
+fi
+
+if ! docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1" &>/dev/null; then
+    log_error "PostgreSQL authentication failed. Check POSTGRES_PASSWORD in .env."
+    log_error "Current .env password: $POSTGRES_PASSWORD"
+    log_error "Try: docker compose down && docker compose up -d"
+    exit 1
+fi
+log_success "Database connection verified."
+
+cd "$PROJECT_ROOT"
+
+# -----------------------------------------------------------------------------
+# Define modules in dependency order
 # -----------------------------------------------------------------------------
 MODULES=(
     # Core NETTRADES modules
@@ -132,7 +137,7 @@ MODULES=(
 )
 
 # -----------------------------------------------------------------------------
-# Function to install or upgrade a single module
+# Install each module
 # -----------------------------------------------------------------------------
 install_module() {
     local module=$1
@@ -144,9 +149,6 @@ install_module() {
         flag="-u"
     elif [ "$FORCE" = true ]; then
         action="reinstall"
-        flag="-i"
-    else
-        action="install"
         flag="-i"
     fi
 
