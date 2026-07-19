@@ -183,6 +183,48 @@ run_interactive() {
 }
 
 # =============================================================================
+# PERMANENT FIX: Ensure docker-compose.yaml passes --bootstrap-password to GPUStack
+# =============================================================================
+fix_docker_compose_for_gpustack() {
+    local compose_file="$PROJECT_ROOT/deploy/docker/docker-compose.yaml"
+    if [[ ! -f "$compose_file" ]]; then
+        log_warning "docker-compose.yaml not found at $compose_file – skipping GPUStack bootstrap fix."
+        return 0
+    fi
+
+    # Check if the gpustack service already has a 'command' line
+    if grep -q "command:" "$compose_file" && grep -A5 "gpustack:" "$compose_file" | grep -q "command:"; then
+        log_info "GPUStack command line already present in docker-compose.yaml – skipping."
+        return 0
+    fi
+
+    log_info "Adding --bootstrap-password to GPUStack service in docker-compose.yaml..."
+    # Backup the original
+    cp "$compose_file" "$compose_file.bak"
+
+    # Use sed to insert a 'command:' line after the 'image:' line of the gpustack service.
+    # We look for the gpustack: block and insert the command after the image line.
+    # This is a robust approach using awk to handle indentation.
+    tmp_file=$(mktemp)
+    awk '
+    /^[[:space:]]*gpustack:/ { in_gpustack=1 }
+    in_gpustack && /^[[:space:]]*image:/ {
+        print $0
+        # Determine indentation (spaces before "image:")
+        indent = match($0, /[^[:space:]]/) - 1
+        if (indent < 0) indent = 0
+        # Insert command line with same indentation
+        printf "%scommand: [\"--bootstrap-password\", \"${GPUSTACK_ADMIN_PASSWORD}\"]\n", substr($0, 1, indent)
+        in_gpustack = 0  # only insert once
+        next
+    }
+    { print }
+    ' "$compose_file" > "$tmp_file"
+    mv "$tmp_file" "$compose_file"
+    log_success "docker-compose.yaml updated with GPUStack bootstrap password."
+}
+
+# =============================================================================
 # PHASE 1: Development Environment
 # =============================================================================
 
@@ -457,6 +499,8 @@ for phase in "${PHASES[@]}"; do
             ;;
         2)
             log_header "Phase 2 — Single-VM Deployment"
+            # PERMANENT FIX: Patch docker-compose.yaml before deployment
+            fix_docker_compose_for_gpustack
             bash "$SCRIPT_DIR/phase-deploy.sh"
             ;;
         3)
