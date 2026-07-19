@@ -60,11 +60,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico",
-      "publisherName": "NETTRADES.AI",
-      "certificateFile": "certs/windows.pfx",
-      "certificatePassword": "",
-      "signingHashAlgorithms": ["sha256"]
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -79,19 +75,12 @@
     "mac": {
       "target": "dmg",
       "icon": "build/icon.icns",
-      "category": "public.app-category.developer-tools",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "category": "public.app-category.developer-tools"
     },
     "linux": {
       "target": ["AppImage", "deb"],
       "icon": "build/icon.png",
-      "category": "Development",
-      "desktop": {
-        "StartupWMClass": "nettrades-installer"
-      }
+      "category": "Development"
     },
     "deb": {
       "afterInstall": "scripts/postinstall.sh",
