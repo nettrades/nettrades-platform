@@ -146,12 +146,66 @@ gen_public_key() {
     echo "$1" | wg pubkey 2>/dev/null
 }
 
-# Get the server's public key
+# -----------------------------------------------------------------------------
+# PERMANENT FIX: Ensure server configuration exists (keys + wg0.conf)
+# -----------------------------------------------------------------------------
+ensure_server_config() {
+    ensure_directories
+
+    # Create server private/public keys if missing
+    if [[ ! -f "$WG_CONFIG_DIR/privatekey" ]]; then
+        log_info "Generating WireGuard server private key..."
+        wg genkey | tee "$WG_CONFIG_DIR/privatekey" > /dev/null
+        chmod 600 "$WG_CONFIG_DIR/privatekey"
+    fi
+    if [[ ! -f "$WG_CONFIG_DIR/publickey" ]]; then
+        log_info "Generating WireGuard server public key..."
+        cat "$WG_CONFIG_DIR/privatekey" | wg pubkey > "$WG_CONFIG_DIR/publickey"
+        chmod 644 "$WG_CONFIG_DIR/publickey"
+    fi
+
+    # Create default wg0.conf if missing
+    local server_conf="$WG_CONFIG_DIR/$WG_INTERFACE.conf"
+    if [[ ! -f "$server_conf" ]]; then
+        log_info "Creating default WireGuard server configuration..."
+        local private_key=$(cat "$WG_CONFIG_DIR/privatekey")
+        local public_key=$(cat "$WG_CONFIG_DIR/publickey")
+        cat > "$server_conf" << EOF
+[Interface]
+Address = ${WG_SUBNET%.*}.1/24
+ListenPort = $WG_PORT
+PrivateKey = $private_key
+# Enable IP forwarding and NAT (adjust interface name if needed)
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+EOF
+        chmod 600 "$server_conf"
+        log_success "Default WireGuard configuration created at $server_conf"
+    fi
+
+    # Enable IP forwarding if not already set
+    if [[ $(sysctl -n net.ipv4.ip_forward 2>/dev/null || echo 0) -ne 1 ]]; then
+        log_info "Enabling IP forwarding..."
+        sysctl -w net.ipv4.ip_forward=1 > /dev/null
+        echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+    fi
+
+    # Ensure the interface is up (if not already)
+    if ! ip link show "$WG_INTERFACE" &>/dev/null; then
+        log_info "Starting WireGuard interface..."
+        wg-quick up "$WG_INTERFACE" 2>/dev/null || {
+            log_warning "Failed to start WireGuard interface. You may need to start it manually."
+        }
+    fi
+}
+
+# Get the server's public key (ensuring it exists)
 get_server_public_key() {
+    ensure_server_config
     if [[ -f "$WG_CONFIG_DIR/publickey" ]]; then
         cat "$WG_CONFIG_DIR/publickey"
     else
-        # Extract from the WireGuard config if available
+        # Fallback: extract from config (should not happen after ensure_server_config)
         local private_key=$(grep -oP 'PrivateKey = \K.*' "$WG_CONFIG_DIR/$WG_INTERFACE.conf" 2>/dev/null | head -1)
         if [[ -n "$private_key" ]]; then
             echo "$private_key" | wg pubkey 2>/dev/null
@@ -211,6 +265,7 @@ add_peer() {
     local client_name="$1"
     local client_ip="${2:-}"
 
+    ensure_server_config   # <--- ensure server is ready
     ensure_directories
 
     # Validate client name
@@ -257,30 +312,14 @@ PublicKey = $public_key
 AllowedIPs = $client_ip/32
 EOF
 
-    # Append to main WireGuard config (if it exists)
-    if [[ -f "$WG_CONFIG_DIR/$WG_INTERFACE.conf" ]]; then
-        cat >> "$WG_CONFIG_DIR/$WG_INTERFACE.conf" << EOF
+    # Append to main WireGuard config
+    cat >> "$WG_CONFIG_DIR/$WG_INTERFACE.conf" << EOF
 
 # Peer: $client_name
 [Peer]
 PublicKey = $public_key
 AllowedIPs = $client_ip/32
 EOF
-    else
-        log_warning "WireGuard config not found at $WG_CONFIG_DIR/$WG_INTERFACE.conf"
-        log_info "Creating new config..."
-        cat > "$WG_CONFIG_DIR/$WG_INTERFACE.conf" << EOF
-[Interface]
-Address = ${WG_SUBNET%.*}.1/24
-ListenPort = $WG_PORT
-PrivateKey = $(cat "$WG_CONFIG_DIR/privatekey" 2>/dev/null || echo "")
-
-# Peer: $client_name
-[Peer]
-PublicKey = $public_key
-AllowedIPs = $client_ip/32
-EOF
-    fi
 
     # Reload WireGuard
     if command -v wg &>/dev/null; then
@@ -304,6 +343,7 @@ remove_peer() {
     local client_name="$1"
     local peer_file="$WG_PEERS_DIR/$client_name.conf"
 
+    ensure_server_config
     ensure_directories
 
     if [[ ! -f "$peer_file" ]]; then
@@ -348,6 +388,7 @@ remove_peer() {
 
 # List all peers
 list_peers() {
+    ensure_server_config
     ensure_directories
 
     echo ""
@@ -383,6 +424,7 @@ generate_client_config() {
     local client_ip="$3"
     local public_key="$4"
 
+    ensure_server_config   # ensures server public key is available
     ensure_directories
 
     local server_public_key=$(get_server_public_key)
@@ -415,6 +457,7 @@ generate_qr() {
     local client_name="$1"
     local config_file="$WG_CLIENTS_DIR/$client_name.conf"
 
+    ensure_server_config
     ensure_directories
 
     if [[ ! -f "$config_file" ]]; then
@@ -438,6 +481,7 @@ generate_qr() {
 
 # Backup all WireGuard configurations
 backup_configs() {
+    ensure_server_config   # so that config exists
     ensure_directories
 
     local backup_file="$BACKUP_DIR/wireguard-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
@@ -484,6 +528,7 @@ restore_configs() {
 
 # Show WireGuard status
 show_status() {
+    ensure_server_config
     echo ""
     echo "WireGuard Status"
     echo "================"
