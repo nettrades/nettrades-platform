@@ -162,7 +162,6 @@ key.pub
 # -----------------------------------------------------------------------------
 installer/dist/
 installer/node_modules/
-installer/scripts/  # If you create a symlink, ignore it
 installer/build/
 !installer/build/icon.png
 !installer/build/icon.ico
