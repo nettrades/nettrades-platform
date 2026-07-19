@@ -1054,7 +1054,14 @@ else
     fi
 
     # Install base module
-    docker compose exec -T odoo odoo -d odoo -i base --stop-after-init --log-level=info
+    # Install base module with explicit database connection parameters
+    log_info "Initialising database with base modules..."
+    docker compose exec -T odoo odoo -d odoo \
+      --db_host=postgres \
+      --db_port=5432 \
+      --db_user=odoo \
+      --db_password="$POSTGRES_PASSWORD" \
+      -i base --stop-after-init --log-level=info
     log_success "Base modules installed"
 fi
 
