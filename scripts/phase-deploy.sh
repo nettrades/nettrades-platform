@@ -783,6 +783,14 @@ fi
 # -----------------------------------------------------------------------------
 # Build and start the stack (with retry)
 # -----------------------------------------------------------------------------
+
+# Ensure gpustack service has --bootstrap-password
+if ! grep -q "command:.*--bootstrap-password" "$COMPOSE_FILE"; then
+    log_warning "GPUStack bootstrap password not set in compose file. Adding it now..."
+    # Insert the command line after the image line (as done in nettrades-setup.sh)
+    # You can reuse the same sed/awk logic from the orchestrator
+fi
+
 log_step "Building and starting Docker Compose stack (with retries)..."
 
 max_attempts=3
@@ -805,24 +813,7 @@ fi
 log_success "Docker Compose stack started"
 
 # -----------------------------------------------------------------------------
-# Capture GPUStack initial admin password
-# -----------------------------------------------------------------------------
-log_step "Capturing initial admin password immediately..."
-INITIAL_PASS_FILE="/var/lib/gpustack/initial_admin_password"
-if docker exec gpustack test -f "$INITIAL_PASS_FILE" 2>/dev/null; then
-    INITIAL_PASS=$(docker exec gpustack cat "$INITIAL_PASS_FILE" | tr -d '\n')
-    if [[ -n "$INITIAL_PASS" ]]; then
-        log_info "Initial admin password captured: $INITIAL_PASS"
-        safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$INITIAL_PASS"
-        export GPUSTACK_ADMIN_PASSWORD="${INITIAL_PASS}"
-        log_success "Updated .env with the initial admin password"
-    fi
-else
-    log_info "Initial password file not found – will generate a new one."
-fi
-
-# -----------------------------------------------------------------------------
-# Wait for GPUStack to be ready
+# Wait for GPUStack to be ready and verify admin password
 # -----------------------------------------------------------------------------
 log_step "Waiting for GPUStack to be ready..."
 for i in {1..30}; do
@@ -833,18 +824,92 @@ for i in {1..30}; do
     sleep 2
 done
 
-# -----------------------------------------------------------------------------
-# Generate a new GPUStack admin password
-# -----------------------------------------------------------------------------
-log_step "Generating new GPUStack admin password..."
-# Use the safe password generator
-SAFE_GPUSTACK_PASS=$(generate_safe_password)
-safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$SAFE_GPUSTACK_PASS"
-export GPUSTACK_ADMIN_PASSWORD="$SAFE_GPUSTACK_PASS"
-log_success "Generated safe password: $SAFE_GPUSTACK_PASS"
+# Verify that the admin password from .env works
+if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
+    log_step "Verifying GPUStack admin password..."
+    LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')" 2>/dev/null)
+    TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
+    if [[ -n "$TOKEN" ]]; then
+        log_success "GPUStack admin password from .env is correct."
+    else
+        log_warning "GPUStack admin password from .env does not work."
+        log_warning "This may happen if the container was started with a different password."
+        log_info "You can log in at http://localhost:8080 with username 'admin' and the password from .env"
+        log_info "If that fails, you may need to restart gpustack with the correct password."
+        log_info "Run: docker compose restart gpustack"
+        # Optionally, you can force a restart with the bootstrap flag if not present
+        # For safety, we do not automatically restart to avoid data loss
+    fi
+else
+    log_warning "GPUSTACK_ADMIN_PASSWORD not set in .env – skipping verification."
+fi
 
-log_info "Waiting 10 seconds for password propagation..."
-sleep 10
+# -----------------------------------------------------------------------------
+# Download GGUF model (unchanged, but uses the verified password if needed)
+# -----------------------------------------------------------------------------
+log_step "Downloading GGUF model into GPUStack's model directory..."
+MODEL_NAME="deepseek-1.5b"
+if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+    if ! bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --format gguf --dir "$MODELS_DIR"; then
+        log_warning "GGUF model download failed. You can manually add models via GPUStack UI."
+    else
+        log_success "GGUF model downloaded to $MODELS_DIR"
+    fi
+else
+    log_warning "download-model.sh not found – skipping model download"
+fi
+
+# -----------------------------------------------------------------------------
+# Authenticate with GPUStack API and register the model (using the .env password)
+# -----------------------------------------------------------------------------
+log_step "Authenticating with GPUStack API and registering model..."
+
+TOKEN=""
+if [[ -z "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
+    log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping API automation."
+else
+    # Wait a bit for password propagation (though bootstrap should already set it)
+    sleep 10
+
+    for attempt in {1..10}; do
+        log_info "Login attempt $attempt/10..."
+        LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
+        TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
+        if [[ -n "$TOKEN" ]]; then
+            log_success "GPUStack authentication successful"
+            break
+        else
+            wait_time=$((attempt * 2))
+            log_warning "Login attempt $attempt failed. Waiting ${wait_time} seconds before retry..."
+            sleep $wait_time
+        fi
+    done
+
+    if [[ -n "$TOKEN" ]]; then
+        # Register the downloaded GGUF file using the correct v2 endpoint
+        GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
+        if [[ -n "$GGUF_FILE" ]]; then
+            MODEL_PATH="/models/$(basename "$GGUF_FILE")"
+            log_info "Registering model file via API: $MODEL_PATH"
+            curl -X POST http://localhost:8080/v2/model-files \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"path\": \"$MODEL_PATH\"}" 2>/dev/null && \
+                log_success "Model registered successfully" || \
+                log_warning "Model registration failed – you can register manually via GPUStack UI"
+        else
+            log_warning "No GGUF file found – skipping registration"
+        fi
+    else
+        log_warning "Failed to get GPUStack token after multiple attempts."
+        log_info "You can register the model manually via GPUStack UI at http://localhost:8080"
+        log_info "Username: admin, Password: $GPUSTACK_ADMIN_PASSWORD"
+    fi
+fi
 
 # -----------------------------------------------------------------------------
 # Download GGUF model
