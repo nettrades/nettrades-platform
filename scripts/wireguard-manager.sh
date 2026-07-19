@@ -13,13 +13,13 @@
 #     4. CI/CD pipelines for automated provisioning
 #
 #   It provides a secure, idempotent interface for:
-#     - Generating key pairs for new clients
-#     - Adding peers to the WireGuard server configuration
-#     - Removing peers from the configuration
-#     - Generating client configuration files
-#     - Generating QR codes for mobile clients
-#     - Listing all peers with their status
-#     - Backing up and restoring configurations
+#      - Generating key pairs for new clients
+#      - Adding peers to the WireGuard server configuration
+#      - Removing peers from the configuration
+#      - Generating client configuration files
+#      - Generating QR codes for mobile clients
+#      - Listing all peers with their status
+#      - Backing up and restoring configurations
 #
 # INTEGRATION WITH NETTRADES:
 #   - The script is called by phase-system.sh during initial setup

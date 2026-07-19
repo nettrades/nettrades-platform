@@ -14,7 +14,7 @@
 #   4. Generate `init-db.sql` with all NETTRADES database tables.
 #   5. Run security hardening (if Phase 0 not completed).
 #   6. Start the Docker Compose stack (idempotent).
-#   7. Initialise PostgreSQL database (only if empty).
+#   7. Initialise  PostgreSQL database (only if empty).
 #   8. Install all NETTRADES Odoo modules.
 #   9. Set up cron for daily backups.
 #   10. Verify service health.
