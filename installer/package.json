@@ -1,0 +1,101 @@
+{
+  "name": "nettrades-installer",
+  "version": "1.0.0",
+  "description": "NETTRADES Platform Installer – Sovereign AI for Autonomous Enterprises",
+  "main": "main.js",
+  "author": "NETTRADES.AI",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --publish never",
+    "build:mac": "electron-builder --mac --publish never",
+    "build:linux": "electron-builder --linux --publish never",
+    "build:all": "electron-builder -mwl --publish never",
+    "release": "electron-builder -mwl --publish always",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "devDependencies": {
+    "electron": "^37.2.3",
+    "electron-builder": "^26.0.20"
+  },
+  "dependencies": {
+    "sudo-prompt": "^9.3.0",
+    "electron-updater": "^6.3.9"
+  },
+  "build": {
+    "appId": "ai.nettrades.installer",
+    "productName": "NETTRADES Installer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "icon.png",
+      "build/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../scripts/",
+        "to": "scripts/",
+        "filter": ["*.sh"]
+      },
+      {
+        "from": "../deploy/docker/",
+        "to": "deploy/docker/",
+        "filter": ["docker-compose.yaml", ".env.example"]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "nettrades",
+        "repo": "nettrades-platform",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "publisherName": "NETTRADES.AI",
+      "certificateFile": "certs/windows.pfx",
+      "certificatePassword": "",
+      "signingHashAlgorithms": ["sha256"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NETTRADES Installer",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "license": "LICENSE.txt"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "build/icon.png",
+      "category": "Development",
+      "desktop": {
+        "StartupWMClass": "nettrades-installer"
+      }
+    },
+    "deb": {
+      "afterInstall": "scripts/postinstall.sh",
+      "depends": ["docker.io", "docker-compose", "bash"]
+    }
+  }
+}

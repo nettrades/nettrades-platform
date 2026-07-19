@@ -156,3 +156,11 @@ third-party/odoo
 .phase-0-complete
 key
 key.pub
+
+# -----------------------------------------------------------------------------
+# Installer build output
+# -----------------------------------------------------------------------------
+installer/dist/
+installer/node_modules/
+installer/scripts/  # If you create a symlink, ignore it
+

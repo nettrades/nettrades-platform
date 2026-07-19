@@ -184,6 +184,11 @@ PROXY_API_KEY=$(generate_secret)
 WIREGUARD_PRIVATE_KEY=$(generate_wireguard_key)
 WIREGUARD_PUBLIC_KEY=$(echo "$WIREGUARD_PRIVATE_KEY" | wg pubkey 2>/dev/null || echo "manual")
 
+# [NEW] Generate strong passwords for Grafana, Prometheus, and GPUStack
+GRAFANA_PASSWORD=$(generate_password)
+PROMETHEUS_PASSWORD=$(generate_password)
+GPUSTACK_ADMIN_PASSWORD=$(generate_password)
+
 # -----------------------------------------------------------------------------
 # Write secrets to .env using safe_sed_replace (handles special characters)
 # -----------------------------------------------------------------------------
@@ -195,6 +200,11 @@ safe_sed_replace "$ENV_FILE" "VLLM_API_KEY" "$VLLM_API_KEY"
 safe_sed_replace "$ENV_FILE" "PROXY_API_KEY" "$PROXY_API_KEY"
 safe_sed_replace "$ENV_FILE" "WIREGUARD_PRIVATE_KEY" "$WIREGUARD_PRIVATE_KEY"
 safe_sed_replace "$ENV_FILE" "WIREGUARD_PUBLIC_KEY" "$WIREGUARD_PUBLIC_KEY"
+
+# Write the new secrets
+safe_sed_replace "$ENV_FILE" "GRAFANA_PASSWORD" "$GRAFANA_PASSWORD"
+safe_sed_replace "$ENV_FILE" "PROMETHEUS_PASSWORD" "$PROMETHEUS_PASSWORD"
+safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$GPUSTACK_ADMIN_PASSWORD"
 
 # Generate random domain if not set
 if ! grep -q "^DOMAIN=.*" "$ENV_FILE" || grep -q "^DOMAIN=$" "$ENV_FILE"; then
@@ -220,6 +230,9 @@ if [[ "$AUTO" != true ]]; then
     echo "  ODOO_ADMIN_PASSWORD: $ODOO_ADMIN_PASSWORD"
     echo "  PROXY_API_KEY: $PROXY_API_KEY"
     echo "  VLLM_API_KEY: $VLLM_API_KEY"
+    echo "  GRAFANA_PASSWORD: $GRAFANA_PASSWORD"
+    echo "  PROMETHEUS_PASSWORD: $PROMETHEUS_PASSWORD"
+    echo "  GPUSTACK_ADMIN_PASSWORD: $GPUSTACK_ADMIN_PASSWORD"
     echo ""
     echo -e "${YELLOW}WireGuard keys:${NC}"
     echo "  Private key: $WIREGUARD_PRIVATE_KEY"

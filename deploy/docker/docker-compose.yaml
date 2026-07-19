@@ -39,7 +39,8 @@
 #   - Added node_exporter for system-level metrics.
 #   - Fixed PostgreSQL volume mount for pg17 compatibility.
 #   - Fixed build contexts for langgraph and odoo-proxy.
-#
+#   - Converted all stateful bind mounts to named Docker volumes for portability
+#     and to avoid permission issues. This aligns with Kubernetes best practices.
 #
 # =============================================================================
 
@@ -51,12 +52,20 @@ networks:
     external: true
   internal:
     driver: bridge
-   
+
+# -----------------------------------------------------------------------------
+# Volumes – all persistent data uses named volumes
+# -----------------------------------------------------------------------------
 volumes:
   postgres_data:
     driver: local
-  gpustack_data:          # <-- ADD THIS
+  gpustack_data:
     driver: local
+  valkey_data:
+  forgejo_data:
+  odoo_data:
+  prometheus_data:
+  grafana_data:
 
 # -----------------------------------------------------------------------------
 # Services
@@ -144,7 +153,7 @@ services:
     networks:
       - internal
     volumes:
-      - ./valkey-data:/data
+      - valkey_data:/data
     command: valkey-server --appendonly yes --save 900 1 --save 300 10
     security_opt:
       - no-new-privileges:true
@@ -166,11 +175,10 @@ services:
       - "8069:8069"
     volumes:
       - ./odoo-modules:/odoo-modules              # <-- mount the prepared addons
-      # - ./config/odoo.conf:/etc/odoo/odoo.conf   
       # The Odoo container does not use the odoo.config file (the volume mount is commented out in docker-compose.yaml).
       # Odoo gets its database settings from the environment variables (HOST, PORT, USER, PASSWORD), which are correctly passed from your .env file in nettrades-platform\deploy\docker.
-      - ./odoo-data:/var/lib/odoo
-      - ./odoo-logs:/var/log/odoo   # <-- odoo logs
+      - odoo_data:/var/lib/odoo                   # persistent data (named volume)
+      - ./odoo-logs:/var/log/odoo                 # logs (bind mount – optional)
     environment:
       - HOST=postgres
       - PORT=5432
@@ -213,7 +221,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./forgejo-data:/data
+      - forgejo_data:/data
     environment:
       - FORGEJO__database__DB_TYPE=postgres
       - FORGEJO__database__HOST=postgres:5432
@@ -372,9 +380,9 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./prometheus-data:/prometheus
-      - ./prometheus/web.yml:/etc/prometheus/web.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml      # config (bind)
+      - prometheus_data:/prometheus                           # data (named volume)
+      - ./prometheus/web.yml:/etc/prometheus/web.yml          # auth (bind)
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -402,9 +410,9 @@ services:
     ports:
       - "3001:3000"
     volumes:
-      - ./grafana-data:/var/lib/grafana
-      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards
-      - ./grafana-datasources:/etc/grafana/provisioning/datasources
+      - grafana_data:/var/lib/grafana                         # data (named volume)
+      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards   # config (bind)
+      - ./grafana-datasources:/etc/grafana/provisioning/datasources # config (bind)
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
@@ -446,4 +454,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        
