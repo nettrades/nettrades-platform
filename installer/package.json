@@ -20,7 +20,7 @@
     "electron-builder": "^26.0.20"
   },
   "dependencies": {
-    "sudo-prompt": "^9.3.0",
+    "sudo-prompt": "^9.2.1",
     "electron-updater": "^6.3.9"
   },
   "build": {
