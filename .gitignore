@@ -120,6 +120,8 @@ module-install.log
 # -----------------------------------------------------------------------------
 dist/
 build/
+!build/icon.png
+!build/icon.ico
 *.egg-info/
 *.whl
 

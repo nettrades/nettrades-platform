@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "NETTRADES Platform Installer – Sovereign AI for Autonomous Enterprises",
   "main": "main.js",
-  "author": "NETTRADES.AI",
-  "license": "MIT",
+  "homepage": "https://nettrades.ai",
+  "author": "NETTRADES.AI <info@nettrades.ai>",
+  "license": "AGPL-3.0",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
