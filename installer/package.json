@@ -1,3 +1,22 @@
+/**
+ * =============================================================================
+ * NETTRADES Installer - Preload Script
+ * =============================================================================
+ *
+ * FILE: installer/preload.js
+ *
+ * PURPOSE:
+ *   This script runs in the renderer process before the web page loads.
+ *   It exposes a safe, whitelisted API to the renderer via contextBridge,
+ *   allowing the UI to communicate with the main process without exposing
+ *   Node.js APIs directly – a security best practice.
+ *
+ * SECURITY:
+ *   - Only specific functions are exposed.
+ *   - All communication is via IPC (inter‑process communication).
+ *   - No direct access to Node.js or the file system.
+ * =============================================================================
+ */
 {
   "name": "nettrades-installer",
   "version": "1.0.0",
@@ -17,7 +36,7 @@
   },
   "devDependencies": {
     "electron": "^37.2.3",
-    "electron-builder": "^26.0.20"
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "sudo-prompt": "^9.2.1",
