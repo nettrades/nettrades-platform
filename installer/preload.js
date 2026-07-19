@@ -47,4 +47,11 @@ contextBridge.exposeInMainWorld('api', {
   removeInstallOutputListener: () => {
     ipcRenderer.removeAllListeners('install-output');
   },
+  runWireGuardCommand: (args) => ipcRenderer.invoke('run-wireguard-command', args),
+  onWireGuardOutput: (callback) => {
+      ipcRenderer.on('wireguard-output', (event, data) => callback(data));
+  },
+  removeWireGuardOutputListener: () => {
+      ipcRenderer.removeAllListeners('wireguard-output');
+},
 });

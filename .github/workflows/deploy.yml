@@ -1,0 +1,157 @@
+# =============================================================================
+# NETTRADES Platform - Deployment Workflow
+# =============================================================================
+# FILE: .github/workflows/deploy.yml
+#
+# PURPOSE:
+#   This workflow handles deployment of the NETTRADES platform to staging
+#   and production environments. It uses the same phase-based scripts that
+#   users run manually, ensuring consistency between manual and automated
+#   deployments.
+#
+#   The workflow supports:
+#   - Staging deployments (on push to develop/main)
+#   - Production deployments (on release)
+#   - WireGuard peer management for secure access
+#   - Health checks after deployment
+#
+# USAGE:
+#   This workflow runs automatically on push to the specified branches.
+#   Manual triggering is also supported via the GitHub Actions UI.
+# =============================================================================
+
+name: Deploy Platform
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  # =========================================================================
+  # 1. DEPLOY TO STAGING
+  # =========================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+
+      - name: Add SSH host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via nettrades-setup.sh
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            cd ${{ secrets.STAGING_PATH }}
+            git pull
+            ./scripts/nettrades-setup.sh deploy --auto --force
+          EOF
+
+      - name: Add WireGuard peer for staging access
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            /usr/local/bin/wireguard-manager.sh add staging-${{ github.sha }} 2>/dev/null || true
+          EOF
+
+      - name: Health check
+        run: |
+          curl -f http://${{ secrets.STAGING_HOST }}:8069/web/health || exit 1
+          curl -f http://${{ secrets.STAGING_HOST }}:8000/health || exit 1
+
+  # =========================================================================
+  # 2. DEPLOY TO PRODUCTION
+  # =========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'release'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+
+      - name: Add SSH host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via nettrades-setup.sh (upgrade mode)
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+            cd ${{ secrets.PRODUCTION_PATH }}
+            git pull
+            ./scripts/nettrades-setup.sh all --auto --upgrade --force
+          EOF
+
+      - name: Add WireGuard peer for production access
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+            /usr/local/bin/wireguard-manager.sh add production-${{ github.sha }} 2>/dev/null || true
+          EOF
+
+      - name: Health check
+        run: |
+          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/odoo/health || exit 1
+          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/langgraph/health || exit 1
+
+  # =========================================================================
+  # 3. NOTIFY SLACK
+  # =========================================================================
+  notify:
+    name: Notify Slack
+    runs-on: ubuntu-24.04
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "Deployment status: ${{ job.status }}\nRef: ${{ github.ref }}\nRepo: ${{ github.repository }}",
+              "attachments": [
+                {
+                  "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+                  "title": "Deployment Pipeline",
+                  "fields": [
+                    { "title": "Status", "value": "${{ job.status }}", "short": true },
+                    { "title": "Branch", "value": "${{ github.ref_name }}", "short": true }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

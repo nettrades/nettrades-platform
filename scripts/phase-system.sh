@@ -396,12 +396,12 @@ log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0
 # -----------------------------------------------------------------------------
 # Copy WireGuard client management script to /usr/local/bin
 # -----------------------------------------------------------------------------
-if [[ -f "$SCRIPT_DIR/add-wireguard-user.sh" ]]; then
-    cp "$SCRIPT_DIR/add-wireguard-user.sh" /usr/local/bin/
-    chmod +x /usr/local/bin/add-wireguard-user.sh
-    log_success "WireGuard client script installed to /usr/local/bin/add-wireguard-user.sh"
+if [[ -f "$SCRIPT_DIR/wireguard-manager.sh" ]]; then
+    cp "$SCRIPT_DIR/wireguard-manager.sh" /usr/local/bin/
+    chmod +x /usr/local/bin/wireguard-manager.sh
+    log_success "WireGuard manager script installed to /usr/local/bin/wireguard-manager.sh"
 else
-    log_warning "add-wireguard-user.sh not found – skipping"
+    log_warning "wireguard-manager.sh not found – skipping"
 fi
 
 # -----------------------------------------------------------------------------

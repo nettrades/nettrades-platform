@@ -5,7 +5,7 @@
  * =============================================================================
  *
  * FILE: installer/main.js
- * 
+ *
  * PURPOSE:
  *   This is the main entry point for the NETTRADES Installer desktop application.
  *   It orchestrates the installation process by:
@@ -461,4 +461,78 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason) => {
     console.error('Unhandled rejection:', reason);
+});
+
+
+/**
+ * Handler: run-wireguard-command
+ *
+ * Executes a WireGuard manager command and returns the result.
+ * This allows the Electron UI to manage WireGuard peers.
+ *
+ * Args:
+ *   - args: Array of command arguments (e.g., ['add', 'laptop', '10.10.10.50'])
+ *
+ * Returns: { success: boolean, output: string, error?: string }
+ *
+ * Security: Uses the installed /usr/local/bin/wireguard-manager.sh script.
+ *           Requires root/sudo privileges (handled by the script itself).
+ */
+ipcMain.handle('run-wireguard-command', async (event, args) => {
+    return new Promise((resolve, reject) => {
+        // Use the wireguardScriptPath resolved earlier
+        const scriptPath = wireguardScriptPath;
+
+        if (!scriptPath || !fs.existsSync(scriptPath)) {
+            reject(new Error('WireGuard manager script not found. Please ensure wireguard-manager.sh is installed.'));
+            return;
+        }
+
+        // Ensure the script is executable
+        if (process.platform !== 'win32') {
+            try {
+                fs.chmodSync(scriptPath, 0o755);
+            } catch (err) {
+                console.error('Failed to make script executable:', err);
+            }
+        }
+
+        // On Windows, use bash to run the script
+        const cmd = process.platform === 'win32'
+            ? ['bash', scriptPath, ...args]
+            : [scriptPath, ...args];
+
+        const child = spawn(cmd[0], cmd.slice(1), {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            env: process.env,
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        child.stdout.on('data', (data) => {
+            const text = data.toString();
+            stdout += text;
+            // Send real-time output to the renderer
+            event.sender.send('wireguard-output', text);
+        });
+
+        child.stderr.on('data', (data) => {
+            const text = data.toString();
+            stderr += text;
+            event.sender.send('wireguard-output', text);
+        });
+
+        child.on('close', (code) => {
+            if (code === 0) {
+                resolve({ success: true, output: stdout });
+            } else {
+                reject({ success: false, output: stdout, error: stderr, code });
+            }
+        });
+
+        child.on('error', (err) => {
+            reject({ success: false, error: err.message });
+        });
+    });
 });
