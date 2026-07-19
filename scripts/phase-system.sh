@@ -13,6 +13,7 @@
 #   - Installing fail2ban
 #   - Configuring system limits for high-performance workloads
 #   - Enabling gVisor runtime for container isolation (if on Kubernetes)
+#   - [NEW] Installing Node.js and npm for the Electron installer
 #
 #   It is idempotent and safe to re-run.
 #
@@ -139,6 +140,45 @@ if ! command -v pip3 &>/dev/null; then
     fi
 else
     log_success "pip3 already installed"
+fi
+
+# -----------------------------------------------------------------------------
+# 3.5 Install Node.js and npm (for the Electron installer)
+# -----------------------------------------------------------------------------
+log_step "Checking Node.js and npm installation..."
+
+# Check if Node.js is already installed
+if command -v node &>/dev/null && command -v npm &>/dev/null; then
+    NODE_VERSION=$(node --version | cut -d'v' -f2)
+    log_success "Node.js $NODE_VERSION already installed"
+else
+    log_info "Installing Node.js 18 LTS..."
+
+    # Use NodeSource's official script for Ubuntu/Debian
+    if [[ "$OS" == "linux" ]]; then
+        # Check if NodeSource setup script is already run
+        if [[ ! -f /etc/apt/sources.list.d/nodesource.list ]]; then
+            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        fi
+        sudo apt-get install -y nodejs
+    else
+        log_warning "Please install Node.js manually for $OS"
+        log_info "Visit: https://nodejs.org/en/download/"
+    fi
+    log_success "Node.js installed"
+fi
+
+# Verify npm is available
+if command -v npm &>/dev/null; then
+    NPM_VERSION=$(npm --version)
+    log_success "npm $NPM_VERSION available"
+else
+    # If npm is missing on Debian/Ubuntu, install it separately
+    if [[ "$OS" == "linux" ]]; then
+        sudo apt-get install -y npm
+    else
+        log_warning "npm not found. Please install npm manually."
+    fi
 fi
 
 # -----------------------------------------------------------------------------
