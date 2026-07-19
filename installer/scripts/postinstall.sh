@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# NETTRADES Installer - Post-Installation Script (Linux DEB)
+# NETTRADES Installer - Post-Installation Script  (Linux DEB)
 # =============================================================================
 #
 # FILE: installer/scripts/postinstall.sh
