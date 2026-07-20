@@ -25,10 +25,7 @@ PURPOSE:
   </picture>
 </p>
 
-<h1 align="center">⚡ NETTRADES.AI</h1>
-<p align="center">
-  <strong>Autonomous Enterprise Platform · AI Agents · GPU Marketplace · Self-Improving AI</strong>
-</p>
+<h1 align="center">NETTRADES – Sovereign AI in a Box</h1>
 
 <p align="center">
   <!--
@@ -82,23 +79,110 @@ PURPOSE:
 [![GitHub Stars](https://img.shields.io/github/stars/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/issues)
 
-## What is NETTRADES?
 
-**NETTRADES is an open-source, autonomous enterprise platform** built to power self-improving AI startups, companies and smart cities. It provides the infrastructure layer to run Sovereign AI. The system is highly configurable and provides company administrators with the ability to run sovereign AI locally or scale up into the cloud or onto a GPU marketplace. 
+## The sovereign AI platform for autonomous enterprises
 
-It uses a **Hub-and-Spoke Architecture** – Companies run the sovereign AI, open-source autonomous enterprise platform client software locally for internal operations, which then calls `NETTRADES.AI` for GPU overflow, global services and external recruitment if configured to do so by the company administrators. NETTRADES.AI the hub, also connects companies, freelancers, job-seekers, researchers, partners and customers. Users could also ask experts question and cooperate with other companies, freelancers, job-seekers, researchers, partners on projects.
+Enterprises face a critical choice: send sensitive data to public AI APIs (risky and costly) or spend years building their own AI infrastructure. NETTRADES provides the infrastructure layer to run Sovereign AI. 
 
-### It combines:
+### NETTRADES gives you a third option.
 
-- **AI-powered job matching & freelancing** – LangGraph agents analyse CVs, job postings, and projects, automatically creating leads. It combines the functionalities of LinkedIn, Fiverr, Upwork, and Freelancer with AI Matching and Git Collaboration.
-- **Distributed GPU marketplace** – Companies and freelancers can share idle GPUs to run inference and fine-tuning, earning tokens.
+A turnkey, private AI platform that deploys behind your firewall in under 30 minutes. Run open-source models (Llama, Mistral, DeepSeek) on your own GPU cluster. Keep your data sovereign. Control your AI. Improve your models with internal feedback.
+
+
+
+## The Problem
+
+| Challenge| 	Reality |
+|---------|-------------|
+| `Data Privacy` | Sending internal data to external AI companies exposes company secrets, customer data, and intellectual property. |
+| `GPU Waste` |	Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
+| `Vendor Lock-in` | Public AI APIs change pricing, terms, and availability without notice. |
+| `Compliance Risk` | GDPR, HIPAA, and sovereign cloud mandates require data residency. |
+| `Complexity` | Building an internal AI platform requires Kubernetes, GPU orchestration, and model serving expertise. |
+
+## The Solution
+
+NETTRADES – Sovereign AI in a Box combines everything you need into a single, open-source appliance:
+| Component	| What It Does |
+|---------|-------------|
+| `GPU Orchestration` | Manage your entire GPU cluster through a clean admin console. Powered by GPUStack. |
+| `Private Model Serving` | Deploy Llama, Mistral, DeepSeek, and any open-source model behind your firewall in one click. |
+| `Agentic AI` | LangGraph-based agents for GPU management, action execution, and vision tasks. |
+| `Self-Improving AI` | "Good Answer" voting triggers automated fine-tuning. Your models improve from internal feedback. |
+| `Admin Console` | User management, RBAC, GPU fleet monitoring, and system logs – all in one place. |
+| `Enterprise Security` | WireGuard VPN, SSH hardening, fail2ban, and full on-premise deployment. |
+| `Turnkey Deployment` | One command installs everything – Docker, GPUStack, Odoo, LangGraph, Grafana, Prometheus, and more. |
+
+## Why Sovereign AI in a Box?
+
+| Need	| How NETTRADES Delivers |
+|---------|-------------|
+| `Data Sovereignty` | 	Everything runs behind your firewall. No data ever leaves your infrastructure. |
+| `Cost Control	No per-token fees.` |  No cloud egress costs. Use GPUs you already own. |
+| `Continuous Improvement` | Models get smarter from internal feedback – a true competitive advantage. |
+| `Compliance Ready` | Full data residency control – essential for GDPR, HIPAA, and sovereign cloud mandates. |
+| `No Vendor Lock-in` | Open-source models. Open-source platform. AGPL-3.0 licensed. |
+
+## Quick Start
+
+### Prerequisites
+
+* OS: Linux (Ubuntu 22.04+ recommended) or macOS with Docker Desktop.
+
+* Hardware: Minimum 8 GB RAM (16 GB recommended), 50 GB free disk.
+
+* Optional: NVIDIA GPU with drivers for GPU acceleration.
+
+Set up a Ubuntu Linux box and run the commands below to have your own private AI in 30 minutes.
+
+```bash
+apt update && apt upgrade -y
+# Clone the repository
+cd /root
+git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
+cd nettrades-platform
+
+# Make the script executable
+chmod +x scripts/nettrades-setup.sh
+
+# Run the full deployment (automatic)
+sudo ./scripts/nettrades-setup.sh all --force
+
+```
+
+What You Get
+| Service| 	URL| 	Credentials | 
+|---------|--------|-------------|
+| `Odoo Admin Console for configuring NETTRADES` | 	http://localhost:8069 | 	admin / admin (change immediately) | 
+| `GPUStack` | 	http://localhost:8080 | 	admin / password from .env |
+| `Grafana` | 	http://localhost:3001 | 	admin / password from .env |
+| `Prometheus` | 	http://localhost:9090 | 	admin / password from .env |
+
+## Road Map
+
+
+NETTRADES is not just an AI platform. It is an Autonomous Enterprises Platform.
+| Phase	| Focus |
+|---------|--------|
+| `Phase 1 (Current)` | 	Sovereign AI in a Box – turnkey deployment, GPU orchestration, private model serving, admin console.  | 
+| `Phase 2` | 	Self-improving AI loop – automated fine-tuning from "Good Answer" voting.  | 
+| `Phase 3` | 	Distributed GPU marketplace – share idle GPUs across the WireGuard mesh.  | 
+| `Phase 4` | 	Hub-and-spoke cloud overflow – burst inference to the NETTRADES.AI cloud when local GPUs are saturated, using Confidential Computing.  | 
+
+## License
+
+AGPL-3.0 – Free and open-source. No vendor lock-in. Full source code available.
+
+The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurable and provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, will be able to scale up onto a GPU marketplace using Confidential Computing. 
+
+### It will combines:
+
+- **Distributed GPU marketplace** – Companies can share idle GPUs to run inference and fine-tuning.
 - **Expert marketplace “Ask Someone”** – Users can request paid help from verified professionals with Stripe escrow.
 - **Self-improving AI – A “Good Answer”** voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) which continuously improves field-specific models.
 - **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
-- **Multimodal & robotics support** – Optional VLM, VLA, ROS 2, IoT/edge-device features, all controllable via admin toggles.
+- **Multimodal Support**.
 - **Transaction control and error handling** – ACID transactions + LangGraph checkpointing.
-
-
 
 The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.
 
