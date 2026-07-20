@@ -167,14 +167,14 @@ The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurabl
 ## Future Road Map
 
 
-NETTRADES is not just an AI platform. It is an Autonomous Enterprises Platform.
+NETTRADES is not just an AI platform. It is an Autonomous Enterprises Platform. It acts as the control center for your companies AI usage and your company administrators could route requests to the spare GPUS and CPUs across your company or to external services.
+
 | Phase	| Focus |
 |---------|--------|
-| `Phase 1 (Current)` | 	Sovereign AI in a Box – turnkey deployment, GPU orchestration, private model serving, admin console.  | 
+| `Phase 1 (Current)` | Sovereign AI in a Box – turnkey deployment, GPU orchestration, private model serving, admin console.  | 
+| `Phase 3`(Current) | 	Distributed GPUs – share idle GPUs across your organisation using WireGuard VPN connections, Confidential Computing and ran inside gVisor secure containers. | 
+| `Phase 4` | 	Hub-and-spoke cloud overflow – optionally burst inference to the NETTRADES.AI cloud when local GPUs are saturated   | 
 | `Phase 2` | 	Self-improving AI loop – automated fine-tuning from "Good Answer" voting.  | 
-| `Phase 3` | 	Distributed GPU marketplace – share idle GPUs across the WireGuard mesh.  | 
-| `Phase 4` | 	Hub-and-spoke cloud overflow – optionally burst inference to the NETTRADES.AI cloud when local GPUs are saturated, using Confidential Computing.  | 
-
 
 ## ✨ Key Features
 
@@ -182,15 +182,14 @@ The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessl
 
 | Feature | Description |
 |---------|-------------|
-| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system. |
-| **🖥️ [GPU Marketplace](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. |
-| **🔄 [Self-Improving AI](docs/developer/self-improving.md)** | “Good Answer” voting + Unsloth/Axolotl fine-tuning pipeline. Models continuously improve from user feedback. |
-| **🔌 [Hub-and-Spoke Routing](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
-| **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
-| **💬 Expert Marketplace** | “Ask Someone” – paid expert consultations with Stripe escrow. |
 | **🔐 Secure & Sovereign** | WireGuard VPN, gVisor isolation, and full on-premise deployment options. |
 | **🖥 Confidential Computing** | Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
----
+| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system. |
+| **🔌 [Hub-and-Spoke Routing](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
+| **🖥️ [GPU Marketplace](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. |
+| **🔄 [Self-Improving AI](docs/developer/self-improving.md)** | “Good Answer” voting + Unsloth/Axolotl fine-tuning pipeline. Models continuously improve from user feedback. |
+| **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
+| **💬 Expert Marketplace** | “Ask Someone” – paid expert consultations with Stripe escrow. |
 
 ## Developer Quick Start
 
@@ -472,7 +471,7 @@ odoo-proxy http://localhost:8090/health
 For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
 
 
-#### 📦 Installing Odoo Modules
+#### 📦 Installing Future Modules
 
 The all profile automatically installs all NETTRADES modules. If you need to install or upgrade them later, run:
 
@@ -1057,13 +1056,11 @@ graph TD
     A -->|Company / Employer| B[Post Job / Project]
     A -->|Freelancer| C[Search Jobs / Projects]
     A -->|Expert| D[Offer Expert Services]
-    A -->|Researcher| E[Access Research Marketplace]
     A -->|Admin| F[Manage System Configuration]
 
     B --> G[LangGraph Recruitment Agent]
     C --> H[LangGraph Freelance Agent]
     D --> I[Ask Someone Module]
-    E --> J[Research Module]
     F --> K[Administration UI]
 
     G --> L[Search Candidates]
