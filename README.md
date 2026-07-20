@@ -80,13 +80,13 @@ PURPOSE:
 [![GitHub Issues](https://img.shields.io/github/issues/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/issues)
 
 
-## The sovereign AI platform for autonomous enterprises
+## The NETTRADES Sovereign AI Platform
 
-NETTRADES – Sovereign AI in a Box, provides the complete private, self-improving AI infrastructure that enables autonomous operations.
+NETTRADES provides the complete private, self-improving AI infrastructure that enables autonomous operations.
 
 Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. 
 
-Now they could set up a Ubuntu Linux box and run the commands below to deploy a complete, NETTRADES Sovereign AI platform behind their firewall in 30 minutes — no cloud dependencies, no data leaving your control and no vendor lock-in.
+Now they could just set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall in 30 minutes — no cloud dependencies, no data leaving your control and no vendor lock-in.
 
 ```bash
 apt update && apt upgrade -y
@@ -106,23 +106,24 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 ## The Problem
 
-| Challenge| 	Reality |
+| Challenge| Reality |
 |---------|-------------|
 | **Data Privacy** | Sending internal data to external AI companies exposes company secrets, customer data, and intellectual property. |
-| **GPU Waste** |	Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
+| **GPU Waste** | Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
 | **Vendor Lock-in** | Public AI APIs change pricing, terms, and availability without notice. |
 | **Compliance Risk** | GDPR, HIPAA, and sovereign cloud mandates require data residency. |
 | **Complexity** | Building an internal AI platform requires Kubernetes, GPU orchestration, and model serving expertise. |
 
 ## The Solution
 
-NETTRADES – Sovereign AI in a Box combines everything you need into a single, open-source appliance:
+The NETTRADES – Sovereign AI Platform combines everything you need into a single, open-source appliance:
+
 | Component	| What It Does |
 |---------|-------------|
 | **GPU Orchestration** | Manage your entire GPU cluster through a clean admin console. Powered by GPUStack. |
 | **Private Model Serving** | Deploy Llama, Mistral, DeepSeek, and any open-source model behind your firewall in one click. |
-| **Agentic AI** | LangGraph-based agents for GPU management, action execution, and vision tasks. |
-| **Self-Improving AI** | "Good Answer" voting triggers automated fine-tuning. Your models improve from internal feedback. |
+| **Agentic AI** | LangGraph-based agents for GPU management, action execution, and other tasks. |
+| **Self-Improving AI** | "Good Answer" voting triggers automated fine-tuning. Your models improve from constant feedback. |
 | **Admin Console** | User management, RBAC, GPU fleet monitoring, and system logs – all in one place. |
 | **Enterprise Security** | WireGuard VPN, SSH hardening, fail2ban, and full on-premise deployment. |
 | **Turnkey Deployment** | One command installs everything – Docker, GPUStack, Odoo, LangGraph, Grafana, Prometheus, and more. |
@@ -131,8 +132,8 @@ NETTRADES – Sovereign AI in a Box combines everything you need into a single, 
 
 | Need	| How NETTRADES Delivers |
 |---------|-------------|
-| **Data Sovereignty** | 	Everything runs behind your firewall. No data ever leaves your infrastructure. |
-| **Cost Control	No per-token fees.** |  No cloud egress costs. Use GPUs you already own. |
+| **Data Sovereignty** | Everything runs behind your firewall. No data ever leaves your infrastructure. |
+| **Cost Control No per-token fees.** |  No cloud egress costs. Use GPUs you already own. |
 | **Continuous Improvement** | Models get smarter from internal feedback – a true competitive advantage. |
 | **Compliance Ready** | Full data residency control – essential for GDPR, HIPAA, and sovereign cloud mandates. |
 | **No Vendor Lock-in** | Open-source models. Open-source platform. AGPL-3.0 licensed. |
@@ -142,17 +143,17 @@ NETTRADES – Sovereign AI in a Box combines everything you need into a single, 
 
 AGPL-3.0 – Free and open-source. No vendor lock-in. Full source code available.
 
-The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurable. It provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, it will be able to scale up onto a GPU marketplace using Confidential Computing. 
+The NETTRADES Sovereign AI Platform is highly configurable. It provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, it will be able to scale up onto a GPU marketplace using Confidential Computing. 
 
 ## Future Road Map
 
 
-NETTRADES is not just an AI platform. It is an Autonomous Enterprises Platform. It acts as the control center for your companies AI usage and your company administrators could route requests to the spare GPUS and CPUs across your company or to external services.
+NETTRADES is not just an AI platform. It acts as the control center for your companies AI usage and your company administrators could route requests to the spare GPUS and CPUs across your company or to external services.
 
 | Phase	| Focus |
 |---------|--------|
 | `Phase 1` (Current)| Sovereign AI in a Box – Turnkey deployment, GPU orchestration, private model serving, admin console.  | 
-| `Phase 2` (Next) | 	Distributed GPUs – Share idle GPUs across your organisation using WireGuard VPN, Confidential Computing and gVisor secure containers. | 
+| `Phase 2` (In Progress) | 	Distributed GPUs – Share idle GPUs across your organisation using WireGuard VPN, Confidential Computing and gVisor secure containers. | 
 | `Phase 3` | 	Hub-and-spoke cloud overflow – optionally burst inference to the NETTRADES.AI GPU Marketplace when local GPUs are saturated   | 
 | `Phase 2` | 	Self-improving AI loop – automated fine-tuning from "Good Answer" voting.  | 
 
