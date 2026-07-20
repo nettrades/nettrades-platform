@@ -340,12 +340,19 @@ All the administration passwords are in the file:
 nettrades-platform\deploy\docker\.env 
 (The platform uses the .env and the docker-compose.xml file not the odoo.config file)
 
-| Service| 	URL| 	Credentials | 
-|---------|--------|-------------|
-| `Odoo Admin Console for configuring NETTRADES` | http://localhost:8069 | admin / admin (change immediately) | 
-| `GPUStack` | http://localhost:8080 | admin / password from .env |
-| `Grafana` | http://localhost:3001 | admin / password from .env |
-| `Prometheus` | http://localhost:9090 | admin / password from .env |
+Once the installation is complete, open your browser and go to:
+
+| Service | URL | Username | Password |
+|---------|-------------|---------|-------------|
+| Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
+| GPUStack | http://YourDomainOrIP:8080 or http://localhost:8080 | admin | GPUSTACK_ADMIN_PASSWORD in the .env file |
+| Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
+| Prometheus | http://YourDomainOrIP:9090 or http://YourDomainOrIP:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
+| Forgejo | http://YourDomainOrIP:3000 or http://localhost:3000 | Set in after installation | Set in after installation  |
+
+For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
+
+Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestration, model serving, admin console), you don't need to use Forgejo. It is provided for customers who want to self-host Git capabilities or want to use it for Git Actions to deloy Kubernetes cluster with Argo CD.
 
 
 #### 📦 Other Installation Options
@@ -420,22 +427,6 @@ docker exec -it docker-postgres-1 psql -U odoo -c "ALTER USER odoo WITH PASSWORD
 Make sure you update the password in .env and odoo.conf and restart Odoo.
 
 
-#### 🌐 Access Your Platform
-
-The passwords are in the nettrades-platform\deploy\docker\.env file
-It does not use the odoo.config file it only uses the .env file and the docker-compose.yaml file. 
-
-Once the script finishes, open your browser and go to:
-
-| Service | URL | Username | Password |
-|---------|-------------|---------|-------------|
-| Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
-| GPUStack | http://YourDomainOrIP:8080 or http://localhost:8080 | admin | GPUSTACK_ADMIN_PASSWORD in the .env file |
-| Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
-| Prometheus | http://YourDomainOrIP:9090 or http://YourDomainOrIP:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
-| Forgejo | http://YourDomainOrIP:3000 or http://localhost:3000 | Set in after installation | Set in after installation  |
-
-For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
 
 
 #### 📦 Installing Future Modules
