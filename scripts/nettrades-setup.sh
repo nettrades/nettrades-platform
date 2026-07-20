@@ -85,7 +85,7 @@ ${YELLOW}PROFILES (CLI):${NC}
     k8s         : Phase 0 + Phase 1 + Phase 3 (Kubernetes scaling)
     monitoring  : Phase 5 (Prometheus & Grafana setup)
     modules     : Phase 4 (install/upgrade Odoo modules only)
-    all         : Phase 0 + Phase 1 + Phase 2 + Phase 4 (full deployment)
+    all         : Phase 0 + Phase 1 + Phase 2 + Phase 4  + Phase 5 (full deployment)
 
 ${YELLOW}OPTIONS (CLI):${NC}
     --force               Re-run phases even if already completed.
@@ -119,7 +119,7 @@ run_interactive() {
     echo "  3) k8s         - Kubernetes scaling (Talos, Argo CD)"
     echo "  4) monitoring  - Prometheus & Grafana monitoring stack (Phase 5)"
     echo "  5) modules     - Install/upgrade Odoo modules only (Phase 4)"
-    echo "  6) all         - Full deployment (Phases 0,1,2,4)"
+    echo "  6) all         - Full deployment (Phases 0,1,2,4,5)"
     echo ""
     read -rp "Enter the number of your choice (1-6): " profile_choice
 
@@ -163,7 +163,7 @@ run_interactive() {
         k8s) PHASES=(0 1 3) ;;
         monitoring) PHASES=(5) ;;
         modules) PHASES=(4) ;;
-        all) PHASES=(0 1 2 4) ;;
+        all) PHASES=(0 1 2 4 5) ;;
     esac
 
     # --- Confirm ---
@@ -456,7 +456,7 @@ elif [[ -n "$PROFILE" ]]; then
         k8s) PHASES=(0 1 3) ;;
         monitoring) PHASES=(5) ;;
         modules) PHASES=(4) ;;
-        all) PHASES=(0 1 2 4) ;;
+        all) PHASES=(0 1 2 4 5) ;;
         *)
             log_error "Unknown profile: $PROFILE"
             show_help

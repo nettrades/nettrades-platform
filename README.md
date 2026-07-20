@@ -86,7 +86,7 @@ NETTRADES provides the complete private, self-improving AI infrastructure that e
 
 Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. 
 
-Now in just a few minutes companies could set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall — no cloud dependencies, no data leaving your control and no vendor lock-in.
+Now in just a few minutes, companies could set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall — no cloud dependencies, no data leaving their control and no vendor lock-in.
 
 ```bash
 apt update && apt upgrade -y
@@ -172,9 +172,9 @@ The NETTRADES Sovereign AI Platform is The Future Of Work. It seemlessly integra
 | **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
 | **💬 Expert Marketplace** | “Ask Someone” – paid expert consultations with Stripe escrow. |
 
-## Quick Start
+## Developer Quick Start
 
-This guide will help you get the platform running on your own server, laptop, or cloud VM in minutes.
+This guide will help you get the platform running on your own server, laptop or cloud VM in minutes.
 
 ### Prerequisites
 
@@ -189,9 +189,10 @@ This guide will help you get the platform running on your own server, laptop, or
 
 * Internet connection (to download models and images)
 
-Idealy use Ubuntu Linux but if you have to use windows, make sure you install Docker Desktop and integrate it with WSL2 
+Idealy use Ubuntu Linux but if you have to use windows, make sure that you install Docker Desktop and integrate it with WSL2 
 
 Install and Configure Docker for WSL 2
+
 Step 1: Install Docker Desktop for Windows
 
 * Download Docker Desktop: Go to docker.com/products/docker-desktop
@@ -318,85 +319,9 @@ sudo ./scripts/nettrades-setup.sh all --force
 This will run all phases (system preparation, environment setup, deployment and module installation) with default settings. (Warning do not use --force on existing systems or production systems)
 
 
-### Installation Overview
+#### What Happens During Setup?
 
-
-The installation scripts do the following:
-    Phase 0: System preparation (Docker, NVIDIA drivers, firewall)
-
-    Phase 1: Environment setup (.env, secrets)
-
-    Phase 2: Docker Compose deployment (all services)
-
-    Phase 4: Module installation (NETTRADES Odoo modules)
-
-### Accessing Your Platform
-
-| Service| 	URL| 	Credentials | 
-|---------|--------|-------------|
-| `Odoo Admin Console for configuring NETTRADES` | http://localhost:8069 | admin / admin (change immediately) | 
-| `GPUStack` | http://localhost:8080 | admin / password from .env |
-| `Grafana` | http://localhost:3001 | admin / password from .env |
-| `Prometheus` | http://localhost:9090 | admin / password from .env |
-
-All the passwords are in the file:
-nettrades-platform\deploy\docker\.env 
-(The platform uses the .env and the docker-compose.xml file not the odoo.config file)
-
-#### 📦 Other Installation Options
-
-
-| Profile | Description |  Phase  |
-|---------|-------------|-------------|
-| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only|
-| `deploy` | Full single-VM deployment (Docker Compose) without GPU |  Phases 0, 1, 2 |
-| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 3  |
-| `monitoring` | Deploys Prometheus + Grafana (on existing stack) | Phase 5  |
-| `modules` | Installs or upgrades all NETTRADES Odoo modules |  Phase 4 |
-| `all` | Full production deployment + modules (best for production) | Phases 0, 1, 2, 4  |
-
-#### ⚙️ Useful Options (CLI)
-
-| Option | Effect |
-|---------|-------------|
-| `--force` | Re-run phases even if they were already completed |
-| `--upgrade` | Upgrade Odoo modules instead of fresh install |
-| `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
-
-
-#### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
-
-You can specify a profile and options directly:
-```bash
-# Full deployment with modules
-./scripts/nettrades-setup.sh all
-
-# Deployment without GPU
-./scripts/nettrades-setup.sh deploy
-
-# Deployment with GPU support
-./scripts/nettrades-setup.sh gpu
-
-# Development environment only
-./scripts/nettrades-setup.sh dev
-
-# First-time Development environment
-./scripts/nettrades-setup.sh dev
-
-# Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website osoo module
-./scripts/nettrades-setup.sh modules
-or
-./scripts/nettrades-setup.sh modules --upgrade
-
-# Reinstall everything from scratch (only for developers)
-./scripts/nettrades-setup.sh dev --force
-
-```
-
-
-#### 🔍 What Happens During Setup?
-
-The installer executes phases in the correct order:
+The installer executes phases in this order:
 
 | Phase | Description |
 |---------|-------------|
@@ -408,6 +333,76 @@ The installer executes phases in the correct order:
 | `5` | Monitoring – deploys Prometheus and Grafana with pre-configured dashboards (if not already present). |
 
 All phases are idempotent – you can safely re-run the script to fix or upgrade your deployment.
+
+### Accessing Your Platform
+
+All the administration passwords are in the file:
+nettrades-platform\deploy\docker\.env 
+(The platform uses the .env and the docker-compose.xml file not the odoo.config file)
+
+| Service| 	URL| 	Credentials | 
+|---------|--------|-------------|
+| `Odoo Admin Console for configuring NETTRADES` | http://localhost:8069 | admin / admin (change immediately) | 
+| `GPUStack` | http://localhost:8080 | admin / password from .env |
+| `Grafana` | http://localhost:3001 | admin / password from .env |
+| `Prometheus` | http://localhost:9090 | admin / password from .env |
+
+
+#### 📦 Other Installation Options
+
+
+| Profile | Description |  Phase  |
+|---------|-------------|-------------|
+| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only|
+| `deploy` | Full single-VM deployment (Docker Compose) without GPU |  Phases 0, 1, 2 |
+| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 3  |
+| `monitoring` | Deploys Prometheus + Grafana (on existing stack) | Phase 5  |
+| `modules` | Installs or upgrades all NETTRADES Odoo modules |  Phase 4 |
+| `all` | Full production deployment + modules (best for production) | Phases 0, 1, 2, 4, 5  |
+
+#### ⚙️ Useful Options (CLI)
+
+| Option | Effect |
+|---------|-------------|
+| `--force` | Re-run phases even if they were already completed |
+| `--upgrade` | Upgrade Odoo modules instead of fresh install |
+| `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
+
+WARNING DO NOT RUN --force ON PRTODUCTION ENVIRONMENTS
+
+#### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
+
+You can specify a profile and options directly:
+```bash
+# Full deployment with modules
+sudo ./scripts/nettrades-setup.sh all
+
+# Deployment without GPU
+sudo ./scripts/nettrades-setup.sh deploy
+
+# Deployment with GPU support
+sudo ./scripts/nettrades-setup.sh gpu
+
+# Development environment only
+sudo ./scripts/nettrades-setup.sh dev
+
+# First-time Development environment
+sudo ./scripts/nettrades-setup.sh dev
+
+# Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website osoo module
+sudo ./scripts/nettrades-setup.sh modules
+or
+sudo ./scripts/nettrades-setup.sh modules --upgrade
+
+# Reinstall everything from scratch (only for developers as it over writes everything)
+sudo ./scripts/nettrades-setup.sh dev --force
+
+# If you wants to minimise resource usage and skip monitoring then you could still use the --phases option
+
+sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4
+
+```
+
 
 #### 🔑 Database Password Management
 
