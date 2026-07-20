@@ -25,7 +25,7 @@ PURPOSE:
   </picture>
 </p>
 
-<h1 align="center">NETTRADES – Sovereign AI in a Box</h1>
+<h1 align="center">NETTRADES – Sovereign AI In A Box</h1>
 
 <p align="center">
   <!--
@@ -86,7 +86,7 @@ Enterprises face a critical choice: send sensitive data to public AI APIs (risky
 
 ### NETTRADES gives you a third option.
 
-A turnkey, private AI platform that deploys behind your firewall in under 30 minutes. Run open-source models (Llama, Mistral, DeepSeek) on your own GPU cluster. Keep your data sovereign. Control your AI. Improve your models with internal feedback.
+A turnkey, private AI platform that deploys behind your firewall in under 30 minutes. Run open-source models (Llama, Mistral, DeepSeek) distributed across your own GPU cluster. Keep your data sovereign. Control your AI. Improve your models with internal feedback.
 
 
 
@@ -94,34 +94,34 @@ A turnkey, private AI platform that deploys behind your firewall in under 30 min
 
 | Challenge| 	Reality |
 |---------|-------------|
-| `Data Privacy` | Sending internal data to external AI companies exposes company secrets, customer data, and intellectual property. |
-| `GPU Waste` |	Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
-| `Vendor Lock-in` | Public AI APIs change pricing, terms, and availability without notice. |
-| `Compliance Risk` | GDPR, HIPAA, and sovereign cloud mandates require data residency. |
-| `Complexity` | Building an internal AI platform requires Kubernetes, GPU orchestration, and model serving expertise. |
+| **Data Privacy** | Sending internal data to external AI companies exposes company secrets, customer data, and intellectual property. |
+| **GPU Waste** |	Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
+| **Vendor Lock-in** | Public AI APIs change pricing, terms, and availability without notice. |
+| **Compliance Risk** | GDPR, HIPAA, and sovereign cloud mandates require data residency. |
+| **Complexity** | Building an internal AI platform requires Kubernetes, GPU orchestration, and model serving expertise. |
 
 ## The Solution
 
 NETTRADES – Sovereign AI in a Box combines everything you need into a single, open-source appliance:
 | Component	| What It Does |
 |---------|-------------|
-| `GPU Orchestration` | Manage your entire GPU cluster through a clean admin console. Powered by GPUStack. |
-| `Private Model Serving` | Deploy Llama, Mistral, DeepSeek, and any open-source model behind your firewall in one click. |
-| `Agentic AI` | LangGraph-based agents for GPU management, action execution, and vision tasks. |
-| `Self-Improving AI` | "Good Answer" voting triggers automated fine-tuning. Your models improve from internal feedback. |
-| `Admin Console` | User management, RBAC, GPU fleet monitoring, and system logs – all in one place. |
-| `Enterprise Security` | WireGuard VPN, SSH hardening, fail2ban, and full on-premise deployment. |
-| `Turnkey Deployment` | One command installs everything – Docker, GPUStack, Odoo, LangGraph, Grafana, Prometheus, and more. |
+| **GPU Orchestration** | Manage your entire GPU cluster through a clean admin console. Powered by GPUStack. |
+| **Private Model Serving** | Deploy Llama, Mistral, DeepSeek, and any open-source model behind your firewall in one click. |
+| **Agentic AI** | LangGraph-based agents for GPU management, action execution, and vision tasks. |
+| **Self-Improving AI** | "Good Answer" voting triggers automated fine-tuning. Your models improve from internal feedback. |
+| **Admin Console** | User management, RBAC, GPU fleet monitoring, and system logs – all in one place. |
+| **Enterprise Security** | WireGuard VPN, SSH hardening, fail2ban, and full on-premise deployment. |
+| **Turnkey Deployment** | One command installs everything – Docker, GPUStack, Odoo, LangGraph, Grafana, Prometheus, and more. |
 
 ## Why Sovereign AI in a Box?
 
 | Need	| How NETTRADES Delivers |
 |---------|-------------|
-| `Data Sovereignty` | 	Everything runs behind your firewall. No data ever leaves your infrastructure. |
-| `Cost Control	No per-token fees.` |  No cloud egress costs. Use GPUs you already own. |
-| `Continuous Improvement` | Models get smarter from internal feedback – a true competitive advantage. |
-| `Compliance Ready` | Full data residency control – essential for GDPR, HIPAA, and sovereign cloud mandates. |
-| `No Vendor Lock-in` | Open-source models. Open-source platform. AGPL-3.0 licensed. |
+| **Data Sovereignty** | 	Everything runs behind your firewall. No data ever leaves your infrastructure. |
+| **Cost Control	No per-token fees.** |  No cloud egress costs. Use GPUs you already own. |
+| **Continuous Improvement** | Models get smarter from internal feedback – a true competitive advantage. |
+| **Compliance Ready** | Full data residency control – essential for GDPR, HIPAA, and sovereign cloud mandates. |
+| **No Vendor Lock-in** | Open-source models. Open-source platform. AGPL-3.0 licensed. |
 
 ## Quick Start
 
@@ -150,7 +150,7 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 ```
 
-What You Get
+### What You Get
 | Service| 	URL| 	Credentials | 
 |---------|--------|-------------|
 | `Odoo Admin Console for configuring NETTRADES` | 	http://localhost:8069 | 	admin / admin (change immediately) | 
@@ -158,7 +158,13 @@ What You Get
 | `Grafana` | 	http://localhost:3001 | 	admin / password from .env |
 | `Prometheus` | 	http://localhost:9090 | 	admin / password from .env |
 
-## Road Map
+## License
+
+AGPL-3.0 – Free and open-source. No vendor lock-in. Full source code available.
+
+The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurable and provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, will be able to scale up onto a GPU marketplace using Confidential Computing. 
+
+## Future Road Map
 
 
 NETTRADES is not just an AI platform. It is an Autonomous Enterprises Platform.
@@ -167,45 +173,26 @@ NETTRADES is not just an AI platform. It is an Autonomous Enterprises Platform.
 | `Phase 1 (Current)` | 	Sovereign AI in a Box – turnkey deployment, GPU orchestration, private model serving, admin console.  | 
 | `Phase 2` | 	Self-improving AI loop – automated fine-tuning from "Good Answer" voting.  | 
 | `Phase 3` | 	Distributed GPU marketplace – share idle GPUs across the WireGuard mesh.  | 
-| `Phase 4` | 	Hub-and-spoke cloud overflow – burst inference to the NETTRADES.AI cloud when local GPUs are saturated, using Confidential Computing.  | 
+| `Phase 4` | 	Hub-and-spoke cloud overflow – optionally burst inference to the NETTRADES.AI cloud when local GPUs are saturated, using Confidential Computing.  | 
 
-## License
-
-AGPL-3.0 – Free and open-source. No vendor lock-in. Full source code available.
-
-The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurable and provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, will be able to scale up onto a GPU marketplace using Confidential Computing. 
-
-### It will combines:
-
-- **Distributed GPU marketplace** – Companies can share idle GPUs to run inference and fine-tuning.
-- **Expert marketplace “Ask Someone”** – Users can request paid help from verified professionals with Stripe escrow.
-- **Self-improving AI – A “Good Answer”** voting system feeds a fine-tuning pipeline (Unsloth / Axolotl) which continuously improves field-specific models.
-- **Autonomous administration** – GPU health watchdog, reputation decay, utilisation alerts, and automatic Karma-based qualification.
-- **Multimodal Support**.
-- **Transaction control and error handling** – ACID transactions + LangGraph checkpointing.
-
-The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.
-
----
 
 ## ✨ Key Features
+
+The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.
 
 | Feature | Description |
 |---------|-------------|
 | **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system for recruitment, freelancing, lead generation, GPU management, vision, and action. |
 | **🖥️ [GPU Marketplace](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing with token-based economy. Earn tokens by sharing idle GPUs; spend tokens on inference and fine-tuning. |
 | **🔄 [Self-Improving AI](docs/developer/self-improving.md)** | “Good Answer” voting + Unsloth/Axolotl fine-tuning pipeline. Models continuously improve from user feedback. |
-| **🧠 Vision-Language-Action** | VLM (Vision-Language Models) and VLA (Vision-Language-Action) support for multimodal and robotics applications. |
 | **🔌 [Hub-and-Spoke Routing](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
 | **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
 | **💬 Expert Marketplace** | “Ask Someone” – paid expert consultations with Stripe escrow. |
 | **🔐 Secure & Sovereign** | WireGuard VPN, gVisor isolation, and full on-premise deployment options. |
-| **📱 Mobile PWA** | Progressive Web App with offline support. |
-| **🔗 [Git Collaboration](docs/operations/deployment-perspective-CICD-pipeline-diagram.md)** | Forgejo Git integration for project collaboration. |
 | **🖥 Confidential Computing** | Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
 ---
 
-## 🚀 Quick Start
+## Developer Quick Start
 
 This guide will help you get the platform running on your own server, laptop, or cloud VM in minutes.
 
@@ -293,17 +280,25 @@ In Linux you could run them in the terminal window
 E.g. clone it into the c drive
 
 ```bash
-cd /mnt/c/
+apt update && apt upgrade -y
 # Clone the repository
-git clone https://github.com/nettrades/nettrades-platform.git
+cd /root
+git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
+cd nettrades-platform
+
+# Make the script executable
+chmod +x scripts/nettrades-setup.sh
+
+# Run the full deployment (automatic)
+sudo ./scripts/nettrades-setup.sh all --force
+
 ```
 
 Install dos2unix if not already installed
-And Convert all the files in the repository to have Linux line endings (\n)
+This can convert all the files in the repository to have Linux line endings (\n)
 
 
 ```bash
-sudo apt update
 sudo apt install dos2unix -y
 cd /mnt/c/nettrades-platform
 sudo ./scripts/fix-line-endings.sh --force
@@ -419,28 +414,39 @@ Make sure you update the password in .env and odoo.conf and restart Odoo.
 
 #### 🌐 Access Your Platform
 
+The passwords are in the nettrades-platform\deploy\docker\.env file
+It does not use the odoo.config file it only uses the .env file and the docker-compose.yaml file. 
+
 Once the script finishes, open your browser and go to:
 
-* Odoo: http://localhost:8069
-* Login: admin / admin (or the password you set in .env as ODOO_ADMIN_PASSWORD
+Odoo: http://YourDomainOrIP:8069 
+Odoo: http://localhost:8069 
+Username = admin 
+Password = admin change this in the .env file
 
-Default Odoo credentials: admin / admin
-(Change immediately after first login)
+Grafana: http://YourDomainOrIP:3001 
+Grafana: http://localhost:3001 
+Username = admin 
+GRAFANA_PASSWORD = in the .env file
 
-LangGraph	http://localhost:8000
+GPUStack: http://YourDomainOrIP:8080 
+GPUStack: http://localhost:8080 
+Username = admin 
+GPUSTACK_ADMIN_PASSWORD = in the .env file
 
-* Grafana: http://localhost:3001
-* Login: admin / admin (change password on first login)
+Prometheus: http://YourDomainOrIP:9090 
+Prometheus: http://localhost:9090 
+Username = admin 
+PROMETHEUS_PASSWORD = in the .env file
 
-* Forgejo: http://localhost:3000
+Forgejo: http://YourDomainOrIP:3000 
+Forgejo: http://localhost:3000
 
-* LangGraph Health: http://localhost:8000/health
+LangGraph health: http://YourDomainOrIP:8000/health 
+LangGraph health: http://localhost:8000/health
 
-Prometheus	http://localhost:9090	
-
-GPUStack	http://localhost:8080 	
-
-Username is: Admin
+odoo-proxy http://YourDomainOrIP:8090/health 
+odoo-proxy http://localhost:8090/health
 
 
 
@@ -449,7 +455,8 @@ Username is: Admin
 The all profile automatically installs all NETTRADES modules. If you need to install or upgrade them later, run:
 
 ```bash
-
+cd /root/nettrades-platform
+git pull origin dev-deployment1
 ./scripts/install-modules.sh --force
 ```
 
@@ -778,7 +785,7 @@ graph TB
 
 flowchart TD
     A[Incoming Request] --> B{Intent?}
-    B -->|Recruitment / Freelance| C{Local Talent Available?}
+    B -->|Recruitment| C{Local Talent Available?}
     C -->|Yes| D[Process Locally]
     C -->|No| E[Route to Hub]
     B -->|GPU| F{Local GPU < Threshold?}
@@ -839,7 +846,7 @@ graph TD
 
 ### 4. LangGraph Agent State Machine (Simplified)
 
-The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks.
+For some fields like Medical or Legal the Agents take extra care. The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks.
 
 ```mermaid
 
@@ -1053,43 +1060,9 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 
 ## User Workflow: NETTRADES Platform
 
-### 1. User Journey Overview
 
-```mermaid
 
-graph TB
-    subgraph UserTypes["User Types"]
-        CompanyUser["Company / Employer"]
-        Freelancer["Freelancer / Job Seeker"]
-        Expert["Expert / Professional"]
-        Researcher["Researcher"]
-        Admin["System Administrator"]
-    end
-
-    subgraph EntryPoints["Entry Points"]
-        WebPortal["Odoo Website / Portal"]
-        PWA["Mobile PWA"]
-        ChatWidget["AI Chatbot Widget"]
-        VSCode["VS Code Extension"]
-        API["REST API / GraphQL"]
-    end
-
-    subgraph CoreActions["Core User Actions"]
-        PostJob["Post Job / Project"]
-        SearchTalent["Search Talent / Freelancers"]
-        AskSomeone["Ask Someone (Expert Help)"]
-        VoteAnswer["Good Answer Voting"]
-        ShareGPU["Share GPU Resources"]
-        RunInference["Run AI Inference"]
-        FineTune["Fine-Tune Models"]
-        ManageGPU["Manage GPU Cluster"]
-    end
-
-    UserTypes --> EntryPoints
-    EntryPoints --> CoreActions
-```
-
-### 2. Complete End-to-End Workflow
+### 1. Complete End-to-End Workflow
 
 ```mermaid
 graph TD
@@ -1165,7 +1138,7 @@ graph TD
     AY --> AR
 ```
 
-### 3. Detailed Ask Someone Workflow
+### 2. Detailed Ask Someone Workflow
 
 ```mermaid
 graph TD
@@ -1219,7 +1192,7 @@ graph TD
 
 ```
 
-### 4. Good Answer Voting Workflow
+### 3. Good Answer Voting Workflow
 
 ```mermaid
 graph TD
@@ -1263,7 +1236,7 @@ graph TD
     AB --> AC[New Cycle]
 ```
 
-### 5. Distributed GPU Functionality Workflow
+### 4. Distributed GPU Functionality Workflow
 
 ```mermaid
 graph TD
@@ -1307,7 +1280,7 @@ graph TD
     AA --> AB[Cluster Scaled]
 ```
 
-### 6. Self-Improving Loop with GPU Integration
+### 5. Self-Improving Loop with GPU Integration
 
 ```mermaid
 graph TD
@@ -1357,7 +1330,7 @@ graph TD
     Execute -->|"Feedback Loop"| Monitor
 ```
 
-### 7. Complete System Workflow with All Components
+### 6. Complete System Workflow with All Components
 
 ```mermaid
 graph TB
@@ -1466,8 +1439,8 @@ graph TB
     MonitoringLayer --> TrainingLayer
 ```
 
-### 8. Key Workflow Sequences
-#### 8.1 Ask Someone Flow
+### 7. Key Workflow Sequences
+#### 7.1 Ask Someone Flow
 
 ```mermaid
 sequenceDiagram
@@ -1503,7 +1476,7 @@ sequenceDiagram
 ```
 
 
-#### 8.2 GPU Sharing & Inference Flow
+#### 7.2 GPU Sharing & Inference Flow
 
 ```mermaid
 sequenceDiagram
@@ -1538,7 +1511,7 @@ sequenceDiagram
     Bridge-->>User: Return result
 ```
 
-#### 8.3 Good Answer Flow
+#### 7.3 Good Answer Flow
 
 ```mermaid
 sequenceDiagram
@@ -1619,7 +1592,7 @@ graph TB
 
 ```
 
-## 9. File Locations Summary
+## 8. File Locations Summary
 
 | Component | File Path |
 |---------|-------------|
@@ -1642,7 +1615,7 @@ graph TB
 | Self-Improving Config | odoo-modules/nettrades_self_improving_config/models/ |
 | Bridge | odoo-modules/nettrades_bridge/models/ |
 
-## 10. Summary of Workflows
+## 9. Summary of Workflows
 
 | Workflow | Key Modules  | Key Features |
 |---------|----------|-------------|
@@ -1653,7 +1626,7 @@ graph TB
 | `Agent Routing` | `nettrades_bridge, LangGraph Agents` | Hub-and-spoke, local/remote routing, overflow |
 
 
-## 11. Top-Level System Architecture
+## 10. Top-Level System Architecture
 
 ```mermaid
 graph TB
