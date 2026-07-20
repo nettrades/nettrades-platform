@@ -86,7 +86,7 @@ NETTRADES provides the complete private, self-improving AI infrastructure that e
 
 Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. 
 
-Now they could just set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall in 30 minutes — no cloud dependencies, no data leaving your control and no vendor lock-in.
+Now in just a few minutes companies could set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall — no cloud dependencies, no data leaving your control and no vendor lock-in.
 
 ```bash
 apt update && apt upgrade -y
@@ -116,7 +116,7 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 ## The Solution
 
-The NETTRADES – Sovereign AI Platform combines everything you need into a single, open-source appliance:
+The NETTRADES Sovereign AI Platform combines everything you need into a single, open-source appliance:
 
 | Component	| What It Does |
 |---------|-------------|
@@ -148,7 +148,7 @@ The NETTRADES Sovereign AI Platform is highly configurable. It provides company 
 ## Future Road Map
 
 
-NETTRADES is not just an AI platform. It acts as the control center for your companies AI usage and your company administrators could route requests to the spare GPUS and CPUs across your company or to external services.
+NETTRADES is not just an AI platform. It acts as the control center for your companies AI usage and your company administrators could route requests to the spare GPUS across your company or to external services.
 
 | Phase	| Focus |
 |---------|--------|
@@ -159,7 +159,7 @@ NETTRADES is not just an AI platform. It acts as the control center for your com
 
 ## ✨ Key Features
 
-The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations and Agentic AI.
+The NETTRADES Sovereign AI Platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations.
 
 | Feature | Description |
 |---------|-------------|
@@ -315,9 +315,22 @@ For a fully full automated deployment (recommended for first-time development us
 sudo ./scripts/nettrades-setup.sh all --force
 
 ```
-This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings. (Warning do not use --force on existing systems or production systems)
+This will run all phases (system preparation, environment setup, deployment and module installation) with default settings. (Warning do not use --force on existing systems or production systems)
 
-### What You Get
+
+### Installation Overview
+
+
+The installation scripts do the following:
+    Phase 0: System preparation (Docker, NVIDIA drivers, firewall)
+
+    Phase 1: Environment setup (.env, secrets)
+
+    Phase 2: Docker Compose deployment (all services)
+
+    Phase 4: Module installation (NETTRADES Odoo modules)
+
+### Accessing Your Platform
 
 | Service| 	URL| 	Credentials | 
 |---------|--------|-------------|
@@ -326,7 +339,9 @@ This will run all phases (system preparation, environment setup, deployment, and
 | `Grafana` | http://localhost:3001 | admin / password from .env |
 | `Prometheus` | http://localhost:9090 | admin / password from .env |
 
-
+All the passwords are in the file:
+nettrades-platform\deploy\docker\.env 
+(The platform uses the .env and the docker-compose.xml file not the odoo.config file)
 
 #### 📦 Other Installation Options
 
@@ -400,7 +415,7 @@ During Phase 1, the script generates a random password for PostgreSQL.
 
 However, for compatibility with Odoo’s command-line tools, the password must not contain special characters (like +, /, =).
 
-If you encounter authentication errors, you can simplify the password by editing .env and deploy/docker/config/odoo.conf, and updating the PostgreSQL user:
+If you encounter authentication errors, you can simplify the password by editing .env and updating the PostgreSQL user:
 
 ```bash
 
