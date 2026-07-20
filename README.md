@@ -25,7 +25,7 @@ PURPOSE:
   </picture>
 </p>
 
-<h1 align="center">NETTRADES – Sovereign AI In A Box</h1>
+<h1 align="center">NETTRADES – SOVEREIGN AI IN A BOX</h1>
 
 <p align="center">
   <!--
@@ -133,7 +133,7 @@ NETTRADES – Sovereign AI in a Box combines everything you need into a single, 
 
 * Optional: NVIDIA GPU with drivers for GPU acceleration.
 
-Set up a Ubuntu Linux box and run the commands below to have your own private AI in 30 minutes.
+Set up a Ubuntu Linux box and run the commands below to set up your own private AI in 30 minutes.
 
 ```bash
 apt update && apt upgrade -y
@@ -162,7 +162,7 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 AGPL-3.0 – Free and open-source. No vendor lock-in. Full source code available.
 
-The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurable and provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, will be able to scale up onto a GPU marketplace using Confidential Computing. 
+The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurable and provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, it will be able to scale up onto a GPU marketplace using Confidential Computing. 
 
 ## Future Road Map
 
@@ -182,8 +182,8 @@ The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessl
 
 | Feature | Description |
 |---------|-------------|
-| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system for recruitment, freelancing, lead generation, GPU management, vision, and action. |
-| **🖥️ [GPU Marketplace](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing with token-based economy. Earn tokens by sharing idle GPUs; spend tokens on inference and fine-tuning. |
+| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system. |
+| **🖥️ [GPU Marketplace](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. |
 | **🔄 [Self-Improving AI](docs/developer/self-improving.md)** | “Good Answer” voting + Unsloth/Axolotl fine-tuning pipeline. Models continuously improve from user feedback. |
 | **🔌 [Hub-and-Spoke Routing](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
 | **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
@@ -420,34 +420,56 @@ It does not use the odoo.config file it only uses the .env file and the docker-c
 Once the script finishes, open your browser and go to:
 
 Odoo: http://YourDomainOrIP:8069 
+
 Odoo: http://localhost:8069 
+
 Username = admin 
+
 Password = admin change this in the .env file
 
+
 Grafana: http://YourDomainOrIP:3001 
+
 Grafana: http://localhost:3001 
+
 Username = admin 
+
 GRAFANA_PASSWORD = in the .env file
 
+
 GPUStack: http://YourDomainOrIP:8080 
+
 GPUStack: http://localhost:8080 
+
 Username = admin 
+
 GPUSTACK_ADMIN_PASSWORD = in the .env file
 
+
 Prometheus: http://YourDomainOrIP:9090 
+
 Prometheus: http://localhost:9090 
+
 Username = admin 
+
 PROMETHEUS_PASSWORD = in the .env file
 
+
 Forgejo: http://YourDomainOrIP:3000 
+
 Forgejo: http://localhost:3000
 
+
 LangGraph health: http://YourDomainOrIP:8000/health 
+
 LangGraph health: http://localhost:8000/health
 
+
 odoo-proxy http://YourDomainOrIP:8090/health 
+
 odoo-proxy http://localhost:8090/health
 
+For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
 
 
 #### 📦 Installing Odoo Modules
@@ -578,21 +600,6 @@ If you’re ready to scale to multiple nodes with Kubernetes, use:
 This requires a Proxmox host and pre-configured Talos images. For details, see docs/operations/kubernetes-deployment.md.
 
 
-### Accessing Your Platform On A Server
-
-### After ~10-20 minutes, you'll have:
-
-
-| Service | URL | Default Credentials |
-|---------|-------------|-------------|
-|`Odoo`	| https://your-domain	| Create database on first login|
-|`Grafana`	| https://grafana.your-domain	| admin / password from .env|
-|`GPUStack`	| https://gpustack.your-domain	| admin / admin (change immediately)|
-|`Forgejo`	| https://git.your-domain	| Create first user on first login|
-
-All services are secured with Let's Encrypt TLS.
-
-For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
 
 ### Troubleshooting a server
 
@@ -705,25 +712,8 @@ Detailed architecture diagrams are available in the [docs/developer/](docs/devel
 
 ### 2. The Hub-and-Spoke Model
 
-NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data sovereignty, and enable seamless scaling. Each spoke (company) runs its own client instance of the software for internal operations, while the hub (NETTRADES.AI) provides global services like talent discovery, GPU overflow, and the self-improving loop.
+NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data sovereignty, and enable seamless scaling. Each spoke (company) runs its own client instance of the software for internal operations, while the hub (NETTRADES.AI) provides global services like GPU overflow and external help.
 
-Companies can use `Local Internal Shell` internally for their operations and connect to `NETTRADES.AI` when they need external talent, researchers, partners, or additional GPU capacity.
-
-`Local Internal Shell`
-
-• Internal job adverts and collaboration
-• CRM, ERP, eCommerce
-• Local GPU inferencing on your own hardware
-• Agentic AI for internal operations
-• Fine-tune AI on your internal data
-
-
-`NETTRADES.AI (The Brain) (Cloud-based)`
-
-• Global talent pool (external recruitment)
-• Global GPU marketplace
-• Central inference and fine-tuning
-• Self-improving AI pipeline
 
 ```mermaid
 
@@ -1020,7 +1010,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 
 Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing.
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 NETTRADES builds on the shoulders of many amazing open-source projects:
 
@@ -1055,11 +1045,7 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 * [Prometheus](https://prometheus.io/) & [Grafana](https://grafana.com/) – Monitoring
 
 
-
-
-
 ## User Workflow: NETTRADES Platform
-
 
 
 ### 1. Complete End-to-End Workflow
