@@ -82,11 +82,11 @@ PURPOSE:
 
 ## The sovereign AI platform for autonomous enterprises
 
-NETTRADES – Sovereign AI in a Box, provides the private, self-improving AI foundations that enables autonomous operations.
+NETTRADES – Sovereign AI in a Box, provides the complete private, self-improving AI infrastructure that enables autonomous operations.
 
-Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. NETTRADES provides the infrastructure layer to start running Sovereign AI in 30 minutes. 
+Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. 
 
-Set up a Ubuntu Linux box and run the commands below to deploy a complete, sovereign AI platform behind your firewall — no cloud dependencies, no data leaving your control, and no vendor lock-in..
+Now they could set up a Ubuntu Linux box and run the commands below to deploy a complete, NETTRADES Sovereign AI platform behind their firewall in 30 minutes — no cloud dependencies, no data leaving your control and no vendor lock-in.
 
 ```bash
 apt update && apt upgrade -y
@@ -137,31 +137,12 @@ NETTRADES – Sovereign AI in a Box combines everything you need into a single, 
 | **Compliance Ready** | Full data residency control – essential for GDPR, HIPAA, and sovereign cloud mandates. |
 | **No Vendor Lock-in** | Open-source models. Open-source platform. AGPL-3.0 licensed. |
 
-## Quick Start
-
-### Prerequisites
-
-* OS: Linux (Ubuntu 22.04+ recommended) or macOS with Docker Desktop.
-
-* Hardware: Minimum 8 GB RAM (16 GB recommended), 50 GB free disk.
-
-* Optional: NVIDIA GPU with drivers for GPU acceleration.
-
-
-
-### What You Get
-| Service| 	URL| 	Credentials | 
-|---------|--------|-------------|
-| `Odoo Admin Console for configuring NETTRADES` | 	http://localhost:8069 | 	admin / admin (change immediately) | 
-| `GPUStack` | 	http://localhost:8080 | 	admin / password from .env |
-| `Grafana` | 	http://localhost:3001 | 	admin / password from .env |
-| `Prometheus` | 	http://localhost:9090 | 	admin / password from .env |
 
 ## License
 
 AGPL-3.0 – Free and open-source. No vendor lock-in. Full source code available.
 
-The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurable and provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, it will be able to scale up onto a GPU marketplace using Confidential Computing. 
+The NETTRADES Sovereign AI Autonomous Enterprises Platform is highly configurable. It provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, it will be able to scale up onto a GPU marketplace using Confidential Computing. 
 
 ## Future Road Map
 
@@ -190,12 +171,24 @@ The NETTRADES autonomous enterprise platform is The Future Of Work. It seemlessl
 | **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
 | **💬 Expert Marketplace** | “Ask Someone” – paid expert consultations with Stripe escrow. |
 
-## Developer Quick Start
+## Quick Start
 
 This guide will help you get the platform running on your own server, laptop, or cloud VM in minutes.
 
-### 📋 Prerequisites
-On windows make sure you install Docker Desktop and integrate it with WSL2 
+### Prerequisites
+
+
+##### Minimum Requirements:
+
+* OS: Linux (Ubuntu 22.04+ recommended) or macOS with Docker Desktop.
+
+* Hardware: Minimum 8 GB RAM (16 GB recommended), 50 GB free disk.
+
+* Optional: NVIDIA GPU with drivers for GPU acceleration.
+
+* Internet connection (to download models and images)
+
+Idealy use Ubuntu Linux but if you have to use windows, make sure you install Docker Desktop and integrate it with WSL2 
 
 Install and Configure Docker for WSL 2
 Step 1: Install Docker Desktop for Windows
@@ -254,15 +247,10 @@ docker compose version
 - At least **8 GB RAM** (16 GB recommended) and **50 GB free disk**.
 - Optional: **NVIDIA GPU** with drivers for GPU acceleration.
 
+Some of this will be installed by the installer
+
 > 💡 **Windows users**: must run the installer inside a WSL2 terminal (Ubuntu).
 
-##### Minimum Requirements:
-
-* 8 GB RAM (16 GB recommended)
-
-* 50 GB free disk space
-
-* Internet connection (to download models and images)
 
 ### One-Click Installer
 
@@ -292,7 +280,7 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 ```
 
-Install dos2unix if not already installed
+On a windows machine in WSL install dos2unix if not already installed
 This can convert all the files in the repository to have Linux line endings (\n)
 
 
@@ -327,6 +315,17 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 ```
 This will run all phases (system preparation, environment setup, deployment, and module installation) with default settings. (Warning do not use --force on existing systems or production systems)
+
+### What You Get
+
+| Service| 	URL| 	Credentials | 
+|---------|--------|-------------|
+| `Odoo Admin Console for configuring NETTRADES` | http://localhost:8069 | admin / admin (change immediately) | 
+| `GPUStack` | http://localhost:8080 | admin / password from .env |
+| `Grafana` | http://localhost:3001 | admin / password from .env |
+| `Prometheus` | http://localhost:9090 | admin / password from .env |
+
+
 
 #### 📦 Other Installation Options
 
@@ -946,7 +945,7 @@ graph TD
 
 ### 4. LangGraph Agent State Machine (Simplified)
 
-For some fields like Medical or Legal the Agents take extra care. The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks.
+For Agentic AI, NETTRADES uses LangGraph. For regulated fields like Medical or Legal the Agents take extra care. The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks.
 
 ```mermaid
 
