@@ -82,12 +82,26 @@ PURPOSE:
 
 ## The sovereign AI platform for autonomous enterprises
 
-Enterprises face a critical choice: send sensitive data to public AI APIs (risky and costly) or spend years building their own AI infrastructure. NETTRADES provides the infrastructure layer to run Sovereign AI. 
+NETTRADES – Sovereign AI in a Box, provides the private, self-improving AI foundations that enables autonomous operations.
 
-### NETTRADES gives you a third option.
+Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. NETTRADES provides the infrastructure layer to start running Sovereign AI in 30 minutes. 
 
-A turnkey, private AI platform that deploys behind your firewall in under 30 minutes. Run open-source models (Llama, Mistral, DeepSeek) distributed across your own GPU cluster. Keep your data sovereign. Control your AI. Improve your models with internal feedback.
+Set up a Ubuntu Linux box and run the commands below to deploy a complete, sovereign AI platform behind your firewall — no cloud dependencies, no data leaving your control, and no vendor lock-in..
 
+```bash
+apt update && apt upgrade -y
+# Clone the repository
+cd /root
+git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
+cd nettrades-platform
+
+# Make the script executable
+chmod +x scripts/nettrades-setup.sh
+
+# Run the full deployment (automatic)
+sudo ./scripts/nettrades-setup.sh all --force
+
+```
 
 
 ## The Problem
@@ -133,22 +147,7 @@ NETTRADES – Sovereign AI in a Box combines everything you need into a single, 
 
 * Optional: NVIDIA GPU with drivers for GPU acceleration.
 
-Set up a Ubuntu Linux box and run the commands below to set up your own private AI in 30 minutes.
 
-```bash
-apt update && apt upgrade -y
-# Clone the repository
-cd /root
-git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
-cd nettrades-platform
-
-# Make the script executable
-chmod +x scripts/nettrades-setup.sh
-
-# Run the full deployment (automatic)
-sudo ./scripts/nettrades-setup.sh all --force
-
-```
 
 ### What You Get
 | Service| 	URL| 	Credentials | 
@@ -171,9 +170,9 @@ NETTRADES is not just an AI platform. It is an Autonomous Enterprises Platform. 
 
 | Phase	| Focus |
 |---------|--------|
-| `Phase 1 (Current)` | Sovereign AI in a Box – turnkey deployment, GPU orchestration, private model serving, admin console.  | 
-| `Phase 3`(Current) | 	Distributed GPUs – share idle GPUs across your organisation using WireGuard VPN connections, Confidential Computing and ran inside gVisor secure containers. | 
-| `Phase 4` | 	Hub-and-spoke cloud overflow – optionally burst inference to the NETTRADES.AI cloud when local GPUs are saturated   | 
+| `Phase 1` (Current)| Sovereign AI in a Box – Turnkey deployment, GPU orchestration, private model serving, admin console.  | 
+| `Phase 2` (Next) | 	Distributed GPUs – Share idle GPUs across your organisation using WireGuard VPN, Confidential Computing and gVisor secure containers. | 
+| `Phase 3` | 	Hub-and-spoke cloud overflow – optionally burst inference to the NETTRADES.AI GPU Marketplace when local GPUs are saturated   | 
 | `Phase 2` | 	Self-improving AI loop – automated fine-tuning from "Good Answer" voting.  | 
 
 ## ✨ Key Features
@@ -418,55 +417,13 @@ It does not use the odoo.config file it only uses the .env file and the docker-c
 
 Once the script finishes, open your browser and go to:
 
-Odoo: http://YourDomainOrIP:8069 
-
-Odoo: http://localhost:8069 
-
-Username = admin 
-
-Password = admin change this in the .env file
-
-
-Grafana: http://YourDomainOrIP:3001 
-
-Grafana: http://localhost:3001 
-
-Username = admin 
-
-GRAFANA_PASSWORD = in the .env file
-
-
-GPUStack: http://YourDomainOrIP:8080 
-
-GPUStack: http://localhost:8080 
-
-Username = admin 
-
-GPUSTACK_ADMIN_PASSWORD = in the .env file
-
-
-Prometheus: http://YourDomainOrIP:9090 
-
-Prometheus: http://localhost:9090 
-
-Username = admin 
-
-PROMETHEUS_PASSWORD = in the .env file
-
-
-Forgejo: http://YourDomainOrIP:3000 
-
-Forgejo: http://localhost:3000
-
-
-LangGraph health: http://YourDomainOrIP:8000/health 
-
-LangGraph health: http://localhost:8000/health
-
-
-odoo-proxy http://YourDomainOrIP:8090/health 
-
-odoo-proxy http://localhost:8090/health
+| Service | URL | Username | Password |
+|---------|-------------|---------|-------------|
+| Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
+| GPUStack | http://YourDomainOrIP:8080 or http://localhost:8080 | admin | GPUSTACK_ADMIN_PASSWORD in the .env file |
+| Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
+| Prometheus | http://YourDomainOrIP:9090 or http://YourDomainOrIP:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
+| Forgejo | http://YourDomainOrIP:3000 or http://localhost:3000 | Set in after installation | Set in after installation  |
 
 For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
 
@@ -624,7 +581,161 @@ For more detailed help, see the Full Documentation.
 
 [Developer Guide](developer/index.md)
 
-## 🏗️ Architecture Overview
+
+
+### 6. Technology Stack Table
+
+| Layer | Component | Technology | Version | License | Notes |
+|---------|-------------|-------------|---------|-------------|-------------|
+| `Business Logic` | ERP / CRM / HR | Odoo | 19 CE | LGPL-3 | Core business logic |
+| `Job Queue` | Async processing | OCA queue_job | 19.0 | LGPL-3 | Background jobs |
+| `Payments` | Payment processing | OCA payment_stripe | 19.0 | LGPL-3 | Stripe integration |
+| `Database` | Primary database | PostgreSQL + pgvector | 18 | PostgreSQL | Vector embeddings |
+| `Cache` | Session / Rate limiting | Valkey | 8 | BSD-3 | High-performance cache |
+| `Object Storage` | Files / Models | MinIO / S3 | Latest | AGPL-3 | Model artifacts |
+| `Agent Orchestration` | Multi-agent framework | LangGraph | Latest | MIT | Stateful agents |
+| `Agent State` | Checkpointing | LangGraph Checkpoint Postgres | Latest | MIT | Durable workflows |
+| `GPU Management` | Cluster management | GPUStack | Latest	Apache-2.0 | GPU orchestration |
+| `Fine-Tuning` | Model training | Unsloth / Axolotl | Latest	Apache-2.0 | LLM fine-tuning |
+| `Inference` | LLM serving | vLLM, llama.cpp, SGLang | Latest	MIT | High-performance inference |
+| `Ingress` | Reverse proxy | Traefik | Latest | MIT | Dynamic routing |
+| `Git / CI` | Source control / CI | Forgejo | Latest	MIT | Self-hosted Git |
+| `GitOps` | Continuous delivery | Argo CD | Latest	Apache-2.0 | Declarative deployments |
+| `OS` | Kubernetes OS | Talos Linux	Latest	MPL-2.0	Immutable, secure |
+| `Orchestration` | Container orchestration | Kubernetes | Latest | Apache-2.0 | Container management |
+| `CNI` | Networking | Cilium | Latest | Apache-2.0 | eBPF networking |
+| `Storage` | Persistent volumes | Longhorn | Latest | Apache-2.0 | Distributed block storage |
+| `Load Balancing` | Bare-metal LB | MetalLB | Latest | Apache-2.0 | Load balancing |
+| `Certificates` | TLS management | cert-manager | Latest | Apache-2.0 | Automated certificates |
+| `Database Operator` | PostgreSQL operator | CloudNativePG | Latest | Apache-2.0 | PostgreSQL management |
+| `GPU Operator` | NVIDIA GPU management | NVIDIA GPU Operator | Latest | Apache-2.0 | GPU provisioning |
+| `Distributed Computing` | Ray on K8s | KubeRay | Latest | Apache-2.0 | Distributed training |
+| `VPN` | Secure networking | WireGuard | Latest | GPL-2.0 | Secure tunnels |
+| `Sandboxing` | Container isolation | gVisor | Latest | pache-2.0 | Secure containers |
+| `Metrics` | Monitoring | Prometheus | Latest | Apache-2.0 | Metrics collection |
+| `Dashboards` | Visualisation | Grafana | Latest | AGPL-3.0 | Monitoring dashboards |
+
+📖 Full architecture details are in the docs/developer/ folder.
+
+
+
+## 📚 Documentation
+
+Full documentation is available at: [Full Documentation](docs/index.md).
+
+| Section | Description | Link |
+|---------|-------------|-----------|
+| `User Guide`	| For end-users – companies, freelancers, job-seekers	| `docs/user/index.md |
+| `Developer Guide`	| For developers extending the platform	| `docs/developer/index.md |
+| `Operations Guide`	| For system administrators and DevOps	| `docs/operations/index.md |
+| `API Reference`	| Complete API documentation	| `docs/developer/api-reference.md |
+| `Architecture Overview`	| System architecture diagrams and explanations	| `docs/developer/architecture.md |
+| `Core Models`	| Reference for all custom Odoo models	| `docs/developer/core-models.md |
+| `Database Schema`	| Complete database schema	| `docs/appendix/database-schema.md |
+| `Glossary`	| Key terms and definitions	| `docs/appendix/glossary.md |
+| `Contributing Guide`	| How to contribute to the project	| `docs/governance/contributing.md |
+| `Roadmap`	| Project roadmap and milestones	| `docs/governance/roadmap |
+
+## 🤝 Community & Support
+
+NETTRADES has a growing community of developers, enterprises, and researchers. We welcome you to join us!
+💬 Get Help
+
+| Channel | Purpose | Link |
+|---------|-------------|-----------|
+| `GitHub Issues`	| Report bugs, request features, or ask technical questions	| [Issues](https://github.com/nettrades/nettrades-platform/issues) |
+| `GitHub Discussions`	| Ask questions, share ideas, and get community support	| [Discussions](https://github.com/nettrades/nettrades-platform/discussions) |
+| `Twitter / X`	| Follow for project updates and announcements	| [@nettrades_ai](https://twitter.com/nettrades) |
+
+## 📖 Learn More
+
+* [Developer Documentation](docs/developer/index.md) – In-depth architecture, agent diagrams, and API references.
+
+* [Operations Guide](docs/operations/index.md) – Deployment, CI/CD, and Kubernetes configuration.
+
+* [Installation Guide](docs/operations/module-installation-order.md) – Step-by-step module installation.
+
+## 🌟 Community Highlights
+
+* Contributors: We welcome contributions from developers of all skill levels. See our [Contributing Guide](contributing.md).
+
+* Adopters: Companies using NETTRADES in production – [add your logo!](https://github.com/nettrades/nettrades-platform/discussions)
+
+* Events: Join our monthly community calls (details in Discussions).
+
+## 🤝 Contributing
+
+We welcome contributions! Please read our [Contributing Guide](contributing.md) before submitting PRs.
+
+### Quick Steps
+
+🍴 Fork the repository
+
+🌿 Create a feature branch (git checkout -b feature/amazing-feature)
+
+💻 Make your changes
+
+✅ Run tests (pytest src/core/tests/)
+
+📝 Update documentation
+
+🚀 Push and open a Pull Request
+
+## ⭐ Star Us!
+
+If you find [NETTRADES.AI](https://nettrades.ai/) useful, please consider giving us a ⭐ on GitHub – it helps others discover the project and supports our work.
+
+
+## 📄 License
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) – see the [LICENSE.txt](LICENSE.txt) file for details.
+
+| Component | License |
+|---------|-------------|
+| src/ (core orchestrator, agent, training scripts) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
+| odoo-modules/ (custom Odoo plugins) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
+| third-party/ | Original licenses (LGPL, MIT, Apache-2.0) |
+| deploy/ | AGPL-3.0 |
+| scripts/ | MIT |
+
+Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing.
+
+## Acknowledgements
+
+NETTRADES builds on the shoulders of many amazing open-source projects:
+
+* [Odoo](https://www.odoo.com/) – Open-source ERP
+
+* [LangGraph](https://github.com/langchain-ai/langgraph) – Stateful agent orchestration
+
+* [GPUStack](https://gpustack.ai/) – GPU cluster management
+
+* [Kubernetes](https://kubernetes.io/) – Container orchestration
+
+* [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) – Vector database
+
+* [Valkey](https://valkey.io/) – High-performance cache
+
+* [Traefik](https://traefik.io/) – Cloud-native reverse proxy
+
+* [Forgejo](https://forgejo.org/) – Self-hosted Git
+
+* [Argo CD](https://argo-cd.readthedocs.io/) – GitOps continuous delivery
+
+* [Talos Linux](https://www.talos.dev/) – Kubernetes-native OS
+
+* [Cilium](https://cilium.io/) – eBPF networking
+
+* [Longhorn](https://longhorn.io/) – Distributed block storage
+
+* [Unsloth](https://unsloth.ai/) – Efficient fine-tuning
+
+* [Axolotl](https://github.com/OpenAccess-AI-Collective/axolotl) – Multi-GPU fine-tuning
+
+* [Prometheus](https://prometheus.io/) & [Grafana](https://grafana.com/) – Monitoring
+
+
+## 🏗️ Architecture Overview And Future Enhancements
 
 ### 1. High-Level System Architecture
 
@@ -891,158 +1002,6 @@ flowchart LR
     ArgoCD -->|"Deploys"| Pods
 
 ```
-
-### 6. Technology Stack Table
-
-| Layer | Component | Technology | Version | License | Notes |
-|---------|-------------|-------------|---------|-------------|-------------|
-| `Business Logic` | ERP / CRM / HR | Odoo | 19 CE | LGPL-3 | Core business logic |
-| `Job Queue` | Async processing | OCA queue_job | 19.0 | LGPL-3 | Background jobs |
-| `Payments` | Payment processing | OCA payment_stripe | 19.0 | LGPL-3 | Stripe integration |
-| `Database` | Primary database | PostgreSQL + pgvector | 18 | PostgreSQL | Vector embeddings |
-| `Cache` | Session / Rate limiting | Valkey | 8 | BSD-3 | High-performance cache |
-| `Object Storage` | Files / Models | MinIO / S3 | Latest | AGPL-3 | Model artifacts |
-| `Agent Orchestration` | Multi-agent framework | LangGraph | Latest | MIT | Stateful agents |
-| `Agent State` | Checkpointing | LangGraph Checkpoint Postgres | Latest | MIT | Durable workflows |
-| `GPU Management` | Cluster management | GPUStack | Latest	Apache-2.0 | GPU orchestration |
-| `Fine-Tuning` | Model training | Unsloth / Axolotl | Latest	Apache-2.0 | LLM fine-tuning |
-| `Inference` | LLM serving | vLLM, llama.cpp, SGLang | Latest	MIT | High-performance inference |
-| `Ingress` | Reverse proxy | Traefik | Latest | MIT | Dynamic routing |
-| `Git / CI` | Source control / CI | Forgejo | Latest	MIT | Self-hosted Git |
-| `GitOps` | Continuous delivery | Argo CD | Latest	Apache-2.0 | Declarative deployments |
-| `OS` | Kubernetes OS | Talos Linux	Latest	MPL-2.0	Immutable, secure |
-| `Orchestration` | Container orchestration | Kubernetes | Latest | Apache-2.0 | Container management |
-| `CNI` | Networking | Cilium | Latest | Apache-2.0 | eBPF networking |
-| `Storage` | Persistent volumes | Longhorn | Latest | Apache-2.0 | Distributed block storage |
-| `Load Balancing` | Bare-metal LB | MetalLB | Latest | Apache-2.0 | Load balancing |
-| `Certificates` | TLS management | cert-manager | Latest | Apache-2.0 | Automated certificates |
-| `Database Operator` | PostgreSQL operator | CloudNativePG | Latest | Apache-2.0 | PostgreSQL management |
-| `GPU Operator` | NVIDIA GPU management | NVIDIA GPU Operator | Latest | Apache-2.0 | GPU provisioning |
-| `Distributed Computing` | Ray on K8s | KubeRay | Latest | Apache-2.0 | Distributed training |
-| `VPN` | Secure networking | WireGuard | Latest | GPL-2.0 | Secure tunnels |
-| `Sandboxing` | Container isolation | gVisor | Latest | pache-2.0 | Secure containers |
-| `Metrics` | Monitoring | Prometheus | Latest | Apache-2.0 | Metrics collection |
-| `Dashboards` | Visualisation | Grafana | Latest | AGPL-3.0 | Monitoring dashboards |
-
-📖 Full architecture details are in the docs/developer/ folder.
-
-
-
-## 📚 Documentation
-
-Full documentation is available at: [Full Documentation](docs/index.md).
-
-| Section | Description | Link |
-|---------|-------------|-----------|
-| `User Guide`	| For end-users – companies, freelancers, job-seekers	| `docs/user/index.md |
-| `Developer Guide`	| For developers extending the platform	| `docs/developer/index.md |
-| `Operations Guide`	| For system administrators and DevOps	| `docs/operations/index.md |
-| `API Reference`	| Complete API documentation	| `docs/developer/api-reference.md |
-| `Architecture Overview`	| System architecture diagrams and explanations	| `docs/developer/architecture.md |
-| `Core Models`	| Reference for all custom Odoo models	| `docs/developer/core-models.md |
-| `Database Schema`	| Complete database schema	| `docs/appendix/database-schema.md |
-| `Glossary`	| Key terms and definitions	| `docs/appendix/glossary.md |
-| `Contributing Guide`	| How to contribute to the project	| `docs/governance/contributing.md |
-| `Roadmap`	| Project roadmap and milestones	| `docs/governance/roadmap |
-
-## 🤝 Community & Support
-
-NETTRADES has a growing community of developers, enterprises, and researchers. We welcome you to join us!
-💬 Get Help
-
-| Channel | Purpose | Link |
-|---------|-------------|-----------|
-| `GitHub Issues`	| Report bugs, request features, or ask technical questions	| [Issues](https://github.com/nettrades/nettrades-platform/issues) |
-| `GitHub Discussions`	| Ask questions, share ideas, and get community support	| [Discussions](https://github.com/nettrades/nettrades-platform/discussions) |
-| `Twitter / X`	| Follow for project updates and announcements	| [@nettrades_ai](https://twitter.com/nettrades) |
-
-## 📖 Learn More
-
-* [Developer Documentation](docs/developer/index.md) – In-depth architecture, agent diagrams, and API references.
-
-* [Operations Guide](docs/operations/index.md) – Deployment, CI/CD, and Kubernetes configuration.
-
-* [Installation Guide](docs/operations/module-installation-order.md) – Step-by-step module installation.
-
-## 🌟 Community Highlights
-
-* Contributors: We welcome contributions from developers of all skill levels. See our [Contributing Guide](contributing.md).
-
-* Adopters: Companies using NETTRADES in production – [add your logo!](https://github.com/nettrades/nettrades-platform/discussions)
-
-* Events: Join our monthly community calls (details in Discussions).
-
-## 🤝 Contributing
-
-We welcome contributions! Please read our [Contributing Guide](contributing.md) before submitting PRs.
-
-### Quick Steps
-
-🍴 Fork the repository
-
-🌿 Create a feature branch (git checkout -b feature/amazing-feature)
-
-💻 Make your changes
-
-✅ Run tests (pytest src/core/tests/)
-
-📝 Update documentation
-
-🚀 Push and open a Pull Request
-
-## ⭐ Star Us!
-
-If you find [NETTRADES.AI](https://nettrades.ai/) useful, please consider giving us a ⭐ on GitHub – it helps others discover the project and supports our work.
-
-
-## 📄 License
-
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) – see the [LICENSE.txt](LICENSE.txt) file for details.
-
-| Component | License |
-|---------|-------------|
-| src/ (core orchestrator, agent, training scripts) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
-| odoo-modules/ (custom Odoo plugins) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
-| third-party/ | Original licenses (LGPL, MIT, Apache-2.0) |
-| deploy/ | AGPL-3.0 |
-| scripts/ | MIT |
-
-Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing.
-
-## Acknowledgements
-
-NETTRADES builds on the shoulders of many amazing open-source projects:
-
-* [Odoo](https://www.odoo.com/) – Open-source ERP
-
-* [LangGraph](https://github.com/langchain-ai/langgraph) – Stateful agent orchestration
-
-* [GPUStack](https://gpustack.ai/) – GPU cluster management
-
-* [Kubernetes](https://kubernetes.io/) – Container orchestration
-
-* [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) – Vector database
-
-* [Valkey](https://valkey.io/) – High-performance cache
-
-* [Traefik](https://traefik.io/) – Cloud-native reverse proxy
-
-* [Forgejo](https://forgejo.org/) – Self-hosted Git
-
-* [Argo CD](https://argo-cd.readthedocs.io/) – GitOps continuous delivery
-
-* [Talos Linux](https://www.talos.dev/) – Kubernetes-native OS
-
-* [Cilium](https://cilium.io/) – eBPF networking
-
-* [Longhorn](https://longhorn.io/) – Distributed block storage
-
-* [Unsloth](https://unsloth.ai/) – Efficient fine-tuning
-
-* [Axolotl](https://github.com/OpenAccess-AI-Collective/axolotl) – Multi-GPU fine-tuning
-
-* [Prometheus](https://prometheus.io/) & [Grafana](https://grafana.com/) – Monitoring
-
 
 ## User Workflow: NETTRADES Platform
 
