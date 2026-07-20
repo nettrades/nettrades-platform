@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <template id="pwa_manifest" inherit_id="web.assets_frontend" name="PWA Manifest" priority="100">
-        <xpath expr="//head" position="inside">
-            <link rel="manifest" href="/nettrades_pwa/static/src/manifest.json"/>
-        </xpath>
-    </template>
-</odoo>
