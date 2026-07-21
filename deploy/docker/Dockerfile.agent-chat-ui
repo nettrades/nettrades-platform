@@ -17,6 +17,8 @@ RUN git clone https://github.com/langchain-ai/agent-chat-ui.git . \
 # Set environment variables before build
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_ASSISTANT_ID=$NEXT_PUBLIC_ASSISTANT_ID
+ARG NEXT_PUBLIC_SKIP_AUTH
+ENV NEXT_PUBLIC_SKIP_AUTH=$NEXT_PUBLIC_SKIP_AUTH
 
 # Build the Next.js application
 RUN pnpm build

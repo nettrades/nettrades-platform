@@ -253,7 +253,10 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 7. LANGGRAPH SERVER - Durable AI Orchestration
+  # 7. LANGGRAPH SERVER - Durable AI Orchestration  
+  # REMOVE - DISABLE_AUTH=true IN PRODUCTION 
+  # AND REMOVE - STEP 1: AUTHENTICATION (can be disabled with DISABLE_AUTH=true) BLOCK FROM APP.PY IN PRODUCTION
+  # AND IN PRODUCTION REMOVE           NEXT_PUBLIC_SKIP_AUTH: "true" IN agent-chat-ui:   BLOCK BELOW
   # =========================================================================
   langgraph-server:
     build:
@@ -266,6 +269,7 @@ services:
       - web
       - internal
     environment:
+      - DISABLE_AUTH=true
       - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
       - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -301,14 +305,16 @@ services:
 
   # =========================================================================
   # 8. AGENT CHAT UI - Next.js Frontend for LangGraph
+  # IN PRODUCTION REMOVE           NEXT_PUBLIC_SKIP_AUTH: "true"
   # =========================================================================
   agent-chat-ui:
     build:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.agent-chat-ui
       args:
-        NEXT_PUBLIC_API_URL: http://langgraph-server:8000
-        NEXT_PUBLIC_ASSISTANT_ID: supervisor
+          NEXT_PUBLIC_API_URL: http://langgraph-server:8000
+	  NEXT_PUBLIC_ASSISTANT_ID: supervisor
+          NEXT_PUBLIC_SKIP_AUTH: "true"
     image: agent-chat-ui:latest
     container_name: agent-chat-ui
     restart: unless-stopped

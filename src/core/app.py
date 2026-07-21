@@ -44,7 +44,8 @@ import json
 import time
 import traceback
 from contextlib import asynccontextmanager
-from typing import Any, Dict
+from typing import Optional # IN PRODUCTION REMOVE THIS
+# from typing import Any, Dict #   # IN PRODUCTION UNCOMMENT THIS
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Header, Request, status
@@ -252,7 +253,8 @@ async def metrics():
 @app.post("/invoke")
 async def invoke(
     request: Request,
-    x_api_key: str = Header(..., description="API key for authentication")
+#    x_api_key: str = Header(..., description="API key for authentication") # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION SO UN COMMENT THIS
+    x_api_key: Optional[str] = Header(None, description="API key for authentication") # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION SO REMOVE THIS
 ):
     """
     Main inference endpoint.
@@ -263,55 +265,55 @@ async def invoke(
     Authentication:
     - Requires the 'X-API-Key' header with a valid API key.
     - The API key must match the LANGGRAPH_API_KEY environment variable.
-
-    ?????? CRITICAL SECURITY FIX: Previously, if LANGGRAPH_API_KEY was unset,
-    authentication was silently bypassed. This is a security vulnerability
-    that has been fixed. Now the API key is required and validated.
-
-    Request Body:
-    {
-        "input": {
-            "messages": [
-                {"role": "user", "content": "Find me a Python developer"}
-            ],
-            "image_base64": "data:image/png;base64,..."  # Optional
-        },
-        "config": {
-            "configurable": {
-                "thread_id": "unique-session-id"  # For checkpointing
-            }
-        }
-    }
-
-    Response:
-    {
-        "analysis": "I found 5 candidates...",
-        "intent": "recruitment",
-        "rankings": [...],
-        "screening_done": true,
-        "followup_count": 0
-    }
     """
+    
     # =========================================================================
-    # STEP 1: AUTHENTICATION
+    # STEP 1: AUTHENTICATION (can be disabled with DISABLE_AUTH=true)
+    # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION - REMOVE THIS BLOCK AND UNCOMMENT THE ONE BELOW
+    # NEAR THE TOP OF THE PAGE WHERE IT SAYS:     from typing import Optional # IN PRODUCTION REMOVE THIS
+    #      from typing import Any, Dict   # IN PRODUCTION UNCOMMENT THIS
     # =========================================================================
-    # ?????? CRITICAL SECURITY FIX:
+    DISABLE_AUTH = os.getenv("DISABLE_AUTH", "false").lower() == "true"
+    
+    if DISABLE_AUTH:
+        logger.warning("Authentication is disabled (DISABLE_AUTH=true) – allowing all requests.")
+    else:
+        if not LANGGRAPH_API_KEY:
+            logger.error("LANGGRAPH_API_KEY is not configured")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="LANGGRAPH_API_KEY is not configured."
+            )
+        if not x_api_key or x_api_key != LANGGRAPH_API_KEY:
+            logger.warning(f"Invalid API key attempt: {x_api_key[:8] if x_api_key else 'None'}...")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid API key"
+            )   
+    
+    
+    # =========================================================================
+    # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION   IN  docker-compose.yaml for agent-chat-ui REMOVE  NEXT_PUBLIC_SKIP_AUTH: "true"
+    # AND UN COMMENT THE CODE BELOW AND COMMENT THE CODE ABOVE
+    # =========================================================================
+    # CRITICAL SECURITY FIX:
     # Previously, if LANGGRAPH_API_KEY was unset, authentication was skipped.
     # This is now fixed: we REQUIRE the API key to be set.
-    if not LANGGRAPH_API_KEY:
-        logger.error("LANGGRAPH_API_KEY is not configured")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="LANGGRAPH_API_KEY is not configured."
-        )
+    
+#    if not LANGGRAPH_API_KEY:
+#        logger.error("LANGGRAPH_API_KEY is not configured")
+#        raise HTTPException(
+#            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#            detail="LANGGRAPH_API_KEY is not configured."
+#        )
 
     # Validate the API key
-    if x_api_key != LANGGRAPH_API_KEY:
-        logger.warning(f"Invalid API key attempt: {x_api_key[:8]}...")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key"
-        )
+#    if x_api_key != LANGGRAPH_API_KEY:
+#        logger.warning(f"Invalid API key attempt: {x_api_key[:8]}...")
+#        raise HTTPException(
+#            status_code=status.HTTP_401_UNAUTHORIZED,
+#            detail="Invalid API key"
+#        )
 
     # =========================================================================
     # STEP 2: PARSE REQUEST BODY
