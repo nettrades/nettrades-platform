@@ -317,7 +317,7 @@ services:
       - NEXT_PUBLIC_ASSISTANT_ID=supervisor
       - NEXT_PUBLIC_AUTH_SCHEME=
     ports:
-      - "3000:3000"
+      - "3002:3000"
     labels:
       - traefik.enable=true
       - traefik.http.routers.agent-chat-ui.rule=Host(`${DOMAIN}`)

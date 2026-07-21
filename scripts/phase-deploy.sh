@@ -1088,10 +1088,10 @@ fi
 log_success ".env updated"
 
 # -----------------------------------------------------------------------------
-# Restart LangGraph to pick up new URL
+# Restart langgraph-server to pick up new URL
 # -----------------------------------------------------------------------------
 log_step "Restarting LangGraph..."
-docker compose restart langgraph
+docker compose restart langgraph-server
 
 # -----------------------------------------------------------------------------
 # Initialise PostgreSQL database (only if empty)
