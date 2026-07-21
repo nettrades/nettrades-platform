@@ -12,6 +12,7 @@
 #   - Odoo 19 CE: ERP, Marketplace, and AI Hub
 #   - Forgejo 15.0 LTS: Self-hosted Git server
 #   - LangGraph Agent: Durable AI orchestration
+#   - agent-chat-ui: Next.js chat interface for LangGraph agents
 #   - Odoo Proxy: HTTP JSON-RPC shim (replaces mcp-odoo)
 #   - GPUStack: GPU management and inference (replaces standalone vLLM/llama.cpp)
 #   - Prometheus: Metrics collection
@@ -28,6 +29,8 @@
 #     in the external Grafana.
 #   - Client companies running their own GPUStack server (Trusted Mode) retain
 #     the built-in Grafana for anonymous Viewer access to GPU-level dashboards.
+#   - agent-chat-ui is the primary user interface for the platform.
+#   - LangGraph Server is configured via langgraph.json.
 #
 # MODIFICATIONS:
 #   - Added new self-improving modules to Odoo addons_path.
@@ -66,7 +69,7 @@ volumes:
   odoo_data:
   prometheus_data:
   grafana_data:
-
+  langgraph_data:
 # -----------------------------------------------------------------------------
 # Services
 # -----------------------------------------------------------------------------
@@ -248,37 +251,36 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 7. LANGGRAPH AGENT - Durable AI Orchestration
+  # 7. LANGGRAPH SERVER - Durable AI Orchestration
   # =========================================================================
-  langgraph:
-    # FIXED: Correct build context path
-    build: ../../src/core
-    image: langgraph-agent:latest
-    container_name: langgraph
+  langgraph-server:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.langgraph
+    image: langgraph-server:latest
+    container_name: langgraph-server
     restart: unless-stopped
     networks:
       - web
       - internal
     environment:
-      # LLM Configuration
-      - LLM_BASE_URL=${LLM_BASE_URL:-http://llama-cpp:8080/v1}
-      - LLAMA_API_KEY=dummy
-      - LLM_MODEL=deepseek-r1:1.5b
-      # LangGraph API Key (used by the /invoke endpoint)
-      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
-      # Database connection (PostgreSQL + pgvector)
       - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
-      # Odoo Proxy Integration (NEW – replaces the old mcp-odoo)
-      - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:8080}
-      - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
-      - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
-      # Odoo connection details (used by the proxy to talk to Odoo)
+      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://gpustack:8080/v1}
+      - GPUSTACK_API_KEY=${GPUSTACK_API_KEY:-}
+      - ODOO_URL=${ODOO_URL:-http://odoo:8069}
       - ODOO_DB=${ODOO_DB:-odoo}
       - ODOO_USER=${ODOO_USER:-1}
       - ODOO_PASSWORD=${ADMIN_PASSWORD}
+      - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:8080}
+      - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
+      - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
     ports:
       - "8000:8000"
-    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - langgraph_data:/app/.langgraph
     labels:
       - traefik.enable=true
       - traefik.http.routers.langgraph.rule=Host(`langgraph.${DOMAIN}`)
@@ -296,7 +298,38 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 8. ODOO PROXY - HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
+  # 8. AGENT CHAT UI - Next.js Frontend for LangGraph
+  # =========================================================================
+  agent-chat-ui:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.agent-chat-ui
+    image: agent-chat-ui:latest
+    container_name: agent-chat-ui
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+    environment:
+      - NEXT_PUBLIC_API_URL=http://langgraph-server:8000
+      - NEXT_PUBLIC_ASSISTANT_ID=supervisor
+      - NEXT_PUBLIC_AUTH_SCHEME=
+    ports:
+      - "3000:3000"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.agent-chat-ui.rule=Host(`${DOMAIN}`)
+      - traefik.http.services.agent-chat-ui.loadbalancer.server.port=3000
+    depends_on:
+      - langgraph-server
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =========================================================================
+  # 9. ODOO PROXY - HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
   # =========================================================================
   odoo-proxy:
     # FIXED: Correct build context path

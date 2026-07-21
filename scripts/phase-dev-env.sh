@@ -216,6 +216,13 @@ install_dependencies() {
     fi
 
     # =========================================================================
+    # Install LangGraph CLI for serving the supervisor
+    # =========================================================================
+    log_info "Installing LangGraph CLI..."
+    pip install --upgrade langgraph-cli
+    log_success "LangGraph CLI installed"
+    
+    # =========================================================================
     # Upgrade Starlette (security fix for CVE-2026-48710)
     # =========================================================================
     log_info "Upgrading Starlette (CVE-2026-48710 fix)..."

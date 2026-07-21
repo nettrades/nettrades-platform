@@ -793,9 +793,13 @@ fi
 
 log_step "Building and starting Docker Compose stack (with retries)..."
 
+# We now need to ensure the agent-chat-ui service is built and started.
+# The docker-compose.yaml now includes a service for it.
+
 max_attempts=3
 attempt=1
 while [ $attempt -le $max_attempts ]; do
+    # The `docker compose up -d` command now builds and starts all services, including agent-chat-ui.
     if docker compose up -d --build; then
         log_success "Docker Compose stack started successfully"
         break
@@ -1224,6 +1228,30 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# Wait for the LangGraph Server to be ready
+# -----------------------------------------------------------------------------
+log_step "Waiting for LangGraph Server to be ready..."
+for i in {1..30}; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
+        log_success "LangGraph Server is ready"
+        break
+    fi
+    sleep 2
+done
+
+# -----------------------------------------------------------------------------
+# Wait for agent-chat-ui to be ready
+# -----------------------------------------------------------------------------
+log_step "Waiting for agent-chat-ui to be ready..."
+for i in {1..30}; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200\|302"; then
+        log_success "agent-chat-ui is ready"
+        break
+    fi
+    sleep 2
+done
+
+# -----------------------------------------------------------------------------
 # Display final status
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT"
@@ -1239,6 +1267,7 @@ echo ""
 docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 echo "Access the services:"
+echo "  Agent Chat UI: https://${DOMAIN} or http://localhost:3000"
 echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"

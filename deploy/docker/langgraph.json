@@ -1,0 +1,14 @@
+{
+  "dependencies": [
+    ".",
+    "src/core"
+  ],
+  "graphs": {
+    "supervisor": "./src/core/supervisor.py:build_supervisor"
+  },
+  "env": ".env",
+  "checkpointer": {
+    "type": "postgres",
+    "dsn": "${DATABASE_URL}"
+  }
+}
