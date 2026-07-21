@@ -741,6 +741,7 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 ### 1. High-Level System Architecture
 
 ```mermaid
+
 graph TB
     subgraph Frontend["Frontend Layer"]
         Web["Odoo Website / Portal"]
