@@ -178,22 +178,24 @@ services:
       - "8069:8069"
     volumes:
       - ./odoo-modules:/odoo-modules              # <-- mount the prepared addons
-      # The Odoo container does not use the odoo.config file (the volume mount is commented out in docker-compose.yaml).
-      # Odoo gets its database settings from the environment variables (HOST, PORT, USER, PASSWORD), which are correctly passed from your .env file in nettrades-platform\deploy\docker.
       - odoo_data:/var/lib/odoo                   # persistent data (named volume)
       - ./odoo-logs:/var/log/odoo                 # logs (bind mount – optional)
     environment:
       - HOST=postgres
       - PORT=5432
       - USER=odoo
-      - PASSWORD=${POSTGRES_PASSWORD}   # This is what Odoo actually uses
+      - PASSWORD=${POSTGRES_PASSWORD}
       # Fairness evaluation API keys
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     labels:
       - traefik.enable=true
-      - traefik.http.routers.odoo.rule=Host(`${DOMAIN}`)
+      # Route to /odoo path on the main domain
+      - traefik.http.routers.odoo.rule=Host(`${DOMAIN}`) && PathPrefix(`/odoo`)
       - traefik.http.services.odoo.loadbalancer.server.port=8069
+      # Strip the /odoo prefix before forwarding to Odoo
+      - traefik.http.middlewares.odoo-strip.stripprefix.prefixes=/odoo
+      - traefik.http.routers.odoo.middlewares=odoo-strip
       - traefik.http.middlewares.odoo-ratelimit.ratelimit.average=100
       - traefik.http.routers.odoo.middlewares=odoo-ratelimit
     networks:
