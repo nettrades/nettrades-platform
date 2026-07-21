@@ -1,10 +1,9 @@
 {
   "dependencies": [
-    ".",
-    "src/core"
+    "../../src/core"
   ],
   "graphs": {
-    "supervisor": "./src/core/supervisor.py:build_supervisor"
+    "supervisor": "../../src/core/supervisor.py:build_supervisor"
   },
   "env": ".env",
   "checkpointer": {

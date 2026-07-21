@@ -17,11 +17,11 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
+# Copy the project root (so src/core is available)
 COPY . /app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt \
+RUN pip install --no-cache-dir -r /app/requirements.txt \
     && pip install --no-cache-dir langgraph-cli
 
 # Copy the langgraph.json configuration
