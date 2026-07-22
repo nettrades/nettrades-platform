@@ -100,7 +100,7 @@ chmod +x scripts/nettrades-setup.sh
 sudo ./scripts/nettrades-setup.sh all --force
 
 ```
-
+See the Accessing Your Platform section below to login.
 
 ## The Problem
 
