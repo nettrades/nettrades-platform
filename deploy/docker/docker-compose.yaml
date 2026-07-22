@@ -294,7 +294,7 @@ services:
       - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
       - traefik.http.routers.langgraph-api.middlewares=langgraph-strip
       - traefik.http.middlewares.langgraph-ratelimit.ratelimit.average=50
-      - traefik.http.routers.langgraph.middlewares=langgraph-ratelimit
+      - "traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-ratelimit"
     depends_on:
       - postgres
       - valkey
@@ -314,7 +314,7 @@ services:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.agent-chat-ui
       args:
-          NEXT_PUBLIC_API_URL: http://langgraph-server:8000
+          NEXT_PUBLIC_API_URL: /api
           NEXT_PUBLIC_ASSISTANT_ID: supervisor
           NEXT_PUBLIC_SKIP_AUTH: "true"
     image: agent-chat-ui:latest
@@ -327,6 +327,7 @@ services:
       - NEXT_PUBLIC_API_URL=/api
       - NEXT_PUBLIC_ASSISTANT_ID=supervisor
       - NEXT_PUBLIC_AUTH_SCHEME=
+      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}   # already in .env
     ports:
       - "3002:3000"
     labels:
