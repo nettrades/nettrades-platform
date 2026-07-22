@@ -14,7 +14,7 @@
 #   and can be switched at runtime.
 #
 # USAGE:
-#   from src.core.tools import get_inference_backend
+#   from tools import get_inference_backend
 #
 #   backend = get_inference_backend()
 #   response = await backend.generate(
