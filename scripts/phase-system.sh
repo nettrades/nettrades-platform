@@ -283,6 +283,11 @@ else
         cat /root/.ssh/id_ed25519.pub >> /root/.ssh/authorized_keys
         chmod 600 /root/.ssh/authorized_keys
         log_success "New key generated and added to authorized_keys"
+        echo ""
+        echo "Your new public key is:"
+        cat /root/.ssh/id_ed25519.pub
+        echo ""
+        echo "Save this key on your local machine if you need it elsewhere."
     else
         echo ""
         echo "To avoid being locked out after SSH hardening, you need an SSH key."
