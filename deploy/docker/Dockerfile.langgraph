@@ -24,11 +24,11 @@ COPY src/core/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt \
     && pip install --no-cache-dir langgraph-cli
 
-# Copy the langgraph.json configuration
+# Copy the langgraph.json configuration (optional, not used with uvicorn)
 COPY deploy/docker/langgraph.json /app/langgraph.json
 
 # Expose the LangGraph Server port
 EXPOSE 8000
 
 # Command to run the LangGraph Server
-CMD ["langgraph", "up", "--port", "8000"]
+CMD ["sh", "-c", "cd /app/src/core && uvicorn app:app --host 0.0.0.0 --port 8000"]

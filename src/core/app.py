@@ -56,8 +56,9 @@ from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 # Use the synchronous PostgresSaver - this is what works with sync connections
 from langgraph.checkpoint.postgres import PostgresSaver
 
-from supervisor import build_supervisor, invoke_supervisor_with_retry
-from security.prompt_injection import sanitise_input
+# Fix imports to use absolute paths within src.core
+from src.core.supervisor import build_supervisor, invoke_supervisor_with_retry
+from src.core.security.prompt_injection import sanitise_input
 
 # Load environment variables
 load_dotenv()
@@ -127,7 +128,7 @@ async def lifespan(app: FastAPI):
     """
 
     # Create a synchronous connection using psycopg (version 3)
-    # This allows CREATE INDEX CONCURRENTLY to run without errors.    
+    # This allows CREATE INDEX CONCURRENTLY to run without errors.
     conn = psycopg.connect(DB_URI)
     conn.autocommit = True
     logger.info("PostgreSQL connection established (sync, psycopg)")
@@ -171,7 +172,7 @@ app = FastAPI(
 async def metrics_middleware(request: Request, call_next):
     """
     Middleware that tracks request duration and counts for Prometheus.
-    
+
     This middleware intercepts every request, measures the time taken,
     and records it in the Prometheus metrics.
     """
@@ -266,7 +267,7 @@ async def invoke(
     - Requires the 'X-API-Key' header with a valid API key.
     - The API key must match the LANGGRAPH_API_KEY environment variable.
     """
-    
+
     # =========================================================================
     # STEP 1: AUTHENTICATION (can be disabled with DISABLE_AUTH=true)
     # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION - REMOVE THIS BLOCK AND UNCOMMENT THE ONE BELOW
@@ -274,9 +275,9 @@ async def invoke(
     #      from typing import Any, Dict   # IN PRODUCTION UNCOMMENT THIS
     # =========================================================================
     DISABLE_AUTH = os.getenv("DISABLE_AUTH", "false").lower() == "true"
-    
+
     if DISABLE_AUTH:
-        logger.warning("Authentication is disabled (DISABLE_AUTH=true) – allowing all requests.")
+        logger.warning("Authentication is disabled (DISABLE_AUTH=true) - allowing all requests.")
     else:
         if not LANGGRAPH_API_KEY:
             logger.error("LANGGRAPH_API_KEY is not configured")
@@ -289,9 +290,9 @@ async def invoke(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid API key"
-            )   
-    
-    
+            )
+
+
     # =========================================================================
     # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION   IN  docker-compose.yaml for agent-chat-ui REMOVE  NEXT_PUBLIC_SKIP_AUTH: "true"
     # AND UN COMMENT THE CODE BELOW AND COMMENT THE CODE ABOVE
@@ -299,7 +300,7 @@ async def invoke(
     # CRITICAL SECURITY FIX:
     # Previously, if LANGGRAPH_API_KEY was unset, authentication was skipped.
     # This is now fixed: we REQUIRE the API key to be set.
-    
+
 #    if not LANGGRAPH_API_KEY:
 #        logger.error("LANGGRAPH_API_KEY is not configured")
 #        raise HTTPException(

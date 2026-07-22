@@ -313,7 +313,7 @@ services:
       dockerfile: deploy/docker/Dockerfile.agent-chat-ui
       args:
           NEXT_PUBLIC_API_URL: http://langgraph-server:8000
-	  NEXT_PUBLIC_ASSISTANT_ID: supervisor
+          NEXT_PUBLIC_ASSISTANT_ID: supervisor
           NEXT_PUBLIC_SKIP_AUTH: "true"
     image: agent-chat-ui:latest
     container_name: agent-chat-ui
