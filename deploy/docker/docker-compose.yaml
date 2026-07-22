@@ -289,8 +289,10 @@ services:
       - langgraph_data:/app/.langgraph
     labels:
       - traefik.enable=true
-      - traefik.http.routers.langgraph.rule=Host(`langgraph.${DOMAIN}`)
-      - traefik.http.services.langgraph.loadbalancer.server.port=8000
+      - traefik.http.routers.langgraph-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
+      - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
+      - traefik.http.routers.langgraph-api.middlewares=langgraph-strip
       - traefik.http.middlewares.langgraph-ratelimit.ratelimit.average=50
       - traefik.http.routers.langgraph.middlewares=langgraph-ratelimit
     depends_on:
@@ -322,7 +324,7 @@ services:
       - web
       - internal
     environment:
-      - NEXT_PUBLIC_API_URL=http://langgraph-server:8000
+      - NEXT_PUBLIC_API_URL=/api
       - NEXT_PUBLIC_ASSISTANT_ID=supervisor
       - NEXT_PUBLIC_AUTH_SCHEME=
     ports:
@@ -379,7 +381,7 @@ services:
   gpustack:
     image: gpustack/gpustack:latest
     container_name: gpustack
-    command: ["--bootstrap-password", "${GPUSTACK_ADMIN_PASSWORD}"]
+#    command: ["--bootstrap-password", "${GPUSTACK_ADMIN_PASSWORD}"]
     restart: unless-stopped
     networks:
       - web
