@@ -197,7 +197,6 @@ log_success "Odoo data directory permissions set to UID $ODOO_UID"
 log_step "Generating init-db.sql with all NETTRADES tables..."
 INIT_SQL="$DEPLOY_DIR/init-db.sql"
 if [[ ! -f "$INIT_SQL" ]] || [[ "$FORCE" == true ]]; then
-    # [The full init-db.sql content is here – omitted for brevity, but it's the same as before]
     cat > "$INIT_SQL" << 'EOF'
 -- =============================================================================
 -- NETTRADES Database Initialisation Script
@@ -205,6 +204,9 @@ if [[ ! -f "$INIT_SQL" ]] || [[ "$FORCE" == true ]]; then
 -- This script creates all required PostgreSQL tables for the NETTRADES platform.
 -- It is idempotent – tables are created only if they do not already exist.
 -- =============================================================================
+
+-- Enable pgcrypto for password hashing (used by Odoo emergency user)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Enable pgvector extension for AI embeddings
 CREATE EXTENSION IF NOT EXISTS vector;
