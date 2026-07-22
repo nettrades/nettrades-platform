@@ -70,9 +70,9 @@ volumes:
   prometheus_data:
   grafana_data:
   langgraph_data:
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 # Services
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 services:
 
   # =========================================================================
@@ -381,7 +381,7 @@ services:
   gpustack:
     image: gpustack/gpustack:latest
     container_name: gpustack
-#    command: ["--bootstrap-password", "${GPUSTACK_ADMIN_PASSWORD}"]
+    command: ["--bootstrap-password", "${GPUSTACK_ADMIN_PASSWORD}"]
     restart: unless-stopped
     networks:
       - web
