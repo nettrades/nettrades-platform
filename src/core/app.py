@@ -56,9 +56,9 @@ from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 # Use the synchronous PostgresSaver - this is what works with sync connections
 from langgraph.checkpoint.postgres import PostgresSaver
 
-# Fix imports to use absolute paths within src.core
-from src.core.supervisor import build_supervisor, invoke_supervisor_with_retry
-from src.core.security.prompt_injection import sanitise_input
+# Fix imports to use relative imports
+from supervisor import build_supervisor, invoke_supervisor_with_retry
+from security.prompt_injection import sanitise_input
 
 # Load environment variables
 load_dotenv()
