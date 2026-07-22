@@ -14,7 +14,7 @@
 #
 # USAGE:
 #   Instead of importing each agent separately, you can now do:
-#       from src.core.agents import create_recruitment_agent
+#       from agents import create_recruitment_agent
 #
 # =============================================================================
 
@@ -29,7 +29,7 @@ from .vision_agent import create_vision_agent
 from .action_agent import create_action_agent
 
 # -----------------------------------------------------------------------------
-# Define what is exported when someone does "from src.core.agents import *"
+# Define what is exported when someone does "from agents import *"
 # -----------------------------------------------------------------------------
 __all__ = [
     'create_recruitment_agent',
