@@ -8,7 +8,7 @@
 # PURPOSE:
 #   This file makes the tools directory a Python package so that
 #   agent files can import the inference backend and other utilities using:
-#       from src.core.tools import get_inference_backend
+#       from tools import get_inference_backend
 #
 # =============================================================================
 
@@ -18,7 +18,7 @@
 from .inference import get_inference_backend, InferenceBackend
 
 # -----------------------------------------------------------------------------
-# Define what is exported when someone does "from src.core.tools import *"
+# Define what is exported when someone does "from tools import *"
 # -----------------------------------------------------------------------------
 __all__ = [
     'get_inference_backend',
