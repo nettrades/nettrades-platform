@@ -61,10 +61,8 @@ PURPOSE:
 </p>
 
 <p align="center">
-  <a href="#-what-is-nettrades">What is NETTRADES?</a> •
   <a href="#-key-features">Features</a> •
-  <a href="#-architecture-overview">Architecture</a> •
-  <a href="#-self-improving-ai-loop">Self-Improving Loop</a> •
+  <a href="#-Architecture">Architecture</a> •
   <a href="#-technology-stack">Tech Stack</a> •
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-documentation">Docs</a> •
@@ -86,7 +84,7 @@ NETTRADES provides the complete private, self-improving AI infrastructure that e
 
 Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. 
 
-Now in just a few minutes, companies could set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall — no cloud dependencies, no data leaving their control and no vendor lock-in.
+Now in just a few minutes, companies could set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall with confidence — no cloud dependencies, no data leaving their control and no vendor lock-in.
 
 ```bash
 apt update && apt upgrade -y
@@ -148,7 +146,7 @@ The NETTRADES Sovereign AI Platform is highly configurable. It provides company 
 ## Future Road Map
 
 
-NETTRADES is not just an AI platform. It acts as the control center for your companies AI usage and your company administrators could route requests to the spare GPUS across your company or to external services.
+NETTRADES is not just an AI platform. It acts as the control center for your companies AI usage and your companies administrators could route requests to the spare GPUS across your company or to external services.
 
 | Phase	| Focus |
 |---------|--------|
@@ -159,7 +157,7 @@ NETTRADES is not just an AI platform. It acts as the control center for your com
 
 ## ✨ Key Features
 
-The NETTRADES Sovereign AI Platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations.
+The NETTRADES Sovereign AI Platform is The Future Of Work. It seemlessly integrates people and AI to improve productivity and puts people at the heart of operations. It allows you to run Sovereign AI Agents that interact with your staff. Companies could write their own agents in the future too.
 
 | Feature | Description |
 |---------|-------------|
@@ -172,9 +170,9 @@ The NETTRADES Sovereign AI Platform is The Future Of Work. It seemlessly integra
 | **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
 | **💬 Expert Marketplace** | “Ask Someone” – paid expert consultations with Stripe escrow. |
 
-## Developer Quick Start
+## Quick Start
 
-This guide will help you get the platform running on your own server, laptop or cloud VM in minutes.
+This is the quick start guide for Developers. This guide will help you get the platform running on your own server, laptop or cloud VM in minutes.
 
 ### Prerequisites
 
@@ -189,7 +187,7 @@ This guide will help you get the platform running on your own server, laptop or 
 
 * Internet connection (to download models and images)
 
-Idealy use Ubuntu Linux but if you have to use windows, make sure that you install Docker Desktop and integrate it with WSL2 
+Idealy use Ubuntu Linux but if you have to use Windows, make sure that you install Docker Desktop and integrate it with WSL2 
 
 Install and Configure Docker for WSL 2
 
@@ -310,7 +308,7 @@ sudo ./scripts/nettrades-setup.sh
 
 ```
 The script launches an interactive wizard that lets you choose the profile and the options.
-For a fully full automated deployment (recommended for first-time development users):
+For a fully automated deployment (recommended for first-time development users):
 
 ```bash
 sudo ./scripts/nettrades-setup.sh all --force
@@ -584,7 +582,7 @@ For more detailed help, see the Full Documentation.
 
 
 
-### 6. Technology Stack Table
+## Technology Stack
 
 | Layer | Component | Technology | Version | License | Notes |
 |---------|-------------|-------------|---------|-------------|-------------|
@@ -697,7 +695,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPL-
 | odoo-modules/ (custom Odoo plugins) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
 | third-party/ | Original licenses (LGPL, MIT, Apache-2.0) |
 | deploy/ | AGPL-3.0 |
-| scripts/ | MIT |
+| scripts/ | AGPL-3.0 |
 
 Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing.
 
@@ -736,7 +734,9 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 * [Prometheus](https://prometheus.io/) & [Grafana](https://grafana.com/) – Monitoring
 
 
-## 🏗️ Architecture Overview And Future Enhancements
+## 🏗️ Architecture
+
+### Architecture Overview And Future Enhancements
 
 ### 1. High-Level System Architecture
 
@@ -948,7 +948,7 @@ graph TD
 
 ### 4. LangGraph Agent State Machine (Simplified)
 
-For Agentic AI, NETTRADES uses LangGraph. For regulated fields like Medical or Legal the Agents take extra care. The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks.
+For Agentic AI, NETTRADES uses LangGraph. For regulated fields like Medical or Legal the Agents take extra care. The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks. In the future companies could also write their own agents.
 
 ```mermaid
 
