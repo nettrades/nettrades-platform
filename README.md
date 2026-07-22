@@ -80,9 +80,7 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform
 
-NETTRADES provides the complete private, self-improving AI infrastructure that enables autonomous operations.
-
-Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. 
+Talk to your business data, using your spare GPU capacity for sovereign AI. Enterprises face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. 
 
 Now in just a few minutes, companies could set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall with confidence — no cloud dependencies, no data leaving their control and no vendor lock-in.
 
