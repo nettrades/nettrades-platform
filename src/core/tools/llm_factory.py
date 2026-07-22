@@ -486,7 +486,7 @@ def get_llm(company_id: int, intent: Optional[str] = None) -> Optional[BaseChatM
         Optional[BaseChatModel]: The configured LLM instance.
 
     Example:
-        from src.core.tools.llm_factory import get_llm
+        from tools.llm_factory import get_llm
 
         llm = get_llm(company_id=1, intent="recruitment")
         response = await llm.ainvoke(messages)
