@@ -784,22 +784,11 @@ fi
 # Build and start the stack (with retry)
 # -----------------------------------------------------------------------------
 
-# Ensure gpustack service has --bootstrap-password
-if ! grep -q "command:.*--bootstrap-password" "$COMPOSE_FILE"; then
-    log_warning "GPUStack bootstrap password not set in compose file. Adding it now..."
-    # Insert the command line after the image line (as done in nettrades-setup.sh)
-    # You can reuse the same sed/awk logic from the orchestrator
-fi
-
 log_step "Building and starting Docker Compose stack (with retries)..."
-
-# We now need to ensure the agent-chat-ui service is built and started.
-# The docker-compose.yaml now includes a service for it.
 
 max_attempts=3
 attempt=1
 while [ $attempt -le $max_attempts ]; do
-    # The `docker compose up -d` command now builds and starts all services, including agent-chat-ui.
     if docker compose up -d --build; then
         log_success "Docker Compose stack started successfully"
         break
@@ -817,10 +806,10 @@ fi
 log_success "Docker Compose stack started"
 
 # -----------------------------------------------------------------------------
-# Wait for GPUStack to be ready and verify admin password
+# Wait for GPUStack to be ready and verify admin password with robust retry
 # -----------------------------------------------------------------------------
 log_step "Waiting for GPUStack to be ready..."
-for i in {1..30}; do
+for i in {1..60}; do
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/models | grep -q "200\|401"; then
         log_success "GPUStack is ready"
         break
@@ -830,28 +819,60 @@ done
 
 # Verify that the admin password from .env works
 if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
-    log_step "Verifying GPUStack admin password..."
-    LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
-        -H "Content-Type: application/json" \
-        -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')" 2>/dev/null)
-    TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
+    log_step "Verifying and ensuring GPUStack admin password..."
+    TOKEN=""
+    # Retry up to 15 times with exponential backoff
+    for attempt in {1..15}; do
+        log_info "Login attempt $attempt/15..."
+        # Ensure auth endpoint is ready
+        for i in {1..10}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/auth/login | grep -q "405\|200\|401"; then
+                break
+            fi
+            sleep 1
+        done
+        # Attempt login
+        LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
+        TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
+        if [[ -n "$TOKEN" ]]; then
+            log_success "GPUStack authentication successful."
+            break
+        else
+            # Check if the server asks to change password (first login)
+            if echo "$LOGIN_RESPONSE" | grep -qi "password must be changed\|change.*password"; then
+                log_info "Password change required – changing to the same password (will be accepted)."
+                # Attempt to change password to the same value (sometimes required on first login)
+                CHANGE_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/change-password \
+                    -H "Content-Type: application/json" \
+                    -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", old_password:$pass, new_password:$pass}')")
+                if echo "$CHANGE_RESPONSE" | grep -q "success\|ok"; then
+                    log_success "Password change successful. Retrying login..."
+                    # Retry login after change
+                    continue
+                else
+                    log_warning "Password change failed. Will retry login anyway."
+                fi
+            fi
+            wait_time=$((attempt * 2))
+            log_warning "Login attempt $attempt failed. Waiting ${wait_time}s before retry..."
+            sleep $wait_time
+        fi
+    done
+
     if [[ -n "$TOKEN" ]]; then
-        log_success "GPUStack admin password from .env is correct."
+        log_success "GPUStack admin password is working."
     else
-        log_warning "GPUStack admin password from .env does not work."
-        log_warning "This may happen if the container was started with a different password."
+        log_warning "Could not obtain token after multiple attempts. Manual login may be needed."
         log_info "You can log in at http://localhost:8080 with username 'admin' and the password from .env"
-        log_info "If that fails, you may need to restart gpustack with the correct password."
-        log_info "Run: docker compose restart gpustack"
-        # Optionally, you can force a restart with the bootstrap flag if not present
-        # For safety, we do not automatically restart to avoid data loss
     fi
 else
     log_warning "GPUSTACK_ADMIN_PASSWORD not set in .env – skipping verification."
 fi
 
 # -----------------------------------------------------------------------------
-# Download GGUF model (unchanged, but uses the verified password if needed)
+# Download GGUF model
 # -----------------------------------------------------------------------------
 log_step "Downloading GGUF model into GPUStack's model directory..."
 MODEL_NAME="deepseek-1.5b"
@@ -874,9 +895,10 @@ TOKEN=""
 if [[ -z "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
     log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping API automation."
 else
-    # Wait a bit for password propagation (though bootstrap should already set it)
+    # Wait a bit for password propagation
     sleep 10
 
+    # Login with retry (if token not already obtained)
     for attempt in {1..10}; do
         log_info "Login attempt $attempt/10..."
         LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
@@ -887,85 +909,17 @@ else
             log_success "GPUStack authentication successful"
             break
         else
-            wait_time=$((attempt * 2))
-            log_warning "Login attempt $attempt failed. Waiting ${wait_time} seconds before retry..."
-            sleep $wait_time
-        fi
-    done
-
-    if [[ -n "$TOKEN" ]]; then
-        # Register the downloaded GGUF file using the correct v2 endpoint
-        GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
-        if [[ -n "$GGUF_FILE" ]]; then
-            MODEL_PATH="/models/$(basename "$GGUF_FILE")"
-            log_info "Registering model file via API: $MODEL_PATH"
-            curl -X POST http://localhost:8080/v2/model-files \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d "{\"path\": \"$MODEL_PATH\"}" 2>/dev/null && \
-                log_success "Model registered successfully" || \
-                log_warning "Model registration failed – you can register manually via GPUStack UI"
-        else
-            log_warning "No GGUF file found – skipping registration"
-        fi
-    else
-        log_warning "Failed to get GPUStack token after multiple attempts."
-        log_info "You can register the model manually via GPUStack UI at http://localhost:8080"
-        log_info "Username: admin, Password: $GPUSTACK_ADMIN_PASSWORD"
-    fi
-fi
-
-# -----------------------------------------------------------------------------
-# Download GGUF model
-# -----------------------------------------------------------------------------
-log_step "Downloading GGUF model into GPUStack's model directory..."
-MODEL_NAME="deepseek-1.5b"
-if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-    if ! bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --format gguf --dir "$MODELS_DIR"; then
-        log_warning "GGUF model download failed. You can manually add models via GPUStack UI."
-    else
-        log_success "GGUF model downloaded to $MODELS_DIR"
-    fi
-else
-    log_warning "download-model.sh not found – skipping model download"
-fi
-
-# -----------------------------------------------------------------------------
-# Authenticate with GPUStack API and register the model
-# -----------------------------------------------------------------------------
-log_step "Authenticating with GPUStack API and registering model..."
-
-TOKEN=""
-if [[ -z "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
-    log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping API automation."
-else
-    # Wait longer for password propagation
-    log_info "Waiting 30 seconds for GPUStack password propagation..."
-    sleep 30
-
-    # Retry login with exponential backoff (more attempts)
-    for attempt in {1..10}; do
-        log_info "Login attempt $attempt/10..."
-
-        # Wait for the auth endpoint to be ready (with progressive delay)
-        for i in {1..10}; do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/auth/login | grep -q "405\|200\|401"; then
-                break
+            # If password change needed, attempt it again (though we already did)
+            if echo "$LOGIN_RESPONSE" | grep -qi "password must be changed"; then
+                log_info "Password change required – attempting to change password."
+                CHANGE_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/change-password \
+                    -H "Content-Type: application/json" \
+                    -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", old_password:$pass, new_password:$pass}')")
+                if echo "$CHANGE_RESPONSE" | grep -q "success\|ok"; then
+                    log_success "Password changed successfully. Retrying login..."
+                    continue
+                fi
             fi
-            sleep 2
-        done
-
-        # Use jq to build the JSON payload safely
-        LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
-
-        TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
-
-        if [[ -n "$TOKEN" ]]; then
-            log_success "GPUStack authentication successful"
-            break
-        else
             wait_time=$((attempt * 2))
             log_warning "Login attempt $attempt failed. Waiting ${wait_time} seconds before retry..."
             sleep $wait_time
@@ -1123,7 +1077,6 @@ else
     fi
 
     # Install base module
-    # Install base module with explicit database connection parameters
     log_info "Initialising database with base modules..."
     docker compose exec -T odoo odoo -d odoo \
       --db_host=postgres \
