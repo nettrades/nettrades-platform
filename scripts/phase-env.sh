@@ -11,6 +11,7 @@
 #   - With --force and --regenerate-secrets, it will regenerate (with backup).
 #   - With --auto and --force, it regenerates silently (for CI/CD).
 #   - In production, additional confirmation is required.
+#   - NEW: Automatically detects the server IP and prompts for domain/email.
 #
 # USAGE:
 #   ./phase-env.sh [--auto] [--force] [--regenerate-secrets]
@@ -206,24 +207,92 @@ safe_sed_replace "$ENV_FILE" "GRAFANA_PASSWORD" "$GRAFANA_PASSWORD"
 safe_sed_replace "$ENV_FILE" "PROMETHEUS_PASSWORD" "$PROMETHEUS_PASSWORD"
 safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$GPUSTACK_ADMIN_PASSWORD"
 
-# Generate random domain if not set
-if ! grep -q "^DOMAIN=.*" "$ENV_FILE" || grep -q "^DOMAIN=$" "$ENV_FILE"; then
-    RANDOM_DOMAIN="nettrades-$(openssl rand -hex 4).local"
-    safe_sed_replace "$ENV_FILE" "DOMAIN" "$RANDOM_DOMAIN"
-    log_warning "DOMAIN not set – using $RANDOM_DOMAIN"
-fi
+# -----------------------------------------------------------------------------
+# NEW: Configure DOMAIN and ADMIN_EMAIL (auto-detect + interactive prompt)
+# -----------------------------------------------------------------------------
+configure_domain_email() {
+    # Detect primary IP address
+    detect_ip() {
+        local ip=$(ip route get 1 2>/dev/null | awk '{print $NF;exit}')
+        if [[ -z "$ip" || "$ip" == "0" ]]; then
+            ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+        fi
+        [[ -z "$ip" ]] && ip="localhost"
+        echo "$ip"
+    }
 
+    # Read current values from .env
+    CURRENT_DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
+    CURRENT_EMAIL=$(grep "^ADMIN_EMAIL=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
+
+    # If DOMAIN is still 'changeit' or 'nettrades.ai' (default) or empty, we set it.
+    if [[ "$CURRENT_DOMAIN" == "changeit" || "$CURRENT_DOMAIN" == "nettrades.ai" || -z "$CURRENT_DOMAIN" ]]; then
+        DETECTED_IP=$(detect_ip)
+        
+        if [[ "$AUTO" == true ]]; then
+            DOMAIN="$DETECTED_IP"
+            log_info "Auto mode: using detected IP $DOMAIN as DOMAIN"
+        else
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo " Domain Configuration"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Enter the domain name or IP address where this platform will be accessible."
+            echo "If you have a domain (e.g., ai.mycompany.com), enter it here."
+            echo "Otherwise, press Enter to use the detected IP: $DETECTED_IP"
+            echo ""
+            read -rp "Domain/IP (default: $DETECTED_IP): " USER_DOMAIN
+            if [[ -n "$USER_DOMAIN" ]]; then
+                DOMAIN="$USER_DOMAIN"
+            else
+                DOMAIN="$DETECTED_IP"
+            fi
+            log_info "Using domain: $DOMAIN"
+        fi
+        
+        safe_sed_replace "$ENV_FILE" "DOMAIN" "$DOMAIN"
+    else
+        log_info "DOMAIN already set to: $CURRENT_DOMAIN (skipping prompt)"
+        DOMAIN="$CURRENT_DOMAIN"
+    fi
+
+    # Admin email
+    if [[ "$CURRENT_EMAIL" == "changeit" || "$CURRENT_EMAIL" == "admin@nettrades.ai" || -z "$CURRENT_EMAIL" ]]; then
+        if [[ "$AUTO" == true ]]; then
+            ADMIN_EMAIL="admin@localhost"
+            log_info "Auto mode: using default admin email $ADMIN_EMAIL"
+        else
+            echo ""
+            read -rp "Admin email (for Let's Encrypt, default: admin@localhost): " USER_EMAIL
+            if [[ -n "$USER_EMAIL" ]]; then
+                ADMIN_EMAIL="$USER_EMAIL"
+            else
+                ADMIN_EMAIL="admin@localhost"
+            fi
+        fi
+        safe_sed_replace "$ENV_FILE" "ADMIN_EMAIL" "$ADMIN_EMAIL"
+    else
+        log_info "ADMIN_EMAIL already set to: $CURRENT_EMAIL (skipping prompt)"
+    fi
+}
+
+# Run the domain/email configuration after secrets are written
+configure_domain_email
+
+# -----------------------------------------------------------------------------
 # Set secure permissions
+# -----------------------------------------------------------------------------
 chmod 600 "$ENV_FILE"
 log_success ".env generated with secure secrets"
-
-# The local odoo.conf is no longer used (volume mount commented out in docker-compose.yaml).
-# Odoo reads database settings from environment variables (HOST, PORT, USER, PASSWORD).
 
 # -----------------------------------------------------------------------------
 # Display important information (only in interactive mode, not auto)
 # -----------------------------------------------------------------------------
 if [[ "$AUTO" != true ]]; then
+    # Reload the updated values from .env for display
+    DOMAIN_DISPLAY=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
+    ADMIN_EMAIL_DISPLAY=$(grep "^ADMIN_EMAIL=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
+    
     echo ""
     echo -e "${YELLOW}Important credentials (save these):${NC}"
     echo "  POSTGRES_PASSWORD: $POSTGRES_PASSWORD"
@@ -233,6 +302,10 @@ if [[ "$AUTO" != true ]]; then
     echo "  GRAFANA_PASSWORD: $GRAFANA_PASSWORD"
     echo "  PROMETHEUS_PASSWORD: $PROMETHEUS_PASSWORD"
     echo "  GPUSTACK_ADMIN_PASSWORD: $GPUSTACK_ADMIN_PASSWORD"
+    echo ""
+    echo -e "${YELLOW}Domain & Admin Email:${NC}"
+    echo "  DOMAIN: $DOMAIN_DISPLAY"
+    echo "  ADMIN_EMAIL: $ADMIN_EMAIL_DISPLAY"
     echo ""
     echo -e "${YELLOW}WireGuard keys:${NC}"
     echo "  Private key: $WIREGUARD_PRIVATE_KEY"
