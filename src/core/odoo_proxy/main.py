@@ -95,7 +95,117 @@ async def authenticate(request: Request) -> bool:
 
 
 # -----------------------------------------------------------------------------
-# Endpoint
+# Schema Discovery Endpoints (NEW)
+# -----------------------------------------------------------------------------
+
+@app.get("/models")
+async def list_models(request: Request):
+    """
+    Return a list of all available Odoo models (e.g., res.partner, sale.order).
+
+    This endpoint is used by LangGraph agents to discover the data schema.
+    It returns a list of model names and their human-readable labels.
+
+    Authentication: Requires the same API key as /jsonrpc.
+    """
+    if not await authenticate(request):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Build a JSON-RPC payload to call ir.model.search_read
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": {
+            "service": "object",
+            "method": "execute_kw",
+            "args": [
+                ODOO_DB,
+                ODOO_USER,
+                ODOO_PASSWORD,
+                "ir.model",
+                "search_read",
+                [[["state", "=", "base"]]],  # domain: only base models, adjust as needed
+                {"fields": ["model", "name", "info"], "limit": 200}
+            ]
+        },
+        "id": 1
+    }
+
+    client = request.app.state.client
+    odoo_endpoint = f"{ODOO_URL.rstrip('/')}/jsonrpc"
+
+    try:
+        response = await client.post(odoo_endpoint, json=payload)
+        response.raise_for_status()
+        result = response.json().get("result", [])
+        return {"models": result}
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Odoo error: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail="Odoo returned an error")
+    except Exception as e:
+        logger.exception("Error fetching models")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/models/{model_name}/fields")
+async def get_model_fields(model_name: str, request: Request):
+    """
+    Return the fields, types, and relationships for a specific Odoo model.
+
+    This endpoint is used by LangGraph agents to understand the structure of a model
+    so they can build correct queries. It returns field names, types, required status,
+    and selection options.
+
+    Authentication: Requires the same API key as /jsonrpc.
+    """
+    if not await authenticate(request):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Build a JSON-RPC payload to call fields_get on the model
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": {
+            "service": "object",
+            "method": "execute_kw",
+            "args": [
+                ODOO_DB,
+                ODOO_USER,
+                ODOO_PASSWORD,
+                model_name,
+                "fields_get",
+                [[], ["string", "type", "required", "selection", "relation"]]
+            ]
+        },
+        "id": 1
+    }
+
+    client = request.app.state.client
+    odoo_endpoint = f"{ODOO_URL.rstrip('/')}/jsonrpc"
+
+    try:
+        response = await client.post(odoo_endpoint, json=payload)
+        response.raise_for_status()
+        result = response.json().get("result", {})
+        return {"fields": result}
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Odoo error: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail="Odoo returned an error")
+    except Exception as e:
+        logger.exception(f"Error fetching fields for {model_name}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# -----------------------------------------------------------------------------
+# Main JSON-RPC Proxy Endpoint
 # -----------------------------------------------------------------------------
 
 @app.post("/jsonrpc")
