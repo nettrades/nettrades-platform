@@ -819,42 +819,35 @@ for i in {1..60}; do
     sleep 2
 done
 
-# Verify that the admin password from .env works
+# -----------------------------------------------------------------------------
+# AUTOMATED GPUStack SETUP (Login → API Key → Model Registration)
+# -----------------------------------------------------------------------------
+log_step "Automating GPUStack setup (login, API key, model registration)..."
+
 if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
-    log_step "Verifying and ensuring GPUStack admin password..."
     TOKEN=""
-    # Retry up to 15 times with exponential backoff
-    for attempt in {1..15}; do
-        log_info "Login attempt $attempt/15..."
-        # Ensure auth endpoint is ready
-        for i in {1..10}; do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/auth/login | grep -q "405\|200\|401"; then
-                break
-            fi
-            sleep 1
-        done
-        # Attempt login
+    # Retry login with exponential backoff and handle password change
+    for attempt in {1..10}; do
+        log_info "Login attempt $attempt/10..."
         LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
         TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
         if [[ -n "$TOKEN" ]]; then
-            log_success "GPUStack authentication successful."
+            log_success "GPUStack login successful."
             break
         else
-            # Check if the server asks to change password (first login)
+            # If password change required, attempt it
             if echo "$LOGIN_RESPONSE" | grep -qi "password must be changed\|change.*password"; then
-                log_info "Password change required – changing to the same password (will be accepted)."
-                # Attempt to change password to the same value (sometimes required on first login)
+                log_info "Password change required – changing to the same password."
                 CHANGE_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/change-password \
                     -H "Content-Type: application/json" \
                     -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", old_password:$pass, new_password:$pass}')")
                 if echo "$CHANGE_RESPONSE" | grep -q "success\|ok"; then
-                    log_success "Password change successful. Retrying login..."
-                    # Retry login after change
+                    log_success "Password changed. Retrying login..."
                     continue
                 else
-                    log_warning "Password change failed. Will retry login anyway."
+                    log_warning "Password change failed. Will retry login."
                 fi
             fi
             wait_time=$((attempt * 2))
@@ -864,90 +857,68 @@ if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
     done
 
     if [[ -n "$TOKEN" ]]; then
-        log_success "GPUStack admin password is working."
-    else
-        log_warning "Could not obtain token after multiple attempts. Manual login may be needed."
-        log_info "You can log in at http://localhost:8080 with username 'admin' and the password from .env"
-    fi
-else
-    log_warning "GPUSTACK_ADMIN_PASSWORD not set in .env – skipping verification."
-fi
-
-# -----------------------------------------------------------------------------
-# Download GGUF model
-# -----------------------------------------------------------------------------
-log_step "Downloading GGUF model into GPUStack's model directory..."
-MODEL_NAME="deepseek-1.5b"
-if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-    if ! bash "$SCRIPT_DIR/download-model.sh" --model "$MODEL_NAME" --format gguf --dir "$MODELS_DIR"; then
-        log_warning "GGUF model download failed. You can manually add models via GPUStack UI."
-    else
-        log_success "GGUF model downloaded to $MODELS_DIR"
-    fi
-else
-    log_warning "download-model.sh not found – skipping model download"
-fi
-
-# -----------------------------------------------------------------------------
-# Authenticate with GPUStack API and register the model (using the .env password)
-# -----------------------------------------------------------------------------
-log_step "Authenticating with GPUStack API and registering model..."
-
-TOKEN=""
-if [[ -z "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
-    log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping API automation."
-else
-    # Wait a bit for password propagation
-    sleep 10
-
-    # Login with retry (if token not already obtained)
-    for attempt in {1..10}; do
-        log_info "Login attempt $attempt/10..."
-        LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
+        # Create an API key using the JWT token
+        API_KEY_RESPONSE=$(curl -s -X POST http://localhost:8080/v2/api-keys \
+            -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
-        TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
-        if [[ -n "$TOKEN" ]]; then
-            log_success "GPUStack authentication successful"
-            break
-        else
-            # If password change needed, attempt it again (though we already did)
-            if echo "$LOGIN_RESPONSE" | grep -qi "password must be changed"; then
-                log_info "Password change required – attempting to change password."
-                CHANGE_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/change-password \
-                    -H "Content-Type: application/json" \
-                    -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", old_password:$pass, new_password:$pass}')")
-                if echo "$CHANGE_RESPONSE" | grep -q "success\|ok"; then
-                    log_success "Password changed successfully. Retrying login..."
-                    continue
-                fi
-            fi
-            wait_time=$((attempt * 2))
-            log_warning "Login attempt $attempt failed. Waiting ${wait_time} seconds before retry..."
-            sleep $wait_time
-        fi
-    done
+            -d '{"name": "deployment-key", "description": "Key for automated model registration"}')
+        API_KEY=$(echo "$API_KEY_RESPONSE" | jq -r '.key // empty')
 
-    if [[ -n "$TOKEN" ]]; then
-        # Register the downloaded GGUF file using the correct v2 endpoint
-        GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
-        if [[ -n "$GGUF_FILE" ]]; then
-            MODEL_PATH="/models/$(basename "$GGUF_FILE")"
-            log_info "Registering model file via API: $MODEL_PATH"
-            curl -X POST http://localhost:8080/v2/model-files \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d "{\"path\": \"$MODEL_PATH\"}" 2>/dev/null && \
-                log_success "Model registered successfully" || \
-                log_warning "Model registration failed – you can register manually via GPUStack UI"
+        if [[ -z "$API_KEY" ]]; then
+            log_warning "Failed to generate API key. Response: $API_KEY_RESPONSE"
+            log_info "You can register the model manually via GPUStack UI."
         else
-            log_warning "No GGUF file found – skipping registration"
+            log_success "API key generated successfully."
+            # Store API key in .env
+            if grep -q "^GPUSTACK_API_KEY=" "$ENV_FILE"; then
+                safe_sed_replace "$ENV_FILE" "GPUSTACK_API_KEY" "$API_KEY"
+            else
+                echo "" >> "$ENV_FILE"
+                echo "GPUSTACK_API_KEY=$API_KEY" >> "$ENV_FILE"
+            fi
+            export GPUSTACK_API_KEY="$API_KEY"
+
+            # Register the model file
+            GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
+            if [[ -n "$GGUF_FILE" ]]; then
+                MODEL_PATH="/models/$(basename "$GGUF_FILE")"
+                log_info "Registering model file: $MODEL_PATH"
+                REGISTER_RESPONSE=$(curl -s -X POST http://localhost:8080/v2/model_files \
+                    -H "Authorization: Bearer $API_KEY" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"source\": \"local_path\", \"path\": \"$MODEL_PATH\"}")
+                MODEL_FILE_ID=$(echo "$REGISTER_RESPONSE" | jq -r '.id // empty')
+                if [[ -n "$MODEL_FILE_ID" ]]; then
+                    log_success "Model file registered with ID: $MODEL_FILE_ID"
+                    # Deploy the model
+                    DEPLOY_RESPONSE=$(curl -s -X POST http://localhost:8080/v2/models \
+                        -H "Authorization: Bearer $API_KEY" \
+                        -H "Content-Type: application/json" \
+                        -d '{
+                            "name": "deepseek-r1-1.5b",
+                            "source": "local_path",
+                            "model_file_id": '"$MODEL_FILE_ID"',
+                            "replicas": 1,
+                            "backend": "llama-box"
+                        }')
+                    if echo "$DEPLOY_RESPONSE" | grep -q '"id"'; then
+                        log_success "Model deployed successfully."
+                    else
+                        log_warning "Model deployment failed. Response: $DEPLOY_RESPONSE"
+                    fi
+                else
+                    log_warning "Model file registration failed. Response: $REGISTER_RESPONSE"
+                fi
+            else
+                log_warning "No GGUF file found in $MODELS_DIR – skipping model registration."
+            fi
         fi
     else
-        log_warning "Failed to get GPUStack token after multiple attempts."
-        log_info "You can register the model manually via GPUStack UI at http://localhost:8080"
-        log_info "Username: admin, Password: $GPUSTACK_ADMIN_PASSWORD"
+        log_warning "Failed to obtain login token after multiple attempts."
+        log_info "Please log in to GPUStack UI at http://localhost:8080 and register a model manually."
     fi
+else
+    log_warning "GPUSTACK_ADMIN_PASSWORD not set in .env – skipping GPUStack automation."
 fi
 
 # -----------------------------------------------------------------------------
@@ -1044,7 +1015,7 @@ fi
 log_success ".env updated"
 
 # -----------------------------------------------------------------------------
-# Restart langgraph-server to pick up new URL
+# Restart langgraph-server to pick up new URL and API key
 # -----------------------------------------------------------------------------
 log_step "Restarting LangGraph..."
 docker compose restart langgraph-server
