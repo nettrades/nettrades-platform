@@ -100,6 +100,17 @@ sudo ./scripts/nettrades-setup.sh all --force
 ```
 See the Accessing Your Platform section below to login.
 
+For security on a production server the scripts block the default SSH port 22 and allow SSH access over port 2222
+
+So you may need to run:
+ssh-keygen -R ServerIPaddress
+
+remove an old key if you have issues and then run:
+
+ssh -p 2222 root@ServerIPaddress
+to get a new key and reconnect
+
+
 ## The Problem
 
 | Challenge| Reality |
