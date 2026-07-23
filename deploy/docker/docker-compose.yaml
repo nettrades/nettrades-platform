@@ -292,6 +292,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.langgraph-api.rule=PathPrefix(`/api`)
+      - traefik.http.routers.langgraph-api.priority=100
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
       - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
       - traefik.http.routers.langgraph-api.middlewares=langgraph-strip
@@ -314,7 +315,7 @@ services:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.agent-chat-ui
       args:
-          NEXT_PUBLIC_API_URL: http://${DOMAIN}:8000
+          NEXT_PUBLIC_API_URL: http://${DOMAIN}/api
           NEXT_PUBLIC_ASSISTANT_ID: supervisor
           NEXT_PUBLIC_SKIP_AUTH: "true"
     image: agent-chat-ui:latest
@@ -332,7 +333,8 @@ services:
       - "3002:3000"
     labels:
       - traefik.enable=true
-      - traefik.http.routers.agent-chat-ui.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.agent-chat-ui.rule=PathPrefix(`/`)
+      - "traefik.http.routers.agent-chat-ui.priority=50"
       - traefik.http.services.agent-chat-ui.loadbalancer.server.port=3000
     depends_on:
       - langgraph-server
