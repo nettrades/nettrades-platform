@@ -177,7 +177,7 @@ services:
     ports:
       - "8069:8069"
     volumes:
-      - ./odoo-modules:/odoo-modules              # <-- mount the prepared addons
+      - ./odoo-modules:/mnt/extra-addons              # <-- mount the prepared addons
       - odoo_data:/var/lib/odoo                   # persistent data (named volume)
       - ./odoo-logs:/var/log/odoo                 # logs (bind mount – optional)
     environment:
