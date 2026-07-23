@@ -171,8 +171,8 @@ services:
   # =========================================================================
   odoo:
     build:
-      context: .
-      dockerfile: Dockerfile.odoo
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.odoo
     container_name: odoo
     ports:
       - "8069:8069"
@@ -185,6 +185,7 @@ services:
       - PORT=5432
       - USER=odoo
       - PASSWORD=${POSTGRES_PASSWORD}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       # Fairness evaluation API keys
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -283,18 +284,17 @@ services:
       - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:8080}
       - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
       - "8000:8000"
     volumes:
       - langgraph_data:/app/.langgraph
     labels:
       - traefik.enable=true
-      - traefik.http.routers.langgraph-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.langgraph-api.rule=PathPrefix(`/api`)
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
       - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
       - traefik.http.routers.langgraph-api.middlewares=langgraph-strip
-      - traefik.http.middlewares.langgraph-ratelimit.ratelimit.average=50
-      - "traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-ratelimit"
     depends_on:
       - postgres
       - valkey
@@ -314,7 +314,7 @@ services:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.agent-chat-ui
       args:
-          NEXT_PUBLIC_API_URL: /api
+          NEXT_PUBLIC_API_URL: http://${DOMAIN}:8000
           NEXT_PUBLIC_ASSISTANT_ID: supervisor
           NEXT_PUBLIC_SKIP_AUTH: "true"
     image: agent-chat-ui:latest
