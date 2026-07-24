@@ -1,28 +1,49 @@
+
+---
+
+## Updated `.github/workflows/cla.yml`
+
+```yaml
 # =============================================================================
 # FILE: .github/workflows/cla.yml
 # =============================================================================
-# Based on best practices from OpenAI, Anthropic, and Ultralytics
+# PURPOSE:
+# Fully automated Contributor License Agreement (CLA) enforcement.
+# This workflow checks if PR authors have signed the CLA and prompts them
+# to sign if they haven't. Signatures are stored in the main branch.
+#
+# BRANCHING STRATEGY:
+# - main: Stable, production-ready code. Enterprise customers clone this.
+# - dev-deployment1: Active development branch. All PRs target this.
+# - Signatures are stored in main (stable storage).
+# - CLA document is read from dev-deployment1 (where it lives).
 # =============================================================================
 
 name: "CLA Assistant"
 
+# Triggers for the workflow
 on:
+  # When someone comments on an issue or PR
   issue_comment:
     types: [created]
+
+  # When a pull request is opened, synchronized, or reopened
+  # Triggers on PRs against any branch, including dev-deployment1
   pull_request_target:
     types: [opened, synchronize, reopened]
-  # CRITICAL: Merge queue support (Anthropic pattern)
-  # Without this, queued PRs stay pending indefinitely[reference:50]
+
+  # Merge queue support (for when you enable merge queues)
   merge_group:
     types: [checks_requested]
 
+# Explicitly configure permissions
 permissions:
   actions: write
-  contents: write
+  contents: write   # Needed to store signatures in the repository
   pull-requests: write
   statuses: write
 
-# Concurrency control prevents overlapping CLA checks (Ultralytics pattern)
+# Concurrency control prevents overlapping CLA checks
 concurrency:
   group: cla-${{ github.event.pull_request.number || github.event.merge_group.head_sha }}
   cancel-in-progress: true
@@ -30,19 +51,35 @@ concurrency:
 jobs:
   CLAAssistant:
     runs-on: ubuntu-latest
-    # Only run on main repository (security best practice)
+
+    # Security: Only run on the main repository (not on forks)
     if: github.repository == 'nettrades/nettrades-platform'
+
     steps:
-      # Step 1: Regex-based comment matching (OpenAI pattern)
-      - name: "Match signing phrase"
+      # ----------------------------------------------------------------------
+      # Step 1: Regex-based comment matching
+      # This handles whitespace, newlines, and case variations in signing comments
+      # ----------------------------------------------------------------------
+      - name: "Match signing phrase with regex"
         id: sign-or-recheck
         uses: actions-ecosystem/action-regex-match@v2
         with:
           text: ${{ github.event.comment.body }}
+          # Matches either:
+          #   - "I have read the CLA Document and I hereby sign the CLA"
+          #   - "recheck"
+          # With optional leading/trailing whitespace
           regex: '\s*(I have read the CLA Document and I hereby sign the CLA)|(recheck)\s*'
 
-      # Step 2: CLA Assistant (Anthropic/Ultralytics pattern)
+      # ----------------------------------------------------------------------
+      # Step 2: Run the CLA Assistant
+      # This is the core CLA enforcement action
+      # ----------------------------------------------------------------------
       - name: "CLA Assistant"
+        # Run if:
+        #   - The comment matches the signing/recheck phrase, OR
+        #   - The event is a pull_request_target (new PR or synchronize), OR
+        #   - The event is a merge_group (queue compatibility)
         if: |
           steps.sign-or-recheck.outputs.match != '' ||
           github.event_name == 'pull_request_target' ||
@@ -50,21 +87,28 @@ jobs:
         uses: contributor-assistant/github-action@v2.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional: PAT for remote signature storage (Ultralytics pattern)[reference:51]
+          # Optional: Personal Access Token for remote signature storage
           # PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_SIGN_TOKEN }}
         with:
-          # Path where signatures will be stored
+          # ------------------------------------------------------------------
+          # Signature Storage
+          # ------------------------------------------------------------------
+          # Signatures are stored in the MAIN branch (stable storage)
           path-to-signatures: 'signatures/version1/cla.json'
 
-          # URL to the CLA document
-          path-to-document: 'https://raw.githubusercontent.com/nettrades/nettrades-platform/main/Contributor-License-Agreement.md'
+          # CLA document is read from dev-deployment1 (where your CLA file lives)
+          path-to-document: 'https://raw.githubusercontent.com/nettrades/nettrades-platform/dev-deployment1/Contributor-License-Agreement.md'
 
-          # Branch for signature storage
+          # Signatures are committed to the MAIN branch
           branch: 'main'
 
-          # Comprehensive allowlist (Ultralytics pattern)[reference:52]
+          # ------------------------------------------------------------------
+          # Allowlist (Exempt Users/Bots)
+          # ------------------------------------------------------------------
+          # Users/bots that are exempt from signing the CLA.
+          # nettrades is the project maintainer and repository owner.
           allowlist: |
-            YOUR_GITHUB_USERNAME,
+            nettrades,
             dependabot[bot],
             github-actions[bot],
             renovate[bot],
@@ -74,27 +118,48 @@ jobs:
             anthropic-oss-manager[bot],
             *[bot]
 
-          # Optional: Remote signature storage (Ultralytics pattern)
+          # ------------------------------------------------------------------
+          # Remote Signature Storage (Optional)
+          # ------------------------------------------------------------------
+          # Store signatures in a separate private repository for auditability.
+          # Uncomment and configure if you want centralised CLA management.
+          #
           # remote-organization-name: 'nettrades'
           # remote-repository-name: 'cla-signatures'
 
-          # Custom comments (Ultralytics pattern)[reference:53]
+          # ------------------------------------------------------------------
+          # Custom Comments (Friendly, Project-Specific)
+          # ------------------------------------------------------------------
           custom-notsigned-prcomment: |
-            👋 @$contributorName, thank you for your contribution to **NETTRADES Platform**!
+            👋 @$contributorName, thank you for your contribution to the **NETTRADES Platform**!
 
-            Before we can review your PR, please sign our Contributor License Agreement.
+            Before we can review your PR, please sign our Contributor License Agreement (CLA).
 
-            📄 [Read the CLA](https://github.com/nettrades/nettrades-platform/blob/main/Contributor-License-Agreement.md)
+            📄 [Read the full CLA](https://github.com/nettrades/nettrades-platform/blob/dev-deployment1/Contributor-License-Agreement.md)
 
-            **To sign**, comment on this PR with:
-            `I have read the CLA Document and I hereby sign the CLA`
+            **To sign**, comment on this PR with the following exact phrase:
 
-            Once signed, a maintainer will confirm and proceed with the review.
+            > `I have read the CLA Document and I hereby sign the CLA`
+
+            Once you've signed, the CLA check will be updated automatically.
 
           custom-allsigned-prcomment: |
             ✅ All contributors have signed the CLA. Thank you!
 
-      # Step 3: Merge queue status report (Anthropic pattern)[reference:54]
+          custom-pr-sign-comment: |
+            I have read the CLA Document and I hereby sign the CLA
+
+          # Prevent the bot from locking the PR after merge
+          lock-pullrequest-aftermerge: false
+
+      # ----------------------------------------------------------------------
+      # Step 3: Merge Queue Status Report (Anthropic Pattern)
+      # ----------------------------------------------------------------------
+      # The CLA action above only runs on pull_request_target events.
+      # Without this step, the required "CLAAssistant" check would never report
+      # on merge_group events and queued PRs would stay pending indefinitely.
+      # This step creates a dummy check run on merge_group events.
+      # ----------------------------------------------------------------------
       - name: "Report CLA status for merge queue"
         if: github.event_name == 'merge_group'
         uses: actions/github-script@v7
@@ -109,6 +174,7 @@ jobs:
               conclusion: 'success',
               output: {
                 title: 'CLA Check Passed',
-                summary: '✅ CLA check passed for merge queue.'
+                summary: '✅ CLA check passed for merge queue.',
+                text: 'All contributors have signed the CLA. Proceeding with merge.'
               }
             });

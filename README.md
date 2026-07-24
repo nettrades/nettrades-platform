@@ -90,7 +90,7 @@ Nettrades is an autonomouse enterprise platform that lets organisations securely
 apt update && apt upgrade -y
 # Clone the repository
 cd /root
-git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
+git clone -b main https://github.com/nettrades/nettrades-platform.git
 cd nettrades-platform
 
 # Make the script executable
@@ -100,6 +100,7 @@ chmod +x scripts/nettrades-setup.sh
 sudo ./scripts/nettrades-setup.sh all --force
 
 ```
+For stable, production-ready deployments clone the `main` branch
 See the Accessing Your Platform section below to login.
 
 For security on a production server the scripts block the default SSH port 22 and allow SSH access over port 2222
@@ -107,7 +108,7 @@ For security on a production server the scripts block the default SSH port 22 an
 So you may need to run:
 ssh-keygen -R ServerIPaddress
 
-remove an old key if you have issues and then run:
+to remove an old key if you have issues and then run:
 
 ssh -p 2222 root@ServerIPaddress
 to get a new key and reconnect
@@ -223,7 +224,7 @@ The NETTRADES Sovereign AI Platform is The Future Of Work. It seemlessly integra
 | **📊 Autonomous Administration** | GPU health watchdog, reputation decay, utilisation alerts, automatic Karma-based qualification. |
 | **💬 Expert Marketplace** | “Ask Someone” – paid expert consultations with Stripe escrow. |
 
-## Quick Start
+## Quick Start For Developers and Contributors
 
 This is the quick start guide for Developers. This guide will help you get the platform running on your own server, laptop or cloud VM in minutes.
 
