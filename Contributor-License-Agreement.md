@@ -24,7 +24,7 @@ By submitting a pull request, you certify that:
    b. The LGPL-3.0 license (for contributions to odoo-modules/); and
    c. NETTRADES's commercial license, which permits closed-source use
       by enterprises that have purchased a commercial license from
-      NETTRADES AI (PVT) LIMITED.
+      NETTRADES.
 
 3. You understand that your contribution will be made available to the
    public under the applicable open-source license, and that NETTRADES
