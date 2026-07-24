@@ -82,9 +82,9 @@ PURPOSE:
 
 Use your spare GPUs to talk to your organisations data. 
 
-**"Enterprises face a critical choice: send sensitive data to external AI companies or spend years building their own AI infrastructure."**
+**Enterprises used to face a critical choice: send sensitive data to external AI companies or spend years building their own AI infrastructure.**
 
-But now there is a third option, companies could just set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall with confidence in 30 minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.
+**Now they just set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall in 30 minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.
 
 Nettrades is an autonomouse enterprise platform that lets organisations securely run their business workflows and control their AI infrastructure from a single dashboard.
 
@@ -186,7 +186,7 @@ A complete, deployable enterprise AI platform that runs entirely behind your fir
 
 ## Enterprise Support
 
-|Service	What You Get |
+|Service | What You Get |
 |---------|----------------------|
 | **SLA** | Standard or premium SLA options available |
 | **Incident Response** | Critical issue response within hours |
