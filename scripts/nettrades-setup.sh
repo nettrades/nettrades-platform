@@ -202,11 +202,16 @@ fix_docker_compose_for_gpustack() {
     # Backup the original
     cp "$compose_file" "$compose_file.bak"
 
-    # Use sed to insert a 'command:' line after the 'image:' line of the gpustack service.
-    # We look for the gpustack: block and insert the command after the image line.
-    # This is a robust approach using awk to handle indentation.
+    # Use a temporary file to avoid variable scope issues
+    local tmp_file
     tmp_file=$(mktemp)
-    awk '
+    local password="${GPUSTACK_ADMIN_PASSWORD:-}"
+    if [[ -z "$password" ]]; then
+        log_error "GPUSTACK_ADMIN_PASSWORD is not set – cannot add bootstrap password."
+        return 1
+    fi
+
+    awk -v pass="$password" '
     /^[[:space:]]*gpustack:/ { in_gpustack=1 }
     in_gpustack && /^[[:space:]]*image:/ {
         print $0
@@ -214,7 +219,7 @@ fix_docker_compose_for_gpustack() {
         indent = match($0, /[^[:space:]]/) - 1
         if (indent < 0) indent = 0
         # Insert command line with same indentation
-        printf "%scommand: [\"--bootstrap-password\", \"${GPUSTACK_ADMIN_PASSWORD}\"]\n", substr($0, 1, indent)
+        printf "%scommand: [\"--bootstrap-password\", \"%s\"]\n", substr($0, 1, indent), pass
         in_gpustack = 0  # only insert once
         next
     }
@@ -253,9 +258,12 @@ setup_dev_environment() {
     # Install Python development dependencies
     if [[ -f "$PROJECT_ROOT/requirements-dev.txt" ]]; then
         log_step "Installing Python development dependencies..."
-        pip3 install -r "$PROJECT_ROOT/requirements-dev.txt" 2>/dev/null || {
-            log_warning "Failed to install Python dependencies automatically. Please install manually."
-        }
+        if ! output=$(pip3 install -r "$PROJECT_ROOT/requirements-dev.txt" 2>&1); then
+            log_error "Python dependency installation failed:"
+            echo "$output" >&2
+            log_info "Try running: pip3 install -r requirements-dev.txt"
+            exit 1
+        fi
     else
         log_warning "requirements-dev.txt not found – skipping Python dependencies."
     fi
@@ -428,9 +436,9 @@ check_dependencies() {
     fi
 }
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # Main execution
-# -----------------------------------------------------------------------------
+# =============================================================================
 
 # Prepare environment (OS/WSL checks and dependencies)
 prepare_environment
@@ -493,7 +501,10 @@ for phase in "${PHASES[@]}"; do
             if phase_completed 1; then
                 log_warning "Phase 1 already completed. Use --force to re-run."
             else
-                setup_dev_environment
+                if ! setup_dev_environment; then
+                    log_error "Phase 1 failed. Not marking as complete."
+                    exit 1
+                fi
                 mark_phase_complete 1
             fi
             ;;
