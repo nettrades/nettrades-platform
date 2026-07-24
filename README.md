@@ -137,11 +137,8 @@ While companies already have **GPU Waste** - Enterprises buy $30,000+ GPUs but u
 
 ## The Solution
 
-**NETTRADES Platform: Sovereign AI in a Box.**
+**NETTRADES Sovereign AI in a Box: deploy a complete, enterprise-grade AI platform behind your firewall in minutes, not months—free from cloud dependency, vendor lock-in, per-token costs and the legal exposure to the US CLOUD Act and China's National Intelligence Law.**
 
-A complete, deployable enterprise AI platform that runs entirely behind your firewall. No cloud dependencies. No data leaving your control. No vendor lock-in.
-
-**One command to deploy.** Minutes, not months.
 
 ## Why Enterprises Choose NETTRADES
 
