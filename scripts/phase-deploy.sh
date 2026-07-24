@@ -826,102 +826,139 @@ done
 log_step "Automating GPUStack setup (login, API key, model registration)..."
 
 GPUSTACK_READY=false
-if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
-    TOKEN=""
-    # Retry login with exponential backoff and handle password change
-    for attempt in {1..10}; do
-        log_info "Login attempt $attempt/10..."
-        LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", password:$pass}')")
-        TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
-        if [[ -n "$TOKEN" ]]; then
-            log_success "GPUStack login successful."
-            break
-        else
-            # If password change required, attempt it
-            if echo "$LOGIN_RESPONSE" | grep -qi "password must be changed\|change.*password"; then
-                log_info "Password change required – changing to the same password."
-                CHANGE_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/change-password \
-                    -H "Content-Type: application/json" \
-                    -d "$(jq -n --arg pass "$GPUSTACK_ADMIN_PASSWORD" '{username:"admin", old_password:$pass, new_password:$pass}')")
-                if echo "$CHANGE_RESPONSE" | grep -q "success\|ok"; then
-                    log_success "Password changed. Retrying login..."
-                    continue
-                else
-                    log_warning "Password change failed. Will retry login."
-                fi
-            fi
-            wait_time=$((attempt * 2))
-            log_warning "Login attempt $attempt failed. Waiting ${wait_time}s before retry..."
-            sleep $wait_time
-        fi
-    done
+GPUSTACK_URL="http://localhost:8080"
 
-    if [[ -n "$TOKEN" ]]; then
-        # Create an API key using the JWT token
-        API_KEY_RESPONSE=$(curl -s -X POST http://localhost:8080/v2/api-keys \
-            -H "Authorization: Bearer $TOKEN" \
+if [[ -z "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
+    log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping GPUStack automation."
+else
+    # -------------------------------------------------------------------------
+    # Step 1: Login (FORM-ENCODED, save cookies)
+    # -------------------------------------------------------------------------
+    COOKIE_JAR=$(mktemp)
+    log_info "Logging in to GPUStack (saving session cookies)..."
+    
+    LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+        "$GPUSTACK_URL/auth/login" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -c "$COOKIE_JAR" \
+        --data-urlencode "username=admin" \
+        --data-urlencode "password=$GPUSTACK_ADMIN_PASSWORD")
+    
+    HTTP_CODE=$(echo "$LOGIN_RESPONSE" | tail -n1)
+    BODY=$(echo "$LOGIN_RESPONSE" | head -n-1)
+    
+    debug_log "Login HTTP status: $HTTP_CODE"
+    debug_log "Login response body: $BODY"
+    
+    if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "303" && "$HTTP_CODE" != "302" ]]; then
+        log_warning "GPUStack login failed (HTTP $HTTP_CODE). Manual setup required."
+        log_info "You can log in at http://localhost:8080 with username 'admin' and the password from .env"
+        rm -f "$COOKIE_JAR"
+    else
+        log_success "GPUStack login successful (HTTP $HTTP_CODE)"
+        
+        # -------------------------------------------------------------------------
+        # Step 2: Create API Key (using session cookie)
+        # -------------------------------------------------------------------------
+        log_info "Creating API key..."
+        
+        API_KEY_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "$GPUSTACK_URL/v1/api-keys" \
+            -b "$COOKIE_JAR" \
             -H "Content-Type: application/json" \
-            -d '{"name": "deployment-key", "description": "Key for automated model registration"}')
-        API_KEY=$(echo "$API_KEY_RESPONSE" | jq -r '.key // empty')
-
-        if [[ -z "$API_KEY" ]]; then
-            log_warning "Failed to generate API key. Response: $API_KEY_RESPONSE"
-            log_info "You can register the model manually via GPUStack UI."
+            -d '{
+                "name": "deployment-key",
+                "description": "Automated deployment key for model registration",
+                "expires_in": 31536000
+            }')
+        
+        API_HTTP_CODE=$(echo "$API_KEY_RESPONSE" | tail -n1)
+        API_BODY=$(echo "$API_KEY_RESPONSE" | head -n-1)
+        
+        debug_log "API Key creation HTTP status: $API_HTTP_CODE"
+        debug_log "API Key response: $API_BODY"
+        
+        # Try multiple possible JSON field names
+        API_KEY=$(echo "$API_BODY" | jq -r '.value // .key // .api_key // empty' 2>/dev/null)
+        
+        if [[ -z "$API_KEY" || "$API_KEY" == "null" ]]; then
+            log_warning "Failed to extract API key from response: $API_BODY"
+            log_info "You can create an API key manually in the GPUStack UI."
         else
-            log_success "API key generated successfully."
-            # Store API key in .env (temporarily)
-            if grep -q "^GPUSTACK_API_KEY=" "$ENV_FILE"; then
-                safe_sed_replace "$ENV_FILE" "GPUSTACK_API_KEY" "$API_KEY"
-            else
-                echo "" >> "$ENV_FILE"
-                echo "GPUSTACK_API_KEY=$API_KEY" >> "$ENV_FILE"
-            fi
+            log_success "API key created: ${API_KEY:0:20}..."
+            
+            # Store API key in .env
+            safe_sed_replace "$ENV_FILE" "GPUSTACK_API_KEY" "$API_KEY"
             export GPUSTACK_API_KEY="$API_KEY"
-
-            # Register the model file
+            
+            # -------------------------------------------------------------------------
+            # Step 3: Register Model File
+            # -------------------------------------------------------------------------
             GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
             if [[ -n "$GGUF_FILE" ]]; then
                 MODEL_PATH="/models/$(basename "$GGUF_FILE")"
+                MODEL_NAME="$(basename "$GGUF_FILE" .gguf)"
                 log_info "Registering model file: $MODEL_PATH"
-                REGISTER_RESPONSE=$(curl -s -X POST http://localhost:8080/v2/model_files \
+                
+                # Try v2 endpoint first (management API)
+                REGISTER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                    "$GPUSTACK_URL/v2/model_files" \
                     -H "Authorization: Bearer $API_KEY" \
                     -H "Content-Type: application/json" \
-                    -d "{\"source\": \"local_path\", \"path\": \"$MODEL_PATH\"}")
-                MODEL_FILE_ID=$(echo "$REGISTER_RESPONSE" | jq -r '.id // empty')
-                if [[ -n "$MODEL_FILE_ID" ]]; then
+                    -d "{
+                        \"source\": \"local_path\",
+                        \"path\": \"$MODEL_PATH\"
+                    }")
+                
+                REG_HTTP_CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
+                REG_BODY=$(echo "$REGISTER_RESPONSE" | head -n-1)
+                
+                debug_log "Model file registration HTTP: $REG_HTTP_CODE"
+                debug_log "Model file registration response: $REG_BODY"
+                
+                MODEL_FILE_ID=$(echo "$REG_BODY" | jq -r '.id // empty' 2>/dev/null)
+                
+                if [[ -n "$MODEL_FILE_ID" && "$MODEL_FILE_ID" != "null" ]]; then
                     log_success "Model file registered with ID: $MODEL_FILE_ID"
-                    # Deploy the model
-                    DEPLOY_RESPONSE=$(curl -s -X POST http://localhost:8080/v2/models \
+                    
+                    # -------------------------------------------------------------------------
+                    # Step 4: Deploy the Model
+                    # -------------------------------------------------------------------------
+                    log_info "Deploying model: $MODEL_NAME"
+                    
+                    DEPLOY_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                        "$GPUSTACK_URL/v2/models" \
                         -H "Authorization: Bearer $API_KEY" \
                         -H "Content-Type: application/json" \
                         -d '{
-                            "name": "deepseek-r1-1.5b",
+                            "name": "'"$MODEL_NAME"'",
                             "source": "local_path",
                             "model_file_id": '"$MODEL_FILE_ID"',
                             "replicas": 1,
                             "backend": "llama-box"
                         }')
-                    if echo "$DEPLOY_RESPONSE" | grep -q '"id"'; then
-                        log_success "Model deployed successfully on GPUStack."
+                    
+                    DEP_HTTP_CODE=$(echo "$DEPLOY_RESPONSE" | tail -n1)
+                    DEP_BODY=$(echo "$DEPLOY_RESPONSE" | head -n-1)
+                    
+                    debug_log "Model deployment HTTP: $DEP_HTTP_CODE"
+                    debug_log "Model deployment response: $DEP_BODY"
+                    
+                    if echo "$DEP_BODY" | grep -q '"id"'; then
+                        log_success "Model deployed successfully."
                         GPUSTACK_READY=true
                     else
-                        log_warning "Model deployment failed. Response: $DEPLOY_RESPONSE"
+                        log_warning "Model deployment failed. Response: $DEP_BODY"
                     fi
                 else
-                    log_warning "Model file registration failed. Response: $REGISTER_RESPONSE"
+                    log_warning "Model file registration failed. Response: $REG_BODY"
                 fi
             else
                 log_warning "No GGUF file found in $MODELS_DIR – skipping model registration."
             fi
         fi
-    else
-        log_warning "Failed to obtain login token after multiple attempts."
-        log_info "Please log in to GPUStack UI at http://localhost:8080 and register a model manually."
+        rm -f "$COOKIE_JAR"
     fi
-else
-    log_warning "GPUSTACK_ADMIN_PASSWORD not set in .env – skipping GPUStack automation."
 fi
 
 # -----------------------------------------------------------------------------
