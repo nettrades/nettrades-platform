@@ -218,7 +218,7 @@ Change these before production deployment.
 
 * Untrusted code (freelancer workloads) runs in gVisor sandboxes.
 
-* Trusted workloads (company‑owned) run without sandbox overhead.
+* Trusted workloads (company-owned) run without sandbox overhead.
 
 * Configurable via Odoo admin screens.
 
@@ -241,7 +241,7 @@ After deploying, consider:
 
 * Enabling bridge routing: Settings → Technical → Bridge → Global Configuration
 
-* Configuring self‑service onboarding: Settings → General Settings → Sign Up → Allow external users to sign up
+* Configuring self-service onboarding: Settings → General Settings → Sign Up → Allow external users to sign up
 
 * Installing all NETTRADES modules: `./scripts/install-modules.sh --force`
 

@@ -4,7 +4,7 @@
 """
 generate-bcrypt-hash.py
 Reads a password from standard input and outputs a bcrypt hash.
-Used by the installation scripts to avoid fragile shell one‑liners.
+Used by the installation scripts to avoid fragile shell one-liners.
 """
 
 import sys

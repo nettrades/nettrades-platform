@@ -12,28 +12,28 @@
  *     1. Creating the main application window.
  *     2. Handling IPC communication between the renderer (UI) and the main process.
  *     3. Running the nettrades-setup.sh script with elevated privileges.
- *     4. Managing auto‑updates via electron-updater.
+ *     4. Managing auto-updates via electron-updater.
  *     5. Generating WireGuard client configurations.
- *     6. Providing service status and quick‑access to web UIs (Odoo, Grafana, GPUStack).
+ *     6. Providing service status and quick-access to web UIs (Odoo, Grafana, GPUStack).
  *
  * ARCHITECTURE NOTES:
  *   - The installer follows a "thin wrapper" pattern: the Electron app is a
- *     user‑friendly GUI that runs the existing nettrades-setup.sh script.
+ *     user-friendly GUI that runs the existing nettrades-setup.sh script.
  *     This keeps the installation logic in one place and makes it testable
  *     independently of the GUI.
  *   - Privilege escalation is handled via sudo-prompt on macOS/Linux and
  *     native UAC on Windows (via child_process), ensuring the user is prompted
  *     securely.
- *   - Auto‑updates use electron-updater with GitHub Releases as the update
+ *   - Auto-updates use electron-updater with GitHub Releases as the update
  *     server (configured in package.json).
  *   - The installer supports both development (npm start) and packaged
  *     (production) modes, using app.isPackaged to resolve paths correctly.
  *
- * FUTURE‑PROOFING:
+ * FUTURE-PROOFING:
  *   - WireGuard key generation is built in; keys can be managed via Odoo
  *     after installation.
  *   - The installer supports headless/CLI mode for CI/CD and server deployments
- *     (via command‑line arguments, not implemented here but can be extended).
+ *     (via command-line arguments, not implemented here but can be extended).
  *   - Scaling is handled by the platform (Kubernetes, GPUStack) – the installer
  *     is only responsible for the initial bootstrap.
  * =============================================================================
@@ -94,10 +94,10 @@ let isInstalling = false;
 let installProcess = null;
 
 // -----------------------------------------------------------------------------
-// 3. AUTO‑UPDATE SETUP
+// 3. AUTO-UPDATE SETUP
 // -----------------------------------------------------------------------------
 
-// Enable logging for auto‑updater (helps debugging)
+// Enable logging for auto-updater (helps debugging)
 autoUpdater.logger = console;
 autoUpdater.autoDownload = false; // We'll prompt the user before downloading
 
@@ -150,7 +150,7 @@ autoUpdater.on('update-downloaded', (info) => {
 
 autoUpdater.on('error', (err) => {
     console.error('Update error:', err);
-    // Do not block the installer if auto‑update fails
+    // Do not block the installer if auto-update fails
 });
 
 // -----------------------------------------------------------------------------
@@ -443,7 +443,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-    // Re‑create a window when the dock icon is clicked on macOS
+    // Re-create a window when the dock icon is clicked on macOS
     if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
     }

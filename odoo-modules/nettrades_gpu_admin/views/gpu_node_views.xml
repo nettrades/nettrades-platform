@@ -51,7 +51,7 @@
                             <field name="name" placeholder="Node Name..."/>
                         </h1>
                         <span class="oe_read_only">
-                            <field name="node_id" help="Hardware‑bound unique identifier – prevents token farming."/>
+                            <field name="node_id" help="Hardware-bound unique identifier – prevents token farming."/>
                         </span>
                     </div>
                     <group>
@@ -73,7 +73,7 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="GPUs" help="Detailed GPU inventory from nvidia‑smi.">
+                        <page string="GPUs" help="Detailed GPU inventory from nvidia-smi.">
                             <field name="gpus" widget="json" help="JSON array with GPU details: index, name, memory_mb, utilisation, temperature."/>
                         </page>
                         <page string="Network" attrs="{'invisible': [('wireguard_public_key', '=', False)]}" help="WireGuard and TEE configuration.">

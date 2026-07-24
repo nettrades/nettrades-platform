@@ -13,7 +13,7 @@
  *     4. Service status updates after installation
  *     5. WireGuard key generation
  *
- * The UI follows a step‑by‑step wizard pattern:
+ * The UI follows a step-by-step wizard pattern:
  *   System Check → Configuration → Installation → Complete
  * =============================================================================
  */

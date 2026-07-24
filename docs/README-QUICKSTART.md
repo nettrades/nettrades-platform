@@ -15,7 +15,7 @@ The front page has the installation instructions.
 
     ./scripts/nettrades-setup.sh
     ```
-    For a fully automated deployment (non‑interactive):
+    For a fully automated deployment (non-interactive):
     ```bash
 
     ./scripts/nettrades-setup.sh all --auto

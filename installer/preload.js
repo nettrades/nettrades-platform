@@ -13,7 +13,7 @@
  *
  * SECURITY:
  *   - Only specific functions are exposed.
- *   - All communication is via IPC (inter‑process communication).
+ *   - All communication is via IPC (inter-process communication).
  *   - No direct access to Node.js or the file system.
  * =============================================================================
  */

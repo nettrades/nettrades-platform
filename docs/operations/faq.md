@@ -28,7 +28,7 @@ Perform daily PostgreSQL dumps, weekly filestore backups, and regularly backup y
 
 ### How do I install the Odoo modules after deployment?
 
-Run `./scripts/install-modules.sh --force` from the project root. If the command‑line tool fails, you can install the modules via the Odoo UI:
+Run `./scripts/install-modules.sh --force` from the project root. If the command-line tool fails, you can install the modules via the Odoo UI:
 
 1. Log in to Odoo (`http://localhost:8069`) as `admin` / `admin`
 2. Go to **Apps** → Click **Update Apps List**
