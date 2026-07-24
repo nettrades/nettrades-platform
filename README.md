@@ -80,9 +80,11 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform
 
-Use your space GPUs to talk to your organisations data. Enterprises face a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure. 
+Use your spare GPUs to talk to your organisations data. Enterprises face a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure. 
 
-Now in just a few minutes, companies could set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall with confidence — no cloud dependencies, no data leaving their control and no vendor lock-in.
+But now there is a third option, companies could just set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall with confidence in 30 minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.
+
+Nettrades is an autonomouse enterprise platform that lets organisations securely run their business workflows and control their AI infrastructure from a single dashboard.
 
 ```bash
 apt update && apt upgrade -y
@@ -148,9 +150,51 @@ The NETTRADES Sovereign AI Platform combines everything you need into a single, 
 
 ## License
 
-AGPL-3.0 – Free and open-source. No vendor lock-in. Full source code available.
+## Licensing
 
-The NETTRADES Sovereign AI Platform is highly configurable. It provides company administrators with the ability to run sovereign AI locally or if configured to do so by the company administrators, it will be able to scale up onto a GPU marketplace using Confidential Computing. 
+The NETTRADES Platform is **dual-licensed**:
+
+### 1. AGPL-3.0 (Open Source)
+
+- **Free to use, modify, and distribute**
+- **Requires you to release your modifications** under the same license if you make the software available over a network
+- **No use restrictions** — any use is permitted, subject to the AGPL-3.0 copyleft terms
+
+📄 [View the full AGPL-3.0 license](LICENSE.txt)
+
+### 2. Commercial License (Paid)
+
+- **No obligation to release source code** — keep your modifications proprietary
+- **Includes use restrictions** — prohibits military, surveillance, and harmful use
+- **Includes KYC, audit rights, and enterprise support**
+
+For enterprises that cannot or do not wish to comply with the AGPL-3.0 copyleft obligations, a commercial license is available.
+
+📄 [View the commercial license terms](COMMERCIAL-LICENSE.md)
+
+### Which License Do I Need?
+
+| Your Use Case | Recommended License |
+|---------------|---------------------|
+| You are building an open-source project and will share your modifications | AGPL-3.0 |
+| You are using the software internally without modification | AGPL-3.0 |
+| You are modifying the software and making it available over a network, but **cannot** release your modifications | **Commercial License** |
+| You are building a proprietary product that integrates the software | **Commercial License** |
+| You require use restrictions (no military, surveillance, etc.) | **Commercial License** |
+
+### How to Purchase a Commercial License
+
+Contact us at **legal@nettrades.ai** for pricing and terms.
+
+---
+
+## Contributing
+
+We welcome contributions! All contributors must sign our [Contributor License Agreement](Contributor-License-Agreement.md) before their pull request can be merged.
+
+When you open your first pull request, the CLA Assistant bot will automatically guide you through the signing process.
+
+📄 [View the contribution guide](CONTRIBUTING.md)
 
 ## Future Road Map
 
