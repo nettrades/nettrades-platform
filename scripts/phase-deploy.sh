@@ -3,7 +3,8 @@
 # FILE: scripts/phase-deploy.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 2: Single-VM Docker deployment with GPUStack as the inference engine.
+#   Phase 2: Single-VM Docker deployment with GPUStack as the primary inference engine,
+#   with automatic fallback to llama.cpp (CPU) if GPUStack cannot be fully automated.
 #   This script deploys the entire NETTRADES stack using Docker Compose.
 #   It is idempotent and safe to re-run.
 #
@@ -824,6 +825,7 @@ done
 # -----------------------------------------------------------------------------
 log_step "Automating GPUStack setup (login, API key, model registration)..."
 
+GPUSTACK_READY=false
 if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
     TOKEN=""
     # Retry login with exponential backoff and handle password change
@@ -869,7 +871,7 @@ if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
             log_info "You can register the model manually via GPUStack UI."
         else
             log_success "API key generated successfully."
-            # Store API key in .env
+            # Store API key in .env (temporarily)
             if grep -q "^GPUSTACK_API_KEY=" "$ENV_FILE"; then
                 safe_sed_replace "$ENV_FILE" "GPUSTACK_API_KEY" "$API_KEY"
             else
@@ -902,7 +904,8 @@ if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
                             "backend": "llama-box"
                         }')
                     if echo "$DEPLOY_RESPONSE" | grep -q '"id"'; then
-                        log_success "Model deployed successfully."
+                        log_success "Model deployed successfully on GPUStack."
+                        GPUSTACK_READY=true
                     else
                         log_warning "Model deployment failed. Response: $DEPLOY_RESPONSE"
                     fi
@@ -919,6 +922,23 @@ if [[ -n "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
     fi
 else
     log_warning "GPUSTACK_ADMIN_PASSWORD not set in .env – skipping GPUStack automation."
+fi
+
+# -----------------------------------------------------------------------------
+# Determine which inference backend to use (GPUStack or llama.cpp)
+# -----------------------------------------------------------------------------
+log_step "Determining inference backend..."
+
+if [[ "$GPUSTACK_READY" == true ]] && \
+   curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/models \
+       -H "Authorization: Bearer $GPUSTACK_API_KEY" | grep -q "200"; then
+    log_success "GPUStack is healthy. Using GPUStack as the primary inference backend."
+    LLM_BASE_URL="http://gpustack:8080/v1"
+    OPENAI_API_KEY="$GPUSTACK_API_KEY"
+else
+    log_warning "GPUStack not available or not ready. Falling back to llama.cpp (CPU)."
+    LLM_BASE_URL="http://llama-cpp:8080/v1"
+    OPENAI_API_KEY="dummy"
 fi
 
 # -----------------------------------------------------------------------------
@@ -1001,17 +1021,11 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Update .env with LLM_BASE_URL
-# LangGraph runs inside the Docker network and communicates with the gpustack service by its container name gpustack hence LLM_BASE_URL=http://gpustack:8080/v1
+# Update .env with the chosen LLM_BASE_URL and OPENAI_API_KEY
 # -----------------------------------------------------------------------------
-log_step "Updating .env to use GPUStack..."
-LLM_URL="LLM_BASE_URL=http://gpustack:8080/v1"
-if grep -q "^LLM_BASE_URL=" "$ENV_FILE"; then
-    safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_URL"
-else
-    echo "" >> "$ENV_FILE"
-    echo "${LLM_URL}" >> "$ENV_FILE"
-fi
+log_step "Updating .env with inference backend settings..."
+safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
+safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
 log_success ".env updated"
 
 # -----------------------------------------------------------------------------

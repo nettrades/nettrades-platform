@@ -378,7 +378,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # GPUStack – GPU Management and Inference (replaces standalone engines)
+  # 10. GPUStack – GPU Management and Inference (replaces standalone engines)
   # =========================================================================
 
   gpustack:
@@ -417,8 +417,43 @@ services:
         max-size: "10m"
         max-file: "3"
 
+
   # =========================================================================
-  # 11. PROMETHEUS - Metrics Collection
+  # 11. LLAMA.CPP – CPU Inference Engine (Fallback)
+  # =========================================================================
+  llama-cpp:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: llama-cpp
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      # Re-use the model from gpustack-data/models (already downloaded)
+      - ./gpustack-data/models:/models
+    environment:
+      - LLAMA_SERVER_MODEL=/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+      - LLAMA_SERVER_HOST=0.0.0.0
+      - LLAMA_SERVER_PORT=8080
+      - LLAMA_SERVER_N_GPU_LAYERS=0   # CPU only; adjust for GPU
+    ports:
+      - "8080:8080"
+    command:
+      - "-m"
+      - "/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "-ngl"
+      - "0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =========================================================================
+  # 12. PROMETHEUS - Metrics Collection
   # =========================================================================
   prometheus:
     image: prom/prometheus:latest
@@ -448,7 +483,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 12. GRAFANA - Visualisation Dashboard
+  # 13. GRAFANA - Visualisation Dashboard
   # =========================================================================
   grafana:
     image: grafana/grafana:latest
@@ -480,7 +515,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 13. NODE EXPORTER - System Metrics for Prometheus
+  # 14. NODE EXPORTER - System Metrics for Prometheus
   # =========================================================================
   node_exporter:
     image: prom/node-exporter:latest

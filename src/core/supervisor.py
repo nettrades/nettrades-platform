@@ -20,6 +20,7 @@
 #   5. Self-improving loop integration for continuous learning
 #   6. Episode recording for training data
 #   7. Post-processing for self-improving loop after routing
+#   8. Fallback detection: automatically notifies the user when the CPU model is used
 #
 # INTEGRATION POINTS:
 #   - Odoo: Reads company-specific LLM configuration via LLMFactory
@@ -27,6 +28,7 @@
 #   - Self-Improving: Records episodes for fine-tuning models
 #   - GPUStack: Uses configured LLM provider (OpenAI, Anthropic, DeepSeek, Ollama,
 #     NETTRADES.AI)
+#   - llama.cpp: Used as fallback when GPUStack is unavailable
 #
 # =============================================================================
 
@@ -53,6 +55,11 @@ from agents.action_agent import create_action_agent
 # Import LLM Factory for dynamic provider selection
 # -----------------------------------------------------------------------------
 from tools.llm_factory import get_llm
+
+# -----------------------------------------------------------------------------
+# Import inference tools for backend detection
+# -----------------------------------------------------------------------------
+from tools.inference_tools import get_inference_backend
 
 # -----------------------------------------------------------------------------
 # Import bridge integration (hub-and-spoke routing)
@@ -402,6 +409,8 @@ async def route(state: dict) -> dict:
     1. If screening is complete (for medical/legal intents)
     2. If the bridge already handled the request (use bridge_response)
     3. If not, it dispatches to the appropriate sub-agent based on intent
+    4. Additionally, it detects if the inference backend is a CPU fallback
+       and notifies the user accordingly.
 
     The mapping of intents to sub-agents is:
     - recruitment -> Recruitment Agent
@@ -429,6 +438,35 @@ async def route(state: dict) -> dict:
         state.update(state["bridge_response"])
         return state
 
+    # --- Fallback detection and notification ---
+    # Check the inference backend type
+    backend_info = get_inference_backend()
+    if backend_info.get("type") == "cpu":
+        # If we haven't notified the user yet about the fallback, do so now
+        if not state.get("fallback_notified", False):
+            fallback_msg = (
+                "⚠️ **Note:** The primary GPU‑accelerated AI model is currently unavailable. "
+                "I'm using a smaller CPU‑based model for now. This may affect the quality of responses. "
+                "If you need a more accurate answer, you can ask a human expert."
+            )
+            state["messages"].append({
+                "role": "assistant",
+                "content": fallback_msg
+            })
+            state["fallback_notified"] = True
+            state["fallback_used"] = True
+            _logger.info("Fallback backend notification added to conversation.")
+    else:
+        # If GPUStack is healthy, ensure the fallback notification is cleared
+        # (so that if it recovers, the message won't be shown again)
+        if state.get("fallback_notified", False):
+            # We could optionally remove the message, but it's okay to keep it.
+            # Just reset the flag so that if it fails again, we will re-notify.
+            state["fallback_notified"] = False
+            state["fallback_used"] = False
+        # We don't add a "GPU restored" message automatically; the user will see better responses.
+
+    # Continue with normal routing
     intent = state.get("intent", "general")
     _logger.info(f"Routing intent: {intent}")
 
@@ -510,6 +548,10 @@ async def post_process(state: dict) -> dict:
         else:
             quality_score = 0.3
 
+    # Optionally adjust quality down if fallback was used
+    if state.get("fallback_used", False):
+        quality_score = min(quality_score, 0.6)  # cap quality to reflect lower model capability
+
     # Get the self-improving service
     self_improving = SelfImprovingService()
 
@@ -521,7 +563,8 @@ async def post_process(state: dict) -> dict:
             output_data={
                 "analysis": state.get("analysis", ""),
                 "intent": intent,
-                "route_source": state.get("route_source", "local")
+                "route_source": state.get("route_source", "local"),
+                "fallback_used": state.get("fallback_used", False)
             },
             quality_score=quality_score,
             feedback=state.get("feedback", {})
@@ -564,7 +607,7 @@ def build_supervisor_workflow():
     1. classify -> classify the user's intent
     2. medical_screening -> multi-turn screening for medical/legal (loops back if needed)
     3. bridge_route -> check if request should go remote (hub-and-spoke routing)
-    4. route -> route to appropriate sub-agent
+    4. route -> route to appropriate sub-agent (with fallback notification)
     5. post_process -> record for self-improving loop
 
     The graph uses a conditional edge from medical_screening to either loop back
