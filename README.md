@@ -80,15 +80,15 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform
 
-Use your spare GPUs to talk to your organisations data. 
+**Use your spare GPUs to talk to your organisations data.** 
 
 **Enterprises used to face a critical choice: send sensitive data to external AI companies or spend years building their own AI infrastructure.**
 
-**Now they just set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall in 30 minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.
+**Now they just set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall in 30 minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
-Nettrades is an autonomouse enterprise platform that lets organisations securely run their business workflows and control their AI infrastructure from a single dashboard.
+**Nettrades is an autonomouse enterprise platform that lets organisations securely run their business workflows and control their AI infrastructure from a single dashboard.**
 
-### Deploy in Minutes
+### Deploy in minutes not months
 
 ```bash
 apt update && apt upgrade -y
@@ -104,7 +104,7 @@ chmod +x scripts/nettrades-setup.sh
 sudo ./scripts/nettrades-setup.sh all --force
 
 ```
-For stable, production-ready deployments clone the `main` branch
+
 See the Accessing Your Platform section below to login.
 
 For security on a production server the scripts block the default SSH port 22 and allow SSH access over port 2222
@@ -119,20 +119,19 @@ to get a new key and reconnect
 
 ### The Problem
 
-**Data sovereignty is the #1 barrier to enterprise AI adoption.**
+**Data sovereignty is the number 1 barrier to enterprise AI adoption.**
 
-- **Decision-makers** are concerned about data laws (US CLOUD Act, FISA 702 and the China's National Intelligence Law that give them powers over data held by cloud providers)
+- **Decision-makers** are concerned about data laws **(US CLOUD Act, FISA 702 and the China's National Intelligence Law that give them powers over data held by cloud providers)**
 - **52.6% of AI decision-makers** cite data sovereignty and security as a top adoption barrier
 - **50% of enterprises** view sovereign AI infrastructure as a major competitive differentiator
 
-Cloud-based AI platforms expose your most sensitive data to:
-- US CLOUD Act jurisdiction (foreign government access)
-- Vendor lock-in and unpredictable per-token pricing
-- Data leakage to model training
-- Audit trails that you do not control
-- **Compliance Risk** - GDPR, HIPAA, and sovereign cloud mandates require data residency. 
-
-While companies already have **GPU Waste** - Enterprises buy $30,000+ GPUs but use them less than 20% of the time. 
+| Challenge| Reality |
+|---------|-------------|
+| **Data Privacy** | Sending internal data to external AI companies exposes company secrets, customer data, and intellectual property. |
+| **US CLOUD Act jurisdiction** | US CLOUD Act, FISA 702 and the China's National Intelligence Law that give them powers over your data |
+| **GPU Waste** | Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
+| **Vendor Lock-in** | Public AI APIs change pricing, terms, and availability without notice. |
+| **Compliance Risk** | GDPR, HIPAA, and sovereign cloud mandates require data residency. |
 
 
 ## The Solution
@@ -153,32 +152,17 @@ While companies already have **GPU Waste** - Enterprises buy $30,000+ GPUs but u
 
 ## 🚀 Key Features
 
-### AI Agent Platform
 
-- **Multi-agent orchestration** with LangGraph state machines
-- **Private model serving** via vLLM and llama.cpp
-- **Self-improving AI** with "Good Answer" voting and Unsloth/Axolotl fine-tuning
-- **Hub-and-spoke routing** — route requests between local and remote AI brains
-
-### Enterprise Infrastructure
-
-- **GPU orchestration** with GPUStack
-- **Odoo 19 CE** — ERP, CRM, HR, business logic
-- **Kubernetes** and **Docker** for container orchestration
-- **WireGuard VPN** for secure communication
-- **Prometheus** and **Grafana** for observability
-
-### Admin Console
-
-- User management and RBAC
-- GPU cluster monitoring
-- Model deployment and versioning
-- Permission management for agents and dashboards
-
-### (Coming Soon)
-
-- **GPU Marketplace** — Share unused GPU capacity
-- **"Ask Someone"** — Paid expert consultations with Stripe escrow
+| Feature | Description |
+|---------|-------------|
+| **🔐 Secure & Sovereign** | WireGuard VPN, gVisor isolation and full on-premise deployment options. |
+| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system. |
+| **🔄 Private model serving** | Use your spare GPUs to serve models and provide API Keys |
+| **📊 AI dashboards** | AI routing and montoring |
+| **🔐 ERP, CRM, HR, business logic** | Built in ERP, CRM, HR, business logic |
+| **🏗 Confidential Computing** - coming soon| Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
+| **🔌 [Hub-and-Spoke Routing - coming soon](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
+| **🖥️ [GPU Marketplace - coming soon](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. |
 
 
 ## Enterprise Support
