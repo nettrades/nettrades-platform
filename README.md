@@ -82,9 +82,9 @@ PURPOSE:
 
 **Use your spare GPUs to talk to your organisations data.** 
 
-**Enterprises used to face a critical choice: send sensitive data to external AI companies or spend years building their own AI infrastructure.**
+**In the past enterprises used to face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. **
 
-**Now they just set up a Ubuntu Linux box and run the commands below to deploy the complete NETTRADES Sovereign AI Platform behind their firewall in 30 minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
+**Now companies just set up their own Ubuntu Linux box and run the commands below to deploy their entire NETTRADES Sovereign AI Platform in a few minute — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
 **Nettrades is an autonomouse enterprise platform that lets organisations securely run their business workflows and control their AI infrastructure from a single dashboard.**
 
@@ -156,12 +156,12 @@ to get a new key and reconnect
 | Feature | Description |
 |---------|-------------|
 | **🔐 Secure & Sovereign** | WireGuard VPN, gVisor isolation and full on-premise deployment options. |
-| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system. |
 | **🔄 Private model serving** | Use your spare GPUs to serve models and provide API Keys |
 | **📊 AI dashboards** | AI routing and montoring |
-| **🔐 ERP, CRM, HR, business logic** | Built in ERP, CRM, HR, business logic |
+| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system. |
+| **🔐 ERP, CRM, HR, business logic** | Companies could enable built in ERP, CRM, HR and business logic if required |
 | **🏗 Confidential Computing** - coming soon| Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
-| **🔌 [Hub-and-Spoke Routing - coming soon](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
+| **🔌 [Configurable Hub-and-Spoke Routing - coming soon](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
 | **🖥️ [GPU Marketplace - coming soon](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. |
 
 
