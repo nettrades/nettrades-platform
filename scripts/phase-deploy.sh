@@ -536,9 +536,11 @@ set +a
 # Check PostgreSQL password consistency
 # -----------------------------------------------------------------------------
 check_postgres_password() {
-    local pg_container=$(docker compose ps -q postgres 2>/dev/null)
+    local pg_container
+    pg_container=$(docker compose ps -q postgres 2>/dev/null)
     if [[ -n "$pg_container" ]] && docker inspect -f '{{.State.Running}}' "$pg_container" 2>/dev/null | grep -q true; then
-        local actual_pass=$(docker exec "$pg_container" env | grep POSTGRES_PASSWORD | cut -d= -f2)
+        local actual_pass
+        actual_pass=$(docker exec "$pg_container" env | grep POSTGRES_PASSWORD | cut -d= -f2)
         if [[ -n "$actual_pass" && "$actual_pass" != "$POSTGRES_PASSWORD" ]]; then
             log_warning "PostgreSQL password mismatch."
             log_warning "  .env password: $POSTGRES_PASSWORD"
@@ -809,6 +811,57 @@ fi
 log_success "Docker Compose stack started"
 
 # -----------------------------------------------------------------------------
+# VALIDATE DEPLOYMENT (NEW HEALTH CHECKS)
+# -----------------------------------------------------------------------------
+validate_deployment() {
+    local max_retries=30
+    local attempt=1
+    
+    log_step "Validating deployment health..."
+    
+    while [[ $attempt -le $max_retries ]]; do
+        # Check if containers are running
+        if docker ps --filter "status=running" | grep -q "odoo\|gpustack\|postgres"; then
+            # Test database connectivity
+            if docker exec docker-postgres-1 pg_isready -U odoo &>/dev/null; then
+                log_success "PostgreSQL is healthy"
+            else
+                log_warning "PostgreSQL not ready yet..."
+            fi
+            
+            # Test Odoo
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
+                log_success "Odoo is healthy"
+            else
+                log_warning "Odoo not ready yet..."
+            fi
+            
+            # Test LangGraph
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
+                log_success "LangGraph is healthy"
+                return 0
+            else
+                log_warning "LangGraph not ready yet..."
+            fi
+        fi
+        
+        log_info "Waiting for services to be ready... ($attempt/$max_retries)"
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    
+    log_error "Services failed to start after $((max_retries * 2)) seconds"
+    return 1
+}
+
+if validate_deployment; then
+    log_success "All services are healthy"
+else
+    log_error "Deployment validation failed. Check logs."
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
 # Wait for GPUStack to be ready and verify admin password with robust retry
 # -----------------------------------------------------------------------------
 log_step "Waiting for GPUStack to be ready..."
@@ -847,8 +900,14 @@ else
     HTTP_CODE=$(echo "$LOGIN_RESPONSE" | tail -n1)
     BODY=$(echo "$LOGIN_RESPONSE" | head -n-1)
     
-    debug_log "Login HTTP status: $HTTP_CODE"
-    debug_log "Login response body: $BODY"
+    # Use debug_log if available, else log_info
+    if type debug_log &>/dev/null; then
+        debug_log "Login HTTP status: $HTTP_CODE"
+        debug_log "Login response body: $BODY"
+    else
+        log_info "Login HTTP status: $HTTP_CODE"
+        log_info "Login response body: $BODY"
+    fi
     
     if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "303" && "$HTTP_CODE" != "302" ]]; then
         log_warning "GPUStack login failed (HTTP $HTTP_CODE). Manual setup required."
@@ -875,8 +934,13 @@ else
         API_HTTP_CODE=$(echo "$API_KEY_RESPONSE" | tail -n1)
         API_BODY=$(echo "$API_KEY_RESPONSE" | head -n-1)
         
-        debug_log "API Key creation HTTP status: $API_HTTP_CODE"
-        debug_log "API Key response: $API_BODY"
+        if type debug_log &>/dev/null; then
+            debug_log "API Key creation HTTP status: $API_HTTP_CODE"
+            debug_log "API Key response: $API_BODY"
+        else
+            log_info "API Key creation HTTP status: $API_HTTP_CODE"
+            log_info "API Key response: $API_BODY"
+        fi
         
         # Try multiple possible JSON field names
         API_KEY=$(echo "$API_BODY" | jq -r '.value // .key // .api_key // empty' 2>/dev/null)
@@ -913,8 +977,13 @@ else
                 REG_HTTP_CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
                 REG_BODY=$(echo "$REGISTER_RESPONSE" | head -n-1)
                 
-                debug_log "Model file registration HTTP: $REG_HTTP_CODE"
-                debug_log "Model file registration response: $REG_BODY"
+                if type debug_log &>/dev/null; then
+                    debug_log "Model file registration HTTP: $REG_HTTP_CODE"
+                    debug_log "Model file registration response: $REG_BODY"
+                else
+                    log_info "Model file registration HTTP: $REG_HTTP_CODE"
+                    log_info "Model file registration response: $REG_BODY"
+                fi
                 
                 MODEL_FILE_ID=$(echo "$REG_BODY" | jq -r '.id // empty' 2>/dev/null)
                 
@@ -941,8 +1010,13 @@ else
                     DEP_HTTP_CODE=$(echo "$DEPLOY_RESPONSE" | tail -n1)
                     DEP_BODY=$(echo "$DEPLOY_RESPONSE" | head -n-1)
                     
-                    debug_log "Model deployment HTTP: $DEP_HTTP_CODE"
-                    debug_log "Model deployment response: $DEP_BODY"
+                    if type debug_log &>/dev/null; then
+                        debug_log "Model deployment HTTP: $DEP_HTTP_CODE"
+                        debug_log "Model deployment response: $DEP_BODY"
+                    else
+                        log_info "Model deployment HTTP: $DEP_HTTP_CODE"
+                        log_info "Model deployment response: $DEP_BODY"
+                    fi
                     
                     if echo "$DEP_BODY" | grep -q '"id"'; then
                         log_success "Model deployed successfully."
