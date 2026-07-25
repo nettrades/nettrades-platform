@@ -25,6 +25,7 @@
 
 set -e
 set -u
+export PIP_BREAK_SYSTEM_PACKAGES=1
 
 # -----------------------------------------------------------------------------
 # 1. Configuration
