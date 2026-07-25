@@ -107,7 +107,7 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 See the Accessing Your Platform section below to login.
 
-For security on a production server the scripts block the default SSH port 22 and allow SSH access over port 2222
+For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
 
 So you may need to run:
 ssh-keygen -R ServerIPaddress
@@ -339,6 +339,19 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 ```
 
+See the Accessing Your Platform section below to login.
+
+For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
+
+So you may need to run:
+ssh-keygen -R ServerIPaddress
+
+to remove an old key if you have issues and then run:
+
+ssh -p 2222 root@ServerIPaddress
+to get a new key and reconnect
+
+
 On a windows machine in WSL install dos2unix if not already installed
 This can convert all the files in the repository to have Linux line endings (\n)
 
@@ -352,6 +365,7 @@ This will take about 10 minutes to run.
 
 Work on the dev-deployment1 branch not on the main branch
 
+Since the code has extensive comments and documentation you could use any AI including Deepseek or GitHub codepilot to explain how the code work. First ask it to do an extensive code review, so that it loads the code into its context window and then it will be able to assist you with any further questions.
 
 #### 2. Choose Your Setup Path
 
