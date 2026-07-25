@@ -473,13 +473,16 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml      # config (bind)
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml       # config (bind)
       - prometheus_data:/prometheus                           # data (named volume)
-      - ./prometheus/web.yml:/etc/prometheus/web.yml          # auth (bind)
+      - ./prometheus-entrypoint.sh:/entrypoint.sh   # mount the script
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]       # use it as entrypoint
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.config.file=/etc/prometheus/web.yml'
+      - '--web.config.file=/etc/prometheus/web.yml' # generated file
+    environment:
+      - PROMETHEUS_PASSWORD=${PROMETHEUS_PASSWORD}  # from .env
     labels:
       - traefik.enable=true
       - traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)
