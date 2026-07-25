@@ -27,27 +27,112 @@
 import json
 import logging
 import os
+import sys
+import hmac
+from collections import defaultdict
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException, status
 from fastapi.responses import JSONResponse
 
-# -----------------------------------------------------------------------------
-# Configuration
-# -----------------------------------------------------------------------------
-ODOO_URL = os.getenv("ODOO_URL", "http://odoo:8069")
-ODOO_API_KEY = os.getenv("ODOO_API_KEY", "change_me_in_production")
-PROXY_API_KEY = os.getenv("PROXY_API_KEY", "change_me_in_production")  # For authenticating callers
-
-# Logging
+# =============================================================================
+# LOGGING SETUP (must be before any logger usage)
+# =============================================================================
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+ODOO_URL = os.getenv("ODOO_URL", "http://odoo:8069")
+ODOO_DB = os.getenv("ODOO_DB", "odoo")
+ODOO_USER = int(os.getenv("ODOO_USER", "1"))
+ODOO_PASSWORD = os.getenv("ODOO_PASSWORD", "admin")
 
-# -----------------------------------------------------------------------------
-# FastAPI App
-# -----------------------------------------------------------------------------
+ODOO_API_KEY = os.getenv("ODOO_API_KEY")
+PROXY_API_KEY = os.getenv("PROXY_API_KEY")
+
+# =============================================================================
+# STARTUP VALIDATION (fail-fast)
+# =============================================================================
+if not ODOO_API_KEY:
+    logger.critical("ODOO_API_KEY environment variable is not set")
+    sys.exit(1)
+if not PROXY_API_KEY:
+    logger.critical("PROXY_API_KEY environment variable is not set")
+    sys.exit(1)
+
+WEAK_KEYS = ["change_me_in_production", "changeit", "password", "admin", "test"]
+if PROXY_API_KEY in WEAK_KEYS:
+    logger.critical(f"PROXY_API_KEY is set to a known weak value: {PROXY_API_KEY}")
+    sys.exit(1)
+
+logger.info("✅ Credentials validated at startup")
+
+# =============================================================================
+# MODEL WHITELIST (security)
+# =============================================================================
+ALLOWED_MODELS = {
+    "res.partner",
+    "sale.order",
+    "project.project",
+    "hr.employee",
+    "nettrades.field",
+    "data.episode",
+    "gpu.node",
+    "gpu.cluster",
+    # Add business models as needed, but NEVER include res.users or ir.model
+}
+
+# =============================================================================
+# RATE LIMITING
+# =============================================================================
+failed_attempts = defaultdict(list)
+MAX_ATTEMPTS = 5
+WINDOW_MINUTES = 15
+
+
+async def authenticate(request: Request) -> bool:
+    """
+    Validate the API key from the request headers with rate limiting.
+
+    Supports:
+        - X-API-Key header
+        - Authorization: Bearer <token>
+    """
+    client_ip = request.client.host
+    api_key = request.headers.get("X-API-Key")
+    auth_header = request.headers.get("Authorization", "")
+
+    # Try X-API-Key
+    if api_key and hmac.compare_digest(api_key, PROXY_API_KEY):
+        failed_attempts[client_ip] = []
+        return True
+
+    # Try Bearer token
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+        if hmac.compare_digest(token, PROXY_API_KEY):
+            failed_attempts[client_ip] = []
+            return True
+
+    # Track failure
+    now = datetime.utcnow()
+    failed_attempts[client_ip].append(now)
+    cutoff = now - timedelta(minutes=WINDOW_MINUTES)
+    failed_attempts[client_ip] = [t for t in failed_attempts[client_ip] if t > cutoff]
+
+    if len(failed_attempts[client_ip]) >= MAX_ATTEMPTS:
+        logger.warning(f"Rate limit exceeded for {client_ip}")
+        raise HTTPException(status_code=429, detail="Too many authentication failures")
+
+    return False
+
+# =============================================================================
+# FASTAPI APP
+# =============================================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,45 +151,44 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# =============================================================================
+# ENDPOINTS
+# =============================================================================
 
-# -----------------------------------------------------------------------------
-# Authentication Middleware
-# -----------------------------------------------------------------------------
+@app.get("/health")
+async def health():
+    """Simple health check for monitoring."""
+    return {"status": "healthy", "service": "odoo-proxy"}
 
-async def authenticate(request: Request) -> bool:
-    """
-    Validate the API key from the request headers.
-
-    Supports:
-        - X-API-Key header
-        - Authorization: Bearer <token>
-    """
-    # Check X-API-Key header
-    api_key = request.headers.get("X-API-Key")
-    if api_key and api_key == PROXY_API_KEY:
-        return True
-
-    # Check Bearer token
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split()[1]
-        if token == PROXY_API_KEY:
-            return True
-
-    return False
-
-
-# -----------------------------------------------------------------------------
-# Schema Discovery Endpoints (NEW)
-# -----------------------------------------------------------------------------
 
 @app.get("/models")
 async def list_models(request: Request):
     """
-    Return a list of all available Odoo models (e.g., res.partner, sale.order).
+    Return a list of whitelisted Odoo models.
 
-    This endpoint is used by LangGraph agents to discover the data schema.
-    It returns a list of model names and their human-readable labels.
+    Used by LangGraph agents to discover the data schema.
+    Authentication: Requires the same API key as /jsonrpc.
+    """
+    if not await authenticate(request):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Return only whitelisted models
+    return {
+        "models": [
+            {"name": m, "label": m.replace(".", " ").title()}
+            for m in ALLOWED_MODELS
+        ]
+    }
+
+
+@app.get("/models/{model_name}/fields")
+async def get_model_fields(model_name: str, request: Request):
+    """
+    Return the fields for a whitelisted model only.
 
     Authentication: Requires the same API key as /jsonrpc.
     """
@@ -115,58 +199,11 @@ async def list_models(request: Request):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Build a JSON-RPC payload to call ir.model.search_read
-    payload = {
-        "jsonrpc": "2.0",
-        "method": "call",
-        "params": {
-            "service": "object",
-            "method": "execute_kw",
-            "args": [
-                ODOO_DB,
-                ODOO_USER,
-                ODOO_PASSWORD,
-                "ir.model",
-                "search_read",
-                [[["state", "=", "base"]]],  # domain: only base models, adjust as needed
-                {"fields": ["model", "name", "info"], "limit": 200}
-            ]
-        },
-        "id": 1
-    }
-
-    client = request.app.state.client
-    odoo_endpoint = f"{ODOO_URL.rstrip('/')}/jsonrpc"
-
-    try:
-        response = await client.post(odoo_endpoint, json=payload)
-        response.raise_for_status()
-        result = response.json().get("result", [])
-        return {"models": result}
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Odoo error: {e.response.status_code} - {e.response.text}")
-        raise HTTPException(status_code=e.response.status_code, detail="Odoo returned an error")
-    except Exception as e:
-        logger.exception("Error fetching models")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/models/{model_name}/fields")
-async def get_model_fields(model_name: str, request: Request):
-    """
-    Return the fields, types, and relationships for a specific Odoo model.
-
-    This endpoint is used by LangGraph agents to understand the structure of a model
-    so they can build correct queries. It returns field names, types, required status,
-    and selection options.
-
-    Authentication: Requires the same API key as /jsonrpc.
-    """
-    if not await authenticate(request):
+    if model_name not in ALLOWED_MODELS:
+        logger.warning(f"Attempted access to non-whitelisted model: {model_name}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing API key",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Model '{model_name}' is not whitelisted",
         )
 
     # Build a JSON-RPC payload to call fields_get on the model
@@ -203,10 +240,6 @@ async def get_model_fields(model_name: str, request: Request):
         logger.exception(f"Error fetching fields for {model_name}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# -----------------------------------------------------------------------------
-# Main JSON-RPC Proxy Endpoint
-# -----------------------------------------------------------------------------
 
 @app.post("/jsonrpc")
 async def jsonrpc_proxy(request: Request):
@@ -266,20 +299,9 @@ async def jsonrpc_proxy(request: Request):
         raise HTTPException(status_code=500, detail=f"Internal proxy error: {str(e)}")
 
 
-# -----------------------------------------------------------------------------
-# Health check
-# -----------------------------------------------------------------------------
-
-@app.get("/health")
-async def health():
-    """Simple health check for monitoring."""
-    return {"status": "healthy", "service": "odoo-proxy"}
-
-
-# -----------------------------------------------------------------------------
-# Main entry point
-# -----------------------------------------------------------------------------
-
+# =============================================================================
+# MAIN ENTRY POINT
+# =============================================================================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

@@ -226,7 +226,7 @@ class SelfImprovingService:
         )
 
         # =====================================================================
-        # 4. Create episode in Odoo
+        # 4. Create episode in Odoo (with transaction safety)
         # =====================================================================
         episode_id = await self._create_episode(episode_data)
 
@@ -313,16 +313,34 @@ class SelfImprovingService:
         return json.dumps(output_data)[:500]
 
     async def _create_episode(self, episode_data: EpisodeData) -> Optional[int]:
-        """Create an episode record in Odoo."""
+        """
+        Create an episode record in Odoo with transaction safety.
+        Uses a savepoint to rollback on failure.
+        """
         if not self.odoo_env:
             _logger.warning("No Odoo environment - cannot create episode")
             return None
 
         try:
-            episode = self.odoo_env['data.episode'].create(episode_data.to_dict())
-            return episode.id
+            # Use savepoint for transaction safety
+            with self.odoo_env.cr.savepoint():
+                episode = self.odoo_env['data.episode'].create(episode_data.to_dict())
+                # Explicitly flush to detect errors early
+                self.odoo_env.flush()
+                _logger.info(f"Episode {episode.id} created successfully")
+                return episode.id
+
         except Exception as e:
-            _logger.error(f"Failed to create episode: {e}")
+            _logger.error(f"Failed to create episode: {e}", exc_info=True)
+            # Log audit trail if possible
+            try:
+                self.odoo_env['data.episode.error'].create({
+                    'error_type': 'creation_failure',
+                    'error_message': str(e),
+                    'failed_data': json.dumps(episode_data.to_dict())
+                })
+            except Exception:
+                pass
             return None
 
     async def _check_trigger(self):

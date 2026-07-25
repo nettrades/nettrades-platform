@@ -64,50 +64,18 @@ from tools.inference_tools import get_inference_backend
 # -----------------------------------------------------------------------------
 # Import bridge integration (hub-and-spoke routing)
 # -----------------------------------------------------------------------------
-try:
-    from bridge_integration import BridgeService
-except ImportError:
-    # Fallback if the module doesn't exist yet
-    class BridgeService:
-        async def route_request(self, intent, data, company_id=None):
-            return None
+from bridge_integration import BridgeService
 
 # -----------------------------------------------------------------------------
 # Import self-improving integration (continuous learning)
 # -----------------------------------------------------------------------------
-try:
-    from self_improving_integration import SelfImprovingService
-except ImportError:
-    # Fallback if the module doesn't exist yet
-    class SelfImprovingService:
-        async def record_episode(self, intent, input_data, output_data,
-                                 quality_score=0.5, feedback=None):
-            pass
+from self_improving_integration import SelfImprovingService
 
 # -----------------------------------------------------------------------------
 # Import resilience utilities (retry and circuit breaker)
 # -----------------------------------------------------------------------------
-try:
-    from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-    from circuitbreaker import CircuitBreaker, CircuitBreakerError
-except ImportError:
-    # Fallback if tenacity or circuitbreaker are not installed
-    def retry(*args, **kwargs):
-        def decorator(func):
-            return func
-        return decorator
-    class CircuitBreaker:
-        def __init__(self, *args, **kwargs):
-            pass
-        def call(self, func):
-            return func()
-        async def call_async(self, func):
-            return await func()
-    class CircuitBreakerError(Exception):
-        pass
-    retry_if_exception_type = lambda *args: lambda f: f
-    stop_after_attempt = lambda x: lambda f: f
-    wait_exponential = lambda *args, **kwargs: lambda f: f
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from circuitbreaker import CircuitBreaker, CircuitBreakerError
 
 # -----------------------------------------------------------------------------
 # Logging setup

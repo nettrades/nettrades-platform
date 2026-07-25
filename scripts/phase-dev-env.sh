@@ -171,6 +171,8 @@ install_dependencies() {
         "langchain-ollama"
         "langchain-deepseek"
         "langchain-core"
+        "tenacity"
+        "circuitbreaker"
     )
     for pkg in "${lang_packages[@]}"; do
         if pip show "$pkg" &> /dev/null; then
