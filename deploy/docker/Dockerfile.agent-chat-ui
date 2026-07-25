@@ -3,6 +3,8 @@ FROM node:20-slim AS builder
 # Build arguments for environment variables
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_ASSISTANT_ID
+ARG NEXT_PUBLIC_SKIP_AUTH
+ARG NEXT_PUBLIC_LANGGRAPH_API_KEY
 
 # Install git and openssh-client for cloning
 RUN apt-get update && apt-get install -y git openssh-client && rm -rf /var/lib/apt/lists/*
@@ -19,7 +21,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_ASSISTANT_ID=$NEXT_PUBLIC_ASSISTANT_ID
 ARG NEXT_PUBLIC_SKIP_AUTH
 ENV NEXT_PUBLIC_SKIP_AUTH=$NEXT_PUBLIC_SKIP_AUTH
-
+ENV NEXT_PUBLIC_LANGGRAPH_API_KEY=$NEXT_PUBLIC_LANGGRAPH_API_KEY
 # Build the Next.js application
 RUN pnpm build
 

@@ -270,7 +270,7 @@ services:
       - web
       - internal
     environment:
-      - DISABLE_AUTH=true
+      - DISABLE_AUTH=${DISABLE_AUTH:-false}
       - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
       - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -296,6 +296,11 @@ services:
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
       - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
       - traefik.http.routers.langgraph-api.middlewares=langgraph-strip
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3  
     depends_on:
       - postgres
       - valkey
@@ -315,9 +320,10 @@ services:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.agent-chat-ui
       args:
-          NEXT_PUBLIC_API_URL: http://${DOMAIN}/api
-          NEXT_PUBLIC_ASSISTANT_ID: supervisor
-          NEXT_PUBLIC_SKIP_AUTH: "true"
+        NEXT_PUBLIC_API_URL: http://${DOMAIN}/api
+        NEXT_PUBLIC_ASSISTANT_ID: supervisor
+        NEXT_PUBLIC_SKIP_AUTH: "false"
+        NEXT_PUBLIC_LANGGRAPH_API_KEY: ${LANGGRAPH_API_KEY}
     image: agent-chat-ui:latest
     container_name: agent-chat-ui
     restart: unless-stopped
@@ -325,10 +331,10 @@ services:
       - web
       - internal
     environment:
-      - NEXT_PUBLIC_API_URL=/api
+      # NEXT_PUBLIC_API_URL is already set at build time; no need to set it here
       - NEXT_PUBLIC_ASSISTANT_ID=supervisor
       - NEXT_PUBLIC_AUTH_SCHEME=
-      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}   # already in .env
+      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
     ports:
       - "3002:3000"
     labels:
@@ -336,13 +342,14 @@ services:
       - traefik.http.routers.agent-chat-ui.rule=PathPrefix(`/`)
       - "traefik.http.routers.agent-chat-ui.priority=50"
       - traefik.http.services.agent-chat-ui.loadbalancer.server.port=3000
+    # healthcheck removed
     depends_on:
       - langgraph-server
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file: "3"
+      max-file: "3"
 
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)

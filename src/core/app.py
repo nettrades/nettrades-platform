@@ -54,7 +54,7 @@ import time
 import traceback
 import uuid
 from contextlib import asynccontextmanager
-from typing import Optional, Dict, Any  # IN PRODUCTION REMOVE Optional? Actually keep both
+from typing import Optional, Dict, Any
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Header, Request, status
@@ -82,16 +82,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # =============================================================================
+# SECURITY VALIDATION (FAIL FAST)
+# =============================================================================
+if os.getenv("DISABLE_AUTH", "false").lower() == "true":
+    logger.critical("⚠️ DISABLE_AUTH is TRUE – authentication is disabled!")
+    logger.critical("This is UNSAFE for production. Set DISABLE_AUTH=false in .env")
+    if os.getenv("ENVIRONMENT", "development") == "production":
+        raise RuntimeError("DISABLE_AUTH=true is not allowed in production")
+
+if not os.getenv("LANGGRAPH_API_KEY"):
+    logger.critical("LANGGRAPH_API_KEY is not set. The /invoke endpoint will not function.")
+    if os.getenv("ENVIRONMENT", "development") == "production":
+        raise RuntimeError("LANGGRAPH_API_KEY must be set in production")
+
+# =============================================================================
 # CONFIGURATION
 # =============================================================================
 DB_URI = os.getenv("DATABASE_URL", "postgresql://odoo:password@postgres:5432/odoo")
 LANGGRAPH_API_KEY = os.getenv("LANGGRAPH_API_KEY")
-
-if not LANGGRAPH_API_KEY:
-    logger.critical(
-        "?????? LANGGRAPH_API_KEY environment variable is not set. "
-        "The /invoke endpoint will not function correctly."
-    )
 
 # Global dictionary to hold the compiled graph
 ml_models = {}
@@ -376,8 +384,7 @@ async def run_thread(thread_id: str, request: Request):
 @app.post("/invoke")
 async def invoke(
     request: Request,
-#    x_api_key: str = Header(..., description="API key for authentication") # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION SO UN COMMENT THIS
-    x_api_key: Optional[str] = Header(None, description="API key for authentication") # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION SO REMOVE THIS
+    x_api_key: Optional[str] = Header(None, description="API key for authentication")
 ):
     """
     Main inference endpoint.
@@ -392,9 +399,6 @@ async def invoke(
 
     # =========================================================================
     # STEP 1: AUTHENTICATION (can be disabled with DISABLE_AUTH=true)
-    # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION - REMOVE THIS BLOCK AND UNCOMMENT THE ONE BELOW
-    # NEAR THE TOP OF THE PAGE WHERE IT SAYS:     from typing import Optional # IN PRODUCTION REMOVE THIS
-    #      from typing import Any, Dict   # IN PRODUCTION UNCOMMENT THIS
     # =========================================================================
     DISABLE_AUTH = os.getenv("DISABLE_AUTH", "false").lower() == "true"
 
@@ -413,30 +417,6 @@ async def invoke(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid API key"
             )
-
-
-    # =========================================================================
-    # IMPORTANT IN PRODUCTION HAVE AUTHENTICATION   IN  docker-compose.yaml for agent-chat-ui REMOVE  NEXT_PUBLIC_SKIP_AUTH: "true"
-    # AND UN COMMENT THE CODE BELOW AND COMMENT THE CODE ABOVE
-    # =========================================================================
-    # CRITICAL SECURITY FIX:
-    # Previously, if LANGGRAPH_API_KEY was unset, authentication was skipped.
-    # This is now fixed: we REQUIRE the API key to be set.
-
-#    if not LANGGRAPH_API_KEY:
-#        logger.error("LANGGRAPH_API_KEY is not configured")
-#        raise HTTPException(
-#            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#            detail="LANGGRAPH_API_KEY is not configured."
-#        )
-
-    # Validate the API key
-#    if x_api_key != LANGGRAPH_API_KEY:
-#        logger.warning(f"Invalid API key attempt: {x_api_key[:8]}...")
-#        raise HTTPException(
-#            status_code=status.HTTP_401_UNAUTHORIZED,
-#            detail="Invalid API key"
-#        )
 
     # =========================================================================
     # STEP 2: PARSE REQUEST BODY
