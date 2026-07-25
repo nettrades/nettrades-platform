@@ -258,10 +258,10 @@ setup_dev_environment() {
     # Install Python development dependencies
     if [[ -f "$PROJECT_ROOT/requirements-dev.txt" ]]; then
         log_step "Installing Python development dependencies..."
-        if ! output=$(pip3 install -r "$PROJECT_ROOT/requirements-dev.txt" 2>&1); then
+        if ! output=$(pip3 install --break-system-packages -r "$PROJECT_ROOT/requirements-dev.txt" 2>&1); then
             log_error "Python dependency installation failed:"
             echo "$output" >&2
-            log_info "Try running: pip3 install -r requirements-dev.txt"
+            log_info "Try running: pip3 install --break-system-packages -r requirements-dev.txt"
             exit 1
         fi
     else

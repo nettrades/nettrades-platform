@@ -189,7 +189,7 @@ install_dependencies() {
     ODOO_LLM_REQS="$PLATFORM_DIR/third-party/odoo_llm/requirements.txt"
     if [ -f "$ODOO_LLM_REQS" ]; then
         log_info "Installing odoo_llm requirements..."
-        pip install -r "$ODOO_LLM_REQS" --break-system-packages
+        pip install --break-system-packages -r "$ODOO_LLM_REQS" --break-system-packages
         log_success "odoo_llm requirements installed"
     else
         log_warning "odoo_llm requirements file not found at $ODOO_LLM_REQS"
@@ -201,7 +201,7 @@ install_dependencies() {
     ODOO_REQS="$PLATFORM_DIR/third-party/odoo/requirements.txt"
     if [ -f "$ODOO_REQS" ]; then
         log_info "Installing Odoo core requirements..."
-        pip install -r "$ODOO_REQS" --break-system-packages
+        pip install --break-system-packages -r "$ODOO_REQS"
         log_success "Odoo core requirements installed"
     else
         log_warning "Odoo requirements file not found at $ODOO_REQS"
