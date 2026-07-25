@@ -47,7 +47,9 @@
 #   - Fixed Traefik routing for langgraph-api: removed stripPrefix, added
 #     LANGGRAPH_API_URL, added header forwarding, removed Host condition.
 #   - Fixed agent-chat-ui routing: added Host condition to prevent /api hijacking.
-#
+#   - FIX (2026-07-25): Added traefik.docker.network=web to force Traefik to
+#     use the correct network IP, resolving the 504 timeout. Added clarifying
+#     comments about LangGraph reverse-proxy bug (#7390) and workarounds.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -268,6 +270,12 @@ services:
   #   - ADDED LANGGRAPH_API_URL environment variable (workaround for #7390)
   #   - REMOVED Host condition from router rule (allows localhost/IP testing)
   #   - ADDED header forwarding middleware (X-Forwarded-Proto, X-Forwarded-Host)
+  #   - FIX (2026-07-25): Explicitly set MOUNT_PREFIX and LANGGRAPH_API_URL.
+  #     Do NOT use stripPrefix on this route – LangGraph must see the full /api path.
+  #     The environment variables are the officially recommended workaround for
+  #     the Host-header bug. Keep priority high (100) to override agent-chat-ui.
+  #   - CRITICAL: Added traefik.docker.network=web to force Traefik to use the
+  #     web network IP instead of the internal bridge IP, resolving timeout.
   # =========================================================================
   langgraph-server:
     build:
@@ -297,12 +305,15 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
       # FIX: Explicitly set public API URL (workaround for langgraph #7390)
       - LANGGRAPH_API_URL=https://${DOMAIN}/api
+      - MOUNT_PREFIX=/api
     ports:
       - "8000:8000"
     volumes:
       - langgraph_data:/app/.langgraph
     labels:
       - traefik.enable=true
+      # CRITICAL FIX: Force Traefik to use the web network IP
+      - traefik.docker.network=web
       # FIX: Removed Host condition - matches any host for /api
       - traefik.http.routers.langgraph-api.rule=PathPrefix(`/api`)
       - traefik.http.routers.langgraph-api.priority=100
@@ -335,6 +346,10 @@ services:
   # FIXES APPLIED:
   #   - ADDED Host condition to prevent /api hijacking
   #   - ADDED explicit entrypoints and tls labels
+  #   - FIX (2026-07-25): Keep priority lower (50) than langgraph-api (100).
+  #     Do not use PathPrefix(`/`) without a Host condition – we already have
+  #     Host(`${DOMAIN}`) to limit it to the main domain. This ensures /api
+  #     requests are never routed here.
   # =========================================================================
   agent-chat-ui:
     build:
