@@ -89,6 +89,10 @@ services:
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --entrypoints.websecure.http.tls=true
+      - --accesslog
+      - --api.insecure=true        #   REMOVE IN PRODUCTION
+      - --log.level=DEBUG          #   REMOVE IN PRODUCTION
     ports:
       - "80:80"
       - "443:443"
@@ -291,8 +295,11 @@ services:
       - langgraph_data:/app/.langgraph
     labels:
       - traefik.enable=true
-      - traefik.http.routers.langgraph-api.rule=PathPrefix(`/api`)
+      - traefik.http.routers.langgraph-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)
       - traefik.http.routers.langgraph-api.priority=100
+      - traefik.http.routers.langgraph-api.service=langgraph-api@docker
+      - traefik.http.routers.langgraph-api.entrypoints=web,websecure
+      - traefik.http.routers.langgraph-api.tls=true
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
       - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
       - traefik.http.routers.langgraph-api.middlewares=langgraph-strip
