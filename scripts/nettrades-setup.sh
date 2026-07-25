@@ -435,6 +435,15 @@ check_dependencies() {
     else
         log_success "pip3 already installed"
     fi
+
+    # Install build dependencies for Python packages (psycopg2, etc.)
+    if [[ "$os" == "linux" ]] && command -v apt &>/dev/null; then
+        log_step "Installing build dependencies (build-essential, python3-dev, libpq-dev)..."
+        sudo apt update -qq 2>/dev/null || true
+        sudo apt install -y build-essential python3-dev libpq-dev 2>/dev/null || {
+            log_warning "Failed to install some build dependencies. Continuing anyway."
+        }
+    fi
 }
 
 # =============================================================================
