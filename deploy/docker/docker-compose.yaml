@@ -349,7 +349,7 @@ services:
       driver: "json-file"
       options:
         max-size: "10m"
-      max-file: "3"
+        max-file: "3"
 
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
@@ -368,6 +368,7 @@ services:
       - ODOO_USER=${ODOO_USER:-1}
       - ODOO_PASSWORD=${ADMIN_PASSWORD}
       - PROXY_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
+      - ODOO_API_KEY=${PROXY_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
       - "8090:8080"
