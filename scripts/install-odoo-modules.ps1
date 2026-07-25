@@ -249,7 +249,7 @@ if ($to_install.Count -gt 0) {
 $llm_reqs = Join-Path $repoRoot "third-party/odoo_llm/requirements.txt"
 if (Test-Path $llm_reqs) {
     Write-Info "Installing odoo_llm requirements..."
-    & "python" -m pip install --break-system-packages -r $llm_reqs
+    & "python" -m pip install --break-system-packages --verbose -r $llm_reqs
     Write-Success "odoo_llm requirements installed"
 } else {
     Write-Warning "odoo_llm requirements file not found at: $llm_reqs"

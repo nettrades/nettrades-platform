@@ -145,7 +145,7 @@ install_dependencies() {
     fi
 
     log_info "Upgrading pip..."
-    pip install --upgrade pip setuptools wheel --break-system-packages
+    pip install --upgrade pip setuptools wheel --break-system-packages --verbose
 
     # =========================================================================
     # Install ML packages (torch, transformers, datasets, accelerate)
@@ -156,7 +156,7 @@ install_dependencies() {
             log_info "Package $pkg is already installed"
         else
             log_info "Installing $pkg..."
-            pip install "$pkg" --break-system-packages
+            pip install "$pkg" --break-system-packages --verbose
         fi
     done
 
@@ -180,7 +180,7 @@ install_dependencies() {
             log_info "Package $pkg is already installed"
         else
             log_info "Installing $pkg..."
-            pip install "$pkg" --break-system-packages
+            pip install "$pkg" --break-system-packages --verbose
         fi
     done
 
@@ -190,7 +190,7 @@ install_dependencies() {
     ODOO_LLM_REQS="$PLATFORM_DIR/third-party/odoo_llm/requirements.txt"
     if [ -f "$ODOO_LLM_REQS" ]; then
         log_info "Installing odoo_llm requirements..."
-        pip install --break-system-packages -r "$ODOO_LLM_REQS" --break-system-packages
+        pip install --break-system-packages --verbose -r "$ODOO_LLM_REQS"
         log_success "odoo_llm requirements installed"
     else
         log_warning "odoo_llm requirements file not found at $ODOO_LLM_REQS"
@@ -202,7 +202,7 @@ install_dependencies() {
     ODOO_REQS="$PLATFORM_DIR/third-party/odoo/requirements.txt"
     if [ -f "$ODOO_REQS" ]; then
         log_info "Installing Odoo core requirements..."
-        pip install --break-system-packages -r "$ODOO_REQS"
+        pip install --break-system-packages --verbose -r "$ODOO_REQS"
         log_success "Odoo core requirements installed"
     else
         log_warning "Odoo requirements file not found at $ODOO_REQS"
@@ -215,21 +215,21 @@ install_dependencies() {
         log_info "prometheus-client is already installed"
     else
         log_info "Installing prometheus-client..."
-        pip install prometheus-client --break-system-packages
+        pip install prometheus-client --break-system-packages --verbose
     fi
 
     # =========================================================================
     # Install LangGraph CLI for serving the supervisor
     # =========================================================================
     log_info "Installing LangGraph CLI..."
-    pip install --upgrade langgraph-cli --break-system-packages
+    pip install --upgrade langgraph-cli --break-system-packages --verbose
     log_success "LangGraph CLI installed"
 
     # =========================================================================
     # Upgrade Starlette (security fix for CVE-2026-48710)
     # =========================================================================
     log_info "Upgrading Starlette (CVE-2026-48710 fix)..."
-    pip install --upgrade "starlette>=1.0.1" --break-system-packages
+    pip install --upgrade "starlette>=1.0.1" --break-system-packages --verbose
     log_success "Starlette upgraded"
 
     log_success "All dependencies installed successfully"
