@@ -259,12 +259,10 @@ setup_dev_environment() {
     # Install Python development dependencies
     if [[ -f "$PROJECT_ROOT/requirements-dev.txt" ]]; then
         log_step "Installing Python development dependencies..."
-        if ! output=$(pip3 install --break-system-packages --prefer-binary --verbose -r "$PROJECT_ROOT/requirements-dev.txt" 2>&1); then
-            log_error "Python dependency installation failed:"
-            echo "$output" >&2
-            log_info "Try running: pip3 install --break-system-packages --prefer-binary --verbose -r requirements-dev.txt"
-            exit 1
-        fi
+        if ! pip3 install --break-system-packages --prefer-binary --verbose -i https://pypi.org/simple/ -r "$PROJECT_ROOT/requirements-dev.txt"; then
+	    log_error "Python dependency installation failed."
+	    exit 1
+    fi
     else
         log_warning "requirements-dev.txt not found – skipping Python dependencies."
     fi
