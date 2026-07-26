@@ -310,9 +310,9 @@ setup_dev_environment() {
     if [[ -f "$req_file" ]]; then
         log_step "Installing base Python development dependencies from $(basename "$req_file")..."
         if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
-            if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ -r "$req_file"; then
+            if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ --ignore-installed -r "$req_file"; then
                 log_error "uv installation failed. Falling back to pip3."
-                pip3 install --break-system-packages --prefer-binary --verbose -r "$req_file" || {
+                pip3 install --break-system-packages --prefer-binary --verbose --ignore-installed -r "$req_file" || {
                     log_error "Python base dependency installation failed."
                     exit 1
                 }
@@ -332,7 +332,7 @@ setup_dev_environment() {
         if [[ -f "$finetune_req" ]]; then
             log_step "Installing fine-tuning packages (torch, unsloth, axolotl) from $(basename "$finetune_req")..."
             if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
-                if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ -r "$finetune_req"; then
+                if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ --ignore-installed -r "$finetune_req"; then
                     log_error "uv fine-tune installation failed. Falling back to pip3."
                     pip3 install --break-system-packages --prefer-binary --verbose -r "$finetune_req" || {
                         log_error "Fine-tune dependency installation failed."
@@ -352,6 +352,10 @@ setup_dev_environment() {
         log_info "Skipping fine-tuning packages (use --with-finetune or answer 'y' in interactive mode)."
     fi
 
+    # Pin the system package to prevent apt from overwriting the pip-installed version
+    log_step "Pinning python3-jwt to avoid apt conflicts..."
+    apt-mark hold python3-jwt 2>/dev/null || true
+    
     # NOTE: Odoo module installation has been moved to Phase 2/4.
     # Phase 1 only sets up the local development environment.
 
