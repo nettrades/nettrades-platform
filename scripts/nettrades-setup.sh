@@ -8,7 +8,7 @@
 #
 # PHASES:
 #   0 – System Preparation & Hardening
-#   1 – Development Environment
+#   1 – Development Environment (with Python virtual environment)
 #   2 – Single-VM Deployment (with GPUStack)
 #   3 – Kubernetes Scaling
 #   4 – Module Installation
@@ -28,7 +28,6 @@
 # =============================================================================
 
 set -euo pipefail
-export PIP_BREAK_SYSTEM_PACKAGES=1
 
 # -----------------------------------------------------------------------------
 # Script setup and paths
@@ -55,6 +54,12 @@ fi
 # Default USE_UV to true if not set (user can override via .env or env var)
 USE_UV="${USE_UV:-true}"
 export USE_UV
+
+# -----------------------------------------------------------------------------
+# Python virtual environment setup – exported for all phases
+# -----------------------------------------------------------------------------
+VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
+export VENV_DIR
 
 # -----------------------------------------------------------------------------
 # Defaults
@@ -89,7 +94,7 @@ ${YELLOW}ENVIRONMENTS:${NC}
 
 ${YELLOW}PHASES:${NC}
     0  System Preparation & Hardening
-    1  Development Environment
+    1  Development Environment (with Python virtual environment)
     2  Single-VM Deployment (with GPUStack)
     3  Kubernetes Scaling
     4  Module Installation
@@ -101,7 +106,7 @@ ${YELLOW}PROFILES (CLI):${NC}
     k8s         : Phase 0 + Phase 1 + Phase 3 (Kubernetes scaling)
     monitoring  : Phase 5 (Prometheus & Grafana setup)
     modules     : Phase 4 (install/upgrade Odoo modules only)
-    all         : Phase 0 + Phase 1 + Phase 2 + Phase 4  + Phase 5 (full deployment)
+    all         : Phase 0 + Phase 1 + Phase 2 + Phase 4 + Phase 5 (full deployment)
 
 ${YELLOW}OPTIONS (CLI):${NC}
     --force               Re-run phases even if already completed.
@@ -272,13 +277,13 @@ install_uv() {
         log_success "uv installed successfully"
         return 0
     else
-        log_error "uv installation failed. Falling back to pip3."
+        log_error "uv installation failed. Falling back to pip."
         return 1
     fi
 }
 
 # =============================================================================
-# PHASE 1: Development Environment
+# PHASE 1: Development Environment (with Python virtual environment)
 # =============================================================================
 
 setup_dev_environment() {
@@ -287,7 +292,39 @@ setup_dev_environment() {
 
     log_step "Setting up development environment..."
 
+    # ============================================================
+    # Python virtual environment setup
+    # ============================================================
+
+    # Check if venv module is available
+    if ! python3 -c "import venv" 2>/dev/null; then
+        log_error "python3-venv not installed. Please install it:"
+        log_info "  Ubuntu/Debian: sudo apt install python3-venv"
+        log_info "  macOS: brew install python3"
+        exit 1
+    fi
+
+    # Create virtual environment if it doesn't exist OR if FORCE is true
+    if [[ ! -d "$VENV_DIR" ]] || [[ "$FORCE" == true ]]; then
+        log_step "Creating Python virtual environment at $VENV_DIR..."
+        python3 -m venv "$VENV_DIR"
+        log_success "Virtual environment created"
+    else
+        log_info "Virtual environment already exists at $VENV_DIR (use --force to recreate)"
+    fi
+
+    # Activate virtual environment
+    source "$VENV_DIR/bin/activate"
+    log_success "Virtual environment activated"
+
+    # Upgrade pip inside the venv
+    log_step "Upgrading pip in virtual environment..."
+    pip install --upgrade pip
+    log_success "pip upgraded"
+
+    # ============================================================
     # Make all scripts executable
+    # ============================================================
     log_step "Making scripts executable..."
     chmod +x "$PROJECT_ROOT"/scripts/*.sh 2>/dev/null || true
     chmod +x "$PROJECT_ROOT"/scripts/lib/*.sh 2>/dev/null || true
@@ -306,12 +343,12 @@ setup_dev_environment() {
     # Install uv only if USE_UV is true
     if [[ "$USE_UV" == "true" ]]; then
         if ! install_uv; then
-            log_warning "uv installation failed; falling back to pip3."
+            log_warning "uv installation failed; falling back to pip."
             USE_UV=false
             export USE_UV
         fi
     else
-        log_info "USE_UV=false, skipping uv installation and using pip3."
+        log_info "USE_UV=false, skipping uv installation and using pip."
     fi
 
     # Define requirement files
@@ -325,19 +362,19 @@ setup_dev_environment() {
         req_file="$base_req"
     fi
 
-    # Install base Python dependencies
+    # Install base Python dependencies inside virtual environment
     if [[ -f "$req_file" ]]; then
         log_step "Installing base Python development dependencies from $(basename "$req_file")..."
         if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
-            if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ --ignore-installed -r "$req_file"; then
-                log_error "uv installation failed. Falling back to pip3."
-                pip3 install --break-system-packages --prefer-binary --verbose --ignore-installed -r "$req_file" || {
+            if ! uv pip install --prefer-binary --verbose --index-url https://pypi.org/simple/ -r "$req_file"; then
+                log_error "uv installation failed. Falling back to pip."
+                pip install --prefer-binary --verbose -r "$req_file" || {
                     log_error "Python base dependency installation failed."
                     exit 1
                 }
             fi
         else
-            pip3 install --break-system-packages --prefer-binary --verbose --ignore-installed -r "$req_file" || {
+            pip install --prefer-binary --verbose -r "$req_file" || {
                 log_error "Python base dependency installation failed."
                 exit 1
             }
@@ -351,15 +388,15 @@ setup_dev_environment() {
         if [[ -f "$finetune_req" ]]; then
             log_step "Installing fine-tuning packages (torch, unsloth, axolotl) from $(basename "$finetune_req")..."
             if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
-                if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ --ignore-installed -r "$finetune_req"; then
-                    log_error "uv fine-tune installation failed. Falling back to pip3."
-                    pip3 install --break-system-packages --prefer-binary --verbose --ignore-installed -r "$finetune_req" || {
+                if ! uv pip install --prefer-binary --verbose --index-url https://pypi.org/simple/ -r "$finetune_req"; then
+                    log_error "uv fine-tune installation failed. Falling back to pip."
+                    pip install --prefer-binary --verbose -r "$finetune_req" || {
                         log_error "Fine-tune dependency installation failed."
                         exit 1
                     }
                 fi
             else
-                pip3 install --break-system-packages --prefer-binary --verbose --ignore-installed -r "$finetune_req" || {
+                pip install --prefer-binary --verbose -r "$finetune_req" || {
                     log_error "Fine-tune dependency installation failed."
                     exit 1
                 }
@@ -371,9 +408,7 @@ setup_dev_environment() {
         log_info "Skipping fine-tuning packages (use --with-finetune or answer 'y' in interactive mode)."
     fi
 
-    # Pin the system package to prevent apt from overwriting the pip-installed version
-    log_step "Pinning python3-jwt to avoid apt conflicts..."
-    apt-mark hold python3-jwt 2>/dev/null || true
+    # NOTE: apt-mark hold python3-jwt removed – virtual environment provides isolation
 
     # NOTE: Odoo module installation has been moved to Phase 2/4.
     # Phase 1 only sets up the local development environment.
@@ -418,7 +453,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE
+export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE VENV_DIR
 
 # -----------------------------------------------------------------------------
 # Environment preparation
@@ -603,6 +638,7 @@ log_info "Force: $FORCE"
 log_info "Upgrade: $UPGRADE"
 log_info "Auto: $AUTO"
 log_info "With Fine‑tuning: $WITH_FINETUNE"
+log_info "Virtual Environment: $VENV_DIR"
 echo ""
 
 # -----------------------------------------------------------------------------
@@ -616,7 +652,7 @@ for phase in "${PHASES[@]}"; do
             ;;
         1)
             log_header "Phase 1 — Development Environment"
-            if phase_completed 1; then
+            if phase_completed 1 && [[ "$FORCE" != true ]]; then
                 log_warning "Phase 1 already completed. Use --force to re-run."
             else
                 if ! setup_dev_environment; then
@@ -630,18 +666,23 @@ for phase in "${PHASES[@]}"; do
             log_header "Phase 2 — Single-VM Deployment"
             # PERMANENT FIX: Patch docker-compose.yaml before deployment
             fix_docker_compose_for_gpustack
+            # Ensure VENV_DIR is available for phase-deploy.sh
+            export VENV_DIR
             bash "$SCRIPT_DIR/phase-deploy.sh"
             ;;
         3)
             log_header "Phase 3 — Kubernetes Scaling"
+            export VENV_DIR
             bash "$SCRIPT_DIR/phase-k8s.sh"
             ;;
         4)
             log_header "Phase 4 — Module Installation"
+            export VENV_DIR
             bash "$SCRIPT_DIR/phase-modules.sh"
             ;;
         5)
             log_header "Phase 5 — Monitoring Setup"
+            export VENV_DIR
             bash "$SCRIPT_DIR/phase-monitoring.sh"
             ;;
         *)
@@ -664,3 +705,6 @@ if [[ "$ENVIRONMENT" == "development" ]]; then
 else
     echo " 5. Production mode: SSH is key-only on port 22. Use port 2222 for password auth."
 fi
+echo ""
+echo "To activate the Python virtual environment manually:"
+echo "  source $VENV_DIR/bin/activate"

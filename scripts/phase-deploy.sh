@@ -50,12 +50,57 @@ source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
+# Ensure VENV_DIR is available and activate the virtual environment
+# This ensures that any Python commands (e.g., bcrypt) use the venv's Python
+# and installed packages, not the system Python.
+# -----------------------------------------------------------------------------
+VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
+if [ -f "$VENV_DIR/bin/activate" ]; then
+    source "$VENV_DIR/bin/activate"
+    log_info "Activated Python virtual environment: $VENV_DIR"
+else
+    log_warning "Virtual environment not found at $VENV_DIR – using system Python."
+fi
+
+# -----------------------------------------------------------------------------
 # SAFE PASSWORD GENERATOR – only alphanumeric characters
 # This prevents .env parsing errors caused by '+', '/', '=', "'", etc.
 # -----------------------------------------------------------------------------
 generate_safe_password() {
     # 24 alphanumeric characters (no special characters)
     openssl rand -base64 24 | tr -d '+/=' | tr -d '\n' | cut -c1-24
+}
+
+# -----------------------------------------------------------------------------
+# Helper: Wait for PostgreSQL to be ready
+# -----------------------------------------------------------------------------
+wait_for_postgres() {
+    local retries=30
+    local delay=2
+    log_step "Waiting for PostgreSQL to become ready..."
+    for i in $(seq 1 $retries); do
+        if docker exec postgres pg_isready -U odoo -d odoo &>/dev/null; then
+            log_success "PostgreSQL is ready"
+            return 0
+        fi
+        sleep $delay
+    done
+    log_error "PostgreSQL did not become ready within $((retries * delay)) seconds"
+    return 1
+}
+
+# -----------------------------------------------------------------------------
+# Helper: Enable pgcrypto extension in PostgreSQL
+# -----------------------------------------------------------------------------
+enable_pgcrypto() {
+    log_step "Enabling pgcrypto extension in PostgreSQL..."
+    if docker exec -i postgres psql -U odoo -d odoo -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" 2>/dev/null; then
+        log_success "pgcrypto extension enabled"
+        return 0
+    else
+        log_warning "Could not enable pgcrypto – emergency user creation may fail"
+        return 1
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -699,7 +744,7 @@ if [[ -f "$WEB_CONFIG_FILE" ]]; then
     log_info "Backed up existing web.yml to $BACKUP_WEB"
 fi
 
-# Generate hash using Python bcrypt (or fallback to plain text if bcrypt not available)
+# Generate hash using Python bcrypt (from the virtual environment)
 mkdir -p "$WEB_CONFIG_DIR"
 if command -v python3 &>/dev/null && python3 -c "import bcrypt" 2>/dev/null; then
     HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PROMETHEUS_PASSWORD'.encode(), bcrypt.gensalt()).decode())")
@@ -709,7 +754,7 @@ basic_auth_users:
 EOF
     log_success "Prometheus web.yml generated with bcrypt hash"
 else
-    log_warning "python3-bcrypt not installed – using plain-text password (INSECURE)."
+    log_warning "bcrypt not available in Python – using plain-text password (INSECURE)."
     cat > "$WEB_CONFIG_FILE" << EOF
 # WARNING: No bcrypt – basic auth uses plain text!
 basic_auth_users:
@@ -804,6 +849,14 @@ fi
 
 log_success "Docker Compose stack started"
 
+# =============================================================================
+# NEW: Wait for PostgreSQL and enable pgcrypto
+# =============================================================================
+wait_for_postgres || {
+    log_warning "PostgreSQL health check failed – continuing but may affect dependent services"
+}
+enable_pgcrypto || true
+
 # -----------------------------------------------------------------------------
 # VALIDATE DEPLOYMENT (NEW HEALTH CHECKS)
 # -----------------------------------------------------------------------------
@@ -816,8 +869,8 @@ validate_deployment() {
     while [[ $attempt -le $max_retries ]]; do
         # Check if containers are running
         if docker ps --filter "status=running" | grep -q "odoo\|gpustack\|postgres"; then
-            # Test database connectivity
-            if docker exec docker-postgres-1 pg_isready -U odoo &>/dev/null; then
+            # Test database connectivity using docker compose exec (robust)
+            if docker compose exec -T postgres pg_isready -U odoo &>/dev/null; then
                 log_success "PostgreSQL is healthy"
             else
                 log_warning "PostgreSQL not ready yet..."
@@ -893,8 +946,8 @@ else
     
     HTTP_CODE=$(echo "$LOGIN_RESPONSE" | tail -n1)
     BODY=$(echo "$LOGIN_RESPONSE" | head -n-1)
-    
-    # Use debug_log if available, else log_info
+
+    # Use debug_log if available, else log_info    
     if type debug_log &>/dev/null; then
         debug_log "Login HTTP status: $HTTP_CODE"
         debug_log "Login response body: $BODY"
@@ -1102,8 +1155,8 @@ if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
     # -------------------------------------------------------------------------
     if [[ "$RESET_SUCCESS" != true ]]; then
         log_info "API methods failed; trying CLI..."
-        
-        # Try grafana-cli
+
+        # Try grafana-cli        
         if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
             log_success "Grafana password reset successfully using grafana-cli"
             RESET_SUCCESS=true

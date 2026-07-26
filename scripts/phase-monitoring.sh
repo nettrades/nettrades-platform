@@ -46,6 +46,18 @@ if phase_completed 5; then
 fi
 
 # -----------------------------------------------------------------------------
+# Helper: Check if a Docker Compose service exists
+# -----------------------------------------------------------------------------
+compose_service_exists() {
+    local service_name="$1"
+    if docker compose ps -q "$service_name" 2>/dev/null | grep -q .; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # Detect deployment type
 # -----------------------------------------------------------------------------
 DEPLOYMENT_TYPE="unknown"
@@ -75,7 +87,17 @@ if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
     cd "$DEPLOY_DIR"
 
     log_step "Restarting Prometheus and Grafana (Docker)..."
-    docker compose up -d prometheus grafana alertmanager
+
+    # Restart prometheus and grafana (always present)
+    docker compose up -d prometheus grafana
+
+    # Restart alertmanager only if it exists
+    if compose_service_exists "alertmanager"; then
+        log_step "Restarting alertmanager..."
+        docker compose up -d alertmanager
+    else
+        log_info "alertmanager not defined in compose – skipping"
+    fi
 
     log_step "Configuring Grafana datasource..."
     # Wait for Grafana to be ready
