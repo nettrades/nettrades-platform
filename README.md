@@ -80,13 +80,15 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform
 
+**Nettrades is an autonomouse enterprise platform that lets organisations securely control their AI infrastructure from a single dashboard.**
+
 **Use your spare GPUs to talk to your organisations data.** 
 
-**In the past enterprises used to face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. **
+**In the past, enterprises face a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 
-**Now companies set up a Ubuntu Linux box and run the commands below to deploy their entire NETTRADES Sovereign AI Platform in a few minute — no cloud dependencies, no data leaving their control and no vendor lock-in.**
+**Just set up a Ubuntu Linux box and run the commands below to deploy the entire NETTRADES Sovereign AI Platform in a few minute — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
-**Nettrades is an autonomouse enterprise platform that lets organisations securely control their AI infrastructure from a single dashboard.**
+
 
 ### Deploy in minutes not months
 
@@ -136,7 +138,7 @@ to get a new key and reconnect
 
 ## The Solution
 
-**NETTRADES Sovereign AI in a Box: deploy a complete, enterprise-grade AI platform behind your firewall in minutes, not months—free from cloud dependency, vendor lock-in, per-token costs and the legal exposure to the US CLOUD Act and China's National Intelligence Law.**
+**NETTRADES Sovereign AI in a Box: deploy a complete, enterprise-grade AI platform behind your firewall in minutes, not months—free from cloud dependency, vendor lock-in, per-token costs and the legal exposure to the US CLOUD Act and the China's National Intelligence Law.**
 
 
 ## Why Enterprises Choose NETTRADES
@@ -161,9 +163,9 @@ to get a new key and reconnect
 | **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system. |
 | **🔐 ERP, CRM, HR, business logic** | Companies could enable built in ERP, CRM, HR and business logic if required |
 | **🏗 Confidential Computing** - coming soon| Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
-| **🔌 [Configurable Hub-and-Spoke Routing - coming soon](docs/developer/bridge-architecture.md)** | `nettrades_bridge` module routes requests between local and remote brains based on intent, company policy, and GPU capacity. |
+| **🔌 [Configurable Hub-and-Spoke Routing - coming soon](docs/developer/bridge-architecture.md)** | The **nettrades_bridge** module routes requests between local and remote brains based on intent, company policy and GPU capacity if configured to do so. |
+| **🔄️ Model fine tuning** | Fine tune models on your data |
 | **🖥️ [GPU Marketplace - coming soon](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. |
-
 
 ## Enterprise Support
 
@@ -184,17 +186,17 @@ The NETTRADES Platform is **dual-licensed**:
 
 ### 1. AGPL-3.0 (Open Source)
 
-- **Free to use, modify, and distribute**
+- **Free to use and modify**
 - **Requires you to release your modifications** under the same license if you make the software available over a network
-- **No use restrictions** — any use is permitted, subject to the AGPL-3.0 copyleft terms
+- **No use restrictions** — subject to the AGPL-3.0 copyleft terms
 
 📄 [View the full AGPL-3.0 license](LICENSE.txt)
 
 ### 2. Commercial License (Paid)
 
 - **No obligation to release source code** — keep your modifications proprietary
-- **Includes use restrictions** — prohibits military, surveillance, and harmful use
-- **Includes KYC, audit rights, and enterprise support**
+- **Includes use restrictions** — prohibits military, surveillance and harmful use
+- **Includes KYC, audit rights and enterprise support**
 
 For enterprises that cannot or do not wish to comply with the AGPL-3.0 copyleft obligations, a commercial license is available.
 
@@ -208,7 +210,6 @@ For enterprises that cannot or do not wish to comply with the AGPL-3.0 copyleft 
 | You are using the software internally without modification | AGPL-3.0 |
 | You are modifying the software and making it available over a network, but **cannot** release your modifications | **Commercial License** |
 | You are building a proprietary product that integrates the software | **Commercial License** |
-| You require use restrictions (no military, surveillance, etc.) | **Commercial License** |
 
 ### How to Purchase a Commercial License
 
@@ -218,7 +219,7 @@ Contact us at **legal@nettrades.ai** for pricing and terms.
 
 ## Ethical Commitment
 
-NETTRADES is committed to technology that serves humanity. The commercial license includes restrictions on military, surveillance, human rights violations, and environmental harm.
+NETTRADES is committed to technology that serves humanity. The commercial license includes restrictions on military, surveillance, human rights violations and environmental harm.
 
 ## Contributing
 

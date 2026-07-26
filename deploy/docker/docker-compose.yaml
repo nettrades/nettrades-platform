@@ -275,7 +275,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 7. LANGGRAPH SERVER - Durable AI Orchestration
+  # 7. LANGGRAPH SERVER (with stripPrefix)
   # =========================================================================
   langgraph-server:
     build:
@@ -303,9 +303,9 @@ services:
       - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      # FIX: Explicitly set public API URL (workaround for langgraph #7390)
+      # LANGGRAPH_API_URL is used for URL generation (workaround for #7390)
       - LANGGRAPH_API_URL=https://${DOMAIN}/api
-      - MOUNT_PREFIX=/api
+      # MOUNT_PREFIX is NOT used because the server ignores it; stripPrefix handles it.
     ports:
       - "8000:8000"
     volumes:
@@ -319,11 +319,12 @@ services:
       - traefik.http.routers.langgraph-api.entrypoints=web,websecure
       - traefik.http.routers.langgraph-api.tls=true
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
-      # FIX: stripPrefix is REMOVED – do not strip /api; LangGraph must receive it.
-      # FIX: Header forwarding middleware
+      # CRITICAL: stripPrefix so LangGraph sees /health instead of /api/health
+      - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
+      # Headers forwarding
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Host=${DOMAIN}
-      - traefik.http.routers.langgraph-api.middlewares=langgraph-headers
+      - traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-headers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
