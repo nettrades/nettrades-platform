@@ -248,15 +248,16 @@ install_uv() {
     fi
     log_step "Installing uv (fast Python package installer)..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    # Ensure uv is in PATH for the current session
-    export PATH="$HOME/.cargo/bin:$PATH"
+    # Ensure uv is in PATH for the current session (default install location is ~/.local/bin)
+    export PATH="$HOME/.local/bin:$PATH"
     # Also add to .bashrc for future sessions
-    if ! grep -q 'export PATH="$HOME/.cargo/bin:$PATH"' ~/.bashrc 2>/dev/null; then
-        echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc 2>/dev/null; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
     fi
     # Verify installation
     if command -v uv &>/dev/null; then
         log_success "uv installed successfully"
+        return 0
     else
         log_error "uv installation failed. Falling back to pip3."
         return 1
@@ -318,7 +319,7 @@ setup_dev_environment() {
                 }
             fi
         else
-            pip3 install --break-system-packages --prefer-binary --verbose -r "$req_file" || {
+            pip3 install --break-system-packages --prefer-binary --verbose --ignore-installed -r "$req_file" || {
                 log_error "Python base dependency installation failed."
                 exit 1
             }
@@ -334,13 +335,13 @@ setup_dev_environment() {
             if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
                 if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ --ignore-installed -r "$finetune_req"; then
                     log_error "uv fine-tune installation failed. Falling back to pip3."
-                    pip3 install --break-system-packages --prefer-binary --verbose -r "$finetune_req" || {
+                    pip3 install --break-system-packages --prefer-binary --verbose --ignore-installed -r "$finetune_req" || {
                         log_error "Fine-tune dependency installation failed."
                         exit 1
                     }
                 fi
             else
-                pip3 install --break-system-packages --prefer-binary --verbose -r "$finetune_req" || {
+                pip3 install --break-system-packages --prefer-binary --verbose --ignore-installed -r "$finetune_req" || {
                     log_error "Fine-tune dependency installation failed."
                     exit 1
                 }
