@@ -100,9 +100,9 @@ if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
     fi
 
     log_step "Configuring Grafana datasource..."
-    # Wait for Grafana to be ready
+    # Wait for Grafana to be ready (using port 3001 as exposed in docker-compose.yaml)
     sleep 10
-    curl -X POST http://localhost:3000/api/datasources \
+    curl -X POST http://localhost:3001/api/datasources \
         -H "Content-Type: application/json" \
         -d '{"name":"Prometheus","type":"prometheus","url":"http://prometheus:9090","access":"proxy"}' \
         2>/dev/null || log_warning "Failed to configure Grafana datasource"
@@ -135,9 +135,9 @@ if [[ -d "$DASHBOARD_DIR" ]]; then
         if [[ -f "$dashboard" ]]; then
             log_info "Importing dashboard: $(basename "$dashboard")"
 
-            # Import via Grafana API
+            # Import via Grafana API (using port 3001 for Docker)
             if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
-                curl -X POST http://localhost:3000/api/dashboards/db \
+                curl -X POST http://localhost:3001/api/dashboards/db \
                     -H "Content-Type: application/json" \
                     -d @"$dashboard" 2>/dev/null || log_warning "Failed to import dashboard"
             elif [[ "$DEPLOYMENT_TYPE" == "kubernetes" ]]; then
@@ -164,5 +164,5 @@ log_success "Phase 5 completed – monitoring stack deployed"
 echo ""
 echo "Access monitoring:"
 echo "  Prometheus: http://localhost:9090"
-echo "  Grafana: http://localhost:3000 (admin/admin)"
+echo "  Grafana: http://localhost:3001 (admin/admin)"
 echo "  Alertmanager: http://localhost:9093"

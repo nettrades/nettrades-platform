@@ -152,11 +152,9 @@ if command -v node &>/dev/null && command -v npm &>/dev/null; then
     NODE_VERSION=$(node --version | cut -d'v' -f2)
     log_success "Node.js $NODE_VERSION already installed"
 else
-    log_info "Installing Node.js 18 LTS..."
-
+    log_info "Installing Node.js 20 LTS..."
     # Use NodeSource's official script for Ubuntu/Debian
     if [[ "$OS" == "linux" ]]; then
-        # Check if NodeSource setup script is already run
         if [[ ! -f /etc/apt/sources.list.d/nodesource.list ]]; then
             curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
         fi
@@ -173,7 +171,6 @@ if command -v npm &>/dev/null; then
     NPM_VERSION=$(npm --version)
     log_success "npm $NPM_VERSION available"
 else
-    # If npm is missing on Debian/Ubuntu, install it separately
     if [[ "$OS" == "linux" ]]; then
         sudo apt-get install -y npm
     else
@@ -370,6 +367,13 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Setting up WireGuard admin VPN server..."
 
+# Detect the primary network interface (fix: auto-detect instead of hardcoding eth0)
+PRIMARY_IFACE=$(ip route | grep default | awk '{print $5}' | head -1)
+if [[ -z "$PRIMARY_IFACE" ]]; then
+    PRIMARY_IFACE="eth0"  # fallback
+fi
+log_info "Detected primary network interface: $PRIMARY_IFACE"
+
 WG_ADMIN_DIR="/etc/wireguard/admin"
 mkdir -p "$WG_ADMIN_DIR"
 
@@ -377,7 +381,7 @@ if [[ ! -f "$WG_ADMIN_DIR/privatekey" ]]; then
     wg genkey | tee "$WG_ADMIN_DIR/privatekey" | wg pubkey > "$WG_ADMIN_DIR/publickey"
 fi
 
-# Create server configuration with iptables rules to isolate admin VPN from internal network
+# Create server configuration with iptables rules (using detected interface)
 cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
 [Interface]
 Address = 10.10.10.1/24
@@ -386,11 +390,11 @@ PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
 SaveConfig = false
 
 # Allow forwarding and NAT for VPN clients
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o $PRIMARY_IFACE -j MASQUERADE
 # Block admin VPN from accessing internal WireGuard subnet (10.0.0.0/16)
 PostUp = iptables -I FORWARD -i wg0 -d 10.0.0.0/16 -j DROP
 
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o $PRIMARY_IFACE -j MASQUERADE
 PostDown = iptables -D FORWARD -i wg0 -d 10.0.0.0/16 -j DROP 2>/dev/null || true
 EOF
 
@@ -509,24 +513,11 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 14. Install bcrypt for Prometheus password hashing
+# 14. Install bcrypt for Prometheus password hashing (now handled in phase-deploy.sh)
 # -----------------------------------------------------------------------------
-log_step "Installing bcrypt for Prometheus password hashing..."
-if python3 -c "import bcrypt" &>/dev/null; then
-    log_success "bcrypt Python module already installed"
-else
-    log_info "bcrypt not found – installing..."
-    if [[ "$OS" == "linux" ]]; then
-        if command -v apt-get &>/dev/null; then
-            sudo apt-get update -qq
-            sudo apt-get install -y python3-bcrypt && log_success "bcrypt installed via apt"
-        else
-            pip3 install bcrypt --break-system-packages 2>/dev/null || pip3 install bcrypt && log_success "bcrypt installed via pip"
-        fi
-    else
-        pip3 install bcrypt 2>/dev/null && log_success "bcrypt installed via pip" || log_warning "Could not install bcrypt. Please install manually."
-    fi
-fi
+# This step is moved to phase-deploy.sh to ensure it uses the venv.
+# Keeping a placeholder to avoid confusion.
+log_info "bcrypt will be installed in the virtual environment during Phase 2."
 
 # -----------------------------------------------------------------------------
 # 15. Configure system limits

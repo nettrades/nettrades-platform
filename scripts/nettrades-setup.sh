@@ -366,15 +366,15 @@ setup_dev_environment() {
     if [[ -f "$req_file" ]]; then
         log_step "Installing base Python development dependencies from $(basename "$req_file")..."
         if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
-            if ! uv pip install --prefer-binary --verbose --index-url https://pypi.org/simple/ -r "$req_file"; then
+            if ! uv pip install --verbose --index-url https://pypi.org/simple/ -r "$req_file"; then
                 log_error "uv installation failed. Falling back to pip."
-                pip install --prefer-binary --verbose -r "$req_file" || {
+                pip install --verbose -r "$req_file" || {
                     log_error "Python base dependency installation failed."
                     exit 1
                 }
             fi
         else
-            pip install --prefer-binary --verbose -r "$req_file" || {
+            pip install --verbose -r "$req_file" || {
                 log_error "Python base dependency installation failed."
                 exit 1
             }
@@ -388,15 +388,15 @@ setup_dev_environment() {
         if [[ -f "$finetune_req" ]]; then
             log_step "Installing fine-tuning packages (torch, unsloth, axolotl) from $(basename "$finetune_req")..."
             if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
-                if ! uv pip install --prefer-binary --verbose --index-url https://pypi.org/simple/ -r "$finetune_req"; then
+                if ! uv pip install --verbose --index-url https://pypi.org/simple/ -r "$finetune_req"; then
                     log_error "uv fine-tune installation failed. Falling back to pip."
-                    pip install --prefer-binary --verbose -r "$finetune_req" || {
+                    pip install --verbose -r "$finetune_req" || {
                         log_error "Fine-tune dependency installation failed."
                         exit 1
                     }
                 fi
             else
-                pip install --prefer-binary --verbose -r "$finetune_req" || {
+                pip install --verbose -r "$finetune_req" || {
                     log_error "Fine-tune dependency installation failed."
                     exit 1
                 }

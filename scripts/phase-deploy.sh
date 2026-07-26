@@ -104,6 +104,26 @@ enable_pgcrypto() {
 }
 
 # -----------------------------------------------------------------------------
+# Helper: Install bcrypt inside the venv if missing
+# -----------------------------------------------------------------------------
+ensure_bcrypt() {
+    log_step "Ensuring bcrypt is available for Prometheus password hashing..."
+    if python3 -c "import bcrypt" 2>/dev/null; then
+        log_success "bcrypt already available"
+        return 0
+    else
+        log_info "bcrypt not found – installing via pip in the virtual environment..."
+        if pip install bcrypt 2>/dev/null; then
+            log_success "bcrypt installed successfully"
+            return 0
+        else
+            log_warning "Could not install bcrypt. Fallback to plain-text passwords."
+            return 1
+        fi
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # Parse arguments
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
