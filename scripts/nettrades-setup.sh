@@ -44,6 +44,19 @@ source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
+# Load .env if present (overrides environment)
+# -----------------------------------------------------------------------------
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a          # automatically export all sourced variables
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
+
+# Default USE_UV to true if not set (user can override via .env or env var)
+USE_UV="${USE_UV:-true}"
+export USE_UV
+
+# -----------------------------------------------------------------------------
 # Defaults
 # -----------------------------------------------------------------------------
 ENVIRONMENT="${ENVIRONMENT:-development}"
@@ -290,11 +303,16 @@ setup_dev_environment() {
         log_warning "fix-line-endings.sh not found – skipping line ending fix"
     fi
 
-    # Install uv for fast package installation
-    install_uv || {
-        log_warning "uv not available; falling back to pip3 (may be slower)."
-        USE_UV=false
-    }
+    # Install uv only if USE_UV is true
+    if [[ "$USE_UV" == "true" ]]; then
+        if ! install_uv; then
+            log_warning "uv installation failed; falling back to pip3."
+            USE_UV=false
+            export USE_UV
+        fi
+    else
+        log_info "USE_UV=false, skipping uv installation and using pip3."
+    fi
 
     # Define requirement files
     local base_req="$PROJECT_ROOT/requirements-base.txt"
@@ -356,7 +374,7 @@ setup_dev_environment() {
     # Pin the system package to prevent apt from overwriting the pip-installed version
     log_step "Pinning python3-jwt to avoid apt conflicts..."
     apt-mark hold python3-jwt 2>/dev/null || true
-    
+
     # NOTE: Odoo module installation has been moved to Phase 2/4.
     # Phase 1 only sets up the local development environment.
 
