@@ -33,16 +33,6 @@ uvicorn[standard]>=0.34.0
 httpx>=0.28.0
 
 # -----------------------------------------------------------------------------
-# LLM and Machine Learning (Fine-Tuning)
-# -----------------------------------------------------------------------------
-torch>=2.0.0                     # PyTorch deep learning framework
-transformers>=4.45.0             # Hugging Face Transformers
-datasets>=3.0.0                  # Hugging Face Datasets
-accelerate>=0.30.0               # Distributed training
-unsloth>=2025.0.0                # Efficient fine-tuning
-axolotl>=0.5.0                   # Multi-GPU fine-tuning
-
-# -----------------------------------------------------------------------------
 # Odoo LLM Integration (Apexive odoo-llm)
 # -----------------------------------------------------------------------------
 # Dependencies from third-party/odoo_llm/requirements.txt

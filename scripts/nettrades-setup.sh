@@ -24,6 +24,7 @@
 #   --development       Set environment to development (no hardening) [default]
 #   --regenerate-secrets Regenerate all secrets in .env (use with caution)
 #   --reset-data        Wipe all containers and volumes (destroys data!)
+#   --with-finetune     Install fine-tuning packages (torch, unsloth, axolotl)
 # =============================================================================
 
 set -euo pipefail
@@ -52,6 +53,7 @@ FORCE=false
 UPGRADE=false
 SKIP_INSTALLED=true
 AUTO=false
+WITH_FINETUNE=false
 PHASES_LIST=""
 PROFILE=""
 INTERACTIVE=false
@@ -96,12 +98,14 @@ ${YELLOW}OPTIONS (CLI):${NC}
     --regenerate-secrets  Regenerate ALL secrets in .env (breaks running services!).
     --reset-data          Wipe ALL containers and volumes (destroys all data!).
     --phases=LIST         Comma-separated list of phases (overrides profile).
+    --with-finetune       Install large fine-tuning packages (torch, unsloth, axolotl).
 
 ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh                        # Interactive wizard
     ./nettrades-setup.sh deploy --auto          # Automated deploy (development)
     ./nettrades-setup.sh deploy --production    # Deploy with production hardening
     ./nettrades-setup.sh all --force            # Full re-deployment (keeps data)
+    ./nettrades-setup.sh all --with-finetune    # Include fine-tuning packages
 EOF
 }
 
@@ -154,6 +158,9 @@ run_interactive() {
     read -rp "Upgrade modules instead of fresh install? (y/N): " upgrade_yn
     [[ "$upgrade_yn" =~ ^[Yy]$ ]] && UPGRADE=true || UPGRADE=false
 
+    read -rp "Fine Tuning packages take too long to install. (You could install them later if you want to fine tune your models by running pip install -r requirements-finetune.txt) It is best to press n if you are just getting started. Do you want to install fine-tuning packages (torch, unsloth, axolotl)? (y/N): " finetune_yn
+    [[ "$finetune_yn" =~ ^[Yy]$ ]] && WITH_FINETUNE=true || WITH_FINETUNE=false
+
     read -rp "Auto mode (non-interactive, no prompts)? (y/N): " auto_yn
     [[ "$auto_yn" =~ ^[Yy]$ ]] && AUTO=true || AUTO=false
 
@@ -175,12 +182,13 @@ run_interactive() {
     echo "  Force: $FORCE"
     echo "  Upgrade: $UPGRADE"
     echo "  Auto: $AUTO"
+    echo "  With Fine‑tuning: $WITH_FINETUNE"
     echo "  Phases: ${PHASES[*]}"
     echo ""
     read -rp "Proceed with these settings? (y/N): " confirm
     [[ ! "$confirm" =~ ^[Yy]$ ]] && { log_info "Aborted."; exit 0; }
 
-    export FORCE UPGRADE AUTO ENVIRONMENT
+    export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE
 }
 
 # =============================================================================
@@ -231,6 +239,31 @@ fix_docker_compose_for_gpustack() {
 }
 
 # =============================================================================
+# Install uv (fast Python package installer)
+# =============================================================================
+install_uv() {
+    if command -v uv &>/dev/null; then
+        log_success "uv already installed"
+        return 0
+    fi
+    log_step "Installing uv (fast Python package installer)..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Ensure uv is in PATH for the current session
+    export PATH="$HOME/.cargo/bin:$PATH"
+    # Also add to .bashrc for future sessions
+    if ! grep -q 'export PATH="$HOME/.cargo/bin:$PATH"' ~/.bashrc 2>/dev/null; then
+        echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+    fi
+    # Verify installation
+    if command -v uv &>/dev/null; then
+        log_success "uv installed successfully"
+    else
+        log_error "uv installation failed. Falling back to pip3."
+        return 1
+    fi
+}
+
+# =============================================================================
 # PHASE 1: Development Environment
 # =============================================================================
 
@@ -256,15 +289,67 @@ setup_dev_environment() {
         log_warning "fix-line-endings.sh not found – skipping line ending fix"
     fi
 
-    # Install Python development dependencies
-    if [[ -f "$PROJECT_ROOT/requirements-dev.txt" ]]; then
-        log_step "Installing Python development dependencies..."
-        if ! pip3 install --break-system-packages --prefer-binary --verbose -i https://pypi.org/simple/ -r "$PROJECT_ROOT/requirements-dev.txt"; then
-	    log_error "Python dependency installation failed."
-	    exit 1
+    # Install uv for fast package installation
+    install_uv || {
+        log_warning "uv not available; falling back to pip3 (may be slower)."
+        USE_UV=false
+    }
+
+    # Define requirement files
+    local base_req="$PROJECT_ROOT/requirements-base.txt"
+    local dev_req="$PROJECT_ROOT/requirements-dev.txt"
+    local finetune_req="$PROJECT_ROOT/requirements-finetune.txt"
+
+    # Determine which requirements file to use for base
+    local req_file="$dev_req"
+    if [[ -f "$base_req" ]]; then
+        req_file="$base_req"
     fi
+
+    # Install base Python dependencies
+    if [[ -f "$req_file" ]]; then
+        log_step "Installing base Python development dependencies from $(basename "$req_file")..."
+        if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
+            if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ -r "$req_file"; then
+                log_error "uv installation failed. Falling back to pip3."
+                pip3 install --break-system-packages --prefer-binary --verbose -r "$req_file" || {
+                    log_error "Python base dependency installation failed."
+                    exit 1
+                }
+            fi
+        else
+            pip3 install --break-system-packages --prefer-binary --verbose -r "$req_file" || {
+                log_error "Python base dependency installation failed."
+                exit 1
+            }
+        fi
     else
-        log_warning "requirements-dev.txt not found – skipping Python dependencies."
+        log_warning "No base requirements file found – skipping."
+    fi
+
+    # Install fine-tuning dependencies if requested
+    if [[ "$WITH_FINETUNE" == true ]]; then
+        if [[ -f "$finetune_req" ]]; then
+            log_step "Installing fine-tuning packages (torch, unsloth, axolotl) from $(basename "$finetune_req")..."
+            if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
+                if ! uv pip install --system --prefer-binary --verbose --index-url https://pypi.org/simple/ -r "$finetune_req"; then
+                    log_error "uv fine-tune installation failed. Falling back to pip3."
+                    pip3 install --break-system-packages --prefer-binary --verbose -r "$finetune_req" || {
+                        log_error "Fine-tune dependency installation failed."
+                        exit 1
+                    }
+                fi
+            else
+                pip3 install --break-system-packages --prefer-binary --verbose -r "$finetune_req" || {
+                    log_error "Fine-tune dependency installation failed."
+                    exit 1
+                }
+            fi
+        else
+            log_warning "requirements-finetune.txt not found – fine-tuning packages skipped."
+        fi
+    else
+        log_info "Skipping fine-tuning packages (use --with-finetune or answer 'y' in interactive mode)."
     fi
 
     # NOTE: Odoo module installation has been moved to Phase 2/4.
@@ -289,6 +374,7 @@ while [[ $# -gt 0 ]]; do
         --development) ENVIRONMENT="development"; shift ;;
         --regenerate-secrets) REGENERATE_SECRETS=true; shift ;;
         --reset-data) RESET_DATA=true; shift ;;
+        --with-finetune) WITH_FINETUNE=true; shift ;;
         --phases=*) PHASES_LIST="${1#--phases=}"; shift ;;
         --help) show_help; exit 0 ;;
         -*)
@@ -309,7 +395,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-export ENVIRONMENT REGENERATE_SECRETS RESET_DATA
+export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE
 
 # -----------------------------------------------------------------------------
 # Environment preparation
@@ -493,6 +579,7 @@ log_info "Phases: ${PHASES[*]}"
 log_info "Force: $FORCE"
 log_info "Upgrade: $UPGRADE"
 log_info "Auto: $AUTO"
+log_info "With Fine‑tuning: $WITH_FINETUNE"
 echo ""
 
 # -----------------------------------------------------------------------------

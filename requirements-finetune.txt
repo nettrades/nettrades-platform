@@ -1,0 +1,39 @@
+# =============================================================================
+# NETTRADES Platform – Fine Tuning Requirements
+# =============================================================================
+# FILE: requirements-finetune.txt
+#
+# PURPOSE:
+#   This file contains the Python packages required for fine tuning.
+#
+# INSTALLATION:
+#   pip install -r requirements-finetune.txt
+#
+#
+# In nettrades-setup.sh
+# With --auto (or without any flags), Fine-Tuning Is Skipped by Default
+# In the script I provided:
+# The --auto flag only disables interactive prompts.
+# WITH_FINETUNE defaults to false.
+# To enable fine-tuning, you must explicitly pass --with-finetune or answer y in interactive mode.
+# So running:
+# bash
+# ./nettrades-setup.sh all --auto
+# will not install the heavy packages (torch, unsloth, axolotl). It will only install the base requirements (requirements-base.txt).
+# If you want both automation and fine?tuning:
+# ./nettrades-setup.sh all --auto --with-finetune
+# Summary of Flags
+# Flag	                Effect
+# --auto	        No interactive prompts; uses defaults.
+# --with-finetune	Installs large ML packages (torch, unsloth, axolotl).
+#(no flag)	        Fine-tuning skipped by default.
+# =============================================================================
+# -----------------------------------------------------------------------------
+# LLM and Machine Learning (Fine-Tuning)
+# -----------------------------------------------------------------------------
+torch>=2.0.0                     # PyTorch deep learning framework
+transformers>=4.45.0             # Hugging Face Transformers
+datasets>=3.0.0                  # Hugging Face Datasets
+accelerate>=0.30.0               # Distributed training
+unsloth>=2025.0.0                # Efficient fine-tuning
+axolotl>=0.5.0                   # Multi-GPU fine-tuning
