@@ -649,45 +649,6 @@ if [[ ! -f "$ENV_FILE" ]] || [[ "$REGENERATE_SECRETS" == true ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Generate Prometheus web.yml with basic auth (using the password from .env)
-# -----------------------------------------------------------------------------
-log_step "Generating Prometheus web.yml with basic auth..."
-WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
-WEB_CONFIG_FILE="$WEB_CONFIG_DIR/web.yml"
-PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
-
-# Backup existing web.yml if present
-if [[ -f "$WEB_CONFIG_FILE" ]]; then
-    BACKUP_WEB="${WEB_CONFIG_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
-    cp "$WEB_CONFIG_FILE" "$BACKUP_WEB"
-    log_info "Backed up existing web.yml to $BACKUP_WEB"
-fi
-
-# -----------------------------------------------------------------------------
-# [FIX] Use the dedicated Python script for bcrypt hashing
-# -----------------------------------------------------------------------------
-if command -v python3 &>/dev/null && python3 -c "import bcrypt" 2>/dev/null; then
-    chmod +x "$SCRIPT_DIR/generate-bcrypt-hash.py" 2>/dev/null || true
-    if [[ -f "$SCRIPT_DIR/generate-bcrypt-hash.py" ]]; then
-        PROMETHEUS_HASH=$(python3 "$SCRIPT_DIR/generate-bcrypt-hash.py" <<< "$PROMETHEUS_PASSWORD")
-        mkdir -p "$WEB_CONFIG_DIR"
-        cat > "$WEB_CONFIG_FILE" << EOF
-basic_auth_users:
-    admin: $PROMETHEUS_HASH
-EOF
-        log_success "Prometheus web.yml generated with basic auth"
-    else
-        log_warning "generate-bcrypt-hash.py not found – skipping web.yml generation"
-    fi
-else
-    log_warning "python3-bcrypt not installed. Skipping automatic web.yml generation."
-    mkdir -p "$WEB_CONFIG_DIR"
-    cat > "$WEB_CONFIG_FILE" << EOF
-# WARNING: No authentication configured. Install python3-bcrypt and re-run.
-EOF
-fi
-
-# -----------------------------------------------------------------------------
 # Generate Grafana datasource provisioning file (using the Prometheus password)
 # -----------------------------------------------------------------------------
 log_step "Generating Grafana datasource provisioning..."
@@ -722,6 +683,39 @@ datasources:
     editable: false
 EOF
 log_success "Grafana datasource provisioning created"
+
+# -----------------------------------------------------------------------------
+# Generate Prometheus web.yml with basic auth (using the password from .env)
+# -----------------------------------------------------------------------------
+log_step "Generating Prometheus web.yml with basic auth..."
+WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
+WEB_CONFIG_FILE="$WEB_CONFIG_DIR/web.yml"
+PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
+
+# Backup existing web.yml if present
+if [[ -f "$WEB_CONFIG_FILE" ]]; then
+    BACKUP_WEB="${WEB_CONFIG_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
+    cp "$WEB_CONFIG_FILE" "$BACKUP_WEB"
+    log_info "Backed up existing web.yml to $BACKUP_WEB"
+fi
+
+# Generate hash using Python bcrypt (or fallback to plain text if bcrypt not available)
+mkdir -p "$WEB_CONFIG_DIR"
+if command -v python3 &>/dev/null && python3 -c "import bcrypt" 2>/dev/null; then
+    HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PROMETHEUS_PASSWORD'.encode(), bcrypt.gensalt()).decode())")
+    cat > "$WEB_CONFIG_FILE" << EOF
+basic_auth_users:
+    admin: '$HASH'
+EOF
+    log_success "Prometheus web.yml generated with bcrypt hash"
+else
+    log_warning "python3-bcrypt not installed – using plain-text password (INSECURE)."
+    cat > "$WEB_CONFIG_FILE" << EOF
+# WARNING: No bcrypt – basic auth uses plain text!
+basic_auth_users:
+    admin: '$PROMETHEUS_PASSWORD'
+EOF
+fi
 
 # -----------------------------------------------------------------------------
 # Determine if we should remove the GPUStack volume (only if --reset-data)

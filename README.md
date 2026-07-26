@@ -84,9 +84,9 @@ PURPOSE:
 
 **In the past enterprises used to face a critical choice: send sensitive data to external companies (risky and costly) or spend years building their own AI infrastructure. **
 
-**Now companies just set up their own Ubuntu Linux box and run the commands below to deploy their entire NETTRADES Sovereign AI Platform in a few minute — no cloud dependencies, no data leaving their control and no vendor lock-in.**
+**Now companies set up a Ubuntu Linux box and run the commands below to deploy their entire NETTRADES Sovereign AI Platform in a few minute — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
-**Nettrades is an autonomouse enterprise platform that lets organisations securely run their business workflows and control their AI infrastructure from a single dashboard.**
+**Nettrades is an autonomouse enterprise platform that lets organisations securely control their AI infrastructure from a single dashboard.**
 
 ### Deploy in minutes not months
 
@@ -105,7 +105,7 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 ```
 
-See the Accessing Your Platform section below to login.
+See the **Accessing Your Platform** section below to login.
 
 For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
 

@@ -50,6 +50,10 @@
 #   - FIX (2026-07-25): Added traefik.docker.network=web to force Traefik to
 #     use the correct network IP, resolving the 504 timeout. Added clarifying
 #     comments about LangGraph reverse-proxy bug (#7390) and workarounds.
+#   - FIX (2026-07-26): Re-added stripPrefix middleware for LangGraph because
+#     MOUNT_PREFIX is not honoured by the server. Added stripPrefix to strip
+#     /api before forwarding to LangGraph. Removed custom entrypoint for
+#     Prometheus; now uses the default entrypoint and only mounts web.yml.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -276,6 +280,9 @@ services:
   #     the Host-header bug. Keep priority high (100) to override agent-chat-ui.
   #   - CRITICAL: Added traefik.docker.network=web to force Traefik to use the
   #     web network IP instead of the internal bridge IP, resolving timeout.
+  #   - FIX (2026-07-26): Re-added stripPrefix middleware because MOUNT_PREFIX
+  #     is not honoured by the LangGraph server. The server only serves routes
+  #     at the root, so we must strip /api before forwarding.
   # =========================================================================
   langgraph-server:
     build:
@@ -321,11 +328,13 @@ services:
       - traefik.http.routers.langgraph-api.entrypoints=web,websecure
       - traefik.http.routers.langgraph-api.tls=true
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
-      # FIX: Removed stripPrefix middleware - let MOUNT_PREFIX handle everything
+      # FIX: Re-added stripPrefix middleware because MOUNT_PREFIX is ignored
+      - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
       # FIX: Added header forwarding middleware
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Host=${DOMAIN}
-      - traefik.http.routers.langgraph-api.middlewares=langgraph-headers
+      # Apply stripPrefix first, then headers
+      - traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-headers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -513,12 +522,12 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml       # config (bind)
       - prometheus_data:/prometheus                           # data (named volume)
-      - ./prometheus-entrypoint.sh:/entrypoint.sh   # mount the script
-    entrypoint: ["/bin/sh", "/entrypoint.sh"]       # use it as entrypoint
+      - ./prometheus/web.yml:/etc/prometheus/web.yml          # generated file (basic auth)
+    # FIX: Removed custom entrypoint – use default, no entrypoint script needed
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.config.file=/etc/prometheus/web.yml' # generated file
+      - '--web.config.file=/etc/prometheus/web.yml'
     environment:
       - PROMETHEUS_PASSWORD=${PROMETHEUS_PASSWORD}  # from .env
     labels:
