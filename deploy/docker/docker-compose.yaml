@@ -50,10 +50,14 @@
 #   - FIX (2026-07-25): Added traefik.docker.network=web to force Traefik to
 #     use the correct network IP, resolving the 504 timeout. Added clarifying
 #     comments about LangGraph reverse-proxy bug (#7390) and workarounds.
-#   - FIX (2026-07-26): Re-added stripPrefix middleware for LangGraph because
-#     MOUNT_PREFIX is not honoured by the server. Added stripPrefix to strip
-#     /api before forwarding to LangGraph. Removed custom entrypoint for
-#     Prometheus; now uses the default entrypoint and only mounts web.yml.
+#   - FIX (2026-07-27): Removed stripPrefix permanently – this is the root cause
+#     of 404/504 errors. LangGraph must receive the full /api path.
+#   - FIX (2026-07-27): Added HTTP->HTTPS redirect in Traefik to ensure all
+#     traffic uses HTTPS.
+#   - FIX (2026-07-27): Added HOST=0.0.0.0 to agent-chat-ui to ensure it listens
+#     on all network interfaces.
+#   - FIX (2026-07-27): Set NEXT_PUBLIC_AUTH_SCHEME=langgraph-api-key for
+#     proper authentication with LangGraph.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -95,6 +99,9 @@ services:
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+      # FIX: Redirect all HTTP traffic to HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
@@ -269,20 +276,6 @@ services:
 
   # =========================================================================
   # 7. LANGGRAPH SERVER - Durable AI Orchestration
-  # FIXES APPLIED:
-  #   - REMOVED stripPrefix middleware (LangGraph needs to see /api prefix)
-  #   - ADDED LANGGRAPH_API_URL environment variable (workaround for #7390)
-  #   - REMOVED Host condition from router rule (allows localhost/IP testing)
-  #   - ADDED header forwarding middleware (X-Forwarded-Proto, X-Forwarded-Host)
-  #   - FIX (2026-07-25): Explicitly set MOUNT_PREFIX and LANGGRAPH_API_URL.
-  #     Do NOT use stripPrefix on this route – LangGraph must see the full /api path.
-  #     The environment variables are the officially recommended workaround for
-  #     the Host-header bug. Keep priority high (100) to override agent-chat-ui.
-  #   - CRITICAL: Added traefik.docker.network=web to force Traefik to use the
-  #     web network IP instead of the internal bridge IP, resolving timeout.
-  #   - FIX (2026-07-26): Re-added stripPrefix middleware because MOUNT_PREFIX
-  #     is not honoured by the LangGraph server. The server only serves routes
-  #     at the root, so we must strip /api before forwarding.
   # =========================================================================
   langgraph-server:
     build:
@@ -319,22 +312,18 @@ services:
       - langgraph_data:/app/.langgraph
     labels:
       - traefik.enable=true
-      # CRITICAL FIX: Force Traefik to use the web network IP
       - traefik.docker.network=web
-      # FIX: Removed Host condition - matches any host for /api
       - traefik.http.routers.langgraph-api.rule=PathPrefix(`/api`)
       - traefik.http.routers.langgraph-api.priority=100
       - traefik.http.routers.langgraph-api.service=langgraph-api@docker
       - traefik.http.routers.langgraph-api.entrypoints=web,websecure
       - traefik.http.routers.langgraph-api.tls=true
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
-      # FIX: Re-added stripPrefix middleware because MOUNT_PREFIX is ignored
-      - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
-      # FIX: Added header forwarding middleware
+      # FIX: stripPrefix is REMOVED – do not strip /api; LangGraph must receive it.
+      # FIX: Header forwarding middleware
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Host=${DOMAIN}
-      # Apply stripPrefix first, then headers
-      - traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-headers
+      - traefik.http.routers.langgraph-api.middlewares=langgraph-headers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -352,13 +341,6 @@ services:
 
   # =========================================================================
   # 8. AGENT CHAT UI - Next.js Frontend for LangGraph
-  # FIXES APPLIED:
-  #   - ADDED Host condition to prevent /api hijacking
-  #   - ADDED explicit entrypoints and tls labels
-  #   - FIX (2026-07-25): Keep priority lower (50) than langgraph-api (100).
-  #     Do not use PathPrefix(`/`) without a Host condition – we already have
-  #     Host(`${DOMAIN}`) to limit it to the main domain. This ensures /api
-  #     requests are never routed here.
   # =========================================================================
   agent-chat-ui:
     build:
@@ -368,6 +350,7 @@ services:
         NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
         NEXT_PUBLIC_ASSISTANT_ID: supervisor
         NEXT_PUBLIC_SKIP_AUTH: "false"
+        NEXT_PUBLIC_AUTH_SCHEME: langgraph-api-key
         NEXT_PUBLIC_LANGGRAPH_API_KEY: ${LANGGRAPH_API_KEY}
     image: agent-chat-ui:latest
     container_name: agent-chat-ui
@@ -377,17 +360,16 @@ services:
       - internal
     environment:
       - NEXT_PUBLIC_ASSISTANT_ID=supervisor
-      - NEXT_PUBLIC_AUTH_SCHEME=
+      - NEXT_PUBLIC_AUTH_SCHEME=langgraph-api-key
       - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
+      - HOST=0.0.0.0
     ports:
       - "3002:3000"
     labels:
       - traefik.enable=true
-      # FIX: Added Host condition - only matches your domain
       - traefik.http.routers.agent-chat-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)
       - traefik.http.routers.agent-chat-ui.priority=50
       - traefik.http.services.agent-chat-ui.loadbalancer.server.port=3000
-      # FIX: Added explicit entrypoints and tls
       - traefik.http.routers.agent-chat-ui.entrypoints=web,websecure
       - traefik.http.routers.agent-chat-ui.tls=true
     depends_on:

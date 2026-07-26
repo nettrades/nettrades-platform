@@ -130,6 +130,17 @@ fi
 log_step "Generating secure secrets..."
 
 # =============================================================================
+# Safe password generator (alphanumeric only, for compatibility)
+# =============================================================================
+generate_safe_password() {
+    openssl rand -base64 24 | tr -d '+/=' | tr -d '\n' | cut -c1-24
+}
+
+generate_safe_api_key() {
+    openssl rand -base64 48 | tr -d '+/=' | tr -d '\n' | cut -c1-48
+}
+
+# =============================================================================
 # Handle PostgreSQL password safely
 # =============================================================================
 
@@ -153,7 +164,7 @@ if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" == true ]]; then
     fi
 elif [[ "$AUTO" == true ]]; then
     # Auto mode: generate a random password (only for fresh installs)
-    POSTGRES_PASSWORD=$(generate_password)
+    POSTGRES_PASSWORD=$(generate_safe_password)
     log_info "Auto mode: generated random PostgreSQL password"
 else
     # Interactive mode (fresh install or no --force): prompt for password
@@ -177,18 +188,19 @@ fi
 # -----------------------------------------------------------------------------
 # Generate other secrets (only after we have a valid password)
 # -----------------------------------------------------------------------------
-ODOO_ADMIN_PASSWORD=$(generate_password)
-SECRET_KEY=$(generate_secret)
-JWT_SECRET=$(generate_secret)
-VLLM_API_KEY=$(generate_secret)
-PROXY_API_KEY=$(generate_secret)
+ODOO_ADMIN_PASSWORD=$(generate_safe_password)
+SECRET_KEY=$(generate_safe_password)
+JWT_SECRET=$(generate_safe_password)
+VLLM_API_KEY=$(generate_safe_password)
+PROXY_API_KEY=$(generate_safe_password)
 WIREGUARD_PRIVATE_KEY=$(generate_wireguard_key)
 WIREGUARD_PUBLIC_KEY=$(echo "$WIREGUARD_PRIVATE_KEY" | wg pubkey 2>/dev/null || echo "manual")
+GRAFANA_PASSWORD=$(generate_safe_password)
+PROMETHEUS_PASSWORD=$(generate_safe_password)
+GPUSTACK_ADMIN_PASSWORD=$(generate_safe_password)
 
-# [NEW] Generate strong passwords for Grafana, Prometheus, and GPUStack
-GRAFANA_PASSWORD=$(generate_password)
-PROMETHEUS_PASSWORD=$(generate_password)
-GPUSTACK_ADMIN_PASSWORD=$(generate_password)
+# NEW: Generate LangGraph API key (strong, alphanumeric)
+LANGGRAPH_API_KEY=$(generate_safe_api_key)
 
 # -----------------------------------------------------------------------------
 # Write secrets to .env using safe_sed_replace (handles special characters)
@@ -206,6 +218,10 @@ safe_sed_replace "$ENV_FILE" "WIREGUARD_PUBLIC_KEY" "$WIREGUARD_PUBLIC_KEY"
 safe_sed_replace "$ENV_FILE" "GRAFANA_PASSWORD" "$GRAFANA_PASSWORD"
 safe_sed_replace "$ENV_FILE" "PROMETHEUS_PASSWORD" "$PROMETHEUS_PASSWORD"
 safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$GPUSTACK_ADMIN_PASSWORD"
+safe_sed_replace "$ENV_FILE" "LANGGRAPH_API_KEY" "$LANGGRAPH_API_KEY"
+
+# Ensure ODOO_API_KEY and PROXY_API_KEY are identical
+safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"
 
 # -----------------------------------------------------------------------------
 # NEW: Configure DOMAIN and ADMIN_EMAIL (auto-detect + interactive prompt)
@@ -302,6 +318,7 @@ if [[ "$AUTO" != true ]]; then
     echo "  GRAFANA_PASSWORD: $GRAFANA_PASSWORD"
     echo "  PROMETHEUS_PASSWORD: $PROMETHEUS_PASSWORD"
     echo "  GPUSTACK_ADMIN_PASSWORD: $GPUSTACK_ADMIN_PASSWORD"
+    echo "  LANGGRAPH_API_KEY: $LANGGRAPH_API_KEY"
     echo ""
     echo -e "${YELLOW}Domain & Admin Email:${NC}"
     echo "  DOMAIN: $DOMAIN_DISPLAY"
