@@ -272,6 +272,19 @@ configure_domain_email() {
         DOMAIN="$CURRENT_DOMAIN"
     fi
 
+    # Warn if DOMAIN is an IP address (Let's Encrypt doesn't work with IP)
+    if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log_warning "DOMAIN is set to an IP address ($DOMAIN). Let's Encrypt requires a valid domain name with DNS resolution."
+        log_warning "HTTPS certificates will not be obtained automatically. You can either set a domain or accept the self-signed certificate."
+        if [[ "$AUTO" != true ]]; then
+            read -rp "Continue with IP? (y/N): " continue_ip
+            if [[ ! "$continue_ip" =~ ^[Yy]$ ]]; then
+                log_error "Exiting. Please set a domain name in .env and re-run."
+                exit 1
+            fi
+        fi
+    fi
+
     # Admin email
     if [[ "$CURRENT_EMAIL" == "changeit" || "$CURRENT_EMAIL" == "admin@nettrades.ai" || -z "$CURRENT_EMAIL" ]]; then
         if [[ "$AUTO" == true ]]; then

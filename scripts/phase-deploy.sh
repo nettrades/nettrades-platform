@@ -19,7 +19,8 @@
 #   8. Install all NETTRADES Odoo modules.
 #   9. Set up cron for daily backups.
 #   10. Verify service health.
-#   11. Display final status.
+#   11. Ensure Let's Encrypt certificate (new).
+#   12. Display final status.
 #
 # USAGE:
 #   ./phase-deploy.sh [--auto] [--force] [--upgrade]
@@ -1368,6 +1369,81 @@ for i in {1..30}; do
     fi
     sleep 2
 done
+
+# =============================================================================
+# NEW: Ensure Let's Encrypt certificate (after stack is up)
+# =============================================================================
+ensure_letsencrypt_certificate() {
+    local domain="${DOMAIN:-nettrades.ai}"
+    local acme_file="$DEPLOY_DIR/traefik-data/acme.json"
+    local max_attempts=6
+    local attempt=1
+
+    log_step "Ensuring Let's Encrypt certificate for domain: $domain"
+
+    # Skip if domain is an IP
+    if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log_warning "DOMAIN is an IP address – Let's Encrypt cannot issue certificates for IPs. Skipping."
+        return 0
+    fi
+
+    # Check if acme.json exists and contains a certificate
+    if [[ -f "$acme_file" ]] && grep -q '"Certificate"' "$acme_file"; then
+        log_success "Certificate already exists in $acme_file"
+        # Check expiry
+        expire_date=$(grep -o '"notAfter":"[^"]*"' "$acme_file" | head -1 | cut -d'"' -f4 | cut -d'T' -f1)
+        if [[ -n "$expire_date" ]]; then
+            log_info "Certificate expires on: $expire_date"
+        fi
+        return 0
+    fi
+
+    log_info "Certificate not found or invalid. Triggering certificate request..."
+
+    # Ensure traefik-data directory exists and is writable
+    mkdir -p "$DEPLOY_DIR/traefik-data"
+    chmod 755 "$DEPLOY_DIR/traefik-data"
+
+    # Remove old acme.json to force a fresh attempt
+    if [[ -f "$acme_file" ]]; then
+        sudo rm -f "$acme_file"
+        log_info "Removed old acme.json"
+    fi
+
+    # Restart Traefik to trigger ACME challenge
+    docker compose restart traefik
+
+    # Wait and check for certificate
+    while [[ $attempt -le $max_attempts ]]; do
+        log_info "Checking for certificate (attempt $attempt/$max_attempts)..."
+        sleep 15
+
+        if [[ -f "$acme_file" ]] && grep -q '"Certificate"' "$acme_file"; then
+            log_success "Certificate successfully obtained!"
+            # Restart Traefik to use the new certificate
+            docker compose restart traefik
+            return 0
+        fi
+
+        # Check logs for errors
+        if docker compose logs traefik 2>/dev/null | grep -q "acme: error"; then
+            log_error "ACME error detected. Check Traefik logs for details."
+            log_info "Common issues: domain not resolving, port 80 blocked, rate limiting."
+            log_info "You may need to accept the self-signed certificate in your browser for now."
+            break
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    log_warning "Certificate could not be obtained after $max_attempts attempts."
+    log_warning "The site will still work with the self-signed certificate, but your browser will show a warning."
+    log_info "You can manually force a renewal by running:"
+    echo "  cd $DEPLOY_DIR && sudo rm -f traefik-data/acme.json && docker compose restart traefik"
+}
+
+# Run the certificate check
+ensure_letsencrypt_certificate
 
 # -----------------------------------------------------------------------------
 # Display final status

@@ -14,6 +14,7 @@
 #   - Configuring system limits for high-performance workloads
 #   - Enabling gVisor runtime for container isolation (if on Kubernetes)
 #   - [NEW] Installing Node.js and npm for the Electron installer
+#   - [NEW] Ensuring port 80 is open for Let's Encrypt
 #
 #   It is idempotent and safe to re-run.
 #
@@ -237,6 +238,25 @@ if command -v ufw &>/dev/null; then
     fi
 else
     log_warning "UFW not found – skipping firewall configuration"
+fi
+
+# -----------------------------------------------------------------------------
+# Ensure port 80 is open for Let's Encrypt challenge
+# -----------------------------------------------------------------------------
+log_step "Ensuring port 80 is open for Let's Encrypt challenge..."
+if command -v ufw &>/dev/null; then
+    if ! ufw status | grep -q "80/tcp"; then
+        log_warning "Port 80 not allowed in UFW. Adding..."
+        sudo ufw allow 80/tcp
+    else
+        log_success "Port 80 allowed in UFW"
+    fi
+fi
+# Also check if something else is blocking (like iptables)
+if command -v iptables &>/dev/null; then
+    if ! sudo iptables -L INPUT -n 2>/dev/null | grep -q "dpt:80"; then
+        log_warning "Port 80 might be blocked by iptables. Consider opening it."
+    fi
 fi
 
 # -----------------------------------------------------------------------------

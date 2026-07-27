@@ -50,7 +50,7 @@
 #   - FIX (2026-07-25): Added traefik.docker.network=web to force Traefik to
 #     use the correct network IP, resolving the 504 timeout. Added clarifying
 #     comments about LangGraph reverse-proxy bug (#7390) and workarounds.
-#   - FIX (2026-07-27): Removed stripPrefix permanently â€“ this is the root cause
+#   - FIX (2026-07-27): Removed stripPrefix permanently – this is the root cause
 #     of 404/504 errors. LangGraph must receive the full /api path.
 #   - FIX (2026-07-27): Added HTTP->HTTPS redirect in Traefik to ensure all
 #     traffic uses HTTPS.
@@ -72,7 +72,7 @@ networks:
     driver: bridge
 
 # -----------------------------------------------------------------------------
-# Volumes â€“ all persistent data uses named volumes
+# Volumes – all persistent data uses named volumes
 # -----------------------------------------------------------------------------
 volumes:
   postgres_data:
@@ -202,7 +202,7 @@ services:
     volumes:
       - ./odoo-modules:/mnt/extra-addons              # <-- mount the prepared addons
       - odoo_data:/var/lib/odoo                   # persistent data (named volume)
-      - ./odoo-logs:/var/log/odoo                 # logs (bind mount â€“ optional)
+      - ./odoo-logs:/var/log/odoo                 # logs (bind mount – optional)
     environment:
       - HOST=postgres
       - PORT=5432
@@ -280,7 +280,8 @@ services:
   # 7. LANGGRAPH SERVER (with stripPrefix)
   # =========================================================================
   langgraph-server:
-    build: ../../src/langgraph
+    #  build: ../../src/core
+    # dockerfile: ../../deploy/docker/Dockerfile.langgraph
     image: langgraph-server:latest
     container_name: langgraph-server
     restart: unless-stopped
@@ -322,13 +323,13 @@ services:
       - traefik.http.routers.langgraph-api.entrypoints=web,websecure
       - traefik.http.routers.langgraph-api.tls=true
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
-      # OPTION A (Recommended): Remove stripPrefix entirely
-      # DELETE: traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
-      # DELETE: langgraph-strip from middlewares line
-      # REASON: With MOUNT_PREFIX set, LangGraph can handle the full /api/... path
+      # CRITICAL: strip /api prefix before sending to LangGraph
+      - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
+      # Forward headers so LangGraph knows it's behind a proxy
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Host=${DOMAIN}
-      - traefik.http.routers.langgraph-api.middlewares=langgraph-headers
+      # Apply both middlewares to the router
+      - traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-headers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -386,7 +387,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 9. ODOO PROXY - HTTP JSON-RPC Shim (NEW â€“ replaces mcp-odoo)
+  # 9. ODOO PROXY - HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
   # =========================================================================
   odoo-proxy:
     # FIXED: Correct build context path
@@ -420,7 +421,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 10. GPUStack â€“ GPU Management and Inference (replaces standalone engines)
+  # 10. GPUStack – GPU Management and Inference (replaces standalone engines)
   # =========================================================================
 
   gpustack:
@@ -461,7 +462,7 @@ services:
 
 
   # =========================================================================
-  # 11. LLAMA.CPP â€“ CPU Inference Engine (Fallback)
+  # 11. LLAMA.CPP – CPU Inference Engine (Fallback)
   # =========================================================================
   llama-cpp:
     image: ghcr.io/ggml-org/llama.cpp:server
@@ -510,7 +511,7 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml       # config (bind)
       - prometheus_data:/prometheus                           # data (named volume)
       - ./prometheus/web.yml:/etc/prometheus/web.yml          # generated file (basic auth)
-    # FIX: Removed custom entrypoint â€“ use default, no entrypoint script needed
+    # FIX: Removed custom entrypoint – use default, no entrypoint script needed
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
