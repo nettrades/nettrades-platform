@@ -50,7 +50,7 @@
 #   - FIX (2026-07-25): Added traefik.docker.network=web to force Traefik to
 #     use the correct network IP, resolving the 504 timeout. Added clarifying
 #     comments about LangGraph reverse-proxy bug (#7390) and workarounds.
-#   - FIX (2026-07-27): Removed stripPrefix permanently – this is the root cause
+#   - FIX (2026-07-27): Removed stripPrefix permanently â€“ this is the root cause
 #     of 404/504 errors. LangGraph must receive the full /api path.
 #   - FIX (2026-07-27): Added HTTP->HTTPS redirect in Traefik to ensure all
 #     traffic uses HTTPS.
@@ -72,7 +72,7 @@ networks:
     driver: bridge
 
 # -----------------------------------------------------------------------------
-# Volumes – all persistent data uses named volumes
+# Volumes â€“ all persistent data uses named volumes
 # -----------------------------------------------------------------------------
 volumes:
   postgres_data:
@@ -85,8 +85,6 @@ volumes:
   prometheus_data:
   grafana_data:
   langgraph_data:
-  traefik_acme:
-    driver: local  
 # --------------------------------------------------------------------------
 # Services
 # --------------------------------------------------------------------------
@@ -97,8 +95,6 @@ services:
   # =========================================================================
   traefik:
     image: traefik:v3.6.13
-    container_name: traefik
-    restart: unless-stopped
     command:
       - --providers.docker=true
       - --providers.docker.endpoint=unix:///var/run/docker.sock
@@ -116,33 +112,12 @@ services:
       - --accesslog
       - --api.insecure=true        #   REMOVE IN PRODUCTION
       - --log.level=DEBUG          #   REMOVE IN PRODUCTION
-
-      # Enable debug logging to troubleshoot routing
-      - "--log.level=INFO"  # Change to DEBUG if needed for troubleshooting
-      
-      # API Configuration
-      - "--api.insecure=true"  # Allow insecure API (only use in dev, use proper auth in prod)
-      - "--api.dashboard=true"
-      
-      # Docker Provider - discovers services from Docker labels
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"  # Only expose services with traefik.enable=true
-      
-      # Entry Points (ports to listen on)
-      - "--entryPoints.web.address=:80"
-      - "--entryPoints.websecure.address=:443"      
     ports:
-      - "80:80"      # HTTP
-      - "443:443"    # HTTPS
-      - "8080:8080"  # Dashboard
+      - "80:80"
+      - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik-data:/letsencrypt
-      # Docker socket for service discovery
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      # HTTPS certificates (if using Let's Encrypt)
-      - "./traefik/acme.json:/acme.json"
-      - "./traefik/traefik.yml:/traefik.yml:ro"
     networks:
       - web
     restart: unless-stopped
@@ -151,16 +126,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    environment:
-      # Optional: Set your domain for automatic HTTPS
-      # - TRAEFIK_ACME_DOMAIN=nettrades.ai
-      # - TRAEFIK_ACME_EMAIL=admin@nettrades.ai
-    
-    labels:
-      - "traefik.enable=true"
-      # Dashboard route (optional)
-      - "traefik.http.routers.traefik-dashboard.rule=PathPrefix(`/dashboard`)"
-      - "traefik.http.routers.traefik-dashboard.service=api@internal"
 
   # =========================================================================
   # 2. POSTGRESQL with pgvector - RAG Embeddings & Main Database
@@ -237,7 +202,7 @@ services:
     volumes:
       - ./odoo-modules:/mnt/extra-addons              # <-- mount the prepared addons
       - odoo_data:/var/lib/odoo                   # persistent data (named volume)
-      - ./odoo-logs:/var/log/odoo                 # logs (bind mount – optional)
+      - ./odoo-logs:/var/log/odoo                 # logs (bind mount â€“ optional)
     environment:
       - HOST=postgres
       - PORT=5432
@@ -311,156 +276,117 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # =============================================================================
-  # LANGGRAPH SERVER - LLM Agent Backend
-  # =============================================================================
-  # This is where your LangGraph agents run
+  # =========================================================================
+  # 7. LANGGRAPH SERVER (with stripPrefix)
+  # =========================================================================
   langgraph-server:
+    build: ../../src/langgraph
     image: langgraph-server:latest
-    # UPDATE: Replace with your actual LangGraph image name
-    # Build locally: docker build -t langgraph-server:latest .
-    
     container_name: langgraph-server
     restart: unless-stopped
-    
+    networks:
+      - web
+      - internal
+    environment:
+      - DISABLE_AUTH=${DISABLE_AUTH:-false}
+      - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
+      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://gpustack:8080/v1}
+      - GPUSTACK_API_KEY=${GPUSTACK_API_KEY:-}
+      - ODOO_URL=${ODOO_URL:-http://odoo:8069}
+      - ODOO_DB=${ODOO_DB:-odoo}
+      - ODOO_USER=${ODOO_USER:-1}
+      - ODOO_PASSWORD=${ADMIN_PASSWORD}
+      - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:8080}
+      - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
+      - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # LANGGRAPH_API_URL is used for URL generation (workaround for #7390)
+      - LANGGRAPH_API_URL=https://${DOMAIN}/api
+      # CRITICAL FIX for LangGraph issue #7390:
+      # Tell LangGraph it is mounted at /api and to trust X-Forwarded-* headers.
+      - MOUNT_PREFIX=/api
+      - LANGGRAPH_TRUST_X_FORWARDED_HEADERS=true
     ports:
       - "8000:8000"
-    
-    # =========================================================================
-    # CRITICAL ENVIRONMENT VARIABLES FOR TRAEFIK INTEGRATION
-    # =========================================================================
-    environment:
-      # MOUNT_PREFIX tells LangGraph it's running at /api path
-      # This MUST match the Traefik PathPrefix in the routing rule below
-      MOUNT_PREFIX: "/api"
-      
-      # Tell LangGraph to trust X-Forwarded-* headers from proxy
-      LANGGRAPH_TRUST_X_FORWARDED_HEADERS: "true"
-      
-      # Server configuration
-      LANGGRAPH_API_PORT: 8000
-      LANGGRAPH_API_HOST: 0.0.0.0
-      
-      # =========================================================================
-      # YOUR APPLICATION SETTINGS
-      # =========================================================================
-      # Add your actual credentials here
-      # OPENAI_API_KEY: ${OPENAI_API_KEY}
-      # LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
-      # DATABASE_URL: postgresql://user:pass@postgres:5432/langgraph
-      # REDIS_URL: redis://redis:6379
-      
-      # Log level
-      LOG_LEVEL: INFO
-    
-    networks:
-      - web
-    
-    # Health check - helps Docker Compose wait for service readiness
+    volumes:
+      - langgraph_data:/app/.langgraph
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web
+      - traefik.http.routers.langgraph-api.rule=PathPrefix(`/api`)
+      - traefik.http.routers.langgraph-api.priority=100
+      - traefik.http.routers.langgraph-api.service=langgraph-api@docker
+      - traefik.http.routers.langgraph-api.entrypoints=web,websecure
+      - traefik.http.routers.langgraph-api.tls=true
+      - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
+      # OPTION A (Recommended): Remove stripPrefix entirely
+      # DELETE: traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
+      # DELETE: langgraph-strip from middlewares line
+      # REASON: With MOUNT_PREFIX set, LangGraph can handle the full /api/... path
+      - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Host=${DOMAIN}
+      - traefik.http.routers.langgraph-api.middlewares=langgraph-headers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    
-    # =========================================================================
-    # TRAEFIK ROUTING CONFIGURATION
-    # =========================================================================
-    labels:
-      # Enable Traefik for this service
-      - "traefik.enable=true"
-      
-      # ===== ROUTER CONFIGURATION =====
-      # This tells Traefik which requests to route to this service
-      # Route: Host is nettrades.ai AND path starts with /api
-      - "traefik.http.routers.langgraph.rule=Host(`nettrades.ai`) && PathPrefix(`/api`)"
-      
-      # Use the 'web' entrypoint (HTTP port 80)
-      - "traefik.http.routers.langgraph.entrypoints=web"
-      
-      # ===== SERVICE CONFIGURATION =====
-      # This tells Traefik how to connect to LangGraph
-      - "traefik.http.services.langgraph.loadbalancer.server.port=8000"
-      
-      # ===== MIDDLEWARE CONFIGURATION =====
-      # CRITICAL: Strip /api prefix before sending request to LangGraph
-      # This removes /api from the path so LangGraph receives /... instead of /api/...
-      - "traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api"
-      
-      # Apply the stripprefix middleware to this route
-      - "traefik.http.routers.langgraph.middlewares=langgraph-strip"
-
-  # =============================================================================
-  # AGENT CHAT UI - Frontend for LangGraph Agents
-  # =============================================================================
-  # This is the Next.js frontend that users interact with
-  agent-chat-ui:
-    image: agent-chat-ui:latest
-    # UPDATE: Replace with your actual Agent Chat UI image
-    # Build locally: docker build -t agent-chat-ui:latest .
-    # Or use official: langchain/agent-chat-ui:latest (if available)
-    
-    container_name: agent-chat-ui
-    restart: unless-stopped
-    
-    ports:
-      - "3000:3000"
-    
-    # =========================================================================
-    # CONFIGURATION FOR CONNECTING TO LANGGRAPH
-    # =========================================================================
-    environment:
-      # Which graph/assistant to use
-      NEXT_PUBLIC_ASSISTANT_ID: agent
-      # UPDATE: Change 'agent' to your actual graph name
-      
-      # ===== URL TO LANGGRAPH =====
-      # OPTION 1 (Development - direct to container):
-      # Use this if both containers are on the same Docker network
-      NEXT_PUBLIC_API_URL: http://langgraph-server:8000
-      
-      # OPTION 2 (Production - through Traefik):
-      # Uncomment this and comment out OPTION 1 for production
-      # NEXT_PUBLIC_API_URL: https://nettrades.ai/api
-      # This URL is what users' browsers will use to reach the API
-      
-      # ===== AUTHENTICATION (if using LangSmith) =====
-      # NEXT_PUBLIC_AUTH_SCHEME: langsmith-api-key
-      # LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}  # Only server-side, NOT in NEXT_PUBLIC_*
-      
-      # Node environment
-      NODE_ENV: production
-      # UPDATE: Change to 'development' if debugging
-    
-    networks:
-      - web
-    
+      interval: 30s
+      timeout: 10s
+      retries: 3
     depends_on:
-      langgraph-server:
-        condition: service_healthy
-    
-    # =========================================================================
-    # TRAEFIK ROUTING CONFIGURATION
-    # =========================================================================
-    labels:
-      # Enable Traefik for this service
-      - "traefik.enable=true"
-      
-      # ===== ROUTER CONFIGURATION =====
-      # Route requests to nettrades.ai that DON'T start with /api
-      # This ensures /api goes to LangGraph, everything else goes to agent-chat-ui
-      - "traefik.http.routers.agent-chat-ui.rule=Host(`nettrades.ai`) && !PathPrefix(`/api`)"
-      
-      # Use the 'web' entrypoint (HTTP port 80)
-      - "traefik.http.routers.agent-chat-ui.entrypoints=web"
-      
-      # ===== SERVICE CONFIGURATION =====
-      # This tells Traefik how to connect to agent-chat-ui
-      - "traefik.http.services.agent-chat-ui.loadbalancer.server.port=3000"
+      - postgres
+      - valkey
+      - odoo-proxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # =========================================================================
-  # 9. ODOO PROXY - HTTP JSON-RPC Shim (NEW – replaces mcp-odoo)
+  # 8. AGENT CHAT UI - Next.js Frontend for LangGraph
+  # =========================================================================
+  agent-chat-ui:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.agent-chat-ui
+      args:
+        NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
+        NEXT_PUBLIC_ASSISTANT_ID: supervisor
+        NEXT_PUBLIC_SKIP_AUTH: "false"
+        NEXT_PUBLIC_AUTH_SCHEME: langgraph-api-key
+        NEXT_PUBLIC_LANGGRAPH_API_KEY: ${LANGGRAPH_API_KEY}
+    image: agent-chat-ui:latest
+    container_name: agent-chat-ui
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+    environment:
+      - NEXT_PUBLIC_ASSISTANT_ID=supervisor
+      - NEXT_PUBLIC_AUTH_SCHEME=langgraph-api-key
+      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
+      - HOST=0.0.0.0
+    ports:
+      - "3002:3000"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.agent-chat-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)
+      - traefik.http.routers.agent-chat-ui.priority=50
+      - traefik.http.services.agent-chat-ui.loadbalancer.server.port=3000
+      - traefik.http.routers.agent-chat-ui.entrypoints=web,websecure
+      - traefik.http.routers.agent-chat-ui.tls=true
+    depends_on:
+      - langgraph-server
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =========================================================================
+  # 9. ODOO PROXY - HTTP JSON-RPC Shim (NEW â€“ replaces mcp-odoo)
   # =========================================================================
   odoo-proxy:
     # FIXED: Correct build context path
@@ -494,7 +420,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 10. GPUStack – GPU Management and Inference (replaces standalone engines)
+  # 10. GPUStack â€“ GPU Management and Inference (replaces standalone engines)
   # =========================================================================
 
   gpustack:
@@ -535,7 +461,7 @@ services:
 
 
   # =========================================================================
-  # 11. LLAMA.CPP – CPU Inference Engine (Fallback)
+  # 11. LLAMA.CPP â€“ CPU Inference Engine (Fallback)
   # =========================================================================
   llama-cpp:
     image: ghcr.io/ggml-org/llama.cpp:server
@@ -584,7 +510,7 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml       # config (bind)
       - prometheus_data:/prometheus                           # data (named volume)
       - ./prometheus/web.yml:/etc/prometheus/web.yml          # generated file (basic auth)
-    # FIX: Removed custom entrypoint – use default, no entrypoint script needed
+    # FIX: Removed custom entrypoint â€“ use default, no entrypoint script needed
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -658,52 +584,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-
-# =============================================================================
-# USAGE INSTRUCTIONS
-# =============================================================================
-# 
-# 1. UPDATE IMAGE NAMES:
-#    - Replace 'langgraph-server:latest' with your actual image
-#    - Replace 'agent-chat-ui:latest' with your actual image
-#
-# 2. CREATE REQUIRED DIRECTORIES:
-#    mkdir -p traefik
-#
-# 3. (OPTIONAL) CREATE TRAEFIK CONFIG:
-#    Create traefik/traefik.yml for HTTPS, rate limiting, etc.
-#
-# 4. SET ENVIRONMENT VARIABLES (if needed):
-#    Create a .env file with:
-#    - OPENAI_API_KEY=sk-...
-#    - LANGSMITH_API_KEY=lsv2_...
-#    - POSTGRES_PASSWORD=secure_password
-#
-# 5. START THE STACK:
-#    docker compose up -d
-#
-# 6. WAIT FOR SERVICES TO BE READY:
-#    docker compose ps  (should show all 'Up')
-#
-# 7. TEST:
-#    - Traefik Dashboard: http://localhost:8080
-#    - Agent Chat UI: http://localhost:3000 or http://nettrades.ai
-#    - LangGraph Health: http://localhost:8000/health
-#
-# =============================================================================
-# TROUBLESHOOTING
-# =============================================================================
-#
-# If agent-chat-ui shows "Failed to connect to LangGraph":
-#   1. Check MOUNT_PREFIX is set: docker compose exec langgraph-server env | grep MOUNT_PREFIX
-#   2. Check stripprefix label exists: grep stripprefix docker-compose.yaml
-#   3. View Traefik logs: docker compose logs traefik
-#   4. View LangGraph logs: docker compose logs langgraph-server
-#
-# If getting 404 on /api paths:
-#   1. Verify rule includes PathPrefix(`/api`)
-#   2. Verify stripprefix middleware is applied
-#   3. Check Traefik dashboard (port 8080) - routers should show as 'Active'
-#
-# =============================================================================
