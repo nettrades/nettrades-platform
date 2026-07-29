@@ -14,6 +14,11 @@
 #   4 – Module Installation
 #   5 – Monitoring Setup
 #
+# INFERENCE ARCHITECTURE:
+#   - Primary: NVIDIA Dynamo (GPU-accelerated, distributed, includes vLLM)
+#   - Fallback: llama.cpp (CPU, zero-dependency)
+#   - Odoo provides governance and GPU resource management
+#
 # USAGE:
 #   ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
 #   ./nettrades-setup.sh                       (Interactive wizard)
@@ -95,14 +100,14 @@ ${YELLOW}ENVIRONMENTS:${NC}
 ${YELLOW}PHASES:${NC}
     0  System Preparation & Hardening
     1  Development Environment (with Python virtual environment)
-    2  Single-VM Deployment (with GPUStack)
+    2  Single-VM Deployment (with NVIDIA Dynamo + llama.cpp fallback)
     3  Kubernetes Scaling
     4  Module Installation
     5  Monitoring Setup
 
 ${YELLOW}PROFILES (CLI):${NC}
     dev         : Phase 1 (development environment)
-    deploy      : Phase 0 + Phase 1 + Phase 2 (single-VM deployment with GPUStack)
+    deploy      : Phase 0 + Phase 1 + Phase 2 (single-VM deployment)
     k8s         : Phase 0 + Phase 1 + Phase 3 (Kubernetes scaling)
     monitoring  : Phase 5 (Prometheus & Grafana setup)
     modules     : Phase 4 (install/upgrade Odoo modules only)
@@ -138,7 +143,7 @@ run_interactive() {
     echo ""
     echo "Available profiles:"
     echo "  1) dev         - Development environment (Phase 1 only)"
-    echo "  2) deploy      - Single-VM Docker deployment (with GPUStack)"
+    echo "  2) deploy      - Single-VM Docker deployment (with NVIDIA Dynamo + llama.cpp)"
     echo "  3) k8s         - Kubernetes scaling (Talos, Argo CD)"
     echo "  4) monitoring  - Prometheus & Grafana monitoring stack (Phase 5)"
     echo "  5) modules     - Install/upgrade Odoo modules only (Phase 4)"
@@ -207,53 +212,6 @@ run_interactive() {
     [[ ! "$confirm" =~ ^[Yy]$ ]] && { log_info "Aborted."; exit 0; }
 
     export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE
-}
-
-# =============================================================================
-# PERMANENT FIX: Ensure docker-compose.yaml passes --bootstrap-password to GPUStack
-# =============================================================================
-fix_docker_compose_for_gpustack() {
-    local compose_file="$PROJECT_ROOT/deploy/docker/docker-compose.yaml"
-    if [[ ! -f "$compose_file" ]]; then
-        log_warning "docker-compose.yaml not found at $compose_file – skipping GPUStack bootstrap fix."
-        return 0
-    fi
-
-    # Check if the gpustack service already has a 'command' line
-    if grep -q "command:" "$compose_file" && grep -A5 "gpustack:" "$compose_file" | grep -q "command:"; then
-        log_info "GPUStack command line already present in docker-compose.yaml – skipping."
-        return 0
-    fi
-
-    log_info "Adding --bootstrap-password to GPUStack service in docker-compose.yaml..."
-    # Backup the original
-    cp "$compose_file" "$compose_file.bak"
-
-    # Use a temporary file to avoid variable scope issues
-    local tmp_file
-    tmp_file=$(mktemp)
-    local password="${GPUSTACK_ADMIN_PASSWORD:-}"
-    if [[ -z "$password" ]]; then
-        log_error "GPUSTACK_ADMIN_PASSWORD is not set – cannot add bootstrap password."
-        return 1
-    fi
-
-    awk -v pass="$password" '
-    /^[[:space:]]*gpustack:/ { in_gpustack=1 }
-    in_gpustack && /^[[:space:]]*image:/ {
-        print $0
-        # Determine indentation (spaces before "image:")
-        indent = match($0, /[^[:space:]]/) - 1
-        if (indent < 0) indent = 0
-        # Insert command line with same indentation
-        printf "%scommand: [\"--bootstrap-password\", \"%s\"]\n", substr($0, 1, indent), pass
-        in_gpustack = 0  # only insert once
-        next
-    }
-    { print }
-    ' "$compose_file" > "$tmp_file"
-    mv "$tmp_file" "$compose_file"
-    log_success "docker-compose.yaml updated with GPUStack bootstrap password."
 }
 
 # =============================================================================
@@ -664,8 +622,6 @@ for phase in "${PHASES[@]}"; do
             ;;
         2)
             log_header "Phase 2 — Single-VM Deployment"
-            # PERMANENT FIX: Patch docker-compose.yaml before deployment
-            fix_docker_compose_for_gpustack
             # Ensure VENV_DIR is available for phase-deploy.sh
             export VENV_DIR
             bash "$SCRIPT_DIR/phase-deploy.sh"

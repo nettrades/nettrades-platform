@@ -1,13 +1,31 @@
+# =============================================================================
+# NETTRADES.AI – Prometheus scrape configuration
+# =============================================================================
 global:
   scrape_interval: 15s
-  evaluation_interval: 15s
+
 scrape_configs:
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
-  - job_name: 'node_exporter'
+  - job_name: 'node'
     static_configs:
       - targets: ['node_exporter:9100']
-  - job_name: 'postgres_exporter'
+
+  - job_name: 'postgres'
     static_configs:
       - targets: ['postgres-exporter:9187']
+
+  - job_name: 'llama-cpp'
+    static_configs:
+      - targets: ['llama-cpp:8080']
+
+  - job_name: 'odoo'
+    static_configs:
+      - targets: ['odoo:8069']
+
+  - job_name: 'langgraph'
+    static_configs:
+      - targets: ['langgraph:8000']
+
+  # (Optional) Add Dynamo metrics when confirmed.
+  # - job_name: 'dynamo'
+  #   static_configs:
+  #     - targets: ['dynamo:8000']

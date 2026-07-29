@@ -3,7 +3,7 @@
 # FILE: scripts/phase-k8s.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 4: Kubernetes Scaling – deploys NETTRADES to a Kubernetes cluster.
+#   Phase 3: Kubernetes Scaling – deploys NETTRADES to a Kubernetes cluster.
 #   This phase provisions Talos Linux VMs (on Proxmox), applies all Kubernetes
 #   manifests, and sets up Argo CD for GitOps.
 #
@@ -19,7 +19,7 @@
 #   - WireGuard (secure pod-to-pod communication)
 #   - Argo CD (GitOps)
 #   - Prometheus & Grafana (monitoring)
-#   - GPUStack (distributed GPU orchestration)
+#   - NVIDIA Dynamo (distributed inference orchestration) – replaces GPUStack
 #
 #   This is a FUTURE-PHASE script. It is currently a placeholder that checks
 #   for required tools and applies manifests. To use it, you must have:
@@ -153,7 +153,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Install Prometheus & Grafana (if not already deployed by manifests)
+# Install Prometheus & Grafana
 # -----------------------------------------------------------------------------
 log_step "Checking Prometheus & Grafana..."
 if ! kubectl get namespace monitoring &>/dev/null; then
@@ -166,13 +166,13 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Install GPUStack (distributed GPU orchestration)
+# Install NVIDIA Dynamo (distributed inference orchestration)
 # -----------------------------------------------------------------------------
-log_step "Installing GPUStack..."
-if [[ -f "$K8S_DIR/distributed-gpu/controller/install-gpustack-company.sh" ]]; then
-    bash "$K8S_DIR/distributed-gpu/controller/install-gpustack-company.sh"
+log_step "Installing NVIDIA Dynamo..."
+if [[ -f "$K8S_DIR/distributed-gpu/controller/install-dynamo.sh" ]]; then
+    bash "$K8S_DIR/distributed-gpu/controller/install-dynamo.sh"
 else
-    log_warning "GPUStack installer not found – skipping"
+    log_warning "Dynamo installer not found – skipping"
 fi
 
 # -----------------------------------------------------------------------------

@@ -190,6 +190,7 @@ if detect_gpu; then
         log_info "Installing NVIDIA drivers..."
         if [[ "$OS" == "linux" ]]; then
             sudo apt-get update
+            # NVIDIA driver version 550+ is recommended for Dynamo
             sudo apt-get install -y nvidia-driver-550 nvidia-utils-550
         else
             log_warning "Please install NVIDIA drivers manually for $OS"

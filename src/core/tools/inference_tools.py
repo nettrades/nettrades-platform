@@ -18,14 +18,12 @@ _health_lock = threading.Lock()
 
 def _health_check_loop():
     """
-    Background thread that periodically checks GPUStack health.
+    Background thread that periodically checks Dynamo health.
     Runs every 30 seconds, completely independent of user requests.
     """
-    gpu_url = os.getenv("LLM_GPU_URL", "http://gpustack:8080/v1")
-    gpu_api_key = os.getenv("LLM_GPU_API_KEY", "dummy")
-    # Also check the old env var if new ones are missing
-    if gpu_api_key == "dummy":
-        gpu_api_key = os.getenv("OPENAI_API_KEY", "dummy")
+    # Dynamo uses the same OpenAI-compatible API endpoint as vLLM
+    gpu_url = os.getenv("LLM_BASE_URL", "http://dynamo:8000/v1")
+    gpu_api_key = os.getenv("DYNAMO_API_KEY", os.getenv("OPENAI_API_KEY", "dummy"))
 
     while True:
         try:
@@ -37,7 +35,7 @@ def _health_check_loop():
                 )
                 is_healthy = (response.status_code == 200)
         except Exception as e:
-            _logger.debug(f"GPUStack health check failed: {e}")
+            _logger.debug(f"Dynamo health check failed: {e}")
             is_healthy = False
 
         # Update the global status atomically
@@ -45,8 +43,8 @@ def _health_check_loop():
             _health_status["gpu_healthy"] = is_healthy
             _health_status["last_checked"] = time.time()
 
-        _logger.debug(f"GPUStack health status updated: {is_healthy}")
-        
+        _logger.debug(f"Dynamo health status updated: {is_healthy}")
+
         # Wait 30 seconds before the next check
         time.sleep(30)
 
@@ -55,7 +53,7 @@ def _health_check_loop():
 # -----------------------------------------------------------------------------
 _thread = threading.Thread(target=_health_check_loop, daemon=True)
 _thread.start()
-_logger.info("GPUStack health check background thread started.")
+_logger.info("Dynamo health check background thread started.")
 
 # -----------------------------------------------------------------------------
 # Public API: get_inference_backend (Zero-Latency)
@@ -66,13 +64,11 @@ def get_inference_backend() -> Dict[str, Any]:
     
     This function performs ZERO network I/O. It simply reads the cached
     health status updated by the background thread. 
-    - If GPUStack is healthy: returns GPU backend.
-    - If GPUStack is unhealthy: returns CPU (llama.cpp) fallback.
+    - If Dynamo is healthy: returns GPU backend.
+    - If Dynamo is unhealthy: returns CPU (llama.cpp) fallback.
     """
-    gpu_url = os.getenv("LLM_GPU_URL", "http://gpustack:8080/v1")
-    gpu_api_key = os.getenv("LLM_GPU_API_KEY", "dummy")
-    if gpu_api_key == "dummy":
-        gpu_api_key = os.getenv("OPENAI_API_KEY", "dummy")
+    gpu_url = os.getenv("LLM_BASE_URL", "http://dynamo:8000/v1")
+    gpu_api_key = os.getenv("DYNAMO_API_KEY", os.getenv("OPENAI_API_KEY", "dummy"))
     
     cpu_url = os.getenv("LLM_CPU_URL", "http://llama-cpp:8080/v1")
     cpu_api_key = os.getenv("LLM_CPU_API_KEY", "dummy")
@@ -86,7 +82,7 @@ def get_inference_backend() -> Dict[str, Any]:
             "type": "gpu",
             "base_url": gpu_url,
             "api_key": gpu_api_key,
-            "model_name": os.getenv("LLM_MODEL", "deepseek-r1-1.5b")
+            "model_name": os.getenv("MODEL_NAME", "Qwen2.5-1.5B-Instruct")
         }
     else:
         return {
