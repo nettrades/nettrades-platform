@@ -98,7 +98,7 @@ if [[ -f "$ENV_FILE" ]]; then
         # Interactive confirmation
         echo ""
         echo -e "${RED}WARNING: You are about to OVERWRITE all existing secrets in .env.${NC}"
-        echo -e "${RED}This will break all running services (Odoo, LangGraph, GPUStack, etc.).${NC}"
+        echo -e "${RED}This will break all running services (Odoo, LangGraph, Nvidia Dynamo, etc.).${NC}"
         echo -e "${YELLOW}Do you have a backup of your current .env file? (y/N)${NC}"
         read -p "> " backup_confirm
         if [[ ! "$backup_confirm" =~ ^[Yy]$ ]]; then
