@@ -296,3 +296,149 @@ pull_with_retry() {
     echo "ERROR: Failed to pull $image after all retries and fallback." >&2
     return 1
 }
+
+# -----------------------------------------------------------------------------
+# CPU Feature Detection
+# -----------------------------------------------------------------------------
+
+# Detect CPU features (AVX512, AMX, etc.)
+# Usage: detect_cpu_features
+# Returns: Space-separated list of features
+detect_cpu_features() {
+    local features=""
+    if [[ -f /proc/cpuinfo ]]; then
+        if grep -q "avx512" /proc/cpuinfo 2>/dev/null; then
+            features+=" avx512"
+        fi
+        if grep -q "avx512_vnni" /proc/cpuinfo 2>/dev/null; then
+            features+=" avx512_vnni"
+        fi
+        if grep -q "amx" /proc/cpuinfo 2>/dev/null; then
+            features+=" amx"
+        fi
+        if grep -q "amx_bf16" /proc/cpuinfo 2>/dev/null; then
+            features+=" amx_bf16"
+        fi
+        if grep -q "avx" /proc/cpuinfo 2>/dev/null; then
+            features+=" avx"
+        fi
+    fi
+    echo "$features"
+}
+
+# Check if CPU supports specific feature
+# Usage: cpu_has_feature <feature>
+cpu_has_feature() {
+    local feature="$1"
+    local features
+    features=$(detect_cpu_features)
+    if echo "$features" | grep -q "$feature"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# GPU Vendor Detection (extended)
+# -----------------------------------------------------------------------------
+
+# Detect GPU vendor (nvidia, amd, intel, or none)
+# Usage: detect_gpu_vendor
+detect_gpu_vendor() {
+    if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
+        echo "nvidia"
+    elif command -v rocminfo &>/dev/null && rocminfo &>/dev/null; then
+        echo "amd"
+    elif command -v clinfo &>/dev/null && clinfo &>/dev/null; then
+        # Check if Intel GPU
+        if clinfo 2>/dev/null | grep -qi "intel"; then
+            echo "intel"
+        else
+            echo "other"
+        fi
+    else
+        echo "none"
+    fi
+}
+
+# Get detailed GPU information
+# Usage: get_gpu_details
+# Returns: JSON-like string with GPU details
+get_gpu_details() {
+    local vendor
+    vendor=$(detect_gpu_vendor)
+    local details="{\"vendor\":\"$vendor\""
+    
+    case "$vendor" in
+        nvidia)
+            local model=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)
+            local memory=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader | head -1 | tr -d ' MiB')
+            local compute=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1)
+            details+=",\"model\":\"$model\",\"memory_mb\":$memory,\"compute_capability\":\"$compute\""
+            ;;
+        amd)
+            if command -v rocminfo &>/dev/null; then
+                local model=$(rocminfo 2>/dev/null | grep "Name:" | head -1 | cut -d: -f2 | sed 's/^ //')
+                details+=",\"model\":\"$model\""
+            fi
+            ;;
+        intel)
+            if command -v clinfo &>/dev/null; then
+                local model=$(clinfo 2>/dev/null | grep "Device Name" | head -1 | cut -d: -f2 | sed 's/^ //')
+                details+=",\"model\":\"$model\""
+            fi
+            ;;
+    esac
+    details+="}"
+    echo "$details"
+}
+
+# -----------------------------------------------------------------------------
+# Inference Backend Selection
+# -----------------------------------------------------------------------------
+
+# Determine the optimal inference backend based on hardware
+# Usage: select_inference_backend
+# Returns: One of: dynamo-gpu, dynamo-cpu-vllm, dynamo-frontend, llama-cpp
+select_inference_backend() {
+    local gpu_vendor
+    gpu_vendor=$(detect_gpu_vendor)
+    local cpu_features
+    cpu_features=$(detect_cpu_features)
+    
+    case "$gpu_vendor" in
+        nvidia)
+            # Check if we have a modern NVIDIA GPU with sufficient VRAM
+            local vram
+            vram=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader | head -1 | tr -d ' MiB' 2>/dev/null || echo 0)
+            if [[ "$vram" -gt 4096 ]]; then
+                echo "dynamo-gpu"
+            else
+                # Low VRAM - use llama.cpp with GPU offload
+                echo "llama-cpp"
+            fi
+            ;;
+        amd)
+            # AMD GPU support via ROCm
+            echo "dynamo-gpu"  # Will use ROCm-enabled vLLM
+            ;;
+        intel)
+            # Intel GPU support via OpenVINO
+            echo "dynamo-gpu"  # Will use OpenVINO-enabled vLLM
+            ;;
+        none)
+            # No GPU - check CPU capabilities
+            if cpu_has_feature "avx512" || cpu_has_feature "amx"; then
+                # CPU with AVX512/AMX - can run CPU-optimised vLLM
+                echo "dynamo-cpu-vllm"
+            else
+                # Standard CPU - use llama.cpp
+                echo "llama-cpp"
+            fi
+            ;;
+        *)
+            echo "llama-cpp"  # Fallback
+            ;;
+    esac
+}
