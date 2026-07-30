@@ -887,37 +887,54 @@ wait_for_postgres || {
 enable_pgcrypto || true
 
 # -----------------------------------------------------------------------------
-# VALIDATE DEPLOYMENT (NEW HEALTH CHECKS)
+# VALIDATE DEPLOYMENT – Enhanced with longer timeout and Odoo-first check
 # -----------------------------------------------------------------------------
 validate_deployment() {
-    local max_retries=30
+    local max_retries=120                   # 120 * 2 = 240 seconds (4 minutes)
     local attempt=1
+    local odoo_ready=false
+    local langgraph_ready=false
     
     log_step "Validating deployment health..."
     
+    # -------------------------------------------------------------------------
+    # Step 1: Wait for Odoo to be ready first (with its own loop)
+    # Odoo needs to initialise the database schema, which can take 2-3 minutes
+    # on a fresh installation.
+    # -------------------------------------------------------------------------
+    log_info "Waiting for Odoo to become ready (this may take 2-3 minutes on first install)..."
+    for i in {1..90}; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 2>/dev/null | grep -q "200\|302"; then
+            odoo_ready=true
+            log_success "Odoo is ready"
+            break
+        fi
+        if [ $((i % 10)) -eq 0 ]; then
+            log_info "Still waiting for Odoo... ($i/90 attempts)"
+        fi
+        sleep 2
+    done
+    
+    if [ "$odoo_ready" != true ]; then
+        log_error "Odoo failed to become ready within 3 minutes."
+        log_info "Check Odoo logs with: docker logs odoo --tail 50"
+        return 1
+    fi
+    
+    # -------------------------------------------------------------------------
+    # Step 2: Now wait for LangGraph to be ready
+    # LangGraph depends on Odoo and its proxy, so we check after Odoo is ready.
+    # -------------------------------------------------------------------------
+    log_info "Waiting for LangGraph to become ready..."
     while [[ $attempt -le $max_retries ]]; do
-        # Check if containers are running
-        if docker ps --filter "status=running" | grep -q "odoo\|gpustack\|postgres"; then
-            # Test database connectivity using docker compose exec (robust)
-            if docker compose exec -T postgres pg_isready -U odoo &>/dev/null; then
-                log_success "PostgreSQL is healthy"
-            else
-                log_warning "PostgreSQL not ready yet..."
-            fi
-            
-            # Test Odoo
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
-                log_success "Odoo is healthy"
-            else
-                log_warning "Odoo not ready yet..."
-            fi
-            
-            # Test LangGraph
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
-                log_success "LangGraph is healthy"
-                return 0
-            else
-                log_warning "LangGraph not ready yet..."
+        # Test LangGraph health endpoint
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null | grep -q "200"; then
+            langgraph_ready=true
+            log_success "LangGraph is healthy"
+            break
+        else
+            if [ $((attempt % 10)) -eq 0 ]; then
+                log_info "Still waiting for LangGraph... ($attempt/$max_retries attempts)"
             fi
         fi
         
@@ -926,12 +943,21 @@ validate_deployment() {
         attempt=$((attempt + 1))
     done
     
-    log_error "Services failed to start after $((max_retries * 2)) seconds"
-    return 1
+    if [ "$langgraph_ready" != true ]; then
+        log_error "LangGraph failed to become ready within $((max_retries * 2)) seconds."
+        log_info "Check LangGraph logs with: docker logs langgraph-server --tail 50"
+        return 1
+    fi
+    
+    # -------------------------------------------------------------------------
+    # Step 3: Final verification – all services healthy
+    # -------------------------------------------------------------------------
+    log_success "All services are healthy"
+    return 0
 }
 
 if validate_deployment; then
-    log_success "All services are healthy"
+    log_success "Deployment validation passed"
 else
     log_error "Deployment validation failed. Check logs."
     exit 1
@@ -1006,7 +1032,7 @@ done
 # -----------------------------------------------------------------------------
 log_step "Downloading a small model for Dynamo..."
 MODEL_NAME="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
-MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # 🔴 Replace with your actual model server URL
+MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # Replace with your actual model server URL
 
 if [[ ! -d "$MODELS_DIR/$MODEL_NAME" ]]; then
     log_info "Downloading $MODEL_NAME from $MODEL_URL..."
@@ -1134,7 +1160,7 @@ if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
     if [[ "$RESET_SUCCESS" != true ]]; then
         log_info "API methods failed; trying CLI..."
 
-        # Try grafana-cli        
+        # Try grafana-cli
         if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
             log_success "Grafana password reset successfully using grafana-cli"
             RESET_SUCCESS=true
