@@ -5,7 +5,7 @@
 #   Defines all services for a single-VM deployment of the NETTRADES platform.
 #
 # INFERENCE ARCHITECTURE:
-#   - Primary: NVIDIA Dynamo (vLLM runtime) – GPU-accelerated distributed inference
+#   - Primary: NVIDIA Dynamo (frontend + backend) – GPU-accelerated distributed inference
 #   - Fallback: llama.cpp – CPU inference, zero-dependency, works immediately
 #   - Odoo provides the governance layer (users, models, GPU resources)
 #   - LangGraph (custom app.py + uvicorn) orchestrates agents with state persistence
@@ -391,9 +391,17 @@ services:
   #   - Built-in fault tolerance and health checking
   #   - OpenAI-compatible API
   # This is the Sovereign AI layer – it handles all GPU routing and inference.
+  #
+  # For CPU-ONLY testing, we use the dynamo-frontend
+  # container which is lightweight and requires no GPU. It provides the same
+  # OpenAI-compatible API with mock workers, allowing full orchestration testing.
+  # When a GPU becomes available, switch to the GPU runtime images:
+  #   - nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.2.0
+  #   - nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.2.0
   # =========================================================================
   dynamo:
-    image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:latest
+    # CPU-compatible frontend for testing (no GPU required)
+    image: nvcr.io/nvidia/ai-dynamo/dynamo-frontend:1.2.1
     container_name: dynamo
     restart: unless-stopped
     networks:
@@ -406,17 +414,17 @@ services:
       - dynamo_data:/var/lib/dynamo
     environment:
       - OPENAI_API_KEY=${DYNAMO_API_KEY}
-      - MODEL_PATH=/models/${MODEL_NAME:-Qwen2.5-1.5B-Instruct}
+    # - MODEL_PATH=/models/${MODEL_NAME:-Qwen2.5-1.5B-Instruct}
       - DYNAMO_LOG_LEVEL=info
+    # Frontend command with file-based discovery (no etcd needed)
     command:
-      - "--model"
-      - "${MODEL_PATH}"
-      - "--api-key"
-      - "${DYNAMO_API_KEY}"
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
+      - "python3"
+      - "-m"
+      - "dynamo.frontend"
+      - "--http-port"
       - "8000"
+      - "--discovery-backend"
+      - "file"
     labels:
       - traefik.enable=true
       - traefik.http.routers.dynamo.rule=Host(`dynamo.${DOMAIN}`)
@@ -427,8 +435,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8G
-          cpus: '4'
+          memory: 2G   # Frontend is lightweight; adjust for production
+          cpus: '2'
     logging:
       driver: "json-file"
       options:
@@ -436,7 +444,56 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 11. LLAMA.CPP – CPU Inference Engine (Fallback, zero dependency)
+  # 11. CPU-VLLM (Future) – Placeholder for CPU-optimised vLLM
+  # =========================================================================
+  # NVIDIA Dynamo now supports CPU-only vLLM container builds via PR #7139.
+  # This allows vLLM (normally CUDA-only) to run on CPU nodes with AVX512/
+  # AMX_BF16 acceleration. To enable, you must build the CPU-optimised image
+  # from source and uncomment the service below.
+  #
+  # Build instructions (example):
+  #   git clone https://github.com/ai-dynamo/dynamo.git
+  #   cd dynamo
+  #   docker build -f Dockerfile.cpu -t nettrades-cpu-vllm:latest .
+  #
+  # Then replace the 'dynamo' service above with this one, or run as a separate
+  # worker. For production, you may also pre-build and host the image on a
+  # local registry for faster deployment.
+  # =========================================================================
+  # cpu-vllm:
+  #   image: nettrades-cpu-vllm:latest   # Replace with your built image
+  #   container_name: cpu-vllm
+  #   restart: unless-stopped
+  #   networks:
+  #     - internal
+  #   volumes:
+  #     - ./dynamo-data/models:/models
+  #   environment:
+  #     - VLLM_TARGET_DEVICE=cpu
+  #     - VLLM_CPU_AVX512=1           # Enable AVX512 if available
+  #     - VLLM_CPU_AMXBF16=1          # Enable AMX_BF16 if available
+  #   command:
+  #     - "--model"
+  #     - "/models/${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
+  #     - "--api-key"
+  #     - "${DYNAMO_API_KEY}"
+  #     - "--host"
+  #     - "0.0.0.0"
+  #     - "--port"
+  #     - "8000"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 4G
+  #         cpus: '4'
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+  # =========================================================================
+  # 12. LLAMA.CPP – CPU Inference Engine (Fallback, zero dependency)
   # =========================================================================
   # This is the reliable CPU fallback that works immediately without any
   # authentication. If Dynamo is unavailable, requests are routed here.
@@ -472,7 +529,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 12. PROMETHEUS - Metrics Collection
+  # 13. PROMETHEUS - Metrics Collection
   # =========================================================================
   prometheus:
     image: prom/prometheus:latest
@@ -504,7 +561,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 13. GRAFANA - Visualisation Dashboard
+  # 14. GRAFANA - Visualisation Dashboard
   # =========================================================================
   grafana:
     image: grafana/grafana:latest
@@ -536,7 +593,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 14. NODE EXPORTER - System Metrics for Prometheus
+  # 15. NODE EXPORTER - System Metrics for Prometheus
   # =========================================================================
   node_exporter:
     image: prom/node-exporter:latest

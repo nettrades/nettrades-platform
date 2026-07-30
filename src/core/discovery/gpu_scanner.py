@@ -6,7 +6,7 @@
 # PURPOSE:
 #   Periodically scan registered subnets for new GPU nodes and trigger
 #   registration if a node responds to a discovery probe.
-#   This complements the MQTT-based auto‑discovery.
+#   This complements the MQTT-based auto-discovery.
 # =============================================================================
 
 import os
@@ -52,7 +52,7 @@ class GpuScanner(models.AbstractModel):
                     sock.close()
                     if result == 0:
                         # Probe success: attempt to register the node
-                        # This would require the node to have a token pre‑configured
+                        # This would require the node to have a token pre-configured
                         # or we could generate a temporary token.
                         # For simplicity, we log and note.
                         _logger.info("New GPU node detected at %s", ip)

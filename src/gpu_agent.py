@@ -4,7 +4,7 @@
 # FILE: src/agent/gpu_agent.py
 # =============================================================================
 # PURPOSE:
-#   GPU node auto‑discovery, registration, and WireGuard setup.
+#   GPU node auto-discovery, registration, and WireGuard setup.
 #   This script runs on each GPU machine and registers it with the Odoo
 #   controller. It also maintains a heartbeat and automatically applies
 #   the WireGuard configuration.

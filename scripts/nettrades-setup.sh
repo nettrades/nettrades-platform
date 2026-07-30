@@ -205,7 +205,7 @@ run_interactive() {
     echo "  Force: $FORCE"
     echo "  Upgrade: $UPGRADE"
     echo "  Auto: $AUTO"
-    echo "  With Fine‑tuning: $WITH_FINETUNE"
+    echo "  With Fine-tuning: $WITH_FINETUNE"
     echo "  Phases: ${PHASES[*]}"
     echo ""
     read -rp "Proceed with these settings? (y/N): " confirm
@@ -595,7 +595,7 @@ log_info "Phases: ${PHASES[*]}"
 log_info "Force: $FORCE"
 log_info "Upgrade: $UPGRADE"
 log_info "Auto: $AUTO"
-log_info "With Fine‑tuning: $WITH_FINETUNE"
+log_info "With Fine-tuning: $WITH_FINETUNE"
 log_info "Virtual Environment: $VENV_DIR"
 echo ""
 
