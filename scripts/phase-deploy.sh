@@ -671,8 +671,8 @@ SECRET_VARS=(
     GRAFANA_PASSWORD
     PROMETHEUS_PASSWORD
     LANGGRAPH_API_KEY
-    GPUSTACK_ADMIN_PASSWORD
-    GPUSTACK_JWT_SECRET
+    # GPUSTACK_ADMIN_PASSWORD   # REMOVED – no longer used. NVidia Dynamo is used now
+    # GPUSTACK_JWT_SECRET       # REMOVED – no longer used. NVidia Dynamo is used now
     ODOO_API_KEY
     PROXY_API_KEY
 )
@@ -971,167 +971,85 @@ else
     log_success "Model already present."
 fi
 
+# =============================================================================
+# DYNAMO SETUP – Fully Automated, No Login Required
+# =============================================================================
+log_step "Configuring NVIDIA Dynamo..."
+
 # -----------------------------------------------------------------------------
-# AUTOMATED GPUStack SETUP (Login → API Key → Model Registration)
+# Step 1: Ensure Dynamo API key is set
 # -----------------------------------------------------------------------------
-log_step "Automating GPUStack setup (login, API key, model registration)..."
-
-GPUSTACK_READY=false
-GPUSTACK_URL="http://localhost:8080"
-
-if [[ -z "${GPUSTACK_ADMIN_PASSWORD:-}" ]]; then
-    log_warning "GPUSTACK_ADMIN_PASSWORD not set – skipping GPUStack automation."
-else
-    # -------------------------------------------------------------------------
-    # Step 1: Login (FORM-ENCODED, save cookies)
-    # -------------------------------------------------------------------------
-    COOKIE_JAR=$(mktemp)
-    log_info "Logging in to GPUStack (saving session cookies)..."
-    
-    LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-        "$GPUSTACK_URL/auth/login" \
-        -H "Content-Type: application/x-www-form-urlencoded" \
-        -c "$COOKIE_JAR" \
-        --data-urlencode "username=admin" \
-        --data-urlencode "password=$GPUSTACK_ADMIN_PASSWORD")
-    
-    HTTP_CODE=$(echo "$LOGIN_RESPONSE" | tail -n1)
-    BODY=$(echo "$LOGIN_RESPONSE" | head -n-1)
-
-    # Use debug_log if available, else log_info    
-    if type debug_log &>/dev/null; then
-        debug_log "Login HTTP status: $HTTP_CODE"
-        debug_log "Login response body: $BODY"
-    else
-        log_info "Login HTTP status: $HTTP_CODE"
-        log_info "Login response body: $BODY"
-    fi
-    
-    if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "303" && "$HTTP_CODE" != "302" ]]; then
-        log_warning "GPUStack login failed (HTTP $HTTP_CODE). Manual setup required."
-        log_info "You can log in at http://localhost:8080 with username 'admin' and the password from .env"
-        rm -f "$COOKIE_JAR"
-    else
-        log_success "GPUStack login successful (HTTP $HTTP_CODE)"
-        
-        # -------------------------------------------------------------------------
-        # Step 2: Create API Key (using session cookie)
-        # -------------------------------------------------------------------------
-        log_info "Creating API key..."
-        
-        API_KEY_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "$GPUSTACK_URL/v1/api-keys" \
-            -b "$COOKIE_JAR" \
-            -H "Content-Type: application/json" \
-            -d '{
-                "name": "deployment-key",
-                "description": "Automated deployment key for model registration",
-                "expires_in": 31536000
-            }')
-        
-        API_HTTP_CODE=$(echo "$API_KEY_RESPONSE" | tail -n1)
-        API_BODY=$(echo "$API_KEY_RESPONSE" | head -n-1)
-        
-        if type debug_log &>/dev/null; then
-            debug_log "API Key creation HTTP status: $API_HTTP_CODE"
-            debug_log "API Key response: $API_BODY"
-        else
-            log_info "API Key creation HTTP status: $API_HTTP_CODE"
-            log_info "API Key response: $API_BODY"
-        fi
-        
-        # Try multiple possible JSON field names
-        API_KEY=$(echo "$API_BODY" | jq -r '.value // .key // .api_key // empty' 2>/dev/null)
-        
-        if [[ -z "$API_KEY" || "$API_KEY" == "null" ]]; then
-            log_warning "Failed to extract API key from response: $API_BODY"
-            log_info "You can create an API key manually in the GPUStack UI."
-        else
-            log_success "API key created: ${API_KEY:0:20}..."
-            
-            # Store API key in .env
-            safe_sed_replace "$ENV_FILE" "GPUSTACK_API_KEY" "$API_KEY"
-            export GPUSTACK_API_KEY="$API_KEY"
-            
-            # -------------------------------------------------------------------------
-            # Step 3: Register Model File
-            # -------------------------------------------------------------------------
-            GGUF_FILE=$(find "$MODELS_DIR" -name "*.gguf" -type f | head -1)
-            if [[ -n "$GGUF_FILE" ]]; then
-                MODEL_PATH="/models/$(basename "$GGUF_FILE")"
-                MODEL_NAME="$(basename "$GGUF_FILE" .gguf)"
-                log_info "Registering model file: $MODEL_PATH"
-                
-                # Try v2 endpoint first (management API)
-                REGISTER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-                    "$GPUSTACK_URL/v2/model_files" \
-                    -H "Authorization: Bearer $API_KEY" \
-                    -H "Content-Type: application/json" \
-                    -d "{
-                        \"source\": \"local_path\",
-                        \"path\": \"$MODEL_PATH\"
-                    }")
-                
-                REG_HTTP_CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
-                REG_BODY=$(echo "$REGISTER_RESPONSE" | head -n-1)
-                
-                if type debug_log &>/dev/null; then
-                    debug_log "Model file registration HTTP: $REG_HTTP_CODE"
-                    debug_log "Model file registration response: $REG_BODY"
-                else
-                    log_info "Model file registration HTTP: $REG_HTTP_CODE"
-                    log_info "Model file registration response: $REG_BODY"
-                fi
-                
-                MODEL_FILE_ID=$(echo "$REG_BODY" | jq -r '.id // empty' 2>/dev/null)
-                
-                if [[ -n "$MODEL_FILE_ID" && "$MODEL_FILE_ID" != "null" ]]; then
-                    log_success "Model file registered with ID: $MODEL_FILE_ID"
-                    
-                    # -------------------------------------------------------------------------
-                    # Step 4: Deploy the Model
-                    # -------------------------------------------------------------------------
-                    log_info "Deploying model: $MODEL_NAME"
-                    
-                    DEPLOY_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-                        "$GPUSTACK_URL/v2/models" \
-                        -H "Authorization: Bearer $API_KEY" \
-                        -H "Content-Type: application/json" \
-                        -d '{
-                            "name": "'"$MODEL_NAME"'",
-                            "source": "local_path",
-                            "model_file_id": '"$MODEL_FILE_ID"',
-                            "replicas": 1,
-                            "backend": "llama-box"
-                        }')
-                    
-                    DEP_HTTP_CODE=$(echo "$DEPLOY_RESPONSE" | tail -n1)
-                    DEP_BODY=$(echo "$DEPLOY_RESPONSE" | head -n-1)
-                    
-                    if type debug_log &>/dev/null; then
-                        debug_log "Model deployment HTTP: $DEP_HTTP_CODE"
-                        debug_log "Model deployment response: $DEP_BODY"
-                    else
-                        log_info "Model deployment HTTP: $DEP_HTTP_CODE"
-                        log_info "Model deployment response: $DEP_BODY"
-                    fi
-                    
-                    if echo "$DEP_BODY" | grep -q '"id"'; then
-                        log_success "Model deployed successfully."
-                        GPUSTACK_READY=true
-                    else
-                        log_warning "Model deployment failed. Response: $DEP_BODY"
-                    fi
-                else
-                    log_warning "Model file registration failed. Response: $REG_BODY"
-                fi
-            else
-                log_warning "No GGUF file found in $MODELS_DIR – skipping model registration."
-            fi
-        fi
-        rm -f "$COOKIE_JAR"
-    fi
+if [[ -z "${DYNAMO_API_KEY:-}" ]]; then
+    DYNAMO_API_KEY=$(generate_safe_password)
+    safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
+    export DYNAMO_API_KEY
+    log_info "Generated DYNAMO_API_KEY and updated .env"
 fi
+
+# -----------------------------------------------------------------------------
+# Step 2: Wait for Dynamo to be ready
+# -----------------------------------------------------------------------------
+log_step "Waiting for Dynamo to be ready..."
+DYNAMO_HEALTHY=false
+for i in {1..30}; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
+        -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
+        DYNAMO_HEALTHY=true
+        log_success "Dynamo is ready"
+        break
+    fi
+    sleep 2
+done
+
+# -----------------------------------------------------------------------------
+# Step 3: Download a small test model (no Hugging Face token required)
+# -----------------------------------------------------------------------------
+log_step "Downloading a small model for Dynamo..."
+MODEL_NAME="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
+MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # 🔴 Replace with your actual model server URL
+
+if [[ ! -d "$MODELS_DIR/$MODEL_NAME" ]]; then
+    log_info "Downloading $MODEL_NAME from $MODEL_URL..."
+    mkdir -p "$MODELS_DIR"
+    if curl -sL "$MODEL_URL/$MODEL_NAME.tar.gz" -o "$MODELS_DIR/$MODEL_NAME.tar.gz"; then
+        tar -xzf "$MODELS_DIR/$MODEL_NAME.tar.gz" -C "$MODELS_DIR"
+        rm "$MODELS_DIR/$MODEL_NAME.tar.gz"
+        echo "$MODEL_NAME" > "$MODELS_DIR/model_name.txt"
+        log_success "Model downloaded and extracted."
+    else
+        log_warning "Model download failed. You may need to manually place a model in $MODELS_DIR."
+        log_info "The system will use llama.cpp as fallback."
+    fi
+else
+    log_success "Model already present: $MODEL_NAME"
+fi
+
+# -----------------------------------------------------------------------------
+# Step 4: Determine inference backend (Dynamo or llama.cpp)
+# -----------------------------------------------------------------------------
+log_step "Determining inference backend..."
+
+if [[ "$DYNAMO_HEALTHY" == true ]]; then
+    log_success "Dynamo is healthy. Using Dynamo as the primary inference backend."
+    LLM_BASE_URL="http://dynamo:8000/v1"
+    OPENAI_API_KEY="$DYNAMO_API_KEY"
+else
+    log_warning "Dynamo not available or not ready. Falling back to llama.cpp (CPU)."
+    LLM_BASE_URL="http://llama-cpp:8080/v1"
+    OPENAI_API_KEY="dummy"
+fi
+
+# Write the selected backend to .env
+safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
+safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
+safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
+log_success ".env updated with inference backend settings"
+
+# -----------------------------------------------------------------------------
+# Step 5: Restart LangGraph to pick up new environment variables
+# -----------------------------------------------------------------------------
+log_step "Restarting LangGraph to apply new inference settings..."
+docker compose restart langgraph-server
 
 # -----------------------------------------------------------------------------
 # Update .env with Dynamo API key (if not already set)
