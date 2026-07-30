@@ -3,27 +3,35 @@
 # FILE: scripts/phase-deploy.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 2: Single-VM Docker deployment with GPUStack as the primary inference engine,
-#   with automatic fallback to llama.cpp (CPU) if GPUStack cannot be fully automated.
+#   Phase 2: Single-VM Docker deployment with NVIDIA Dynamo as the primary inference
+#   engine (includes vLLM), with automatic fallback to llama.cpp (CPU) if Dynamo
+#   cannot be fully automated.
 #   This script deploys the entire NETTRADES stack using Docker Compose.
 #   It is idempotent and safe to re-run.
 #
 #   It performs the following steps (in order):
 #   1. Create required directories.
-#   2. Download DeepSeek model (if not cached).
+#   2. Download a small model (e.g., Qwen2.5-1.5B) from a local server (no HF token).
 #   3. Build custom Docker images (Odoo, LangGraph) if missing.
 #   4. Generate `init-db.sql` with all NETTRADES database tables.
 #   5. Run security hardening (if Phase 0 not completed).
 #   6. Start the Docker Compose stack (idempotent).
-#   7. Initialise  PostgreSQL database (only if empty).
+#   7. Initialise PostgreSQL database (only if empty).
 #   8. Install all NETTRADES Odoo modules.
 #   9. Set up cron for daily backups.
 #   10. Verify service health.
-#   11. Ensure Let's Encrypt certificate (new).
+#   11. Ensure Let's Encrypt certificate.
 #   12. Display final status.
 #
 # USAGE:
 #   ./phase-deploy.sh [--auto] [--force] [--upgrade]
+#
+# INFERENCE BACKEND LOGIC:
+#   - Primary: NVIDIA Dynamo (GPU-accelerated)
+#   - Fallback: llama.cpp (CPU)
+#   - A background health check determines Dynamo availability.
+#   - LangGraph (via inference_tools.py) selects the healthy backend.
+#   - Odoo provides governance and model selection.
 # =============================================================================
 
 set -euo pipefail
@@ -166,10 +174,10 @@ ENV_FILE="$DEPLOY_DIR/.env"
 COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yaml"
 DATA_DIR="$PROJECT_ROOT/data"
 LOGS_DIR="$PROJECT_ROOT/logs"
-GPUSTACK_DATA_DIR="$DEPLOY_DIR/gpustack-data"
-MODELS_DIR="$GPUSTACK_DATA_DIR/models"
+DYNAMO_DATA_DIR="$DEPLOY_DIR/dynamo-data"
+MODELS_DIR="$DYNAMO_DATA_DIR/models"
 
-# [FIX] Define Odoo data directory early
+# Odoo data directory
 ODOO_DATA_DIR="$DEPLOY_DIR/odoo-data"
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -188,7 +196,7 @@ fi
 log_step "Creating required directories..."
 mkdir -p "$DATA_DIR/postgres" "$DATA_DIR/odoo" "$DATA_DIR/valkey" "$DATA_DIR/forgejo"
 mkdir -p "$DATA_DIR/prometheus" "$DATA_DIR/grafana" "$DATA_DIR/backups"
-mkdir -p "$GPUSTACK_DATA_DIR" "$MODELS_DIR" "$LOGS_DIR" "$ODOO_DATA_DIR"
+mkdir -p "$DYNAMO_DATA_DIR" "$MODELS_DIR" "$LOGS_DIR" "$ODOO_DATA_DIR"
 log_success "Directories created"
 
 # -----------------------------------------------------------------------------
@@ -784,18 +792,18 @@ EOF
 fi
 
 # -----------------------------------------------------------------------------
-# Determine if we should remove the GPUStack volume (only if --reset-data)
+# Determine if we should remove the Dynamo volume (only if --reset-data)
 # -----------------------------------------------------------------------------
 REMOVE_VOLUME=false
 if [[ "$RESET_DATA" == true ]]; then
     if [[ "$AUTO" == true ]]; then
         REMOVE_VOLUME=true
-        log_info "Auto mode: will remove gpustack_data volume without prompt."
+        log_info "Auto mode: will remove dynamo_data volume without prompt."
     else
         echo ""
-        echo -e "${YELLOW}WARNING: You are about to DELETE ALL GPUStack data (models, configurations, statistics).${NC}"
+        echo -e "${YELLOW}WARNING: You are about to DELETE ALL Dynamo data (models, configurations).${NC}"
         echo "This action is irreversible."
-        read -rp "Are you sure you want to remove the gpustack_data volume? (y/N): " confirm
+        read -rp "Are you sure you want to remove the dynamo_data volume? (y/N): " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
             REMOVE_VOLUME=true
         else
@@ -836,11 +844,11 @@ if [[ "$FORCE" == true ]]; then
     fi
 
     if [[ "$REMOVE_VOLUME" == true ]] && [[ "$RESET_DATA" != true ]]; then
-        if docker volume ls -q | grep -q "gpustack_data"; then
-            docker volume rm gpustack_data 2>/dev/null || true
-            log_info "Removed gpustack_data volume"
+        if docker volume ls -q | grep -q "dynamo_data"; then
+            docker volume rm dynamo_data 2>/dev/null || true
+            log_info "Removed dynamo_data volume"
         else
-            log_info "gpustack_data volume not found"
+            log_info "dynamo_data volume not found"
         fi
     fi
 fi
@@ -930,16 +938,38 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Wait for GPUStack to be ready and verify admin password with robust retry
+# Wait for Dynamo to be ready and verify API key
 # -----------------------------------------------------------------------------
-log_step "Waiting for GPUStack to be ready..."
+log_step "Waiting for Dynamo to be ready..."
 for i in {1..60}; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/models | grep -q "200\|401"; then
-        log_success "GPUStack is ready"
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models | grep -q "200"; then
+        log_success "Dynamo is ready"
         break
     fi
     sleep 2
 done
+
+# -----------------------------------------------------------------------------
+# Download a small model for Dynamo (no Hugging Face token required)
+# -----------------------------------------------------------------------------
+log_step "Downloading a small model for Dynamo (if not already present)..."
+MODEL_NAME="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
+MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # Replace with your actual model server
+
+if [[ ! -d "$MODELS_DIR/$MODEL_NAME" ]]; then
+    log_info "Downloading $MODEL_NAME from local server..."
+    mkdir -p "$MODELS_DIR"
+    if curl -sL "$MODEL_URL/$MODEL_NAME.tar.gz" -o "$MODELS_DIR/$MODEL_NAME.tar.gz"; then
+        tar -xzf "$MODELS_DIR/$MODEL_NAME.tar.gz" -C "$MODELS_DIR"
+        rm "$MODELS_DIR/$MODEL_NAME.tar.gz"
+        echo "$MODEL_NAME" > "$MODELS_DIR/model_name.txt"
+        log_success "Model downloaded and extracted."
+    else
+        log_warning "Model download failed. You may need to manually place a model in $MODELS_DIR."
+    fi
+else
+    log_success "Model already present."
+fi
 
 # -----------------------------------------------------------------------------
 # AUTOMATED GPUStack SETUP (Login → API Key → Model Registration)
@@ -1104,18 +1134,27 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Determine which inference backend to use (GPUStack or llama.cpp)
+# Update .env with Dynamo API key (if not already set)
+# -----------------------------------------------------------------------------
+if [[ -z "${DYNAMO_API_KEY:-}" ]]; then
+    DYNAMO_API_KEY=$(generate_safe_password)
+    safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
+    export DYNAMO_API_KEY
+    log_info "Generated DYNAMO_API_KEY and updated .env"
+fi
+
+# -----------------------------------------------------------------------------
+# Determine which inference backend to use (Dynamo or llama.cpp)
 # -----------------------------------------------------------------------------
 log_step "Determining inference backend..."
 
-if [[ "$GPUSTACK_READY" == true ]] && \
-   curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/models \
-       -H "Authorization: Bearer $GPUSTACK_API_KEY" | grep -q "200"; then
-    log_success "GPUStack is healthy. Using GPUStack as the primary inference backend."
-    LLM_BASE_URL="http://gpustack:8080/v1"
-    OPENAI_API_KEY="$GPUSTACK_API_KEY"
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
+       -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
+    log_success "Dynamo is healthy. Using Dynamo as the primary inference backend."
+    LLM_BASE_URL="http://dynamo:8000/v1"
+    OPENAI_API_KEY="$DYNAMO_API_KEY"
 else
-    log_warning "GPUStack not available or not ready. Falling back to llama.cpp (CPU)."
+    log_warning "Dynamo not available or not ready. Falling back to llama.cpp (CPU)."
     LLM_BASE_URL="http://llama-cpp:8080/v1"
     OPENAI_API_KEY="dummy"
 fi
@@ -1466,13 +1505,12 @@ echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWO
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"
 echo "  Prometheus: http://localhost:9090 (admin / password in .env PROMETHEUS_PASSWORD)"
-echo "  GPUStack:  http://localhost:8080  (admin / password in .env GPUSTACK_ADMIN_PASSWORD)"
+echo "  Dynamo:    http://localhost:8001  (primary inference, API key in .env DYNAMO_API_KEY)"
 echo ""
 echo "Emergency Odoo user: emergency (password in /root/emergency_password.txt)"
 echo "Use this if you get locked out of admin."
 if [[ "$ENVIRONMENT" == "production" ]]; then
     echo ""
-    echo "Production mode: SSH is $(if [[ "$KEEP_PASSWORD_AUTH" == true ]]; then echo "password + key"; else echo "key-only"; fi) on port 22."
-    echo "Rescue SSH (password auth) is available on port 2222."
+    echo "Production mode: SSH is key-only on port 22. Use port 2222 for password auth."
     echo "SSH keys are stored in: $PROJECT_ROOT/ssh-keys/"
 fi

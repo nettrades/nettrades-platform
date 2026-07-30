@@ -9,7 +9,7 @@
 # PHASES:
 #   0 – System Preparation & Hardening
 #   1 – Development Environment (with Python virtual environment)
-#   2 – Single-VM Deployment (with GPUStack)
+#   2 – Single-VM Deployment (with NVIDIA Dynamo + llama.cpp fallback)
 #   3 – Kubernetes Scaling
 #   4 – Module Installation
 #   5 – Monitoring Setup

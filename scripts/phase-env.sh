@@ -13,6 +13,17 @@
 #   - In production, additional confirmation is required.
 #   - NEW: Automatically detects the server IP and prompts for domain/email.
 #
+#   SECRETS GENERATED:
+#   - POSTGRES_PASSWORD (prompted)
+#   - ADMIN_PASSWORD, JWT_SECRET, PROXY_API_KEY
+#   - GRAFANA_PASSWORD, PROMETHEUS_PASSWORD
+#   - DYNAMO_API_KEY (NEW – replaces GPUStack)
+#   - LANGGRAPH_API_KEY
+#   - WireGuard keys
+#
+#   DOMAIN CONFIG:
+#   - Detects IP and prompts for domain (warns if IP used for Let's Encrypt)
+#
 # USAGE:
 #   ./phase-env.sh [--auto] [--force] [--regenerate-secrets]
 # =============================================================================
@@ -197,7 +208,7 @@ WIREGUARD_PRIVATE_KEY=$(generate_wireguard_key)
 WIREGUARD_PUBLIC_KEY=$(echo "$WIREGUARD_PRIVATE_KEY" | wg pubkey 2>/dev/null || echo "manual")
 GRAFANA_PASSWORD=$(generate_safe_password)
 PROMETHEUS_PASSWORD=$(generate_safe_password)
-GPUSTACK_ADMIN_PASSWORD=$(generate_safe_password)
+DYNAMO_API_KEY=$(generate_safe_api_key)   # NEW – replaces GPUStack
 
 # NEW: Generate LangGraph API key (strong, alphanumeric)
 LANGGRAPH_API_KEY=$(generate_safe_api_key)
@@ -213,12 +224,11 @@ safe_sed_replace "$ENV_FILE" "VLLM_API_KEY" "$VLLM_API_KEY"
 safe_sed_replace "$ENV_FILE" "PROXY_API_KEY" "$PROXY_API_KEY"
 safe_sed_replace "$ENV_FILE" "WIREGUARD_PRIVATE_KEY" "$WIREGUARD_PRIVATE_KEY"
 safe_sed_replace "$ENV_FILE" "WIREGUARD_PUBLIC_KEY" "$WIREGUARD_PUBLIC_KEY"
-
-# Write the new secrets
 safe_sed_replace "$ENV_FILE" "GRAFANA_PASSWORD" "$GRAFANA_PASSWORD"
 safe_sed_replace "$ENV_FILE" "PROMETHEUS_PASSWORD" "$PROMETHEUS_PASSWORD"
-safe_sed_replace "$ENV_FILE" "GPUSTACK_ADMIN_PASSWORD" "$GPUSTACK_ADMIN_PASSWORD"
+safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"   # NEW
 safe_sed_replace "$ENV_FILE" "LANGGRAPH_API_KEY" "$LANGGRAPH_API_KEY"
+safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"  # Ensure sync
 
 # Ensure ODOO_API_KEY and PROXY_API_KEY are identical
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"
@@ -330,7 +340,7 @@ if [[ "$AUTO" != true ]]; then
     echo "  VLLM_API_KEY: $VLLM_API_KEY"
     echo "  GRAFANA_PASSWORD: $GRAFANA_PASSWORD"
     echo "  PROMETHEUS_PASSWORD: $PROMETHEUS_PASSWORD"
-    echo "  GPUSTACK_ADMIN_PASSWORD: $GPUSTACK_ADMIN_PASSWORD"
+    echo "  DYNAMO_API_KEY: $DYNAMO_API_KEY"
     echo "  LANGGRAPH_API_KEY: $LANGGRAPH_API_KEY"
     echo ""
     echo -e "${YELLOW}Domain & Admin Email:${NC}"
