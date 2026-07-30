@@ -4,62 +4,12 @@
 # PURPOSE:
 #   Defines all services for a single-VM deployment of the NETTRADES platform.
 #
-# SERVICES:
-#   - Traefik: Reverse proxy with automatic Let's Encrypt SSL
-#   - PostgreSQL 17 with pgvector: RAG embeddings & main database
-#   - Postgres Exporter: Prometheus metrics for PostgreSQL
-#   - Valkey 8: BSD-licensed in-memory store (sessions, ORM cache, bus)
-#   - Odoo 19 CE: ERP, Marketplace, and AI Hub
-#   - Forgejo 15.0 LTS: Self-hosted Git server
-#   - LangGraph Agent: Durable AI orchestration
-#   - agent-chat-ui: Next.js chat interface for LangGraph agents
-#   - Odoo Proxy: HTTP JSON-RPC shim (replaces mcp-odoo)
-#   - GPUStack: GPU management and inference (replaces standalone vLLM/llama.cpp)
-#   - Prometheus: Metrics collection
-#   - Grafana: Visualisation
-#   - Node Exporter: System metrics for Prometheus
-#
-# KEY FEATURES:
-#   - All services are production-ready with pinned versions.
-#   - Forgejo 15.0 LTS is supported until July 2027.
-#   - GPUStack v2.1.2 is the current stable release.
-#   - Valkey 8 replaces Redis for session storage, ORM cache, and bus notifications.
-#   - GPUStack's built-in Prometheus and Grafana are DISABLED on the central
-#     deployment. Metrics are scraped by the external Prometheus and visualised
-#     in the external Grafana.
-#   - Client companies running their own GPUStack server (Trusted Mode) retain
-#     the built-in Grafana for anonymous Viewer access to GPU-level dashboards.
-#   - agent-chat-ui is the primary user interface for the platform.
-#   - LangGraph Server is configured via langgraph.json.
-#
-# MODIFICATIONS:
-#   - Added new self-improving modules to Odoo addons_path.
-#   - Added bridge module for hub-and-spoke routing.
-#   - Added data collection, trigger, and loop modules.
-#   - Added fairness module to Odoo addons.
-#   - Updated environment variables for fairness evaluation.
-#   - Replaced mcp-odoo with odoo-proxy service.
-#   - Added node_exporter for system-level metrics.
-#   - Fixed PostgreSQL volume mount for pg17 compatibility.
-#   - Fixed build contexts for langgraph and odoo-proxy.
-#   - Converted all stateful bind mounts to named Docker volumes for portability
-#     and to avoid permission issues. This aligns with Kubernetes best practices.
-#   - Fixed Traefik routing for langgraph-api: removed stripPrefix, added
-#     LANGGRAPH_API_URL, added header forwarding, removed Host condition.
-#   - Fixed agent-chat-ui routing: added Host condition to prevent /api hijacking.
-#   - FIX (2026-07-25): Added traefik.docker.network=web to force Traefik to
-#     use the correct network IP, resolving the 504 timeout. Added clarifying
-#     comments about LangGraph reverse-proxy bug (#7390) and workarounds.
-#   - FIX (2026-07-27): Removed stripPrefix permanently  this is the root cause
-#     of 404/504 errors. LangGraph must receive the full /api path.
-#   - FIX (2026-07-27): Added HTTP->HTTPS redirect in Traefik to ensure all
-#     traffic uses HTTPS.
-#   - FIX (2026-07-27): Added HOST=0.0.0.0 to agent-chat-ui to ensure it listens
-#     on all network interfaces.
-#   - FIX (2026-07-27): Set NEXT_PUBLIC_AUTH_SCHEME=langgraph-api-key for
-#     proper authentication with LangGraph.
-#   - FIX (2026-07-27): Added MOUNT_PREFIX and LANGGRAPH_TRUST_X_FORWARDED_HEADERS
-#     to langgraph-server to fix LangGraph issue #7390 (prefix ignored with Host header).
+# INFERENCE ARCHITECTURE:
+#   - Primary: NVIDIA Dynamo (vLLM runtime) – GPU-accelerated distributed inference
+#   - Fallback: llama.cpp – CPU inference, zero-dependency, works immediately
+#   - Odoo provides the governance layer (users, models, GPU resources)
+#   - LangGraph (custom app.py + uvicorn) orchestrates agents with state persistence
+#   - agent-chat-ui uses API Passthrough for production authentication
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -72,12 +22,12 @@ networks:
     driver: bridge
 
 # -----------------------------------------------------------------------------
-# Volumes  all persistent data uses named volumes
+# Volumes – all persistent data uses named volumes
 # -----------------------------------------------------------------------------
 volumes:
   postgres_data:
     driver: local
-  gpustack_data:
+  dynamo_data:
     driver: local
   valkey_data:
   forgejo_data:
@@ -85,6 +35,8 @@ volumes:
   prometheus_data:
   grafana_data:
   langgraph_data:
+  llama_cpp_data:
+
 # --------------------------------------------------------------------------
 # Services
 # --------------------------------------------------------------------------
@@ -101,7 +53,7 @@ services:
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      # FIX: Redirect all HTTP traffic to HTTPS
+      # Redirect all HTTP traffic to HTTPS
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
@@ -137,7 +89,6 @@ services:
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      # FIXED: Mount to /var/lib/postgresql (not /data) for PostgreSQL 17+ compatibility
       - postgres_data:/var/lib/postgresql
     networks:
       - internal
@@ -190,7 +141,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 5. ODOO 19 CE - ERP, Marketplace, and AI Hub
+  # 5. ODOO 19 CE - ERP, Marketplace, and AI Hub (Governance Layer)
   # =========================================================================
   odoo:
     build:
@@ -200,24 +151,21 @@ services:
     ports:
       - "8069:8069"
     volumes:
-      - ./odoo-modules:/mnt/extra-addons              # <-- mount the prepared addons
-      - odoo_data:/var/lib/odoo                   # persistent data (named volume)
-      - ./odoo-logs:/var/log/odoo                 # logs (bind mount  optional)
+      - ./odoo-modules:/mnt/extra-addons
+      - odoo_data:/var/lib/odoo
+      - ./odoo-logs:/var/log/odoo
     environment:
       - HOST=postgres
       - PORT=5432
       - USER=odoo
       - PASSWORD=${POSTGRES_PASSWORD}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      # Fairness evaluation API keys
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     labels:
       - traefik.enable=true
-      # Route to /odoo path on the main domain
       - traefik.http.routers.odoo.rule=Host(`${DOMAIN}`) && PathPrefix(`/odoo`)
       - traefik.http.services.odoo.loadbalancer.server.port=8069
-      # Strip the /odoo prefix before forwarding to Odoo
       - traefik.http.middlewares.odoo-strip.stripprefix.prefixes=/odoo
       - traefik.http.routers.odoo.middlewares=odoo-strip
       - traefik.http.middlewares.odoo-ratelimit.ratelimit.average=100
@@ -277,7 +225,12 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 7. LANGGRAPH SERVER (with stripPrefix)
+  # 7. LANGGRAPH SERVER - Custom app.py + uvicorn (Full Control)
+  # =========================================================================
+  # This is the Autonomous Enterprise Platform layer – LangGraph agents with
+  # state persistence, checkpointing, and multi-agent orchestration.
+  # It uses the Dynamo API for inference, but remains separate from the core
+  # inference routing so that customer agents don't break the distributed system.
   # =========================================================================
   langgraph-server:
     build:
@@ -294,8 +247,9 @@ services:
       - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - LLM_BASE_URL=${LLM_BASE_URL:-http://gpustack:8080/v1}
-      - GPUSTACK_API_KEY=${GPUSTACK_API_KEY:-}
+      # Inference backend URLs – dynamically set by deployment script
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://dynamo:8000/v1}
+      - DYNAMO_API_KEY=${DYNAMO_API_KEY:-dummy}
       - ODOO_URL=${ODOO_URL:-http://odoo:8069}
       - ODOO_DB=${ODOO_DB:-odoo}
       - ODOO_USER=${ODOO_USER:-1}
@@ -306,8 +260,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
       # LANGGRAPH_API_URL is used for URL generation (workaround for #7390)
       - LANGGRAPH_API_URL=https://${DOMAIN}/api
-      # CRITICAL FIX for LangGraph issue #7390:
-      # Tell LangGraph it is mounted at /api and to trust X-Forwarded-* headers.
+      # MOUNT_PREFIX tells LangGraph it's mounted at /api
       - MOUNT_PREFIX=/api
       - LANGGRAPH_TRUST_X_FORWARDED_HEADERS=true
     ports:
@@ -323,12 +276,11 @@ services:
       - traefik.http.routers.langgraph-api.entrypoints=web,websecure
       - traefik.http.routers.langgraph-api.tls=true
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
-      # CRITICAL: strip /api prefix before sending to LangGraph
+      # stripPrefix so LangGraph sees /health instead of /api/health
       - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
       # Forward headers so LangGraph knows it's behind a proxy
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Host=${DOMAIN}
-      # Apply both middlewares to the router
       - traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-headers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -346,28 +298,40 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 8. AGENT CHAT UI - Next.js Frontend for LangGraph
+  # 8. AGENT CHAT UI - Next.js Frontend with API Passthrough
+  # =========================================================================
+  # API Passthrough is the production pattern where the Next.js server proxies
+  # requests to LangGraph, avoiding client-side API keys and CORS issues.
+  # This is the recommended approach for production deployments.
   # =========================================================================
   agent-chat-ui:
     build:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.agent-chat-ui
       args:
+        # API Passthrough: the Next.js server proxies requests to LangGraph
         NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
         NEXT_PUBLIC_ASSISTANT_ID: supervisor
         NEXT_PUBLIC_SKIP_AUTH: "false"
         NEXT_PUBLIC_AUTH_SCHEME: langgraph-api-key
         NEXT_PUBLIC_LANGGRAPH_API_KEY: ${LANGGRAPH_API_KEY}
+        # These are used internally by the Next.js server for proxying
+        LANGGRAPH_API_URL: http://langgraph-server:8000
+        LANGSMITH_API_KEY: ${LANGGRAPH_API_KEY}
     container_name: agent-chat-ui
     restart: unless-stopped
     networks:
       - web
       - internal
     environment:
+      - NEXT_PUBLIC_API_URL=https://${DOMAIN}/api
       - NEXT_PUBLIC_ASSISTANT_ID=supervisor
       - NEXT_PUBLIC_AUTH_SCHEME=langgraph-api-key
       - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
       - HOST=0.0.0.0
+      # Server-side environment variables for API Passthrough
+      - LANGGRAPH_API_URL=http://langgraph-server:8000
+      - LANGSMITH_API_KEY=${LANGGRAPH_API_KEY}
     ports:
       - "3002:3000"
     labels:
@@ -386,10 +350,9 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 9. ODOO PROXY - HTTP JSON-RPC Shim (NEW  replaces mcp-odoo)
+  # 9. ODOO PROXY - HTTP JSON-RPC Shim
   # =========================================================================
   odoo-proxy:
-    # FIXED: Correct build context path
     build: ../../src/core/odoo_proxy
     container_name: odoo-proxy
     restart: unless-stopped
@@ -407,7 +370,7 @@ services:
       - "8090:8080"
     depends_on:
       - odoo
-    healthcheck:                          # <-- this must be outside of logging
+    healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
@@ -419,31 +382,45 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 10. GPUStack  GPU Management and Inference (replaces standalone engines)
+  # 10. NVIDIA DYNAMO – Primary GPU Inference Engine (replaces GPUStack)
   # =========================================================================
-
-  gpustack:
-    image: gpustack/gpustack:latest
-    container_name: gpustack
-    command: ["--bootstrap-password", "${GPUSTACK_ADMIN_PASSWORD}"]
+  # Dynamo is a production-grade distributed inference runtime that includes
+  # vLLM. It provides:
+  #   - Disaggregated serving (prefill/decode separation)
+  #   - KV cache-aware routing
+  #   - Built-in fault tolerance and health checking
+  #   - OpenAI-compatible API
+  # This is the Sovereign AI layer – it handles all GPU routing and inference.
+  # =========================================================================
+  dynamo:
+    image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:latest
+    container_name: dynamo
     restart: unless-stopped
     networks:
       - web
       - internal
-    environment:
-      - GPUSTACK_ADMIN_PASSWORD=${GPUSTACK_ADMIN_PASSWORD}   # <-- Add this
-      - GPUSTACK_JWT_SECRET=${GPUSTACK_JWT_SECRET}
-      - GPUSTACK_GRAFANA_URL=https://grafana.${DOMAIN}
-      - GPUSTACK_MODEL_DIR=/models
     ports:
-      - "8080:80"
+      - "8001:8000"  # Expose to host for debugging
     volumes:
-      - gpustack_data:/var/lib/gpustack      # named volume
-      - ./gpustack-data/models:/models       # optional bind mount
+      - ./dynamo-data/models:/models
+      - dynamo_data:/var/lib/dynamo
+    environment:
+      - OPENAI_API_KEY=${DYNAMO_API_KEY}
+      - MODEL_PATH=/models/${MODEL_NAME:-Qwen2.5-1.5B-Instruct}
+      - DYNAMO_LOG_LEVEL=info
+    command:
+      - "--model"
+      - "${MODEL_PATH}"
+      - "--api-key"
+      - "${DYNAMO_API_KEY}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
     labels:
       - traefik.enable=true
-      - traefik.http.routers.gpustack.rule=Host(`gpustack.${DOMAIN}`)
-      - traefik.http.services.gpustack.loadbalancer.server.port=80
+      - traefik.http.routers.dynamo.rule=Host(`dynamo.${DOMAIN}`)
+      - traefik.http.services.dynamo.loadbalancer.server.port=8000
     depends_on:
       - postgres
       - valkey
@@ -458,9 +435,11 @@ services:
         max-size: "10m"
         max-file: "3"
 
-
   # =========================================================================
-  # 11. LLAMA.CPP  CPU Inference Engine (Fallback)
+  # 11. LLAMA.CPP – CPU Inference Engine (Fallback, zero dependency)
+  # =========================================================================
+  # This is the reliable CPU fallback that works immediately without any
+  # authentication. If Dynamo is unavailable, requests are routed here.
   # =========================================================================
   llama-cpp:
     image: ghcr.io/ggml-org/llama.cpp:server
@@ -469,8 +448,7 @@ services:
     networks:
       - internal
     volumes:
-      # Re-use the model from gpustack-data/models (already downloaded)
-      - ./gpustack-data/models:/models
+      - ./dynamo-data/models:/models  # Share models with Dynamo
     environment:
       - LLAMA_SERVER_MODEL=/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
       - LLAMA_SERVER_HOST=0.0.0.0
@@ -506,16 +484,15 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml       # config (bind)
-      - prometheus_data:/prometheus                           # data (named volume)
-      - ./prometheus/web.yml:/etc/prometheus/web.yml          # generated file (basic auth)
-    # FIX: Removed custom entrypoint  use default, no entrypoint script needed
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+      - ./prometheus/web.yml:/etc/prometheus/web.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.config.file=/etc/prometheus/web.yml'
     environment:
-      - PROMETHEUS_PASSWORD=${PROMETHEUS_PASSWORD}  # from .env
+      - PROMETHEUS_PASSWORD=${PROMETHEUS_PASSWORD}
     labels:
       - traefik.enable=true
       - traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)
@@ -539,9 +516,9 @@ services:
     ports:
       - "3001:3000"
     volumes:
-      - grafana_data:/var/lib/grafana                         # data (named volume)
-      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards   # config (bind)
-      - ./grafana-datasources:/etc/grafana/provisioning/datasources # config (bind)
+      - grafana_data:/var/lib/grafana
+      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana-datasources:/etc/grafana/provisioning/datasources
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
@@ -582,4 +559,4 @@ services:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file:  "3"
+        max-file: "3"

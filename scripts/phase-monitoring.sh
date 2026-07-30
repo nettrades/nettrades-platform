@@ -3,13 +3,17 @@
 # FILE: scripts/phase-monitoring.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 6: Monitoring Setup – deploys Prometheus and Grafana.
+#   Phase 5: Monitoring Setup – deploys Prometheus and Grafana.
 #   This phase can be run on either Docker Compose or Kubernetes deployments.
 #   It configures:
 #   - Prometheus for metrics collection
 #   - Grafana for visualisation
 #   - Alertmanager for alerting
 #   - Pre-configured dashboards for NETTRADES
+#
+# UPDATES (2026-07-29):
+#   - Removed GPUStack scrape targets (replaced by Dynamo, no native metrics yet).
+#   - Added a placeholder job for Dynamo (commented out) for future use.
 #
 # USAGE:
 #   ./phase-monitoring.sh [--auto] [--force]

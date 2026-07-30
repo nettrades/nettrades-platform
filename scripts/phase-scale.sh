@@ -10,6 +10,11 @@
 #   1. Docker Compose scaling (local development)
 #   2. Kubernetes scaling (production/staging)
 #
+# UPDATES (2026-07-29):
+#   - Replaced GPUStack references with NVIDIA Dynamo.
+#   - Updated K8S deployment file references to dynamo.
+#   - Adjusted scaling commands.
+#
 # USAGE:
 #   ./scripts/phase-scale.sh [command] [options]
 #
@@ -41,11 +46,11 @@ PLATFORM_DIR="$(dirname "$SCRIPT_DIR")"
 USE_KUBERNETES=false
 K8S_NAMESPACE="frontend"
 K8S_CONTEXT=""
-DOCKER_COMPOSE_FILE="$PLATFORM_DIR/deploy/docker/docker-compose.yml"
+DOCKER_COMPOSE_FILE="$PLATFORM_DIR/deploy/docker/docker-compose.yaml"
 DOCKER_COMPOSE_OVERRIDE="$PLATFORM_DIR/deploy/docker/docker-compose.override.yml"
 K8S_ODOO_DEPLOYMENT="deploy/kubernetes/apps/frontend/odoo-deployment.yaml"
 K8S_LANGGRAPH_DEPLOYMENT="deploy/kubernetes/apps/frontend/langgraph-deployment.yaml"
-K8S_GPUSTACK_DEPLOYMENT="deploy/kubernetes/apps/frontend/gpustack-deployment.yaml"
+K8S_DYNAMO_DEPLOYMENT="deploy/kubernetes/apps/frontend/dynamo-deployment.yaml"          # Replaced gpustack
 K8S_SELF_IMPROVING_DEPLOYMENT="deploy/kubernetes/apps/frontend/self-improving-deployment.yaml"
 
 # Scale values
@@ -147,14 +152,14 @@ scale_kubernetes_up() {
     fi
     log_success "LangGraph scaled to $LANGGRAPH_WORKERS replicas"
     
-    # Scale GPU workers
+    # Scale GPU workers (NVIDIA Dynamo)
     if [ "$GPU_WORKERS" -gt 0 ]; then
-        log_info "Scaling GPUStack to $GPU_WORKERS replicas..."
-        if ! kubectl scale deployment/gpustack --replicas="$GPU_WORKERS" -n "$K8S_NAMESPACE"; then
-            log_error "Failed to scale GPUStack"
+        log_info "Scaling NVIDIA Dynamo to $GPU_WORKERS replicas..."
+        if ! kubectl scale deployment/dynamo --replicas="$GPU_WORKERS" -n "$K8S_NAMESPACE"; then
+            log_error "Failed to scale Dynamo"
             exit 1
         fi
-        log_success "GPUStack scaled to $GPU_WORKERS replicas"
+        log_success "Dynamo scaled to $GPU_WORKERS replicas"
     fi
     
     # Scale self-improving services
@@ -185,15 +190,15 @@ scale_kubernetes_down() {
     kubectl scale deployment/langgraph --replicas=1 -n "$K8S_NAMESPACE" || log_warning "Failed to scale LangGraph"
     
     # Scale GPU to 0
-    log_info "Scaling GPUStack to 0 replicas..."
-    kubectl scale deployment/gpustack --replicas=0 -n "$K8S_NAMESPACE" || log_warning "Failed to scale GPUStack"
+    log_info "Scaling Dynamo to 0 replicas..."
+    kubectl scale deployment/dynamo --replicas=0 -n "$K8S_NAMESPACE" || log_warning "Failed to scale Dynamo"
     
     log_success "Kubernetes scaling down completed!"
 }
 
 show_kubernetes_status() {
     log_info "Kubernetes service status:"
-    kubectl get pods -n "$K8S_NAMESPACE" | grep -E "odoo|langgraph|gpustack|self-improving" || echo "No pods found"
+    kubectl get pods -n "$K8S_NAMESPACE" | grep -E "odoo|langgraph|dynamo|self-improving" || echo "No pods found"
 }
 
 # -----------------------------------------------------------------------------
@@ -222,14 +227,14 @@ scale_docker_up() {
     fi
     log_success "LangGraph workers scaled to $LANGGRAPH_WORKERS"
     
-    # Scale GPU workers
+    # Scale GPU workers (NVIDIA Dynamo)
     if [ "$GPU_WORKERS" -gt 0 ]; then
-        log_info "Scaling GPU workers to $GPU_WORKERS..."
-        if ! docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale gpustack="$GPU_WORKERS" --no-recreate; then
-            log_error "Failed to scale GPU workers"
+        log_info "Scaling Dynamo workers to $GPU_WORKERS..."
+        if ! docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale dynamo="$GPU_WORKERS" --no-recreate; then
+            log_error "Failed to scale Dynamo workers"
             exit 1
         fi
-        log_success "GPU workers scaled to $GPU_WORKERS"
+        log_success "Dynamo workers scaled to $GPU_WORKERS"
     fi
     
     # Scale self-improving services
@@ -261,8 +266,8 @@ scale_docker_down() {
     docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale langgraph=1 --no-recreate || log_warning "Failed to scale LangGraph"
     
     # Scale GPU to 0
-    log_info "Scaling GPU workers to 0..."
-    docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale gpustack=0 --no-recreate || log_warning "Failed to scale GPU"
+    log_info "Scaling Dynamo workers to 0..."
+    docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale dynamo=0 --no-recreate || log_warning "Failed to scale GPU"
     
     log_success "Scaling down completed!"
 }
@@ -364,7 +369,7 @@ usage() {
     echo "Environment Variables:"
     echo "  ODOO_WORKERS       Number of Odoo workers (default: 2)"
     echo "  LANGGRAPH_WORKERS  Number of LangGraph workers (default: 2)"
-    echo "  GPU_WORKERS        Number of GPU workers (default: 1)"
+    echo "  GPU_WORKERS        Number of GPU workers (NVIDIA Dynamo) (default: 1)"
     echo "  SELF_IMPROVING_WORKERS  Number of self-improving workers (default: 1)"
 }
 

@@ -1,6 +1,13 @@
 # =============================================================================
 # NETTRADES.AI – Prometheus scrape configuration
 # =============================================================================
+# All endpoints are internal to the Docker Compose network or Kubernetes
+# cluster and require no authentication in production.
+#
+# UPDATES (2026-07-29):
+#   - Removed GPUStack scrape targets (replaced by NVIDIA Dynamo).
+#   - Added placeholder for Dynamo metrics (currently none exposed).
+# =============================================================================
 global:
   scrape_interval: 15s
 
