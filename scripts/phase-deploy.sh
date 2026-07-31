@@ -15,8 +15,8 @@
 #   3. Build custom Docker images (Odoo, LangGraph) if missing.
 #   4. Generate `init-db.sql` with all NETTRADES database tables.
 #   5. Run security hardening (if Phase 0 not completed).
-#   6. Start the Docker Compose stack (idempotent).
-#   7. Initialise PostgreSQL database (only if empty).
+#   6. Start PostgreSQL container and initialise the database (if empty).
+#   7. Build and start the full Docker Compose stack.
 #   8. Install all NETTRADES Odoo modules.
 #   9. Set up cron for daily backups.
 #   10. Verify service health.
@@ -598,10 +598,10 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 6. Start Docker Compose stack
+# 6. Start PostgreSQL and initialise the database (if empty)
 # -----------------------------------------------------------------------------
 cd "$DEPLOY_DIR"
-log_step "Starting Docker Compose stack..."
+log_step "Starting PostgreSQL container and initialising database..."
 
 # Ensure .env has Unix line endings (fix Windows CRLF)
 if command -v dos2unix &>/dev/null; then
@@ -613,9 +613,7 @@ set -a
 source "$ENV_FILE"
 set +a
 
-# -----------------------------------------------------------------------------
 # Check PostgreSQL password consistency
-# -----------------------------------------------------------------------------
 check_postgres_password() {
     local pg_container
     pg_container=$(docker compose ps -q postgres 2>/dev/null)
@@ -640,9 +638,7 @@ check_postgres_password() {
 
 check_postgres_password
 
-# -----------------------------------------------------------------------------
 # Preserve PostgreSQL password if container already exists
-# -----------------------------------------------------------------------------
 POSTGRES_PRESERVED=false
 PG_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null)
 if [[ -n "$PG_CONTAINER" ]]; then
@@ -661,15 +657,11 @@ else
     log_info "PostgreSQL container does not exist. Will generate password if weak."
 fi
 
-# -----------------------------------------------------------------------------
 # Auto-generate strong secrets for all services (if missing or weak)
-# -----------------------------------------------------------------------------
-# We use the safe password generator that avoids special characters
 generate_secret() {
     generate_safe_password
 }
 
-# List of variables to ensure strong values
 SECRET_VARS=(
     POSTGRES_PASSWORD
     ADMIN_PASSWORD
@@ -678,8 +670,6 @@ SECRET_VARS=(
     GRAFANA_PASSWORD
     PROMETHEUS_PASSWORD
     LANGGRAPH_API_KEY
-    # GPUSTACK_ADMIN_PASSWORD   # REMOVED – no longer used. NVidia Dynamo is used now
-    # GPUSTACK_JWT_SECRET       # REMOVED – no longer used. NVidia Dynamo is used now
     ODOO_API_KEY
     PROXY_API_KEY
 )
@@ -729,9 +719,7 @@ if [[ ! -f "$ENV_FILE" ]] || [[ "$REGENERATE_SECRETS" == true ]]; then
     fi
 fi
 
-# -----------------------------------------------------------------------------
 # Generate Grafana datasource provisioning file (using the Prometheus password)
-# -----------------------------------------------------------------------------
 log_step "Generating Grafana datasource provisioning..."
 GRAFANA_DATASOURCES_DIR="$DEPLOY_DIR/grafana-datasources"
 GRAFANA_DATASOURCES_FILE="$GRAFANA_DATASOURCES_DIR/datasources.yaml"
@@ -739,7 +727,6 @@ PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
 
 mkdir -p "$GRAFANA_DATASOURCES_DIR"
 
-# Backup existing datasources.yaml if present
 if [[ -f "$GRAFANA_DATASOURCES_FILE" ]]; then
     BACKUP_DS="${GRAFANA_DATASOURCES_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
     cp "$GRAFANA_DATASOURCES_FILE" "$BACKUP_DS"
@@ -765,22 +752,18 @@ datasources:
 EOF
 log_success "Grafana datasource provisioning created"
 
-# -----------------------------------------------------------------------------
 # Generate Prometheus web.yml with basic auth (using the password from .env)
-# -----------------------------------------------------------------------------
 log_step "Generating Prometheus web.yml with basic auth..."
 WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
 WEB_CONFIG_FILE="$WEB_CONFIG_DIR/web.yml"
 PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
 
-# Backup existing web.yml if present
 if [[ -f "$WEB_CONFIG_FILE" ]]; then
     BACKUP_WEB="${WEB_CONFIG_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
     cp "$WEB_CONFIG_FILE" "$BACKUP_WEB"
     log_info "Backed up existing web.yml to $BACKUP_WEB"
 fi
 
-# Generate hash using Python bcrypt (from the virtual environment)
 mkdir -p "$WEB_CONFIG_DIR"
 if command -v python3 &>/dev/null && python3 -c "import bcrypt" 2>/dev/null; then
     HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PROMETHEUS_PASSWORD'.encode(), bcrypt.gensalt()).decode())")
@@ -798,9 +781,7 @@ basic_auth_users:
 EOF
 fi
 
-# -----------------------------------------------------------------------------
 # Determine if we should remove the Dynamo volume (only if --reset-data)
-# -----------------------------------------------------------------------------
 REMOVE_VOLUME=false
 if [[ "$RESET_DATA" == true ]]; then
     if [[ "$AUTO" == true ]]; then
@@ -819,13 +800,10 @@ if [[ "$RESET_DATA" == true ]]; then
     fi
 fi
 
-# -----------------------------------------------------------------------------
 # Handle orphans (only if --force)
-# -----------------------------------------------------------------------------
 if [[ "$FORCE" == true ]]; then
     log_info "Force mode – recreating containers..."
 
-    # Ask about removing orphans (unless auto)
     REMOVE_ORPHANS=""
     if [[ "$AUTO" == true ]]; then
         REMOVE_ORPHANS="--remove-orphans"
@@ -860,10 +838,45 @@ if [[ "$FORCE" == true ]]; then
     fi
 fi
 
-# -----------------------------------------------------------------------------
-# Build and start the stack (with retry)
-# -----------------------------------------------------------------------------
+# --- Start PostgreSQL only and initialise database ---
+log_info "Starting PostgreSQL..."
+docker compose up -d postgres
 
+wait_for_postgres || {
+    log_error "PostgreSQL failed to become ready. Cannot initialise database."
+    exit 1
+}
+
+# Check if database is already initialised
+if docker exec postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
+    log_success "Database already initialised – skipping init."
+else
+    log_info "Database seems empty – initialising with init-db.sql and base module..."
+    if [[ -f "$INIT_SQL" ]]; then
+        docker exec -i postgres psql -U odoo odoo < "$INIT_SQL" || {
+            log_warning "Database initialisation may have already been done."
+        }
+    else
+        log_error "init-db.sql not found!"
+        exit 1
+    fi
+
+    # Install base module
+    log_info "Initialising database with base modules..."
+    docker compose run --rm odoo odoo -d odoo \
+      --db_host=postgres \
+      --db_port=5432 \
+      --db_user=odoo \
+      --db_password="$POSTGRES_PASSWORD" \
+      -i base --stop-after-init --log-level=info
+    log_success "Base modules installed"
+fi
+
+enable_pgcrypto || true
+
+# -----------------------------------------------------------------------------
+# 7. Build and start the full Docker Compose stack (with retry)
+# -----------------------------------------------------------------------------
 log_step "Building and starting Docker Compose stack (with retries)..."
 
 max_attempts=3
@@ -885,69 +898,8 @@ fi
 
 log_success "Docker Compose stack started"
 
-# =============================================================================
-# Wait for PostgreSQL and enable pgcrypto
-# =============================================================================
-wait_for_postgres || {
-    log_warning "PostgreSQL health check failed – continuing but may affect dependent services"
-}
-enable_pgcrypto || true
-
-# =============================================================================
-# INITIALISE DATABASE (only if empty)
-# Now we wait for Odoo to be ready before checking/initialising the database,
-# because the base module installation requires Odoo to be running.
-# =============================================================================
-log_step "Initialising PostgreSQL database..."
-
-# Wait for Odoo to be ready (HTTP 200/302) before performing database operations
-log_info "Waiting for Odoo to be ready before initialising database..."
-ODOO_READY=false
-for i in {1..120}; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 2>/dev/null | grep -q "200\|302"; then
-        ODOO_READY=true
-        log_success "Odoo is ready"
-        break
-    fi
-    if [ $((i % 10)) -eq 0 ]; then
-        log_info "Still waiting for Odoo... ($i/120 attempts)"
-    fi
-    sleep 2
-done
-
-if [ "$ODOO_READY" != true ]; then
-    log_error "Odoo failed to become ready within 4 minutes. Cannot initialise database."
-    log_info "Check Odoo logs with: docker logs odoo --tail 50"
-    exit 1
-fi
-
-# Now check if the database is already initialised using a robust check
-if docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
-    log_success "Database already initialised – skipping init."
-else
-    log_info "Database seems empty – initialising with base modules..."
-    if [[ -f "$INIT_SQL" ]]; then
-        docker exec -i postgres psql -U odoo odoo < "$INIT_SQL" 2>/dev/null || {
-            log_warning "Database initialisation may have already been done."
-        }
-    else
-        log_error "init-db.sql not found!"
-        exit 1
-    fi
-
-    # Install base module
-    log_info "Initialising database with base modules..."
-    docker compose exec -T odoo odoo -d odoo \
-      --db_host=postgres \
-      --db_port=5432 \
-      --db_user=odoo \
-      --db_password="$POSTGRES_PASSWORD" \
-      -i base --stop-after-init --log-level=info
-    log_success "Base modules installed"
-fi
-
 # -----------------------------------------------------------------------------
-# VALIDATE DEPLOYMENT – Enhanced with longer timeout and Odoo-first check
+# 8. Validate deployment
 # -----------------------------------------------------------------------------
 validate_deployment() {
     local max_retries=120                   # 120 * 2 = 240 seconds (4 minutes)
@@ -957,11 +909,7 @@ validate_deployment() {
     
     log_step "Validating deployment health..."
     
-    # -------------------------------------------------------------------------
-    # Step 1: Wait for Odoo to be ready first (with its own loop)
-    # Odoo needs to initialise the database schema, which can take 2-3 minutes
-    # on a fresh installation.
-    # -------------------------------------------------------------------------
+    # Wait for Odoo
     log_info "Waiting for Odoo to become ready (this may take 2-3 minutes on first install)..."
     for i in {1..90}; do
         if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 2>/dev/null | grep -q "200\|302"; then
@@ -981,13 +929,9 @@ validate_deployment() {
         return 1
     fi
     
-    # -------------------------------------------------------------------------
-    # Step 2: Now wait for LangGraph to be ready
-    # LangGraph depends on Odoo and its proxy, so we check after Odoo is ready.
-    # -------------------------------------------------------------------------
+    # Wait for LangGraph
     log_info "Waiting for LangGraph to become ready..."
     while [[ $attempt -le $max_retries ]]; do
-        # Test LangGraph health endpoint
         if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null | grep -q "200"; then
             langgraph_ready=true
             log_success "LangGraph is healthy"
@@ -997,7 +941,6 @@ validate_deployment() {
                 log_info "Still waiting for LangGraph... ($attempt/$max_retries attempts)"
             fi
         fi
-        
         log_info "Waiting for services to be ready... ($attempt/$max_retries)"
         sleep 2
         attempt=$((attempt + 1))
@@ -1009,9 +952,6 @@ validate_deployment() {
         return 1
     fi
     
-    # -------------------------------------------------------------------------
-    # Step 3: Final verification – all services healthy
-    # -------------------------------------------------------------------------
     log_success "All services are healthy"
     return 0
 }
@@ -1024,7 +964,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Wait for Dynamo to be ready and verify API key
+# 9. Wait for Dynamo to be ready and download models
 # -----------------------------------------------------------------------------
 log_step "Waiting for Dynamo to be ready..."
 for i in {1..60}; do
@@ -1035,9 +975,6 @@ for i in {1..60}; do
     sleep 2
 done
 
-# -----------------------------------------------------------------------------
-# Download a small model for Dynamo (no Hugging Face token required)
-# -----------------------------------------------------------------------------
 log_step "Downloading a small model for Dynamo (if not already present)..."
 MODEL_NAME="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
 MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # Replace with your actual model server
@@ -1058,13 +995,10 @@ else
 fi
 
 # =============================================================================
-# DYNAMO SETUP – Fully Automated, No Login Required
+# 10. DYNAMO SETUP – Fully Automated, No Login Required
 # =============================================================================
 log_step "Configuring NVIDIA Dynamo..."
 
-# -----------------------------------------------------------------------------
-# Step 1: Ensure Dynamo API key is set
-# -----------------------------------------------------------------------------
 if [[ -z "${DYNAMO_API_KEY:-}" ]]; then
     DYNAMO_API_KEY=$(generate_safe_password)
     safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
@@ -1072,9 +1006,6 @@ if [[ -z "${DYNAMO_API_KEY:-}" ]]; then
     log_info "Generated DYNAMO_API_KEY and updated .env"
 fi
 
-# -----------------------------------------------------------------------------
-# Step 2: Wait for Dynamo to be ready
-# -----------------------------------------------------------------------------
 log_step "Waiting for Dynamo to be ready..."
 DYNAMO_HEALTHY=false
 for i in {1..30}; do
@@ -1087,9 +1018,6 @@ for i in {1..30}; do
     sleep 2
 done
 
-# -----------------------------------------------------------------------------
-# Step 3: Download a small test model (no Hugging Face token required)
-# -----------------------------------------------------------------------------
 log_step "Downloading a small model for Dynamo..."
 MODEL_NAME="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
 MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # Replace with your actual model server URL
@@ -1110,9 +1038,6 @@ else
     log_success "Model already present: $MODEL_NAME"
 fi
 
-# -----------------------------------------------------------------------------
-# Step 4: Determine inference backend (Dynamo or llama.cpp)
-# -----------------------------------------------------------------------------
 log_step "Determining inference backend..."
 
 if [[ "$DYNAMO_HEALTHY" == true ]]; then
@@ -1125,32 +1050,13 @@ else
     OPENAI_API_KEY="dummy"
 fi
 
-# Write the selected backend to .env
 safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
 safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
 safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
 log_success ".env updated with inference backend settings"
 
-# -----------------------------------------------------------------------------
-# Step 5: Restart LangGraph to pick up new environment variables
-# -----------------------------------------------------------------------------
 log_step "Restarting LangGraph to apply new inference settings..."
 docker compose restart langgraph-server
-
-# -----------------------------------------------------------------------------
-# Update .env with Dynamo API key (if not already set)
-# -----------------------------------------------------------------------------
-if [[ -z "${DYNAMO_API_KEY:-}" ]]; then
-    DYNAMO_API_KEY=$(generate_safe_password)
-    safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
-    export DYNAMO_API_KEY
-    log_info "Generated DYNAMO_API_KEY and updated .env"
-fi
-
-# -----------------------------------------------------------------------------
-# Determine which inference backend to use (Dynamo or llama.cpp)
-# -----------------------------------------------------------------------------
-log_step "Determining inference backend..."
 
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
        -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
@@ -1163,105 +1069,19 @@ else
     OPENAI_API_KEY="dummy"
 fi
 
-# -----------------------------------------------------------------------------
-# Reset Grafana admin password to match .env
-# -----------------------------------------------------------------------------
-log_step "Resetting Grafana admin password..."
-# Wait for Grafana to be ready
-for i in {1..30}; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/health | grep -q "200"; then
-        log_success "Grafana is ready"
-        break
-    fi
-    sleep 2
-done
-
-if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
-    RESET_SUCCESS=false
-
-    # -------------------------------------------------------------------------
-    # Step 1: Check if the password from .env already works
-    # -------------------------------------------------------------------------
-    if curl -s -o /dev/null -w "%{http_code}" -u "admin:$GRAFANA_PASSWORD" http://localhost:3001/api/org | grep -q "200"; then
-        log_success "Grafana password from .env is already correct – no action needed"
-        RESET_SUCCESS=true
-    fi
-
-    # -------------------------------------------------------------------------
-    # Step 2: Try API login with default admin/admin (for fresh installs)
-    # -------------------------------------------------------------------------
-    if [[ "$RESET_SUCCESS" != true ]]; then
-        if curl -s -o /dev/null -w "%{http_code}" -u "admin:admin" http://localhost:3001/api/org | grep -q "200"; then
-            log_info "Logged in with default admin/admin. Changing password via API..."
-            COOKIE_JAR=$(mktemp)
-            curl -s -X POST http://localhost:3001/login \
-                -H "Content-Type: application/json" \
-                -d '{"user":"admin","password":"admin"}' \
-                -c "$COOKIE_JAR" > /dev/null
-
-            if curl -s -X PUT http://localhost:3001/api/user/password \
-                -H "Content-Type: application/json" \
-                -H "X-Grafana-Org-Id: 1" \
-                -b "$COOKIE_JAR" \
-                -d "{\"oldPassword\":\"admin\",\"newPassword\":\"$GRAFANA_PASSWORD\",\"confirmNew\":\"$GRAFANA_PASSWORD\"}" \
-                | grep -q "message.*Password changed"; then
-                log_success "Grafana password changed successfully via API"
-                RESET_SUCCESS=true
-            else
-                log_warning "API password change failed"
-            fi
-            rm -f "$COOKIE_JAR"
-        fi
-    fi
-
-    # -------------------------------------------------------------------------
-    # Step 3: Fall back to CLI methods (for existing installations)
-    # -------------------------------------------------------------------------
-    if [[ "$RESET_SUCCESS" != true ]]; then
-        log_info "API methods failed; trying CLI..."
-
-        # Try grafana-cli
-        if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
-            log_success "Grafana password reset successfully using grafana-cli"
-            RESET_SUCCESS=true
-        fi
-        # Try unified grafana admin
-        if [[ "$RESET_SUCCESS" != true ]]; then
-            if docker exec grafana grafana admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
-                log_success "Grafana password reset successfully using grafana admin"
-                RESET_SUCCESS=true
-            fi
-        fi
-    fi
-
-    if [[ "$RESET_SUCCESS" != true ]]; then
-        log_warning "Could not reset Grafana password automatically."
-        log_info "Try: docker exec -it grafana grafana-cli admin reset-admin-password $GRAFANA_PASSWORD"
-    fi
-else
-    log_warning "GRAFANA_PASSWORD not set – skipping password reset"
-fi
-
-# -----------------------------------------------------------------------------
-# Update .env with the chosen LLM_BASE_URL and OPENAI_API_KEY
-# -----------------------------------------------------------------------------
 log_step "Updating .env with inference backend settings..."
 safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
 safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
 log_success ".env updated"
 
-# -----------------------------------------------------------------------------
-# Restart langgraph-server to pick up new URL and API key
-# -----------------------------------------------------------------------------
 log_step "Restarting LangGraph..."
 docker compose restart langgraph-server
 
 # -----------------------------------------------------------------------------
-# Install NETTRADES Odoo modules
+# 11. Install NETTRADES Odoo modules
 # -----------------------------------------------------------------------------
 log_step "Installing NETTRADES Odoo modules..."
 
-# Wait for Odoo to be fully ready
 log_info "Waiting for Odoo to be ready..."
 for i in {1..30}; do
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
@@ -1271,7 +1091,6 @@ for i in {1..30}; do
     sleep 2
 done
 
-# Test database connection from Odoo container
 log_info "Testing database connection..."
 if ! docker compose exec -T odoo odoo -d odoo --db_host=postgres --db_port=5432 --db_user=odoo --db_password="$POSTGRES_PASSWORD" --stop-after-init --log-level=error 2>/dev/null; then
     log_error "Odoo cannot connect to PostgreSQL. Please check the password."
@@ -1292,7 +1111,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Create emergency Odoo user
+# 12. Create emergency Odoo user
 # -----------------------------------------------------------------------------
 log_step "Creating emergency Odoo user..."
 EMERGENCY_PASSWORD=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-24)
@@ -1306,7 +1125,7 @@ chmod 600 /root/emergency_password.txt
 log_success "Emergency user created: login='emergency', password in /root/emergency_password.txt"
 
 # -----------------------------------------------------------------------------
-# Set up cron for daily backups
+# 13. Set up cron for daily backups
 # -----------------------------------------------------------------------------
 log_step "Setting up cron for daily backups..."
 
@@ -1326,7 +1145,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Verify service health
+# 14. Final health checks
 # -----------------------------------------------------------------------------
 log_step "Verifying service health..."
 sleep 10
@@ -1349,9 +1168,6 @@ else
     log_warning "PostgreSQL health check failed – please check logs"
 fi
 
-# -----------------------------------------------------------------------------
-# Wait for the LangGraph Server to be ready
-# -----------------------------------------------------------------------------
 log_step "Waiting for LangGraph Server to be ready..."
 for i in {1..30}; do
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
@@ -1361,9 +1177,6 @@ for i in {1..30}; do
     sleep 2
 done
 
-# -----------------------------------------------------------------------------
-# Wait for agent-chat-ui to be ready
-# -----------------------------------------------------------------------------
 log_step "Waiting for agent-chat-ui to be ready..."
 for i in {1..30}; do
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200\|302"; then
@@ -1374,7 +1187,7 @@ for i in {1..30}; do
 done
 
 # =============================================================================
-# NEW: Ensure Let's Encrypt certificate (after stack is up)
+# 15. Ensure Let's Encrypt certificate
 # =============================================================================
 ensure_letsencrypt_certificate() {
     local domain="${DOMAIN:-nettrades.ai}"
@@ -1384,16 +1197,13 @@ ensure_letsencrypt_certificate() {
 
     log_step "Ensuring Let's Encrypt certificate for domain: $domain"
 
-    # Skip if domain is an IP
     if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         log_warning "DOMAIN is an IP address – Let's Encrypt cannot issue certificates for IPs. Skipping."
         return 0
     fi
 
-    # Check if acme.json exists and contains a certificate
     if [[ -f "$acme_file" ]] && grep -q '"Certificate"' "$acme_file"; then
         log_success "Certificate already exists in $acme_file"
-        # Check expiry
         expire_date=$(grep -o '"notAfter":"[^"]*"' "$acme_file" | head -1 | cut -d'"' -f4 | cut -d'T' -f1)
         if [[ -n "$expire_date" ]]; then
             log_info "Certificate expires on: $expire_date"
@@ -1402,33 +1212,26 @@ ensure_letsencrypt_certificate() {
     fi
 
     log_info "Certificate not found or invalid. Triggering certificate request..."
-
-    # Ensure traefik-data directory exists and is writable
     mkdir -p "$DEPLOY_DIR/traefik-data"
     chmod 755 "$DEPLOY_DIR/traefik-data"
 
-    # Remove old acme.json to force a fresh attempt
     if [[ -f "$acme_file" ]]; then
         sudo rm -f "$acme_file"
         log_info "Removed old acme.json"
     fi
 
-    # Restart Traefik to trigger ACME challenge
     docker compose restart traefik
 
-    # Wait and check for certificate
     while [[ $attempt -le $max_attempts ]]; do
         log_info "Checking for certificate (attempt $attempt/$max_attempts)..."
         sleep 15
 
         if [[ -f "$acme_file" ]] && grep -q '"Certificate"' "$acme_file"; then
             log_success "Certificate successfully obtained!"
-            # Restart Traefik to use the new certificate
             docker compose restart traefik
             return 0
         fi
 
-        # Check logs for errors
         if docker compose logs traefik 2>/dev/null | grep -q "acme: error"; then
             log_error "ACME error detected. Check Traefik logs for details."
             log_info "Common issues: domain not resolving, port 80 blocked, rate limiting."
@@ -1445,11 +1248,10 @@ ensure_letsencrypt_certificate() {
     echo "  cd $DEPLOY_DIR && sudo rm -f traefik-data/acme.json && docker compose restart traefik"
 }
 
-# Run the certificate check
 ensure_letsencrypt_certificate
 
 # -----------------------------------------------------------------------------
-# Display final status
+# 16. Display final status
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT"
 mark_phase_complete 2
