@@ -194,7 +194,7 @@ services:
   # 6. FORGEJO 15.0 LTS - Self-hosted Git Server
   # =========================================================================
   forgejo:
-    image: codeberg.org/forgejo/forgejo:15.0
+    image: forgejo/forgejo:15.0
     ports:
       - "3000:3000"
     volumes:
