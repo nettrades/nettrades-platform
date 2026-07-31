@@ -16,6 +16,7 @@
 #   - [NEW] Installing Node.js and npm for the Electron installer
 #   - [NEW] Ensuring port 80 is open for Let's Encrypt
 #   - [NEW] Multi-vendor GPU driver support (NVIDIA, AMD, Intel)
+#   - [NEW] Installing python3-venv for virtual environment creation
 #
 #   It is idempotent and safe to re-run.
 #
@@ -145,7 +146,24 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 3.5 Install Node.js and npm (for the Electron installer)
+# 3.5 Install python3-venv (required for virtual environment creation)
+# -----------------------------------------------------------------------------
+log_step "Checking python3-venv installation..."
+if ! python3 -c "import venv" &>/dev/null; then
+    log_info "Installing python3-venv..."
+    if [[ "$OS" == "linux" ]]; then
+        sudo apt-get update -qq
+        sudo apt-get install -y python3-venv
+        log_success "python3-venv installed"
+    else
+        log_warning "Please install python3-venv manually for $OS"
+    fi
+else
+    log_success "python3-venv already installed"
+fi
+
+# -----------------------------------------------------------------------------
+# 4. Install Node.js and npm (for the Electron installer)
 # -----------------------------------------------------------------------------
 log_step "Checking Node.js and npm installation..."
 
@@ -181,7 +199,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 4. Multi-vendor GPU driver installation
+# 5. Multi-vendor GPU driver installation
 # -----------------------------------------------------------------------------
 # Detect GPU vendor using functions from common.sh (ensure they exist)
 # Fallback definitions if not already present
@@ -296,7 +314,7 @@ case "$GPU_VENDOR" in
 esac
 
 # -----------------------------------------------------------------------------
-# 5. Firewall configuration (UFW)
+# 6. Firewall configuration (UFW)
 # -----------------------------------------------------------------------------
 log_step "Configuring firewall..."
 if command -v ufw &>/dev/null; then
@@ -336,7 +354,7 @@ if command -v iptables &>/dev/null; then
 fi
 
 # -----------------------------------------------------------------------------
-# 6. SSH Key Setup – Guide the user to create a key before hardening
+# 7. SSH Key Setup – Guide the user to create a key before hardening
 # -----------------------------------------------------------------------------
 log_step "Setting up SSH keys for secure access..."
 
@@ -424,7 +442,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 7. Rescue SSH Port (always allows password auth, as a safety net)
+# 8. Rescue SSH Port (always allows password auth, as a safety net)
 # -----------------------------------------------------------------------------
 log_step "Setting up rescue SSH port (2222)..."
 
@@ -443,7 +461,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 8. Install WireGuard tools (if not already present)
+# 9. Install WireGuard tools (if not already present)
 # -----------------------------------------------------------------------------
 log_step "Installing WireGuard tools..."
 if ! command -v wg &>/dev/null; then
@@ -459,7 +477,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 9. WireGuard Admin VPN Server (for emergency SSH access)
+# 10. WireGuard Admin VPN Server (for emergency SSH access)
 # -----------------------------------------------------------------------------
 log_step "Setting up WireGuard admin VPN server..."
 
@@ -510,7 +528,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 10. SSH hardening (with self-test to prevent lockout)
+# 11. SSH hardening (with self-test to prevent lockout)
 # -----------------------------------------------------------------------------
 log_step "Hardening SSH configuration (main port 22)..."
 
@@ -549,7 +567,7 @@ fi
 systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
-# 11. Self-test: Verify SSH accessibility
+# 12. Self-test: Verify SSH accessibility
 # -----------------------------------------------------------------------------
 log_step "Verifying SSH access (to prevent lockout)..."
 
@@ -576,7 +594,7 @@ fi
 log_success "SSH hardening complete – both main and rescue ports are accessible"
 
 # -----------------------------------------------------------------------------
-# 12. Install fail2ban
+# 13. Install fail2ban
 # -----------------------------------------------------------------------------
 log_step "Installing fail2ban..."
 if command -v fail2ban-client &>/dev/null; then
@@ -593,7 +611,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 13. Install dos2unix and jq
+# 14. Install dos2unix and jq
 # -----------------------------------------------------------------------------
 log_step "Installing dos2unix and jq..."
 if command -v dos2unix &>/dev/null && command -v jq &>/dev/null; then
@@ -609,14 +627,14 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 14. Install bcrypt for Prometheus password hashing (now handled in phase-deploy.sh)
+# 15. Install bcrypt for Prometheus password hashing (now handled in phase-deploy.sh)
 # -----------------------------------------------------------------------------
 # This step is moved to phase-deploy.sh to ensure it uses the venv.
 # Keeping a placeholder to avoid confusion.
 log_info "bcrypt will be installed in the virtual environment during Phase 2."
 
 # -----------------------------------------------------------------------------
-# 15. Configure system limits
+# 16. Configure system limits
 # -----------------------------------------------------------------------------
 log_step "Configuring system limits..."
 LIMITS_FILE="/etc/security/limits.conf"
@@ -635,7 +653,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 16. Check gVisor installation
+# 17. Check gVisor installation
 # -----------------------------------------------------------------------------
 log_step "Checking gVisor installation..."
 if command -v runsc &>/dev/null; then

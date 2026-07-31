@@ -906,29 +906,30 @@ validate_deployment() {
     local attempt=1
     local odoo_ready=false
     local langgraph_ready=false
-    
+
     log_step "Validating deployment health..."
-    
-    # Wait for Odoo
+
+    # Wait for Odoo with improved logging of HTTP status
     log_info "Waiting for Odoo to become ready (this may take 2-3 minutes on first install)..."
     for i in {1..90}; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 2>/dev/null | grep -q "200\|302"; then
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8069 2>/dev/null)
+        if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "302" ]]; then
             odoo_ready=true
-            log_success "Odoo is ready"
+            log_success "Odoo is ready (HTTP $HTTP_CODE)"
             break
         fi
         if [ $((i % 10)) -eq 0 ]; then
-            log_info "Still waiting for Odoo... ($i/90 attempts)"
+            log_info "Still waiting for Odoo... ($i/90 attempts) - HTTP $HTTP_CODE"
         fi
         sleep 2
     done
-    
+
     if [ "$odoo_ready" != true ]; then
         log_error "Odoo failed to become ready within 3 minutes."
         log_info "Check Odoo logs with: docker logs odoo --tail 50"
         return 1
     fi
-    
+
     # Wait for LangGraph
     log_info "Waiting for LangGraph to become ready..."
     while [[ $attempt -le $max_retries ]]; do
@@ -945,13 +946,13 @@ validate_deployment() {
         sleep 2
         attempt=$((attempt + 1))
     done
-    
+
     if [ "$langgraph_ready" != true ]; then
         log_error "LangGraph failed to become ready within $((max_retries * 2)) seconds."
         log_info "Check LangGraph logs with: docker logs langgraph-server --tail 50"
         return 1
     fi
-    
+
     log_success "All services are healthy"
     return 0
 }
@@ -1251,7 +1252,28 @@ ensure_letsencrypt_certificate() {
 ensure_letsencrypt_certificate
 
 # -----------------------------------------------------------------------------
-# 16. Display final status
+# 16. Reset Grafana admin password (using correct syntax)
+# -----------------------------------------------------------------------------
+log_step "Resetting Grafana admin password..."
+if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
+    # Try the new 'grafana cli' command (preferred)
+    if docker exec grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
+        log_success "Grafana password reset successfully using 'grafana cli'"
+    else
+        # Fallback to old 'grafana-cli' (deprecated but may still work)
+        if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
+            log_success "Grafana password reset successfully using 'grafana-cli'"
+        else
+            log_warning "Could not reset Grafana password automatically."
+            log_info "Try: docker exec grafana grafana cli admin reset-admin-password $GRAFANA_PASSWORD"
+        fi
+    fi
+else
+    log_warning "GRAFANA_PASSWORD not set – skipping password reset"
+fi
+
+# -----------------------------------------------------------------------------
+# 17. Display final status
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT"
 mark_phase_complete 2
