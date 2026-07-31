@@ -417,10 +417,8 @@ services:
     # - MODEL_PATH=/models/${MODEL_NAME:-Qwen2.5-1.5B-Instruct}
       - DYNAMO_LOG_LEVEL=info
     # Frontend command with file-based discovery (no etcd needed)
+    entrypoint: ["python3", "-m", "dynamo.frontend"]
     command:
-      - "python3"
-      - "-m"
-      - "dynamo.frontend"
       - "--http-port"
       - "8000"
       - "--discovery-backend"
