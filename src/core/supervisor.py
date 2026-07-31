@@ -57,9 +57,9 @@ from agents.action_agent import create_action_agent
 from tools.llm_factory import get_llm
 
 # -----------------------------------------------------------------------------
-# Import inference tools for backend detection
+# Import inference backend detection (unified module)
 # -----------------------------------------------------------------------------
-from tools.inference import get_inference_backend
+from tools import get_inference_backend
 
 # -----------------------------------------------------------------------------
 # Import bridge integration (hub-and-spoke routing)
