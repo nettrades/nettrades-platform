@@ -14,6 +14,7 @@
 #     - /threads  - create a new conversation thread (for agent-chat-ui)
 #     - /threads/{thread_id}/state - get thread state (for agent-chat-ui)
 #     - /threads/{thread_id}/runs - run a thread (for agent-chat-ui)
+#     - /runs     - create a new run and return assistant response (for agent-chat-ui)
 #
 # KEY FEATURES:
 #   - Auto-detects inference backend (GPUStack / vLLM / llama.cpp)
@@ -45,6 +46,9 @@
 #   6. agent-chat-ui Compatibility: Added stub endpoints for /assistants,
 #      /threads, /threads/{id}/state, /threads/{id}/runs to satisfy the
 #      UI's expectations without requiring the full LangGraph API server.
+#
+#   7. NEW (2026-07-31): Added /runs endpoint and modified /threads/{id}/runs
+#      to return the assistant's message inline, fixing UI 404 errors.
 # =============================================================================
 
 import os
@@ -367,14 +371,69 @@ async def run_thread(thread_id: str, request: Request):
         _thread_store[thread_id]["messages"].append(assistant_message)
 
         run_id = str(uuid.uuid4())
-        # Return a successful run response
+        # Return a successful run response with the assistant message included
         return {
             "run_id": run_id,
             "thread_id": thread_id,
             "status": "completed",
+            "messages": [assistant_message],  # Include the assistant's reply
         }
     except Exception as e:
         logger.error(f"Run thread failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# =============================================================================
+# NEW ENDPOINT: /runs (standalone run creation)
+# =============================================================================
+@app.post("/runs")
+async def create_run(request: Request):
+    """
+    Stub endpoint for agent-chat-ui to create a new run without a pre-existing thread.
+
+    This endpoint creates a new thread, runs the supervisor, and returns the
+    assistant's response inline. This is the primary endpoint used by the UI.
+    """
+    # Parse the incoming request body
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # Create a new thread ID
+    thread_id = str(uuid.uuid4())
+    _thread_store[thread_id] = {"messages": body.get("messages", [])}
+
+    # Build the state dictionary
+    state = {
+        "messages": body.get("messages", []),
+        "thread_id": thread_id,
+    }
+
+    graph = ml_models.get("graph")
+    if not graph:
+        raise HTTPException(status_code=503, detail="Graph not ready")
+
+    try:
+        # Invoke the supervisor with the state
+        result = await invoke_supervisor_with_retry(graph, state)
+
+        # Extract the assistant's message
+        assistant_message = {
+            "role": "assistant",
+            "content": result.get("analysis", "I processed your request.")
+        }
+        _thread_store[thread_id]["messages"].append(assistant_message)
+
+        run_id = str(uuid.uuid4())
+        # Return a response in the format expected by the UI
+        return {
+            "run_id": run_id,
+            "thread_id": thread_id,
+            "status": "completed",
+            "messages": [assistant_message],
+        }
+    except Exception as e:
+        logger.error(f"Create run failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
