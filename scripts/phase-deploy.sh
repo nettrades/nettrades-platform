@@ -81,20 +81,27 @@ generate_safe_password() {
 }
 
 # -----------------------------------------------------------------------------
-# Helper: Wait for PostgreSQL to be ready
+# Helper: Wait for PostgreSQL to be ready by attempting a SQL query
+# This is more reliable than pg_isready because it confirms the database is
+# fully initialised and accepting connections.
 # -----------------------------------------------------------------------------
 wait_for_postgres() {
-    local retries=30
+    local retries=60
     local delay=2
     log_step "Waiting for PostgreSQL to become ready..."
     for i in $(seq 1 $retries); do
-        if docker exec postgres pg_isready -U odoo -d odoo &>/dev/null; then
+        # Try to run a simple SQL query to confirm the database is fully ready
+        if docker exec postgres psql -U odoo -d odoo -c "SELECT 1" &>/dev/null; then
             log_success "PostgreSQL is ready"
             return 0
+        fi
+        if [ $((i % 10)) -eq 0 ]; then
+            log_info "Still waiting for PostgreSQL... ($i/$retries attempts)"
         fi
         sleep $delay
     done
     log_error "PostgreSQL did not become ready within $((retries * delay)) seconds"
+    log_info "Check PostgreSQL logs with: docker logs postgres --tail 50"
     return 1
 }
 
@@ -879,12 +886,65 @@ fi
 log_success "Docker Compose stack started"
 
 # =============================================================================
-# NEW: Wait for PostgreSQL and enable pgcrypto
+# Wait for PostgreSQL and enable pgcrypto
 # =============================================================================
 wait_for_postgres || {
     log_warning "PostgreSQL health check failed – continuing but may affect dependent services"
 }
 enable_pgcrypto || true
+
+# =============================================================================
+# INITIALISE DATABASE (only if empty)
+# Now we wait for Odoo to be ready before checking/initialising the database,
+# because the base module installation requires Odoo to be running.
+# =============================================================================
+log_step "Initialising PostgreSQL database..."
+
+# Wait for Odoo to be ready (HTTP 200/302) before performing database operations
+log_info "Waiting for Odoo to be ready before initialising database..."
+ODOO_READY=false
+for i in {1..120}; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 2>/dev/null | grep -q "200\|302"; then
+        ODOO_READY=true
+        log_success "Odoo is ready"
+        break
+    fi
+    if [ $((i % 10)) -eq 0 ]; then
+        log_info "Still waiting for Odoo... ($i/120 attempts)"
+    fi
+    sleep 2
+done
+
+if [ "$ODOO_READY" != true ]; then
+    log_error "Odoo failed to become ready within 4 minutes. Cannot initialise database."
+    log_info "Check Odoo logs with: docker logs odoo --tail 50"
+    exit 1
+fi
+
+# Now check if the database is already initialised using a robust check
+if docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
+    log_success "Database already initialised – skipping init."
+else
+    log_info "Database seems empty – initialising with base modules..."
+    if [[ -f "$INIT_SQL" ]]; then
+        docker exec -i postgres psql -U odoo odoo < "$INIT_SQL" 2>/dev/null || {
+            log_warning "Database initialisation may have already been done."
+        }
+    else
+        log_error "init-db.sql not found!"
+        exit 1
+    fi
+
+    # Install base module
+    log_info "Initialising database with base modules..."
+    docker compose exec -T odoo odoo -d odoo \
+      --db_host=postgres \
+      --db_port=5432 \
+      --db_user=odoo \
+      --db_password="$POSTGRES_PASSWORD" \
+      -i base --stop-after-init --log-level=info
+    log_success "Base modules installed"
+fi
 
 # -----------------------------------------------------------------------------
 # VALIDATE DEPLOYMENT – Enhanced with longer timeout and Odoo-first check
@@ -1195,46 +1255,6 @@ log_success ".env updated"
 # -----------------------------------------------------------------------------
 log_step "Restarting LangGraph..."
 docker compose restart langgraph-server
-
-# -----------------------------------------------------------------------------
-# Initialise PostgreSQL database (only if empty)
-# -----------------------------------------------------------------------------
-log_step "Initialising PostgreSQL database..."
-
-# Wait for PostgreSQL to be ready
-log_info "Waiting for PostgreSQL to be ready..."
-for i in {1..30}; do
-    if docker compose -f "$DEPLOY_DIR/docker-compose.yaml" exec postgres pg_isready -U odoo &>/dev/null; then
-        log_success "PostgreSQL is ready"
-        break
-    fi
-    sleep 2
-done
-
-# Check if database is already initialised
-if docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1 FROM ir_module_module LIMIT 1" &>/dev/null; then
-    log_success "Database already initialised – skipping init."
-else
-    log_info "Database seems empty – initialising with base modules..."
-    if [[ -f "$INIT_SQL" ]]; then
-        docker exec -i postgres psql -U odoo odoo < "$INIT_SQL" 2>/dev/null || {
-            log_warning "Database initialisation may have already been done."
-        }
-    else
-        log_error "init-db.sql not found!"
-        exit 1
-    fi
-
-    # Install base module
-    log_info "Initialising database with base modules..."
-    docker compose exec -T odoo odoo -d odoo \
-      --db_host=postgres \
-      --db_port=5432 \
-      --db_user=odoo \
-      --db_password="$POSTGRES_PASSWORD" \
-      -i base --stop-after-init --log-level=info
-    log_success "Base modules installed"
-fi
 
 # -----------------------------------------------------------------------------
 # Install NETTRADES Odoo modules
