@@ -5,7 +5,7 @@
 # PURPOSE:
 #   Phase 0: System Preparation & Security Hardening.
 #   This phase prepares the host system for NETTRADES deployment by:
-#   - Installing system dependencies (Docker, Docker Compose, NVIDIA drivers)
+#   - Installing system dependencies (Docker, Docker Compose, GPU drivers)
 #   - Configuring firewall (UFW/iptables)
 #   - Setting up a WireGuard VPN server for administrative access
 #   - Hardening SSH (disable root login, key-only auth globally,
@@ -15,6 +15,7 @@
 #   - Enabling gVisor runtime for container isolation (if on Kubernetes)
 #   - [NEW] Installing Node.js and npm for the Electron installer
 #   - [NEW] Ensuring port 80 is open for Let's Encrypt
+#   - [NEW] Multi-vendor GPU driver support (NVIDIA, AMD, Intel)
 #
 #   It is idempotent and safe to re-run.
 #
@@ -180,45 +181,119 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 4. Install NVIDIA drivers (if GPU is present or requested)
+# 4. Multi-vendor GPU driver installation
 # -----------------------------------------------------------------------------
-if detect_gpu; then
-    log_success "NVIDIA GPU detected: $(get_gpu_name)"
-
-    log_step "Checking NVIDIA drivers..."
-    if ! nvidia-smi &>/dev/null; then
-        log_info "Installing NVIDIA drivers..."
-        if [[ "$OS" == "linux" ]]; then
-            sudo apt-get update
-            # NVIDIA driver version 550+ is recommended for Dynamo
-            sudo apt-get install -y nvidia-driver-550 nvidia-utils-550
+# Detect GPU vendor using functions from common.sh (ensure they exist)
+# Fallback definitions if not already present
+if ! type detect_gpu_vendor &>/dev/null; then
+    # Define minimal fallback for detect_gpu_vendor
+    detect_gpu_vendor() {
+        if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
+            echo "nvidia"
+        elif command -v rocminfo &>/dev/null && rocminfo &>/dev/null; then
+            echo "amd"
+        elif command -v clinfo &>/dev/null && clinfo &>/dev/null; then
+            # Check if Intel GPU
+            if clinfo 2>/dev/null | grep -qi "intel"; then
+                echo "intel"
+            else
+                echo "other"
+            fi
         else
-            log_warning "Please install NVIDIA drivers manually for $OS"
+            echo "none"
         fi
-    else
-        log_success "NVIDIA drivers already installed"
-    fi
-
-    log_step "Installing NVIDIA Container Toolkit..."
-    if ! command -v nvidia-container-toolkit &>/dev/null; then
-        if [[ "$OS" == "linux" ]]; then
-            distribution=$(. /etc/os-release; echo "$ID$VERSION_ID")
-            curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-            curl -s -L "https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list" | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-            sudo apt-get update
-            sudo apt-get install -y nvidia-container-toolkit
-            sudo nvidia-ctk runtime configure --runtime=docker
-            sudo systemctl restart docker
-            log_success "NVIDIA Container Toolkit installed"
-        else
-            log_warning "Please install NVIDIA Container Toolkit manually for $OS"
-        fi
-    else
-        log_success "NVIDIA Container Toolkit already installed"
-    fi
-else
-    log_info "No NVIDIA GPU detected – skipping GPU driver installation"
+    }
 fi
+
+GPU_VENDOR=$(detect_gpu_vendor)
+log_info "Detected GPU vendor: $GPU_VENDOR"
+
+case "$GPU_VENDOR" in
+    nvidia)
+        log_success "NVIDIA GPU detected: $(get_gpu_name)"
+        log_step "Checking NVIDIA drivers..."
+        if ! nvidia-smi &>/dev/null; then
+            log_info "Installing NVIDIA drivers..."
+            if [[ "$OS" == "linux" ]]; then
+                sudo apt-get update
+                # NVIDIA driver version 550+ is recommended for Dynamo
+                sudo apt-get install -y nvidia-driver-550 nvidia-utils-550
+            else
+                log_warning "Please install NVIDIA drivers manually for $OS"
+            fi
+        else
+            log_success "NVIDIA drivers already installed"
+        fi
+
+        log_step "Installing NVIDIA Container Toolkit..."
+        if ! command -v nvidia-container-toolkit &>/dev/null; then
+            if [[ "$OS" == "linux" ]]; then
+                distribution=$(. /etc/os-release; echo "$ID$VERSION_ID")
+                curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+                curl -s -L "https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list" | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+                sudo apt-get update
+                sudo apt-get install -y nvidia-container-toolkit
+                sudo nvidia-ctk runtime configure --runtime=docker
+                sudo systemctl restart docker
+                log_success "NVIDIA Container Toolkit installed"
+            else
+                log_warning "Please install NVIDIA Container Toolkit manually for $OS"
+            fi
+        else
+            log_success "NVIDIA Container Toolkit already installed"
+        fi
+        ;;
+
+    amd)
+        log_success "AMD GPU detected"
+        log_step "Checking AMD ROCm drivers..."
+        # Check if ROCm is already installed by looking for rocminfo
+        if ! command -v rocminfo &>/dev/null || ! rocminfo &>/dev/null; then
+            log_info "Installing AMD ROCm drivers..."
+            if [[ "$OS" == "linux" ]]; then
+                # Add ROCm repository for Ubuntu 24.04 (noble)
+                # Official instructions: https://rocm.docs.amd.com/en/latest/deploy/linux/install.html
+                wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
+                echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/latest ubuntu main" | sudo tee /etc/apt/sources.list.d/rocm.list
+                sudo apt-get update
+                # Install ROCm core packages (hip, rocminfo, rocm-libs, etc.)
+                # Also install amdgpu-dkms for kernel module
+                sudo apt-get install -y rocm-hip-libraries rocm-device-libs rocm-libs rocminfo amdgpu-dkms
+                # Add user to video and render groups for GPU access
+                sudo usermod -a -G video,render "$USER"
+                log_success "AMD ROCm drivers installed"
+                log_warning "A system reboot is recommended to load the AMD GPU kernel modules."
+            else
+                log_warning "Please install AMD ROCm drivers manually for $OS"
+            fi
+        else
+            log_success "AMD ROCm drivers already installed"
+        fi
+        ;;
+
+    intel)
+        log_success "Intel GPU detected"
+        log_step "Checking Intel GPU drivers..."
+        # Check for Intel GPU driver presence (clinfo or intel-gpu-tools)
+        if ! command -v intel_gpu_top &>/dev/null; then
+            log_info "Installing Intel GPU drivers..."
+            if [[ "$OS" == "linux" ]]; then
+                # Install Intel GPU drivers: intel-gpu-tools, intel-opencl-icd, and compute runtime
+                sudo apt-get update
+                sudo apt-get install -y intel-gpu-tools intel-opencl-icd intel-compute-runtime
+                log_success "Intel GPU drivers installed"
+            else
+                log_warning "Please install Intel GPU drivers manually for $OS"
+            fi
+        else
+            log_success "Intel GPU drivers already installed"
+        fi
+        ;;
+
+    none|*)
+        log_info "No supported GPU detected – skipping GPU driver installation"
+        ;;
+esac
 
 # -----------------------------------------------------------------------------
 # 5. Firewall configuration (UFW)
