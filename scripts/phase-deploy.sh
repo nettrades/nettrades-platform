@@ -90,8 +90,8 @@ wait_for_postgres() {
     local delay=2
     log_step "Waiting for PostgreSQL to become ready..."
     for i in $(seq 1 $retries); do
-        # Try to run a simple SQL query to confirm the database is fully ready
-        if docker exec postgres psql -U odoo -d odoo -c "SELECT 1" &>/dev/null; then
+        # Use docker compose exec to avoid container name mismatches
+        if docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1" &>/dev/null; then
             log_success "PostgreSQL is ready"
             return 0
         fi
@@ -101,7 +101,7 @@ wait_for_postgres() {
         sleep $delay
     done
     log_error "PostgreSQL did not become ready within $((retries * delay)) seconds"
-    log_info "Check PostgreSQL logs with: docker logs postgres --tail 50"
+    log_info "Check PostgreSQL logs with: docker logs $(docker compose ps -q postgres) --tail 50"
     return 1
 }
 
@@ -110,7 +110,7 @@ wait_for_postgres() {
 # -----------------------------------------------------------------------------
 enable_pgcrypto() {
     log_step "Enabling pgcrypto extension in PostgreSQL..."
-    if docker exec -i postgres psql -U odoo -d odoo -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" 2>/dev/null; then
+    if docker compose exec -T postgres psql -U odoo -d odoo -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" 2>/dev/null; then
         log_success "pgcrypto extension enabled"
         return 0
     else
@@ -848,12 +848,12 @@ wait_for_postgres || {
 }
 
 # Check if database is already initialised
-if docker exec postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
+if docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
     log_success "Database already initialised – skipping init."
 else
     log_info "Database seems empty – initialising with init-db.sql and base module..."
     if [[ -f "$INIT_SQL" ]]; then
-        docker exec -i postgres psql -U odoo odoo < "$INIT_SQL" || {
+        docker compose exec -T postgres psql -U odoo odoo < "$INIT_SQL" || {
             log_warning "Database initialisation may have already been done."
         }
     else
@@ -1162,7 +1162,7 @@ else
     log_warning "LangGraph health check failed – please check logs"
 fi
 
-if docker exec postgres pg_isready -U odoo &>/dev/null; then
+if docker compose exec -T postgres pg_isready -U odoo &>/dev/null; then
     log_success "PostgreSQL is healthy"
 else
     log_warning "PostgreSQL health check failed – please check logs"
