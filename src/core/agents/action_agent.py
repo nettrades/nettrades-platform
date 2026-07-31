@@ -19,7 +19,7 @@
 import json, logging
 from langgraph.graph import StateGraph, END, START
 from langchain_openai import ChatOpenAI
-from tools.inference_tools import get_inference_backend
+from tools import get_inference_backend
 
 _logger = logging.getLogger(__name__)
 

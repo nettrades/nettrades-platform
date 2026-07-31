@@ -33,7 +33,7 @@ from langchain_openai import ChatOpenAI
 # IMPORTS - Updated to point to the correct locations
 # =============================================================================
 # Note: The tools are now imported from tools
-from tools.inference_tools import get_inference_backend
+from tools import get_inference_backend
 from tools.odoo_tools import (
     hr_job_search,
     res_partner_search,
