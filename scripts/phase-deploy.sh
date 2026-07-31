@@ -913,7 +913,7 @@ validate_deployment() {
     log_info "Waiting for Odoo to become ready (this may take 2-3 minutes on first install)..."
     for i in {1..90}; do
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8069 2>/dev/null)
-        if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "302" ]]; then
+        if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "302" || "$HTTP_CODE" == "303" ]]; then
             odoo_ready=true
             log_success "Odoo is ready (HTTP $HTTP_CODE)"
             break
