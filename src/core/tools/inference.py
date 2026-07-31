@@ -1,3 +1,27 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# =============================================================================
+# NETTRADES.AI - Inference Backend Detection
+# =============================================================================
+# FILE: src/core/tools/inference.py
+#
+# PURPOSE:
+#   This module provides a unified interface for detecting the available
+#   inference backend (GPU via NVIDIA Dynamo or CPU via llama.cpp).
+#   It runs a background health check thread and returns the current
+#   backend status as a dictionary.
+#
+# USAGE:
+#   from tools import get_inference_backend
+#
+#   backend = get_inference_backend()
+#   if backend["type"] == "gpu":
+#       # Use GPU backend
+#   else:
+#       # Use CPU fallback
+#
+# =============================================================================
+
 import os
 import time
 import logging
@@ -16,18 +40,17 @@ _health_status = {
 }
 _health_lock = threading.Lock()
 
+
 def _health_check_loop():
     """
     Background thread that periodically checks Dynamo health.
     Runs every 30 seconds, completely independent of user requests.
     """
-    # Dynamo uses the same OpenAI-compatible API endpoint as vLLM
     gpu_url = os.getenv("LLM_BASE_URL", "http://dynamo:8000/v1")
     gpu_api_key = os.getenv("DYNAMO_API_KEY", os.getenv("OPENAI_API_KEY", "dummy"))
 
     while True:
         try:
-            # Perform the health check
             with httpx.Client(timeout=5.0) as client:
                 response = client.get(
                     f"{gpu_url}/models",
@@ -38,15 +61,13 @@ def _health_check_loop():
             _logger.debug(f"Dynamo health check failed: {e}")
             is_healthy = False
 
-        # Update the global status atomically
         with _health_lock:
             _health_status["gpu_healthy"] = is_healthy
             _health_status["last_checked"] = time.time()
 
         _logger.debug(f"Dynamo health status updated: {is_healthy}")
-
-        # Wait 30 seconds before the next check
         time.sleep(30)
+
 
 # -----------------------------------------------------------------------------
 # Start the background thread when the module loads
@@ -55,25 +76,24 @@ _thread = threading.Thread(target=_health_check_loop, daemon=True)
 _thread.start()
 _logger.info("Dynamo health check background thread started.")
 
+
 # -----------------------------------------------------------------------------
 # Public API: get_inference_backend (Zero-Latency)
 # -----------------------------------------------------------------------------
 def get_inference_backend() -> Dict[str, Any]:
     """
     Returns the best available inference backend.
-    
+
     This function performs ZERO network I/O. It simply reads the cached
-    health status updated by the background thread. 
+    health status updated by the background thread.
     - If Dynamo is healthy: returns GPU backend.
     - If Dynamo is unhealthy: returns CPU (llama.cpp) fallback.
     """
     gpu_url = os.getenv("LLM_BASE_URL", "http://dynamo:8000/v1")
     gpu_api_key = os.getenv("DYNAMO_API_KEY", os.getenv("OPENAI_API_KEY", "dummy"))
-    
     cpu_url = os.getenv("LLM_CPU_URL", "http://llama-cpp:8080/v1")
     cpu_api_key = os.getenv("LLM_CPU_API_KEY", "dummy")
 
-    # Read the cached health status (lock-free read, boolean is atomic in Python)
     with _health_lock:
         is_gpu_healthy = _health_status["gpu_healthy"]
 

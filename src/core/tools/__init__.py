@@ -13,16 +13,17 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Import the inference backend and other utilities for public API
+# Import the inference backend for public API
+# The backend detection is now unified in inference.py, which provides
+# a zero-latency health-checked dictionary-returning function.
 # -----------------------------------------------------------------------------
-from .inference import get_inference_backend, InferenceBackend
+from .inference import get_inference_backend
 
 # -----------------------------------------------------------------------------
 # Define what is exported when someone does "from tools import *"
 # -----------------------------------------------------------------------------
 __all__ = [
     'get_inference_backend',
-    'InferenceBackend',
 ]
 
 # -----------------------------------------------------------------------------

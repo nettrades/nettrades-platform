@@ -59,7 +59,7 @@ from tools.llm_factory import get_llm
 # -----------------------------------------------------------------------------
 # Import inference tools for backend detection
 # -----------------------------------------------------------------------------
-from tools.inference_tools import get_inference_backend
+from tools.inference import get_inference_backend
 
 # -----------------------------------------------------------------------------
 # Import bridge integration (hub-and-spoke routing)
