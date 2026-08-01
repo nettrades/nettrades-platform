@@ -1,13 +1,13 @@
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
-import OdooProvider from "next-auth/providers/oauth2";
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    OdooProvider({
+    {
       id: "odoo",
       name: "Odoo",
       type: "oauth",
+      version: "2.0",
       authorization: {
         url: process.env.ODOO_OAUTH_AUTHORIZE_URL || "https://odoo/restapi/1.0/common/oauth2/authorize",
         params: {
@@ -37,7 +37,7 @@ export const authOptions: NextAuthOptions = {
       },
       clientId: process.env.ODOO_OAUTH_CLIENT_ID,
       clientSecret: process.env.ODOO_OAUTH_CLIENT_SECRET,
-    }),
+    },
   ],
   session: {
     strategy: "jwt",
