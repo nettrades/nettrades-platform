@@ -334,7 +334,7 @@ services:
       - internal
     environment:
       # CRITICAL: Direct internal connection to LangGraph (bypasses Traefik)
-      - NEXT_PUBLIC_LANGGRAPH_API_URL=http://langgraph-server:8000
+      # - NEXT_PUBLIC_LANGGRAPH_API_URL=http://langgraph-server:8000
       # Keep external for other uses (e.g., sharing links)
       - NEXT_PUBLIC_API_URL=https://${DOMAIN}/api
       - NEXT_PUBLIC_ASSISTANT_ID=supervisor
@@ -353,8 +353,6 @@ services:
       - traefik.http.services.agent-chat-ui.loadbalancer.server.port=3000
       - traefik.http.routers.agent-chat-ui.entrypoints=web,websecure
       - traefik.http.routers.agent-chat-ui.tls=true
-      - traefik.http.routers.agent-chat-ui.middlewares=agent-chat-ui-timeout
-      - traefik.http.middlewares.agent-chat-ui-timeout.timeout=60s
     depends_on:
       - langgraph-server
     logging:
