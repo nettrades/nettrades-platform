@@ -976,6 +976,9 @@ for i in {1..60}; do
     sleep 2
 done
 
+# -----------------------------------------------------------------------------
+# Download a small model for Dynamo (if not already present)
+# -----------------------------------------------------------------------------
 log_step "Downloading a small model for Dynamo (if not already present)..."
 MODEL_NAME="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
 MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # Replace with your actual model server
@@ -1039,6 +1042,22 @@ else
     log_success "Model already present: $MODEL_NAME"
 fi
 
+# =============================================================================
+# NEW: Download GGUF model for llama.cpp fallback
+# This ensures the CPU fallback engine has a model to load.
+# =============================================================================
+if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+    log_step "Downloading GGUF model for llama.cpp fallback..."
+    bash "$SCRIPT_DIR/download-model.sh" --model deepseek-1.5b --format gguf --dir "$MODELS_DIR"
+    # Restart llama-cpp to pick up the new model (if it was running)
+    docker compose restart llama-cpp 2>/dev/null || true
+else
+    log_warning "download-model.sh not found – skipping llama.cpp model download"
+fi
+
+# -----------------------------------------------------------------------------
+# Determine inference backend
+# -----------------------------------------------------------------------------
 log_step "Determining inference backend..."
 
 if [[ "$DYNAMO_HEALTHY" == true ]]; then
