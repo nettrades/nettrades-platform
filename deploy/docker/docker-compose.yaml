@@ -325,6 +325,10 @@ services:
     build:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.copilotkit-frontend
+      args:
+        - NEXT_PUBLIC_COPILOTKIT_URL=http://langgraph-server:8000/copilotkit
+        - NEXT_PUBLIC_APP_DOMAIN=https://${DOMAIN}
+        - NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED:-false}
     container_name: copilotkit-frontend
     restart: unless-stopped
     networks:
