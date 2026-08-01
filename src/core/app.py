@@ -49,6 +49,13 @@
 #
 #   7. NEW (2026-07-31): Added /runs endpoint and modified /threads/{id}/runs
 #      to return the assistant's message inline, fixing UI 404 errors.
+#
+#   8. FIX (2026-08-01): The /runs and /threads/{id}/runs endpoints now pass
+#      the `config` parameter with `configurable.thread_id` to the supervisor
+#      invocation, satisfying the checkpointer's requirement. This resolves
+#      the "Checkpointer requires one or more of the following 'configurable'
+#      keys: []" error. Note: supervisor.py's invoke_supervisor_with_retry()
+#      must accept a `config` argument.
 # =============================================================================
 
 import os
@@ -346,24 +353,17 @@ async def run_thread(thread_id: str, request: Request):
         "thread_id": thread_id,
     }
 
-    # Optionally, we can forward to the existing invoke logic.
-    # We'll reuse the /invoke logic by calling it directly.
-    # To do that, we need to get the graph and call it.
     graph = ml_models.get("graph")
     if not graph:
         raise HTTPException(status_code=503, detail="Graph not ready")
 
     try:
-        # We need to mimic the /invoke logic but without HTTP overhead.
-        # We'll directly invoke the supervisor with the state.
-        # We also need to pass authentication? We'll assume it's disabled or we have the key.
-        # Since this is a stub, we can call it directly.
-        result = await invoke_supervisor_with_retry(graph, state)
+        # Build config with thread_id for checkpointer
+        config = {"configurable": {"thread_id": thread_id}}
+        # Invoke the supervisor with the state and config
+        result = await invoke_supervisor_with_retry(graph, state, config=config)
 
         # Store the result in the thread store for later retrieval.
-        # The UI expects the final answer to be placed in the messages.
-        # The result should contain the analysis or response.
-        # We'll append a new assistant message to the thread's messages.
         assistant_message = {
             "role": "assistant",
             "content": result.get("analysis", "I processed your request.")
@@ -371,12 +371,11 @@ async def run_thread(thread_id: str, request: Request):
         _thread_store[thread_id]["messages"].append(assistant_message)
 
         run_id = str(uuid.uuid4())
-        # Return a successful run response with the assistant message included
         return {
             "run_id": run_id,
             "thread_id": thread_id,
             "status": "completed",
-            "messages": [assistant_message],  # Include the assistant's reply
+            "messages": [assistant_message],
         }
     except Exception as e:
         logger.error(f"Run thread failed: {e}")
@@ -414,8 +413,10 @@ async def create_run(request: Request):
         raise HTTPException(status_code=503, detail="Graph not ready")
 
     try:
-        # Invoke the supervisor with the state
-        result = await invoke_supervisor_with_retry(graph, state)
+        # Build config with thread_id for checkpointer
+        config = {"configurable": {"thread_id": thread_id}}
+        # Invoke the supervisor with the state and config
+        result = await invoke_supervisor_with_retry(graph, state, config=config)
 
         # Extract the assistant's message
         assistant_message = {
@@ -522,7 +523,8 @@ async def invoke(
 
     try:
         # Invoke the graph with the state (with retry and circuit breaker)
-        result = await invoke_supervisor_with_retry(graph, state)
+        # Passing config if present (for checkpointer)
+        result = await invoke_supervisor_with_retry(graph, state, config=config if config else None)
 
         # Record the intent for metrics
         intent = result.get("intent", "unknown")
