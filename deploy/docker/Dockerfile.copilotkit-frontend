@@ -1,43 +1,28 @@
-# =============================================================================
-# FILE: deploy/docker/Dockerfile.copilotkit-frontend
-# =============================================================================
-# PURPOSE:
-#   Builds the CopilotKit frontend from vendored source code.
-#   Uses only open-source packages, no account or API key required.
-#   No external network fetch during build.
-# =============================================================================
-
 FROM node:22-slim AS builder
 
-# Build arguments – these must be provided at build time
 ARG NEXT_PUBLIC_COPILOTKIT_URL
 ARG NEXT_PUBLIC_APP_DOMAIN
 ARG NEXT_PUBLIC_AUTH_ENABLED
 
-# Set them as environment variables so Next.js can use them during build
 ENV NEXT_PUBLIC_COPILOTKIT_URL=$NEXT_PUBLIC_COPILOTKIT_URL
 ENV NEXT_PUBLIC_APP_DOMAIN=$NEXT_PUBLIC_APP_DOMAIN
 ENV NEXT_PUBLIC_AUTH_ENABLED=$NEXT_PUBLIC_AUTH_ENABLED
+ENV CI=true   # ← ADD THIS LINE
 
-# Install git only for npm packages that may need it
 RUN apt-get update && apt-get install -y git openssh-client && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy the vendored frontend source
 COPY deploy/docker/copilotkit-frontend-src/ ./
 
-# Install dependencies and build
 RUN npm install -g pnpm && \
     pnpm install && \
     pnpm build
 
-# Production stage
 FROM node:22-slim AS runner
 
 WORKDIR /app
 
-# Copy the standalone output and necessary files
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public

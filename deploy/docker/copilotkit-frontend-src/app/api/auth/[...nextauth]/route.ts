@@ -1,5 +1,20 @@
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
+import type { DefaultSession } from "next-auth";
+
+// Extend the Session type to include accessToken
+declare module "next-auth" {
+  interface Session {
+    accessToken?: string;
+    user: DefaultSession["user"] & {
+      // Add custom user fields here if needed
+    };
+  }
+  interface JWT {
+    accessToken?: string;
+    user?: any;
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -53,7 +68,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
+      session.accessToken = token.accessToken as string;
       session.user = token.user as any;
       return session;
     },
