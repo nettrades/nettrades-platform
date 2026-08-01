@@ -9,7 +9,7 @@
 #   - Fallback: llama.cpp – CPU inference, zero-dependency, works immediately
 #   - Odoo provides the governance layer (users, models, GPU resources)
 #   - LangGraph (custom app.py + uvicorn) orchestrates agents with state persistence
-#   - agent-chat-ui uses API Passthrough for production authentication
+#   - agent-chat-ui uses direct internal connection to LangGraph (bypasses Traefik)
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -232,9 +232,11 @@ services:
   # It uses the Dynamo API for inference, but remains separate from the core
   # inference routing so that customer agents don't break the distributed system.
   #
-  # FIX: Removed stripPrefix middleware to resolve LangGraph bug #7390.
-  # LangGraph now receives requests with the /api prefix intact, and uses
-  # MOUNT_PREFIX=/api and LANGGRAPH_API_URL to generate correct URLs.
+  # FINAL FIX (Claude.ai approach):
+  #   1. agent-chat-ui calls langgraph-server directly via internal network
+  #   2. Traefik still handles external /api requests with stripPrefix
+  #   3. LANGGRAPH_API_URL fixes URL generation for external responses
+  #   4. MOUNT_PREFIX is REMOVED (custom FastAPI app doesn't use it)
   # =========================================================================
   langgraph-server:
     build:
@@ -263,9 +265,10 @@ services:
       - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       # LANGGRAPH_API_URL is used for URL generation (workaround for #7390)
+      # This tells LangGraph its external URL so generated links include /api
       - LANGGRAPH_API_URL=https://${DOMAIN}/api
-      # MOUNT_PREFIX tells LangGraph it's mounted at /api
-      - MOUNT_PREFIX=/api
+      # MOUNT_PREFIX is REMOVED – it has no effect on custom FastAPI app
+      # - MOUNT_PREFIX=/api   # DELETED – not used
       - LANGGRAPH_TRUST_X_FORWARDED_HEADERS=true
     ports:
       - "8000:8000"
@@ -274,20 +277,20 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=web
-      # Router rule forwards /api without stripping the prefix
+      # Router rule for /api – strip prefix because FastAPI serves at root
       - traefik.http.routers.langgraph-api.rule=PathPrefix(`/api`)
       - traefik.http.routers.langgraph-api.priority=100
       - traefik.http.routers.langgraph-api.service=langgraph-api@docker
       - traefik.http.routers.langgraph-api.entrypoints=web,websecure
       - traefik.http.routers.langgraph-api.tls=true
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
-      # REMOVED stripPrefix – no longer needed
-      # - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
+      # stripPrefix is REQUIRED – FastAPI app expects /health, not /api/health
+      - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
       # Headers help LangGraph detect the proxy correctly
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Host=${DOMAIN}
-      # Only the header middleware is applied – no stripPrefix
-      - traefik.http.routers.langgraph-api.middlewares=langgraph-headers
+      # Apply both middlewares: strip first, then headers
+      - traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-headers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -304,24 +307,24 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 8. AGENT CHAT UI - Next.js Frontend with API Passthrough
+  # 8. AGENT CHAT UI - Next.js Frontend with Direct Internal Connection
   # =========================================================================
-  # API Passthrough is the production pattern where the Next.js server proxies
-  # requests to LangGraph, avoiding client-side API keys and CORS issues.
-  # This is the recommended approach for production deployments.
+  # Uses direct internal connection to langgraph-server:8000, bypassing Traefik.
+  # This avoids LangGraph bug #7390 completely for the frontend.
+  # API Passthrough pattern is still used for production authentication.
   # =========================================================================
   agent-chat-ui:
     build:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.agent-chat-ui
       args:
-        # API Passthrough: the Next.js server proxies requests to LangGraph
+        # Build args used during image build
         NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
         NEXT_PUBLIC_ASSISTANT_ID: supervisor
         NEXT_PUBLIC_SKIP_AUTH: "false"
         NEXT_PUBLIC_AUTH_SCHEME: langgraph-api-key
         NEXT_PUBLIC_LANGGRAPH_API_KEY: ${LANGGRAPH_API_KEY}
-        # These are used internally by the Next.js server for proxying
+        # Server-side internal URL for proxy
         LANGGRAPH_API_URL: http://langgraph-server:8000
         LANGSMITH_API_KEY: ${LANGGRAPH_API_KEY}
     container_name: agent-chat-ui
@@ -330,6 +333,9 @@ services:
       - web
       - internal
     environment:
+      # CRITICAL: Direct internal connection to LangGraph (bypasses Traefik)
+      - NEXT_PUBLIC_LANGGRAPH_API_URL=http://langgraph-server:8000
+      # Keep external for other uses (e.g., sharing links)
       - NEXT_PUBLIC_API_URL=https://${DOMAIN}/api
       - NEXT_PUBLIC_ASSISTANT_ID=supervisor
       - NEXT_PUBLIC_AUTH_SCHEME=langgraph-api-key
