@@ -121,7 +121,7 @@ logger = logging.getLogger(__name__)
 # SECURITY VALIDATION (FAIL FAST)
 # =============================================================================
 if os.getenv("DISABLE_AUTH", "false").lower() == "true":
-    logger.critical("⚠️ DISABLE_AUTH is TRUE – authentication is disabled!")
+    logger.critical("DISABLE_AUTH is TRUE – authentication is disabled!")
     logger.critical("This is UNSAFE for production. Set DISABLE_AUTH=false in .env")
     if os.getenv("ENVIRONMENT", "development") == "production":
         raise RuntimeError("DISABLE_AUTH=true is not allowed in production")
