@@ -191,7 +191,7 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 6. FORGEJO 15.0 LTS - Self-hosted Git Server
+  # 6. FORGEJO 15.0 LTS - Self-hosted Git Server (disabled by default)
   # =========================================================================
 #  forgejo:
 #    image: forgejo/forgejo:15.0
@@ -231,6 +231,10 @@ services:
   # state persistence, checkpointing, and multi-agent orchestration.
   # It uses the Dynamo API for inference, but remains separate from the core
   # inference routing so that customer agents don't break the distributed system.
+  #
+  # FIX: Removed stripPrefix middleware to resolve LangGraph bug #7390.
+  # LangGraph now receives requests with the /api prefix intact, and uses
+  # MOUNT_PREFIX=/api and LANGGRAPH_API_URL to generate correct URLs.
   # =========================================================================
   langgraph-server:
     build:
@@ -270,18 +274,20 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=web
+      # Router rule forwards /api without stripping the prefix
       - traefik.http.routers.langgraph-api.rule=PathPrefix(`/api`)
       - traefik.http.routers.langgraph-api.priority=100
       - traefik.http.routers.langgraph-api.service=langgraph-api@docker
       - traefik.http.routers.langgraph-api.entrypoints=web,websecure
       - traefik.http.routers.langgraph-api.tls=true
       - traefik.http.services.langgraph-api.loadbalancer.server.port=8000
-      # stripPrefix so LangGraph sees /health instead of /api/health
-      - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
-      # Forward headers so LangGraph knows it's behind a proxy
+      # REMOVED stripPrefix – no longer needed
+      # - traefik.http.middlewares.langgraph-strip.stripprefix.prefixes=/api
+      # Headers help LangGraph detect the proxy correctly
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Proto=https
       - traefik.http.middlewares.langgraph-headers.headers.customrequestheaders.X-Forwarded-Host=${DOMAIN}
-      - traefik.http.routers.langgraph-api.middlewares=langgraph-strip,langgraph-headers
+      # Only the header middleware is applied – no stripPrefix
+      - traefik.http.routers.langgraph-api.middlewares=langgraph-headers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
