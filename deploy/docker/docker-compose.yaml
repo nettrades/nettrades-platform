@@ -74,10 +74,10 @@ services:
       - web
     restart: unless-stopped
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 2. POSTGRESQL with pgvector - RAG Embeddings & Main Database
@@ -99,10 +99,10 @@ services:
       timeout: 5s
       retries: 5
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 3. POSTGRES EXPORTER - Prometheus Metrics for PostgreSQL
@@ -115,10 +115,10 @@ services:
       - internal
     restart: unless-stopped
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 4. VALKEY - BSD-licensed in-memory store (sessions, ORM cache, bus)
@@ -135,10 +135,10 @@ services:
     security_opt:
       - no-new-privileges:true
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 5. ODOO 19 CE - ERP, Marketplace, and AI Hub (Governance Layer)
@@ -185,10 +185,10 @@ services:
           memory: 4G
           cpus: '2'
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 6. FORGEJO 15.0 LTS - Self-hosted Git Server (disabled by default)
@@ -219,10 +219,10 @@ services:
 #      postgres:
 #        condition: service_healthy
 #    logging:
-#      driver: "json-file"
+#      driver: json-file
 #      options:
-#        max-size: "10m"
-#        max-file: "3"
+#        max-size: 10m
+#        max-file: 3
 
   # =========================================================================
   # 7. LANGGRAPH SERVER - Custom app.py + uvicorn (Full Control)
@@ -299,10 +299,10 @@ services:
       - valkey
       - odoo-proxy
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 8. COPILOTKIT FRONTEND - 
@@ -343,6 +343,8 @@ services:
       - ODOO_OAUTH_AUTHORIZE_URL=${ODOO_OAUTH_AUTHORIZE_URL}
       - ODOO_OAUTH_TOKEN_URL=${ODOO_OAUTH_TOKEN_URL}
       - ODOO_OAUTH_USERINFO_URL=${ODOO_OAUTH_USERINFO_URL}
+      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
+      - HOST=0.0.0.0
       - NODE_ENV=production
     ports:
       - "3002:3000"
@@ -358,10 +360,10 @@ services:
     depends_on:
       - langgraph-server
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-      max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim
@@ -390,10 +392,10 @@ services:
       timeout: 10s
       retries: 3
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 10. NVIDIA DYNAMO – Primary GPU Inference Engine (replaces GPUStack)
@@ -450,10 +452,10 @@ services:
           memory: 2G   # Frontend is lightweight; adjust for production
           cpus: '2'
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 11. CPU-VLLM (Future) – Placeholder for CPU-optimised vLLM
@@ -499,10 +501,10 @@ services:
   #         memory: 4G
   #         cpus: '4'
   #   logging:
-  #     driver: "json-file"
+  #     driver: json-file
   #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
+  #       max-size: 10m
+  #       max-file: 3
 
   # =========================================================================
   # 12. LLAMA.CPP – CPU Inference Engine (Fallback, zero dependency)
@@ -535,10 +537,10 @@ services:
       - "-ngl"
       - "0"
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 13. PROMETHEUS - Metrics Collection
@@ -567,10 +569,10 @@ services:
       - traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)
       - traefik.http.services.prometheus.loadbalancer.server.port=9090
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 14. GRAFANA - Visualisation Dashboard
@@ -599,10 +601,10 @@ services:
     depends_on:
       - prometheus
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
 
   # =========================================================================
   # 15. NODE EXPORTER - System Metrics for Prometheus
@@ -625,7 +627,7 @@ services:
     security_opt:
       - no-new-privileges:true
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: 10m
+        max-file: 3
