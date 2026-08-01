@@ -13,7 +13,7 @@
     "react-dom": "19.1.0",
     "@copilotkit/react-core": "latest",
     "@copilotkit/react-ui": "latest",
-    "next-auth": "^4.24.5"  // For OAuth 2.0
+    "next-auth": "^4.24.5"
   },
   "devDependencies": {
     "@types/node": "22.0.0",
