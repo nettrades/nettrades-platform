@@ -953,6 +953,23 @@ validate_deployment() {
         return 1
     fi
 
+    # Wait for CopilotKit frontend (replaces agent-chat-ui)
+    log_info "Waiting for CopilotKit frontend to become ready..."
+    local ck_ready=false
+    for i in {1..60}; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:3002 2>/dev/null | grep -q "200"; then
+            ck_ready=true
+            log_success "CopilotKit frontend is ready"
+            break
+        fi
+        sleep 2
+    done
+
+    if [ "$ck_ready" != true ]; then
+        log_warning "CopilotKit frontend did not become ready within 2 minutes. Check logs."
+        # Not a critical failure, continue
+    fi
+
     log_success "All services are healthy"
     return 0
 }
@@ -1197,14 +1214,9 @@ for i in {1..30}; do
     sleep 2
 done
 
-log_step "Waiting for agent-chat-ui to be ready..."
-for i in {1..30}; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200\|302"; then
-        log_success "agent-chat-ui is ready"
-        break
-    fi
-    sleep 2
-done
+# NOTE: agent-chat-ui has been replaced by copilotkit-frontend.
+# The health check for the frontend is now handled inside validate_deployment.
+log_info "Skipping separate agent-chat-ui health check (now using copilotkit-frontend)."
 
 # =============================================================================
 # 15. Ensure Let's Encrypt certificate
@@ -1307,7 +1319,7 @@ echo ""
 docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 echo "Access the services:"
-echo "  Agent Chat UI: https://${DOMAIN} or http://localhost:3000"
+echo "  CopilotKit Frontend: https://${DOMAIN} or http://localhost:3002"
 echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"

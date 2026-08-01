@@ -305,7 +305,8 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 8. COPILOTKIT FRONTEND - Modern Agentic UI (replaces agent-chat-ui)
+  # 8. COPILOTKIT FRONTEND - 
+  #    works with deploy\docker\copilotkit-frontend-src and uses odoo authentication
   # =========================================================================
   # CopilotKit provides a production-ready agentic UI framework built on the
   # AG-UI protocol. It connects to the /copilotkit endpoint on langgraph-server
@@ -331,14 +332,20 @@ services:
       - web
       - internal
     environment:
-      # CopilotKit frontend connects to the AG-UI endpoint on langgraph-server
-      # Uses Docker internal networking for direct communication
       - NEXT_PUBLIC_COPILOTKIT_URL=http://langgraph-server:8000/copilotkit
       - NEXT_PUBLIC_APP_DOMAIN=https://${DOMAIN}
-      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
-      - HOST=0.0.0.0
+      - NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-changeit}
+      - NEXTAUTH_URL=https://${DOMAIN}
+      - ODOO_OAUTH_CLIENT_ID=${ODOO_OAUTH_CLIENT_ID}
+      - ODOO_OAUTH_CLIENT_SECRET=${ODOO_OAUTH_CLIENT_SECRET}
+      - ODOO_OAUTH_REDIRECT_URI=${ODOO_OAUTH_REDIRECT_URI}
+      - ODOO_OAUTH_AUTHORIZE_URL=${ODOO_OAUTH_AUTHORIZE_URL}
+      - ODOO_OAUTH_TOKEN_URL=${ODOO_OAUTH_TOKEN_URL}
+      - ODOO_OAUTH_USERINFO_URL=${ODOO_OAUTH_USERINFO_URL}
+      - NODE_ENV=production
     ports:
-      - "3002:3000"  # Keep consistent with previous agent-chat-ui port
+      - "3002:3000"
     labels:
       - traefik.enable=true
       - traefik.http.routers.copilotkit-frontend.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)
@@ -354,7 +361,7 @@ services:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file: "3"
+      max-file: "3"
 
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim

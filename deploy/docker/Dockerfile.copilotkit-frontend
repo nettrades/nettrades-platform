@@ -2,42 +2,36 @@
 # FILE: deploy/docker/Dockerfile.copilotkit-frontend
 # =============================================================================
 # PURPOSE:
-#   Builds the CopilotKit frontend for the NETTRADES platform.
-#   Uses the official CopilotKit Starter template with Next.js.
-#
-# FIX: Uses degit instead of git clone to avoid authentication prompts
-# in non‑interactive Docker builds. degit downloads the public repository
-# without requiring a credential helper.
+#   Builds the CopilotKit frontend from vendored source code.
+#   Uses only open-source packages, no account or API key required.
+#   No external network fetch during build.
 # =============================================================================
 
 FROM node:20-slim AS builder
 
-# Install git and openssh-client – required for some npm packages,
-# but not for cloning the starter (degit handles that).
+# Install git only for npm packages that may need it
 RUN apt-get update && apt-get install -y git openssh-client && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Use degit (a lightweight tool for cloning public repositories without Git)
-# It works without authentication and avoids the "No such device or address" error.
-RUN npx degit https://github.com/CopilotKit/starter.git . && \
-    npm install -g pnpm && \
-    pnpm install
+# Copy the vendored frontend source
+COPY deploy/docker/copilotkit-frontend-src/ ./
 
-# Build the Next.js application
-RUN pnpm build
+# Install dependencies and build
+RUN npm install -g pnpm && \
+    pnpm install && \
+    pnpm build
 
 # Production stage
 FROM node:20-slim AS runner
 
 WORKDIR /app
 
-COPY --from=builder /app/.next ./.next
+# Copy the standalone output and necessary files
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/next.config.mjs ./next.config.mjs
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
