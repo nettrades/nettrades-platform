@@ -305,8 +305,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 8. COPILOTKIT FRONTEND - 
-  #    works with deploy\docker\copilotkit-frontend-src and uses odoo authentication
+  # 8. COPILOTKIT FRONTEND - Modern Agentic UI (replaces agent-chat-ui)
   # =========================================================================
   # CopilotKit provides a production-ready agentic UI framework built on the
   # AG-UI protocol. It connects to the /copilotkit endpoint on langgraph-server

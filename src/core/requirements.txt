@@ -5,10 +5,12 @@
 #   Python dependencies for the NETTRADES Core LangGraph Service.
 #
 #   UPDATES (2026-08-06):
-#     • Upgraded LangChain to v1 (langchain>=1.3.0) for CopilotKit compatibility
-#     • Upgraded LangGraph to v1 (langgraph>=1.2.0)
+#     • Upgraded LangChain to v1.3.14
+#     • Upgraded LangGraph to v1.2.8
+#     • Upgraded FastAPI to v0.136.3
+#     • Upgraded Uvicorn to v0.49.0
+#     • Upgraded Pydantic to v2.13.4
 #     • Removed explicit ag-ui-langgraph (handled by CopilotKit)
-#     • CopilotKit >= 0.1.94
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -19,8 +21,8 @@ huggingface-hub>=0.20.0
 # -----------------------------------------------------------------------------
 # Core LangChain & LangGraph (v1.x)
 # -----------------------------------------------------------------------------
-langchain>=1.3.0,<2.0.0
-langgraph>=1.2.0,<2.0.0
+langchain>=1.3.14,<2.0.0
+langgraph>=1.2.8,<2.0.0
 langgraph-checkpoint-postgres>=3.0.3,<4.0.0
 
 # -----------------------------------------------------------------------------
@@ -31,7 +33,7 @@ langgraph-checkpoint-postgres>=3.0.3,<4.0.0
 psycopg[binary]>=3.2.3,<4.0.0
 
 # Async driver for FastAPI endpoints
-asyncpg>=0.29.0,<1.0.0
+asyncpg>=0.31.0,<1.0.0
 
 # -----------------------------------------------------------------------------
 # AI / LLM Providers (OpenAI-compatible)
@@ -41,37 +43,37 @@ langchain-openai>=0.3.4,<0.4.0
 # -----------------------------------------------------------------------------
 # Web Framework & Server
 # -----------------------------------------------------------------------------
-fastapi>=0.115.0,<1.0.0
-uvicorn[standard]>=0.30.0,<1.0.0
-pydantic>=2.0.0,<3.0.0
+fastapi>=0.136.3,<1.0.0
+uvicorn[standard]>=0.49.0,<1.0.0
+pydantic>=2.13.4,<3.0.0
 python-dotenv>=1.0.0,<2.0.0
 
 # -----------------------------------------------------------------------------
 # HTTP Clients (for external API calls)
 # -----------------------------------------------------------------------------
-aiohttp>=3.9.0,<4.0.0         # Used by Bridge integration and GPUStack API
-httpx>=0.27.0,<1.0.0          # Used by odoo_proxy and GPUStack tools
+aiohttp>=3.9.0,<4.0.0
+httpx>=0.27.0,<1.0.0
 
 # -----------------------------------------------------------------------------
 # Image Processing (Vision Agent)
 # -----------------------------------------------------------------------------
-pillow>=10.0.0,<11.0.0        # For decoding/processing images in vision_agent
+pillow>=10.0.0,<11.0.0
 
 # -----------------------------------------------------------------------------
 # MQTT Client (IoT Integration)
 # -----------------------------------------------------------------------------
-paho-mqtt>=2.0.0,<3.0.0       # For IoT sensor data integration (if enabled)
+paho-mqtt>=2.0.0,<3.0.0
 
 # -----------------------------------------------------------------------------
 # Observability (Metrics)
 # -----------------------------------------------------------------------------
-prometheus-client>=0.20.0,<1.0.0
+prometheus-client>=0.25.0,<1.0.0
 
 # -----------------------------------------------------------------------------
 # Security & Utilities
 # -----------------------------------------------------------------------------
-python-multipart>=0.0.9,<1.0.0
-numpy
+python-multipart>=0.0.32,<1.0.0
+numpy>=2.4.6
 opencv-python-headless
 psycopg_pool
 psycopg
