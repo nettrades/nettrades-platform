@@ -12,9 +12,9 @@
 #     • If you encounter issues, adjust versions to match your environment.
 #
 #   UPDATES (2026-08-06):
-#     • langgraph: upgraded to >=0.3.25 to satisfy CopilotKit requirement
-#     • Added CopilotKit dependencies (copilotkit, ag-ui-langgraph)
-#     • Removed strict upper bound on langgraph to avoid conflicts
+#     • Let pip resolve CopilotKit dependencies automatically.
+#     • Removed explicit ag-ui-langgraph to avoid version conflicts.
+#     • Relaxed langgraph upper bound to <2 (compatible with CopilotKit).
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -26,8 +26,8 @@ huggingface-hub>=0.20.0
 # Core LangChain & LangGraph
 # -----------------------------------------------------------------------------
 langchain>=0.3.15,<0.4.0
-# CopilotKit requires langgraph >= 0.3.25, so we relax the upper bound
-langgraph>=0.3.25,<0.5.0
+# CopilotKit requires langgraph >= 0.3.25 and <2
+langgraph>=0.3.25,<2
 langgraph-checkpoint-postgres>=3.0.3,<4.0.0
 
 # -----------------------------------------------------------------------------
@@ -86,9 +86,8 @@ circuitbreaker>=2.0.0
 tenacity>=9.0.0
 
 # -----------------------------------------------------------------------------
-# CopilotKit Integration (NEW)
+# CopilotKit Integration
 # -----------------------------------------------------------------------------
-# These packages provide AG-UI protocol support for CopilotKit frontend.
-# They enable generative UI, shared state, and HITL workflows.
-copilotkit>=0.1.0
-ag-ui-langgraph>=0.0.42
+# CopilotKit will automatically install its compatible dependencies,
+# including ag-ui-langgraph. Do NOT explicitly list ag-ui-langgraph here.
+copilotkit>=0.1.85
