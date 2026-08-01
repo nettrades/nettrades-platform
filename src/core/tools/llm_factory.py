@@ -36,7 +36,8 @@ from langchain_core.language_models import BaseChatModel
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
-ODOO_PROXY_URL = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:3000")
+# FIXED: Changed default port from 3000 to 8080 to match odoo-proxy service
+ODOO_PROXY_URL = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:8080")
 ODOO_API_KEY = os.getenv("ODOO_API_KEY", "change_me_in_production")
 
 _logger = logging.getLogger(__name__)
