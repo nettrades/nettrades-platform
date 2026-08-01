@@ -9,7 +9,7 @@
 #   - Fallback: llama.cpp – CPU inference, zero-dependency, works immediately
 #   - Odoo provides the governance layer (users, models, GPU resources)
 #   - LangGraph (custom app.py + uvicorn) orchestrates agents with state persistence
-#   - agent-chat-ui uses direct internal connection to LangGraph (bypasses Traefik)
+#   - CopilotKit frontend provides a modern agentic UI with generative UI, shared state
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -232,11 +232,9 @@ services:
   # It uses the Dynamo API for inference, but remains separate from the core
   # inference routing so that customer agents don't break the distributed system.
   #
-  # FINAL FIX (Claude.ai approach):
-  #   1. agent-chat-ui calls langgraph-server directly via internal network
-  #   2. Traefik still handles external /api requests with stripPrefix
-  #   3. LANGGRAPH_API_URL fixes URL generation for external responses
-  #   4. MOUNT_PREFIX is REMOVED (custom FastAPI app doesn't use it)
+  # CopilotKit Integration: The /copilotkit endpoint exposes the AG-UI protocol
+  # for the CopilotKit frontend, enabling generative UI, shared state, and
+  # human-in-the-loop workflows.
   # =========================================================================
   langgraph-server:
     build:
@@ -307,52 +305,49 @@ services:
         max-file: "3"
 
   # =========================================================================
-  # 8. AGENT CHAT UI - Next.js Frontend with Direct Internal Connection
+  # 8. COPILOTKIT FRONTEND - Modern Agentic UI (replaces agent-chat-ui)
   # =========================================================================
-  # Uses direct internal connection to langgraph-server:8000, bypassing Traefik.
-  # This avoids LangGraph bug #7390 completely for the frontend.
-  # API Passthrough pattern is still used for production authentication.
+  # CopilotKit provides a production-ready agentic UI framework built on the
+  # AG-UI protocol. It connects to the /copilotkit endpoint on langgraph-server
+  # and supports generative UI, shared state, and human-in-the-loop workflows.
+  #
+  # Key Features:
+  #   - AG-UI protocol communication with LangGraph backend
+  #   - Generative UI – agents render dynamic UI components
+  #   - Shared state – bidirectional state synchronization
+  #   - Human-in-the-loop – agent pauses for user input
+  #   - MIT-licensed core – can be bundled in commercial products
+  #
+  # Build: This service uses Dockerfile.copilotkit-frontend which builds
+  #   the CopilotKit Starter template with Next.js.
   # =========================================================================
-  agent-chat-ui:
+  copilotkit-frontend:
     build:
       context: ../../
-      dockerfile: deploy/docker/Dockerfile.agent-chat-ui
-      args:
-        # Build args used during image build
-        NEXT_PUBLIC_API_URL: https://${DOMAIN}/api
-        NEXT_PUBLIC_ASSISTANT_ID: supervisor
-        NEXT_PUBLIC_SKIP_AUTH: "false"
-        NEXT_PUBLIC_AUTH_SCHEME: langgraph-api-key
-        NEXT_PUBLIC_LANGGRAPH_API_KEY: ${LANGGRAPH_API_KEY}
-        # Server-side internal URL for proxy
-        LANGGRAPH_API_URL: http://langgraph-server:8000
-        LANGSMITH_API_KEY: ${LANGGRAPH_API_KEY}
-    container_name: agent-chat-ui
+      dockerfile: deploy/docker/Dockerfile.copilotkit-frontend
+    container_name: copilotkit-frontend
     restart: unless-stopped
     networks:
       - web
       - internal
     environment:
-      # CRITICAL: Direct internal connection to LangGraph (bypasses Traefik)
-      # - NEXT_PUBLIC_LANGGRAPH_API_URL=http://langgraph-server:8000
-      # Keep external for other uses (e.g., sharing links)
-      - NEXT_PUBLIC_API_URL=https://${DOMAIN}/api
-      - NEXT_PUBLIC_ASSISTANT_ID=supervisor
-      - NEXT_PUBLIC_AUTH_SCHEME=langgraph-api-key
+      # CopilotKit frontend connects to the AG-UI endpoint on langgraph-server
+      # Uses Docker internal networking for direct communication
+      - NEXT_PUBLIC_COPILOTKIT_URL=http://langgraph-server:8000/copilotkit
+      - NEXT_PUBLIC_APP_DOMAIN=https://${DOMAIN}
       - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
       - HOST=0.0.0.0
-      # Server-side environment variables for API Passthrough
-      - LANGGRAPH_API_URL=http://langgraph-server:8000
-      - LANGSMITH_API_KEY=${LANGGRAPH_API_KEY}
     ports:
-      - "3002:3000"
+      - "3002:3000"  # Keep consistent with previous agent-chat-ui port
     labels:
       - traefik.enable=true
-      - traefik.http.routers.agent-chat-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)
-      - traefik.http.routers.agent-chat-ui.priority=50
-      - traefik.http.services.agent-chat-ui.loadbalancer.server.port=3000
-      - traefik.http.routers.agent-chat-ui.entrypoints=web,websecure
-      - traefik.http.routers.agent-chat-ui.tls=true
+      - traefik.http.routers.copilotkit-frontend.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)
+      - traefik.http.routers.copilotkit-frontend.priority=50
+      - traefik.http.services.copilotkit-frontend.loadbalancer.server.port=3000
+      - traefik.http.routers.copilotkit-frontend.entrypoints=web,websecure
+      - traefik.http.routers.copilotkit-frontend.tls=true
+      - traefik.http.routers.copilotkit-frontend.middlewares=copilotkit-frontend-timeout
+      - traefik.http.middlewares.copilotkit-frontend-timeout.forwardauth.timeout=60s
     depends_on:
       - langgraph-server
     logging:

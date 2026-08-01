@@ -15,6 +15,7 @@
 #     - /threads/{thread_id}/state - get thread state (for agent-chat-ui)
 #     - /threads/{thread_id}/runs - run a thread (for agent-chat-ui)
 #     - /runs     - create a new run and return assistant response (for agent-chat-ui)
+#     - /copilotkit - AG-UI endpoint for CopilotKit (new)
 #
 # KEY FEATURES:
 #   - Auto-detects inference backend (GPUStack / vLLM / llama.cpp)
@@ -22,6 +23,7 @@
 #   - Exposes Prometheus metrics for observability
 #   - Uses PostgresSaver for durable checkpointing
 #   - Stub endpoints for agent-chat-ui compatibility
+#   - CopilotKit AG-UI endpoint for modern agentic UI
 #
 # IMPORTANT FIXES (2026-07-02):
 #   1. Authentication Bypass: Previously, if LANGGRAPH_API_KEY was unset,
@@ -56,6 +58,11 @@
 #      the "Checkpointer requires one or more of the following 'configurable'
 #      keys: []" error. Note: supervisor.py's invoke_supervisor_with_retry()
 #      must accept a `config` argument.
+#
+#   9. NEW (2026-08-06): Added CopilotKit AG-UI endpoint for modern agentic UI.
+#      This provides a native integration with CopilotKit frontend via the
+#      AG-UI protocol, enabling generative UI, shared state, and HITL workflows.
+#      Uses the official add_langgraph_fastapi_endpoint from ag-ui-langgraph.
 # =============================================================================
 
 import os
@@ -79,6 +86,24 @@ from langgraph.checkpoint.postgres import PostgresSaver
 # Fix imports to use relative imports
 from supervisor import build_supervisor, invoke_supervisor_with_retry
 from security.prompt_injection import sanitise_input
+
+# =============================================================================
+# CopilotKit Integration (NEW)
+# =============================================================================
+# CopilotKit provides a production-ready AG-UI endpoint for agentic UIs.
+# It allows any AG-UI compatible frontend (React, Angular, etc.) to connect
+# to our LangGraph graph with full state synchronization and generative UI.
+# We use the official ag-ui-langgraph package for FastAPI integration.
+try:
+    from ag_ui_langgraph import add_langgraph_fastapi_endpoint
+    from copilotkit import LangGraphAGUIAgent
+    COPILOTKIT_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("CopilotKit SDK and ag-ui-langgraph loaded successfully")
+except ImportError as e:
+    COPILOTKIT_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning(f"CopilotKit SDK not installed: {e}. The /copilotkit endpoint will not be available.")
 
 # Load environment variables
 load_dotenv()
@@ -144,6 +169,7 @@ async def lifespan(app: FastAPI):
          checkpoint schema.
       4. Build the supervisor graph and attach the checkpointer.
       5. Store the compiled graph in ml_models.
+      6. If CopilotKit is available, add the AG-UI endpoint.
 
     Shutdown:
       Clear ml_models and close the connection.
@@ -172,6 +198,27 @@ async def lifespan(app: FastAPI):
         graph.checkpointer = checkpointer
         ml_models["graph"] = graph
         logger.info("Supervisor graph built with checkpointing")
+
+        # =========================================================================
+        # NEW: Add CopilotKit AG-UI endpoint using official ag-ui-langgraph
+        # =========================================================================
+        if COPILOTKIT_AVAILABLE:
+            try:
+                # Create the LangGraphAGUIAgent wrapping our graph
+                agent = LangGraphAGUIAgent(
+                    name="supervisor",
+                    description="Main orchestrator agent for the autonomous enterprise platform",
+                    graph=graph,
+                )
+                # Mount the endpoint at /copilotkit
+                add_langgraph_fastapi_endpoint(app=app, agent=agent, path="/copilotkit")
+                logger.info("CopilotKit AG-UI endpoint added at /copilotkit (using LangGraphAGUIAgent)")
+            except Exception as e:
+                logger.error(f"Failed to add CopilotKit endpoint: {e}")
+                # Continue without CopilotKit - the rest of the app still works
+        else:
+            logger.info("CopilotKit not available - /copilotkit endpoint skipped")
+
         # Yield control to the application - the connection stays open.
         yield
 

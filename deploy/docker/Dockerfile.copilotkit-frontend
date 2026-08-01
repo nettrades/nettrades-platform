@@ -1,0 +1,34 @@
+# =============================================================================
+# FILE: deploy/docker/Dockerfile.copilotkit-frontend
+# =============================================================================
+# PURPOSE:
+#   Builds the CopilotKit frontend for the NETTRADES platform.
+#   Uses the official CopilotKit Starter template with Next.js.
+# =============================================================================
+
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# Clone the CopilotKit Starter template
+RUN git clone https://github.com/CopilotKit/starter.git . && \
+    npm install -g pnpm && \
+    pnpm install
+
+# Build the application
+RUN pnpm build
+
+# Production stage
+FROM node:20-slim AS runner
+
+WORKDIR /app
+
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/next.config.mjs ./next.config.mjs
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
