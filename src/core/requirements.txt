@@ -3,18 +3,12 @@
 # =============================================================================
 # DESCRIPTION:
 #   Python dependencies for the NETTRADES Core LangGraph Service.
-#   This service hosts the Supervisor Agent and all specialised sub-agents.
-#
-#   DEPLOYMENT NOTES:
-#     • This file is used by pip in the Docker build and for local development.
-#     • Versions are pinned to the latest stable releases (as of 2026-08-06)
-#       to ensure compatibility with Odoo 19 and the LangGraph ecosystem.
-#     • If you encounter issues, adjust versions to match your environment.
 #
 #   UPDATES (2026-08-06):
-#     • Let pip resolve CopilotKit dependencies automatically.
-#     • Removed explicit ag-ui-langgraph to avoid version conflicts.
-#     • Relaxed langgraph upper bound to <2 (compatible with CopilotKit).
+#     • Upgraded LangChain to v1 (langchain>=1.3.0) for CopilotKit compatibility
+#     • Upgraded LangGraph to v1 (langgraph>=1.2.0)
+#     • Removed explicit ag-ui-langgraph (handled by CopilotKit)
+#     • CopilotKit >= 0.1.94
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -23,11 +17,10 @@
 huggingface-hub>=0.20.0
 
 # -----------------------------------------------------------------------------
-# Core LangChain & LangGraph
+# Core LangChain & LangGraph (v1.x)
 # -----------------------------------------------------------------------------
-langchain>=0.3.15,<0.4.0
-# CopilotKit requires langgraph >= 0.3.25 and <2
-langgraph>=0.3.25,<2
+langchain>=1.3.0,<2.0.0
+langgraph>=1.2.0,<2.0.0
 langgraph-checkpoint-postgres>=3.0.3,<4.0.0
 
 # -----------------------------------------------------------------------------
@@ -88,6 +81,6 @@ tenacity>=9.0.0
 # -----------------------------------------------------------------------------
 # CopilotKit Integration
 # -----------------------------------------------------------------------------
-# CopilotKit will automatically install its compatible dependencies,
-# including ag-ui-langgraph. Do NOT explicitly list ag-ui-langgraph here.
-copilotkit>=0.1.85
+# CopilotKit 0.1.94 pulls ag-ui-langgraph automatically.
+# Do NOT explicitly list ag-ui-langgraph to avoid version conflicts.
+copilotkit>=0.1.94

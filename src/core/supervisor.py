@@ -98,7 +98,7 @@ class SupervisorCircuitBreaker(CircuitBreaker):
 _supervisor_breaker = SupervisorCircuitBreaker(failure_threshold=5, recovery_timeout=30)
 
 # =============================================================================
-# RESILIENT INVOCATION WRAPPER
+# RESILIENT INVOCATION WRAPPER (FIXED: added config parameter)
 # =============================================================================
 @retry(
     stop=stop_after_attempt(3),
@@ -106,7 +106,11 @@ _supervisor_breaker = SupervisorCircuitBreaker(failure_threshold=5, recovery_tim
     retry=retry_if_exception_type((ConnectionError, TimeoutError, asyncio.TimeoutError)),
     reraise=True
 )
-async def invoke_supervisor_with_retry(supervisor, state: Dict[str, Any]) -> Dict[str, Any]:
+async def invoke_supervisor_with_retry(
+    supervisor,
+    state: Dict[str, Any],
+    config: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """
     Wrapper that adds retries and circuit breaker protection to supervisor.ainvoke.
 
@@ -115,6 +119,8 @@ async def invoke_supervisor_with_retry(supervisor, state: Dict[str, Any]) -> Dic
     Args:
         supervisor: The compiled LangGraph supervisor graph.
         state: The state dictionary to pass to the graph.
+        config: Optional config dictionary (e.g., {"configurable": {"thread_id": "..."}})
+                for checkpointing. This is required when using a checkpointer.
 
     Returns:
         Dict[str, Any]: The result from the supervisor graph.
@@ -124,7 +130,7 @@ async def invoke_supervisor_with_retry(supervisor, state: Dict[str, Any]) -> Dic
         Exception: Any other exception from the graph invocation.
     """
     async def _invoke():
-        return await supervisor.ainvoke(state)
+        return await supervisor.ainvoke(state, config=config)
 
     try:
         result = await _supervisor_breaker.call_async(_invoke)
@@ -413,7 +419,7 @@ async def route(state: dict) -> dict:
         # If we haven't notified the user yet about the fallback, do so now
         if not state.get("fallback_notified", False):
             fallback_msg = (
-                "⚠️ **Note:** The primary GPU‑accelerated AI model is currently unavailable. "
+                " **Note:** The primary GPU accelerated AI model is currently unavailable. "
                 "I'm using a smaller CPU‑based model for now. This may affect the quality of responses. "
                 "If you need a more accurate answer, you can ask a human expert."
             )
