@@ -953,7 +953,7 @@ validate_deployment() {
         return 1
     fi
 
-    # Wait for NETTRADES UI (FastAPI + static HTML/JS)
+    # Wait for NETTRADES UI (Nginx serving static files)
     log_info "Waiting for NETTRADES UI to become ready..."
     local ui_ready=false
     for i in {1..60}; do

@@ -2,13 +2,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy the merged requirements file from src/core
+# Copy merged requirements
 COPY src/core/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the UI application
+# Copy API application (no static files)
 COPY deploy/docker/nettrades-ui/app/ ./app/
-COPY deploy/docker/nettrades-ui/static/ ./static/
 COPY deploy/docker/nettrades-ui/templates/ ./templates/
 
 EXPOSE 8000
