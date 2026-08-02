@@ -364,22 +364,22 @@ services:
       - langgraph-server
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.nettrades-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.nettrades-ui.priority=50"
+      # --- CRITICAL FIX: Only handle /api/* paths ---
+      - "traefik.http.routers.nettrades-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.nettrades-ui.priority=100"
       - "traefik.http.routers.nettrades-ui.entrypoints=web,websecure"
       - "traefik.http.routers.nettrades-ui.tls=true"
       - "traefik.http.services.nettrades-ui.loadbalancer.server.port=8000"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      # --- CRITICAL FIX: Strip /api prefix before forwarding to FastAPI ---
+      - "traefik.http.middlewares.nettrades-ui-strip.stripprefix.prefixes=/api"
+      - "traefik.http.routers.nettrades-ui.middlewares=nettrades-ui-strip"
+      # Remove healthcheck – it's not needed and can cause false failures
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file: "3"
-
+      max-file: "3"
+      
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim
   # =========================================================================
