@@ -3,6 +3,7 @@
 # =============================================================================
 # DESCRIPTION:
 #   Python dependencies for the NETTRADES Core LangGraph Service.
+#   Also includes dependencies for the nettrades-ui (FastAPI + static HTML/JS).
 #
 #   UPDATES (2026-08-06):
 #     • Upgraded LangChain to v1.3.14
@@ -11,6 +12,9 @@
 #     • Upgraded Uvicorn to v0.49.0
 #     • Upgraded Pydantic to v2.13.4
 #     • Removed explicit ag-ui-langgraph (handled by CopilotKit)
+#   UPDATES (2026-08-07):
+#     • Added nettrades-ui dependencies (FastAPI, Uvicorn, httpx, python-multipart,
+#       jinja2, python-jose) using the same version ranges as Core to avoid conflicts.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -43,10 +47,17 @@ langchain-openai>=0.3.4,<0.4.0
 # -----------------------------------------------------------------------------
 # Web Framework & Server
 # -----------------------------------------------------------------------------
+# Core LangGraph service
 fastapi>=0.136.3,<1.0.0
 uvicorn[standard]>=0.49.0,<1.0.0
 pydantic>=2.13.4,<3.0.0
 python-dotenv>=1.0.0,<2.0.0
+
+# nettrades-ui (FastAPI + static HTML/JS) – using same versions as Core
+# jinja2 is used for templating (login.html)
+jinja2>=3.1.0,<4.0.0
+# python-jose is used for JWT/OAuth session handling
+python-jose[cryptography]>=3.3.0,<4.0.0
 
 # -----------------------------------------------------------------------------
 # HTTP Clients (for external API calls)

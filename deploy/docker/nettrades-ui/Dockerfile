@@ -2,17 +2,14 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
+# Copy the merged requirements file from src/core
+COPY src/core/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application
-COPY app/ ./app/
-COPY static/ ./static/
-COPY templates/ ./templates/
-
-# Create necessary directories
-RUN mkdir -p static/css static/js
+# Copy the UI application
+COPY deploy/docker/nettrades-ui/app/ ./app/
+COPY deploy/docker/nettrades-ui/static/ ./static/
+COPY deploy/docker/nettrades-ui/templates/ ./templates/
 
 EXPOSE 8000
 
