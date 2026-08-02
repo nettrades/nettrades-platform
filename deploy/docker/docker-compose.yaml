@@ -298,11 +298,6 @@ services:
       - postgres
       - valkey
       - odoo-proxy
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: 3
 
   # =========================================================================
   # UI – NETTRADES-UI - NGINX serves static files (CUSTOM UI)
@@ -375,11 +370,10 @@ services:
       - "traefik.http.routers.nettrades-ui.middlewares=nettrades-ui-strip"
       # Remove healthcheck – it's not needed and can cause false failures
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
-        max-size: "10m"
-      max-file: "3"
-      
+        max-size: 10m
+        max-file: 3
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim
   # =========================================================================
