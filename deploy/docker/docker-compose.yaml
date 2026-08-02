@@ -309,8 +309,8 @@ services:
   # =============================================================================
   nettrades-ui:
     build:
-      context: ./nettrades-ui
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: deploy/docker/nettrades-ui/Dockerfile
     container_name: nettrades-ui
     restart: unless-stopped
     environment:
@@ -348,7 +348,7 @@ services:
       driver: "json-file"
       options:
         max-size: "10m"
-      max-file: "3"
+        max-file: "3"
 
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim
