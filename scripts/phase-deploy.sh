@@ -947,11 +947,17 @@ validate_deployment() {
         attempt=$((attempt + 1))
     done
 
-    # Wait for NETTRADES UI (Nginx serving static files)
+    if [ "$langgraph_ready" != true ]; then
+        log_error "LangGraph failed to become ready within $((max_retries * 2)) seconds."
+        log_info "Check LangGraph logs with: docker logs langgraph-server --tail 50"
+        return 1
+    fi
+
+    # Wait for NETTRADES UI (on port 3002)
     log_info "Waiting for NETTRADES UI to become ready..."
     local ui_ready=false
     for i in {1..60}; do
-        if curl -s -o /dev/null -w "%{http_code}" -H "Host: ${DOMAIN}" http://localhost/ 2>/dev/null | grep -q "200"; then
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:3002/ 2>/dev/null | grep -q "200"; then
             ui_ready=true
             log_success "NETTRADES UI is ready"
             break
@@ -966,7 +972,7 @@ validate_deployment() {
 
     log_success "All services are healthy"
     return 0
-}    
+}
 
 if validate_deployment; then
     log_success "Deployment validation passed"
@@ -1060,10 +1066,10 @@ fi
 # =============================================================================
 if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
     log_step "Downloading GGUF model for llama.cpp fallback from ModelScope mirror..."
-    
+
     # Ensure the models directory exists
     mkdir -p "$MODELS_DIR"
-    
+
     # Run the download script with the correct model and format
     if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-1.5b --format gguf --dir "$MODELS_DIR"; then
         log_success "GGUF model downloaded successfully to $MODELS_DIR"
@@ -1078,7 +1084,7 @@ if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
             log_info "The system will still work but llama.cpp fallback will not be available."
         fi
     fi
-    
+
     # Restart llama-cpp to pick up the new model (if it was running)
     docker compose restart llama-cpp 2>/dev/null || true
 else
@@ -1331,12 +1337,13 @@ echo ""
 docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 echo "Access the services:"
-echo "  Frontend: https://${DOMAIN}"
+echo "  Frontend (UI): http://localhost:3002 (or http://nettrades.ai:3002)"
 echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"
 echo "  Prometheus: http://localhost:9090 (admin / password in .env PROMETHEUS_PASSWORD)"
 echo "  Dynamo:    http://localhost:8001  (primary inference, API key in .env DYNAMO_API_KEY)"
+echo "  llama.cpp: http://localhost:8080  (fallback inference, includes built-in UI)"
 echo ""
 echo "Emergency Odoo user: emergency (password in /root/emergency_password.txt)"
 echo "Use this if you get locked out of admin."

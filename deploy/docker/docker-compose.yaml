@@ -9,7 +9,6 @@
 #   - Fallback: llama.cpp – CPU inference, zero-dependency, works immediately
 #   - Odoo provides the governance layer (users, models, GPU resources)
 #   - LangGraph (custom app.py + uvicorn) orchestrates agents with state persistence
-#   - CopilotKit frontend provides a modern agentic UI with generative UI, shared state
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -298,28 +297,6 @@ services:
       - postgres
       - valkey
       - odoo-proxy
-
-  # =========================================================================
-  # UI – NETTRADES-UI - NGINX serves static files (CUSTOM UI)
-  # =========================================================================
-  ui:
-    image: nginx:alpine
-    container_name: ui
-    restart: unless-stopped
-    volumes:
-      - ./nettrades-ui/static:/usr/share/nginx/html:ro
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro   # optional
-    networks:
-      - web
-      - internal
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.ui.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.ui.priority=10"
-      - "traefik.http.routers.ui.entrypoints=web,websecure"
-      - "traefik.http.routers.ui.tls=true"
-      - "traefik.http.services.ui.loadbalancer.server.port=80"
-    # No health check – Nginx is always ready
     logging:
       driver: json-file
       options:
@@ -327,7 +304,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # API – NETTRADES-UI - FastAPI (only API endpoints, no static files)
+  # 8. NETTRADES-UI - FastAPI (Served on Dedicated Port 3002)
   # =========================================================================
   nettrades-ui:
     build:
@@ -335,6 +312,8 @@ services:
       dockerfile: deploy/docker/nettrades-ui/Dockerfile
     container_name: nettrades-ui
     restart: unless-stopped
+    ports:
+      - "3002:8000"
     environment:
       - DOMAIN=${DOMAIN}
       - ODOO_URL=${ODOO_URL}
@@ -351,29 +330,19 @@ services:
       - ODOO_OAUTH_TOKEN_URL=${ODOO_OAUTH_TOKEN_URL}
       - ODOO_OAUTH_USERINFO_URL=${ODOO_OAUTH_USERINFO_URL}
       - ODOO_OAUTH_REDIRECT_URI=${ODOO_OAUTH_REDIRECT_URI}
+      - API_BASE_URL=https://${DOMAIN}
     networks:
-      - web
       - internal
     depends_on:
       - odoo-proxy
       - langgraph-server
-    labels:
-      - "traefik.enable=true"
-      # --- CRITICAL FIX: Only handle /api/* paths ---
-      - "traefik.http.routers.nettrades-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.nettrades-ui.priority=100"
-      - "traefik.http.routers.nettrades-ui.entrypoints=web,websecure"
-      - "traefik.http.routers.nettrades-ui.tls=true"
-      - "traefik.http.services.nettrades-ui.loadbalancer.server.port=8000"
-      # --- CRITICAL FIX: Strip /api prefix before forwarding to FastAPI ---
-      - "traefik.http.middlewares.nettrades-ui-strip.stripprefix.prefixes=/api"
-      - "traefik.http.routers.nettrades-ui.middlewares=nettrades-ui-strip"
-      # Remove healthcheck – it's not needed and can cause false failures
+    # No Traefik labels - served directly on port 3002
     logging:
       driver: json-file
       options:
         max-size: 10m
         max-file: 3
+
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim
   # =========================================================================

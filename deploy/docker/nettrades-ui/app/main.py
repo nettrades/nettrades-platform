@@ -13,6 +13,7 @@ app = FastAPI(title="NETTRADES API")
 
 # Configuration
 DOMAIN = os.getenv("DOMAIN", "nettrades.ai")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://nettrades.ai")
 ODOO_URL = os.getenv("ODOO_URL", "http://odoo:8069")
 ODOO_PROXY_URL = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:8080")
 LANGGRAPH_URL = os.getenv("LANGGRAPH_URL", "http://langgraph-server:8000")
@@ -47,11 +48,17 @@ app.add_middleware(
 )
 
 # ============================================================================
-# ROOT ROUTE – serves the static UI
+# ROOT ROUTE – serves the static UI with API base URL injection
 # ============================================================================
 @app.get("/")
 async def index():
-    return FileResponse("static/index.html")
+    try:
+        with open("static/index.html", "r") as f:
+            html = f.read()
+        html = html.replace("{{API_BASE_URL}}", API_BASE_URL)
+        return HTMLResponse(content=html)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="index.html not found")
 
 # ============================================================================
 # AUTHENTICATION ROUTES
@@ -129,9 +136,13 @@ async def chat(request: Request):
     try:
         data = await request.json()
         message = data.get("message", "")
+        thread_id = data.get("thread_id")
+        payload = {"message": message}
+        if thread_id:
+            payload["thread_id"] = thread_id
         resp = await client.post(
             f"{LANGGRAPH_URL}/invoke",
-            json={"message": message},
+            json=payload,
             headers={"Authorization": f"Bearer {LANGGRAPH_API_KEY}"}
         )
         return resp.json()
