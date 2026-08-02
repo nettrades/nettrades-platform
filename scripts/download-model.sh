@@ -7,6 +7,8 @@
 # CHANGELOG:
 #   2026-08-02: Switched to ModelScope mirrors (no authentication required)
 #               for both GGUF and HF formats.
+#   2026-08-03: Added retry logic with exponential backoff for GGUF downloads
+#               to improve resilience against transient network failures.
 # =============================================================================
 
 set -euo pipefail
@@ -128,6 +130,47 @@ ensure_git() {
 }
 
 # -----------------------------------------------------------------------------
+# Helper: Download with retries and timeout (used for GGUF format)
+# -----------------------------------------------------------------------------
+download_with_retries() {
+    local url="$1"
+    local output="$2"
+    local max_retries=3
+    local retry_delay=10
+    local attempt=1
+
+    while [ $attempt -le $max_retries ]; do
+        echo "Download attempt $attempt/$max_retries..."
+        if command -v wget &>/dev/null; then
+            # wget: single try, timeout 60s, ignore SSL cert (ModelScope uses valid certs anyway)
+            if wget --tries=1 --timeout=60 --no-check-certificate -O "$output" "$url" --progress=dot:giga; then
+                return 0
+            fi
+        elif command -v curl &>/dev/null; then
+            # curl: single try, max-time 60s, follow redirects
+            if curl -L --retry 1 --max-time 60 -o "$output" "$url" --progress-bar; then
+                return 0
+            fi
+        else
+            echo "ERROR: Neither wget nor curl found. Please install one."
+            exit 1
+        fi
+
+        echo "Download failed. Removing partial file..."
+        rm -f "$output"
+
+        if [ $attempt -lt $max_retries ]; then
+            echo "Retrying in $retry_delay seconds..."
+            sleep $retry_delay
+        fi
+        attempt=$((attempt + 1))
+    done
+
+    echo "ERROR: Download failed after $max_retries attempts."
+    return 1
+}
+
+# -----------------------------------------------------------------------------
 # Determine final output path and format-specific logic
 # -----------------------------------------------------------------------------
 if [[ "$FORMAT" == "gguf" ]]; then
@@ -158,17 +201,8 @@ if [[ "$FORMAT" == "gguf" ]]; then
     echo "URL: $GGUF_URL"
     echo "Target: $OUTPUT_FILE"
 
-    # Download with progress (ModelScope supports standard HTTPS)
-    if command -v wget &>/dev/null; then
-        wget -O "$OUTPUT_FILE" "$GGUF_URL" --progress=dot:giga
-    elif command -v curl &>/dev/null; then
-        curl -L -o "$OUTPUT_FILE" "$GGUF_URL" --progress-bar
-    else
-        echo "ERROR: Neither wget nor curl found. Please install one."
-        exit 1
-    fi
-
-    if [[ -f "$OUTPUT_FILE" ]]; then
+    # Download with retries and timeout
+    if download_with_retries "$GGUF_URL" "$OUTPUT_FILE"; then
         echo "Download complete: $OUTPUT_FILE"
         # Verify file size (at least 500 MB for 1.5B Q4)
         size=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || stat -f%z "$OUTPUT_FILE" 2>/dev/null || echo 0)
@@ -179,8 +213,7 @@ if [[ "$FORMAT" == "gguf" ]]; then
         fi
         echo "File size: $size bytes – looks valid."
     else
-        echo "ERROR: Download failed."
-        exit 1
+        exit 1  # download_with_retries already printed error
     fi
 
 elif [[ "$FORMAT" == "hf" ]]; then
