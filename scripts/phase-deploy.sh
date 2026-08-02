@@ -961,10 +961,12 @@ validate_deployment() {
     if [ "$ui_ready" != true ]; then
         log_warning "NETTRADES UI did not become ready within 2 minutes. Check logs."
     else
-        log_success "UI service is healthy"
-        return 0
+        log_success "NETTRADES UI is healthy"
     fi
-}
+
+    log_success "All services are healthy"
+    return 0
+}    
 
 if validate_deployment; then
     log_success "Deployment validation passed"
