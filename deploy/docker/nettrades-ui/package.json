@@ -1,5 +1,5 @@
 {
-  "name": "copilotkit-frontend",
+  "name": "nettrades-ui",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -11,8 +11,7 @@
     "next": "16.2.11",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "@copilotkit/react-core": "1.63.1",
-    "@copilotkit/react-ui": "1.62.3",
+    "axios": "^1.7.0",
     "next-auth": "^4.24.11"
   },
   "devDependencies": {

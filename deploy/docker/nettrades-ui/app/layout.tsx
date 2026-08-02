@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "NETTRADES AI Assistant",
-  description: "Sovereign AI Platform",
+  title: "NETTRADES AI Router",
+  description: "Distributed Sovereign AI Inference Router",
 };
 
 export default function RootLayout({

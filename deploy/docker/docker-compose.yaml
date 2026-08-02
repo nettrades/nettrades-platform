@@ -305,37 +305,18 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 8. COPILOTKIT FRONTEND - Modern Agentic UI (replaces agent-chat-ui)
+  # 8. NETTRADES-UI FRONTEND 
   # =========================================================================
-  # CopilotKit provides a production-ready agentic UI framework built on the
-  # AG-UI protocol. It connects to the /copilotkit endpoint on langgraph-server
-  # and supports generative UI, shared state, and human-in-the-loop workflows.
-  #
-  # Key Features:
-  #   - AG-UI protocol communication with LangGraph backend
-  #   - Generative UI – agents render dynamic UI components
-  #   - Shared state – bidirectional state synchronization
-  #   - Human-in-the-loop – agent pauses for user input
-  #   - MIT-licensed core – can be bundled in commercial products
-  #
-  # Build: This service uses Dockerfile.copilotkit-frontend which builds
-  #   the CopilotKit Starter template with Next.js.
-  # =========================================================================
-  copilotkit-frontend:
+  nettrades-ui:
     build:
       context: ../../
-      dockerfile: deploy/docker/Dockerfile.copilotkit-frontend
-      args:
-        - NEXT_PUBLIC_COPILOTKIT_URL=http://langgraph-server:8000/copilotkit
-        - NEXT_PUBLIC_APP_DOMAIN=https://${DOMAIN}
-        - NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED:-false}
-    container_name: copilotkit-frontend
+      dockerfile: deploy/docker/Dockerfile.nettrades-ui
+    container_name: nettrades-ui
     restart: unless-stopped
     networks:
       - web
       - internal
     environment:
-      - NEXT_PUBLIC_COPILOTKIT_URL=http://langgraph-server:8000/copilotkit
       - NEXT_PUBLIC_APP_DOMAIN=https://${DOMAIN}
       - NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED:-false}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-changeit}
@@ -346,20 +327,18 @@ services:
       - ODOO_OAUTH_AUTHORIZE_URL=${ODOO_OAUTH_AUTHORIZE_URL}
       - ODOO_OAUTH_TOKEN_URL=${ODOO_OAUTH_TOKEN_URL}
       - ODOO_OAUTH_USERINFO_URL=${ODOO_OAUTH_USERINFO_URL}
-      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
-      - HOST=0.0.0.0
       - NODE_ENV=production
     ports:
       - "3002:3000"
     labels:
       - traefik.enable=true
-      - traefik.http.routers.copilotkit-frontend.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)
-      - traefik.http.routers.copilotkit-frontend.priority=50
-      - traefik.http.services.copilotkit-frontend.loadbalancer.server.port=3000
-      - traefik.http.routers.copilotkit-frontend.entrypoints=web,websecure
-      - traefik.http.routers.copilotkit-frontend.tls=true
-      - traefik.http.routers.copilotkit-frontend.middlewares=copilotkit-frontend-timeout
-      - traefik.http.middlewares.copilotkit-frontend-timeout.forwardauth.timeout=60s
+      - traefik.http.routers.nettrades-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)
+      - traefik.http.routers.nettrades-ui.priority=50
+      - traefik.http.services.nettrades-ui.loadbalancer.server.port=3000
+      - traefik.http.routers.nettrades-ui.entrypoints=web,websecure
+      - traefik.http.routers.nettrades-ui.tls=true
+      - traefik.http.routers.nettrades-ui.middlewares=nettrades-ui-timeout
+      - traefik.http.middlewares.nettrades-ui-timeout.forwardauth.timeout=60s
     depends_on:
       - langgraph-server
     logging:

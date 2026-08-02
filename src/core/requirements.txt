@@ -79,10 +79,3 @@ psycopg_pool
 psycopg
 circuitbreaker>=2.0.0
 tenacity>=9.0.0
-
-# -----------------------------------------------------------------------------
-# CopilotKit Integration
-# -----------------------------------------------------------------------------
-# CopilotKit 0.1.94 pulls ag-ui-langgraph automatically.
-# Do NOT explicitly list ag-ui-langgraph to avoid version conflicts.
-copilotkit>=0.1.94
