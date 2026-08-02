@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy API application (no static files)
 COPY deploy/docker/nettrades-ui/app/ ./app/
+COPY deploy/docker/nettrades-ui/static/ ./static/
 COPY deploy/docker/nettrades-ui/templates/ ./templates/
 
 EXPOSE 8000
