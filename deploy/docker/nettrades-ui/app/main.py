@@ -4,7 +4,7 @@ import json
 import httpx
 from urllib.parse import urlencode
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.cors import CORSMiddleware
@@ -45,6 +45,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================================================
+# ROOT ROUTE – serves the static UI
+# ============================================================================
+@app.get("/")
+async def index():
+    return FileResponse("static/index.html")
 
 # ============================================================================
 # AUTHENTICATION ROUTES
