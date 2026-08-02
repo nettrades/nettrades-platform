@@ -2,7 +2,7 @@ import os
 import secrets
 import httpx
 from fastapi import FastAPI, Request, HTTPException, Depends, Cookie
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -43,6 +43,11 @@ templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/css", StaticFiles(directory="static/css"), name="css")
 app.mount("/js", StaticFiles(directory="static/js"), name="js")
+
+# Root route – serves the chat UI
+@app.get("/")
+async def index():
+    return FileResponse("static/index.html")
 
 # CORS (if needed)
 app.add_middleware(
