@@ -480,3 +480,203 @@ async def project_match_create(values: Dict[str, Any],
     except Exception as exc:
         _logger.error("project_match_create failed: %s", exc)
         return -1
+
+# =============================================================================
+# ASK SOMEONE HELPER FUNCTIONS
+# =============================================================================
+
+async def ask_someone_create_request(
+    question: str,
+    category: str,
+    urgency: str,
+    expert_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> int:
+    """
+    Create a new Ask Someone request in Odoo.
+
+    Args:
+        question: The user's question
+        category: The category of the question
+        urgency: The urgency level (low, medium, high, critical)
+        expert_id: The ID of the expert to route to (optional)
+        user_id: The ID of the user asking the question
+
+    Returns:
+        int: The ID of the created request
+    """
+    values = {
+        "question": question,
+        "category": category,
+        "urgency": urgency,
+        "status": "pending",
+        "created_date": datetime.now().isoformat(),
+    }
+    if expert_id:
+        values["expert_id"] = expert_id
+    if user_id:
+        values["user_id"] = user_id
+
+    return await odoo_create("nettrades_ask_someone.request", values)
+
+
+async def ask_someone_get_experts(category: Optional[str] = None) -> List[Dict]:
+    """
+    Get available experts from Odoo.
+
+    Args:
+        category: Filter by category (optional)
+
+    Returns:
+        List[Dict]: List of expert records
+    """
+    domain = [("is_active", "=", True), ("availability", "=", True)]
+    if category:
+        domain.append(("category", "=", category))
+
+    return await odoo_search(
+        "nettrades_ask_someone.expert",
+        domain,
+        ["id", "name", "category", "skills", "rating", "price_per_hour"],
+    )
+
+
+# =============================================================================
+# GOOD ANSWER HELPER FUNCTIONS
+# =============================================================================
+
+async def good_answer_get_answers(question: str) -> List[Dict]:
+    """
+    Get existing answers for a question from Odoo.
+
+    Args:
+        question: The question to search for
+
+    Returns:
+        List[Dict]: List of answer records
+    """
+    return await odoo_search(
+        "nettrades_good_answer.answer",
+        [("question", "ilike", question[:50])],
+        ["id", "answer", "votes_positive", "votes_negative", "quality_score"],
+    )
+
+
+async def good_answer_record_best(
+    question: str,
+    answer: str,
+    is_verified: bool = False,
+) -> int:
+    """
+    Record the best answer for a question in Odoo.
+
+    Args:
+        question: The question
+        answer: The best answer
+        is_verified: Whether the answer has been verified
+
+    Returns:
+        int: The ID of the created/updated best answer record
+    """
+    # Check if a best answer already exists for this question
+    existing = await odoo_search(
+        "nettrades_good_answer.best_answer",
+        [("question", "=", question)],
+        ["id"],
+    )
+
+    if existing:
+        await odoo_write(
+            "nettrades_good_answer.best_answer",
+            [existing[0]["id"]],
+            {
+                "answer": answer,
+                "is_verified": is_verified,
+                "updated_date": datetime.now().isoformat(),
+            },
+        )
+        return existing[0]["id"]
+    else:
+        return await odoo_create(
+            "nettrades_good_answer.best_answer",
+            {
+                "question": question,
+                "answer": answer,
+                "is_verified": is_verified,
+                "created_date": datetime.now().isoformat(),
+            },
+        )
+
+
+# =============================================================================
+# GPU MARKETPLACE HELPER FUNCTIONS
+# =============================================================================
+
+async def gpu_marketplace_get_nodes(
+    status: Optional[str] = "available",
+    gpu_model: Optional[str] = None,
+) -> List[Dict]:
+    """
+    Get GPU nodes from Odoo.
+
+    Args:
+        status: Filter by status (available, reserved, used)
+        gpu_model: Filter by GPU model (optional)
+
+    Returns:
+        List[Dict]: List of GPU node records
+    """
+    domain = [("is_active", "=", True)]
+    if status:
+        domain.append(("status", "=", status))
+    if gpu_model:
+        domain.append(("gpu_model", "=", gpu_model))
+
+    return await odoo_search(
+        "nettrades_gpu_admin.node",
+        domain,
+        ["id", "name", "gpu_model", "vram_gb", "price_per_hour", "status"],
+    )
+
+
+async def gpu_marketplace_create_booking(
+    node_id: int,
+    user_id: int,
+    start_time: datetime,
+    end_time: datetime,
+) -> int:
+    """
+    Create a GPU booking in Odoo.
+
+    Args:
+        node_id: The ID of the GPU node
+        user_id: The ID of the user making the booking
+        start_time: The start time of the booking
+        end_time: The end time of the booking
+
+    Returns:
+        int: The ID of the created booking
+    """
+    duration_hours = (end_time - start_time).total_seconds() / 3600
+
+    # Get the node to calculate cost
+    nodes = await odoo_search(
+        "nettrades_gpu_admin.node",
+        [("id", "=", node_id)],
+        ["price_per_hour"],
+    )
+    price_per_hour = nodes[0].get("price_per_hour", 0) if nodes else 0
+    total_cost = duration_hours * price_per_hour
+
+    return await odoo_create(
+        "nettrades_gpu_admin.booking",
+        {
+            "node_id": node_id,
+            "user_id": user_id,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "total_cost": total_cost,
+            "status": "pending",
+            "created_date": datetime.now().isoformat(),
+        },
+    )

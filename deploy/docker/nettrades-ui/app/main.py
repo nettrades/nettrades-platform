@@ -61,6 +61,13 @@ async def index():
         raise HTTPException(status_code=404, detail="index.html not found")
 
 # ============================================================================
+# HEALTH CHECK
+# ============================================================================
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "service": "nettrades-api"}
+
+# ============================================================================
 # AUTHENTICATION ROUTES
 # ============================================================================
 @app.get("/api/auth/login")
@@ -129,7 +136,7 @@ async def get_session(request: Request):
     }
 
 # ============================================================================
-# CHAT API
+# CHAT API – Proxies to LangGraph
 # ============================================================================
 @app.post("/api/chat")
 async def chat(request: Request):
@@ -149,6 +156,9 @@ async def chat(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================================================
+# GPU STATUS
+# ============================================================================
 @app.get("/api/gpu/status")
 async def gpu_status():
     try:
@@ -159,13 +169,6 @@ async def gpu_status():
         return resp.json()
     except Exception as e:
         return {"error": str(e), "nodes": []}
-
-# ============================================================================
-# HEALTH CHECK
-# ============================================================================
-@app.get("/health")
-async def health():
-    return {"status": "ok", "service": "nettrades-api"}
 
 # ============================================================================
 # LOGIN PAGE (served as template)
