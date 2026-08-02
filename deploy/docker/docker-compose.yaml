@@ -305,47 +305,50 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 8. NETTRADES-UI FRONTEND 
-  # =========================================================================
+  # 8. NETTRADES-UI (FastAPI + Static HTML/JS)
+  # =============================================================================
   nettrades-ui:
     build:
-      context: ../../
-      dockerfile: deploy/docker/Dockerfile.nettrades-ui
+      context: ./nettrades-ui
+      dockerfile: Dockerfile
     container_name: nettrades-ui
     restart: unless-stopped
-    networks:
-      - web
-      - internal
     environment:
-      - NEXT_PUBLIC_APP_DOMAIN=https://${DOMAIN}
-      - NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED:-false}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-changeit}
-      - NEXTAUTH_URL=https://${DOMAIN}
+      - DOMAIN=${DOMAIN}
+      - ODOO_URL=${ODOO_URL}
+      - ODOO_PROXY_URL=${ODOO_PROXY_URL}
+      - LANGGRAPH_URL=${LANGGRAPH_URL:-http://langgraph-server:8000}
+      - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
+      - ODOO_API_KEY=${ODOO_API_KEY}
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - SESSION_SECRET=${SESSION_SECRET:-changeit}
+      # Odoo OAuth 2.0
       - ODOO_OAUTH_CLIENT_ID=${ODOO_OAUTH_CLIENT_ID}
       - ODOO_OAUTH_CLIENT_SECRET=${ODOO_OAUTH_CLIENT_SECRET}
-      - ODOO_OAUTH_REDIRECT_URI=${ODOO_OAUTH_REDIRECT_URI}
       - ODOO_OAUTH_AUTHORIZE_URL=${ODOO_OAUTH_AUTHORIZE_URL}
       - ODOO_OAUTH_TOKEN_URL=${ODOO_OAUTH_TOKEN_URL}
       - ODOO_OAUTH_USERINFO_URL=${ODOO_OAUTH_USERINFO_URL}
-      - NODE_ENV=production
-    ports:
-      - "3002:3000"
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.nettrades-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)
-      - traefik.http.routers.nettrades-ui.priority=50
-      - traefik.http.services.nettrades-ui.loadbalancer.server.port=3000
-      - traefik.http.routers.nettrades-ui.entrypoints=web,websecure
-      - traefik.http.routers.nettrades-ui.tls=true
-      - traefik.http.routers.nettrades-ui.middlewares=nettrades-ui-timeout
-      - traefik.http.middlewares.nettrades-ui-timeout.forwardauth.timeout=60s
+      - ODOO_OAUTH_REDIRECT_URI=${ODOO_OAUTH_REDIRECT_URI}
+    networks:
+      - web
+      - internal
     depends_on:
+      - odoo-proxy
       - langgraph-server
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nettrades-ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)"
+      - "traefik.http.routers.nettrades-ui.priority=50"
+      - "traefik.http.routers.nettrades-ui.entrypoints=web,websecure"
+      - "traefik.http.routers.nettrades-ui.tls=true"
+      - "traefik.http.routers.nettrades-ui.middlewares=nettrades-ui-timeout"
+      - "traefik.http.middlewares.nettrades-ui-timeout.forwardauth.timeout=60s"
+      - "traefik.http.services.nettrades-ui.loadbalancer.server.port=8000"
     logging:
-      driver: json-file
+      driver: "json-file"
       options:
-        max-size: 10m
-        max-file: 3
+        max-size: "10m"
+      max-file: "3"
 
   # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim

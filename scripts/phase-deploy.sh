@@ -1060,12 +1060,31 @@ else
 fi
 
 # =============================================================================
-# NEW: Download GGUF model for llama.cpp fallback
+# NEW: Download GGUF model for llama.cpp fallback from ModelScope mirror
 # This ensures the CPU fallback engine has a model to load.
+# ModelScope mirrors work without authentication.
 # =============================================================================
 if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-    log_step "Downloading GGUF model for llama.cpp fallback..."
-    bash "$SCRIPT_DIR/download-model.sh" --model deepseek-1.5b --format gguf --dir "$MODELS_DIR"
+    log_step "Downloading GGUF model for llama.cpp fallback from ModelScope mirror..."
+    
+    # Ensure the models directory exists
+    mkdir -p "$MODELS_DIR"
+    
+    # Run the download script with the correct model and format
+    if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-1.5b --format gguf --dir "$MODELS_DIR"; then
+        log_success "GGUF model downloaded successfully to $MODELS_DIR"
+    else
+        log_warning "GGUF model download failed. Trying alternative source..."
+        # Fallback: Try direct wget from ModelScope as a backup
+        MODEL_FILE="$MODELS_DIR/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+        if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf" --progress=dot:giga; then
+            log_success "GGUF model downloaded via fallback to $MODEL_FILE"
+        else
+            log_warning "GGUF model download failed. You may need to manually place a model in $MODELS_DIR."
+            log_info "The system will still work but llama.cpp fallback will not be available."
+        fi
+    fi
+    
     # Restart llama-cpp to pick up the new model (if it was running)
     docker compose restart llama-cpp 2>/dev/null || true
 else

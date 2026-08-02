@@ -4,6 +4,10 @@
 # PURPOSE: Download a DeepSeek model in GGUF (llama.cpp) or HF (vLLM) format.
 # USAGE:   ./download-model.sh [--model <name>] [--format <gguf|hf>] [--dir <path>] [--output <file>]
 # =============================================================================
+# CHANGELOG:
+#   2026-08-02: Switched to ModelScope mirrors (no authentication required)
+#               for both GGUF and HF formats.
+# =============================================================================
 
 set -euo pipefail
 
@@ -41,18 +45,24 @@ while [[ $# -gt 0 ]]; do
 done
 
 # -----------------------------------------------------------------------------
-# Map model names to Hugging Face identifiers and URLs
+# Map model names to ModelScope identifiers and URLs
+# ModelScope mirrors work without authentication and are reliable.
 # -----------------------------------------------------------------------------
 case "$MODEL_NAME" in
     deepseek-1.5b|1.5b)
         HF_REPO="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-        GGUF_URL="https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+        # ModelScope GGUF URL (no auth required)
+        GGUF_URL="https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
         DEFAULT_FILE_GGUF="DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+        # ModelScope HF format URL (no auth required)
+        HF_MODELSCOPE_URL="https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF.git"
         ;;
     deepseek-7b|7b)
         HF_REPO="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
-        GGUF_URL="https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf"
+        # ModelScope GGUF URL (no auth required)
+        GGUF_URL="https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf"
         DEFAULT_FILE_GGUF="deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+        HF_MODELSCOPE_URL="https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF.git"
         ;;
     *)
         echo "ERROR: Unknown model '$MODEL_NAME'. Available: deepseek-1.5b, deepseek-7b"
@@ -61,7 +71,7 @@ case "$MODEL_NAME" in
 esac
 
 # -----------------------------------------------------------------------------
-# Helper: Ensure `hf` CLI is available
+# Helper: Ensure `hf` CLI is available (only needed for HF format downloads)
 # -----------------------------------------------------------------------------
 ensure_hf_cli() {
     if command -v hf &>/dev/null; then
@@ -106,42 +116,14 @@ ensure_hf_cli() {
 }
 
 # -----------------------------------------------------------------------------
-# Helper: Ensure Hugging Face authentication is set up
+# Helper: Check if git is available (for HF format downloads from ModelScope)
 # -----------------------------------------------------------------------------
-ensure_hf_auth() {
-    # Check if token already exists
-    if [[ -f "$HOME/.cache/huggingface/token" ]] || hf auth token &>/dev/null; then
-        echo "Hugging Face authentication token found."
-        return 0
-    fi
-
-    echo ""
-    echo "======================================================================"
-    echo "  Hugging Face Authentication Required"
-    echo "======================================================================"
-    echo "To download models from Hugging Face, you need to authenticate."
-    echo ""
-    echo "If you have a Hugging Face account, follow these steps:"
-    echo "  1. Create an account at https://huggingface.co/join"
-    echo "  2. Go to https://huggingface.co/settings/tokens to create a token"
-    echo "  3. Run the following command and paste your token:"
-    echo ""
-    echo "     hf auth login"
-    echo ""
-    echo "If you already have a token, you can set it as an environment variable:"
-    echo "     export HUGGINGFACE_TOKEN=your_token_here"
-    echo ""
-    echo "Press Enter to continue after you have logged in, or Ctrl+C to cancel."
-    read -r
-    echo ""
-
-    # Try again after user action
-    if hf auth token &>/dev/null; then
-        echo "Authentication successful."
-        return 0
-    else
-        echo "WARNING: Still not authenticated. Trying to proceed anyway..."
-        return 1
+ensure_git() {
+    if ! command -v git &>/dev/null; then
+        echo "ERROR: git is not installed. Please install git first."
+        echo "  Ubuntu/Debian: sudo apt install git"
+        echo "  macOS: brew install git"
+        exit 1
     fi
 }
 
@@ -160,17 +142,23 @@ if [[ "$FORMAT" == "gguf" ]]; then
         mkdir -p "$(dirname "$OUTPUT_FILE")"
     fi
 
-    # Check if file already exists
+    # Check if file already exists and is valid (non-empty, >500MB)
     if [[ -f "$OUTPUT_FILE" ]]; then
-        echo "GGUF model already exists at $OUTPUT_FILE – skipping download."
-        exit 0
+        size=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || stat -f%z "$OUTPUT_FILE" 2>/dev/null || echo 0)
+        if [[ "$size" -gt 500000000 ]]; then
+            echo "GGUF model already exists at $OUTPUT_FILE ($size bytes) – skipping download."
+            exit 0
+        else
+            echo "WARNING: Existing file is too small ($size bytes). Re-downloading..."
+            rm -f "$OUTPUT_FILE"
+        fi
     fi
 
-    echo "Downloading GGUF model from Hugging Face..."
+    echo "Downloading GGUF model from ModelScope mirror..."
     echo "URL: $GGUF_URL"
     echo "Target: $OUTPUT_FILE"
 
-    # Download with progress
+    # Download with progress (ModelScope supports standard HTTPS)
     if command -v wget &>/dev/null; then
         wget -O "$OUTPUT_FILE" "$GGUF_URL" --progress=dot:giga
     elif command -v curl &>/dev/null; then
@@ -185,16 +173,18 @@ if [[ "$FORMAT" == "gguf" ]]; then
         # Verify file size (at least 500 MB for 1.5B Q4)
         size=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || stat -f%z "$OUTPUT_FILE" 2>/dev/null || echo 0)
         if [[ "$size" -lt 500000000 ]]; then
-            echo "WARNING: Downloaded file seems too small ($size bytes). Download may have failed."
+            echo "ERROR: Downloaded file seems too small ($size bytes). Download may have failed."
+            echo "Please check the URL and try again."
             exit 1
         fi
+        echo "File size: $size bytes – looks valid."
     else
         echo "ERROR: Download failed."
         exit 1
     fi
 
 elif [[ "$FORMAT" == "hf" ]]; then
-    # Hugging Face format (directory)
+    # Hugging Face format (directory) - using ModelScope as primary source
     if [[ -z "$OUTPUT_DIR" ]]; then
         OUTPUT_DIR="./${HF_REPO##*/}"   # Default to repo name
     fi
@@ -206,21 +196,35 @@ elif [[ "$FORMAT" == "hf" ]]; then
         exit 0
     fi
 
-    # Ensure `hf` CLI is available
-    ensure_hf_cli
-
-    # Ensure authentication
-    ensure_hf_auth
-
-    echo "Downloading Hugging Face model: $HF_REPO"
+    echo "Downloading Hugging Face format model from ModelScope mirror..."
+    echo "Source: $HF_MODELSCOPE_URL"
     echo "Target directory: $OUTPUT_DIR"
 
-    # Use the token if provided via environment variable
-    if [[ -n "${HUGGINGFACE_TOKEN:-}" ]]; then
-        echo "Using token from environment variable HUGGINGFACE_TOKEN."
-        hf download "$HF_REPO" --local-dir "$OUTPUT_DIR" --token "$HUGGINGFACE_TOKEN"
+    # Ensure git is available (needed for cloning)
+    ensure_git
+
+    # Clone from ModelScope (no authentication required)
+    if git clone "$HF_MODELSCOPE_URL" "$OUTPUT_DIR" 2>/dev/null; then
+        echo "HF model downloaded successfully from ModelScope to $OUTPUT_DIR"
     else
-        hf download "$HF_REPO" --local-dir "$OUTPUT_DIR"
+        echo "WARNING: ModelScope clone failed. Trying Hugging Face as fallback..."
+        
+        # Fallback: Try Hugging Face with authentication check
+        ensure_hf_cli
+        
+        echo "Downloading from Hugging Face: $HF_REPO"
+        echo "Target directory: $OUTPUT_DIR"
+        
+        # Check if token exists
+        if [[ -f "$HOME/.cache/huggingface/token" ]] || hf auth token &>/dev/null; then
+            echo "Hugging Face authentication found. Downloading..."
+            hf download "$HF_REPO" --local-dir "$OUTPUT_DIR"
+        else
+            echo "WARNING: No Hugging Face authentication found."
+            echo "Please run 'hf auth login' first or use --format gguf instead."
+            echo "For GGUF format, ModelScope mirror works without authentication."
+            exit 1
+        fi
     fi
 
     if [[ -f "$OUTPUT_DIR/config.json" ]]; then
@@ -228,8 +232,6 @@ elif [[ "$FORMAT" == "hf" ]]; then
     else
         echo "ERROR: HF model download failed. No config.json found."
         echo "Please ensure you have access to the model: $HF_REPO"
-        echo "If you are authenticated, try running:"
-        echo "  hf download $HF_REPO --local-dir $OUTPUT_DIR"
         exit 1
     fi
 

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NETTRADES AI Router</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🧠 NETTRADES AI Router</h1>
+                <div class="header-right">
+                    <span id="auth-status" class="status-badge"></span>
+                    <button id="auth-btn" class="btn btn-secondary">Login</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Chat -->
+        <main class="chat-container">
+            <div id="chat" class="chat-messages"></div>
+            <div id="input-area" class="input-area">
+                <textarea id="user-input" rows="1" placeholder="Ask something..." disabled></textarea>
+                <button id="send-btn" class="btn btn-primary" disabled>Send</button>
+            </div>
+            <div id="status" class="status">Ready</div>
+        </main>
+    </div>
+
+    <script src="/js/chat.js"></script>
+</body>
+</html>
