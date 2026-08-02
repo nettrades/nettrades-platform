@@ -953,21 +953,19 @@ validate_deployment() {
         return 1
     fi
 
-    # Wait for CopilotKit frontend (replaces agent-chat-ui)
-    log_info "Waiting for CopilotKit frontend to become ready..."
-    local ck_ready=false
+    # Wait for NETTRADES UI (FastAPI + static HTML/JS)
+    log_info "Waiting for NETTRADES UI to become ready..."
+    local ui_ready=false
     for i in {1..60}; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:3002 2>/dev/null | grep -q "200"; then
-            ck_ready=true
-            log_success "CopilotKit frontend is ready"
+        if curl -s -o /dev/null -w "%{http_code}" -H "Host: ${DOMAIN}" http://localhost/ 2>/dev/null | grep -q "200"; then
+            ui_ready=true
+            log_success "NETTRADES UI is ready"
             break
         fi
         sleep 2
     done
-
-    if [ "$ck_ready" != true ]; then
-        log_warning "CopilotKit frontend did not become ready within 2 minutes. Check logs."
-        # Not a critical failure, continue
+    if [ "$ui_ready" != true ]; then
+        log_warning "NETTRADES UI did not become ready within 2 minutes. Check logs."
     fi
 
     log_success "All services are healthy"
@@ -1233,9 +1231,8 @@ for i in {1..30}; do
     sleep 2
 done
 
-# NOTE: agent-chat-ui has been replaced by copilotkit-frontend.
+# NOTE: agent-chat-ui and copilotkit-frontend have been replaced by NETTRADES-UI.
 # The health check for the frontend is now handled inside validate_deployment.
-log_info "Skipping separate agent-chat-ui health check (now using copilotkit-frontend)."
 
 # =============================================================================
 # 15. Ensure Let's Encrypt certificate
@@ -1338,7 +1335,7 @@ echo ""
 docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 echo "Access the services:"
-echo "  CopilotKit Frontend: https://${DOMAIN} or http://localhost:3002"
+echo "  Frontend: https://${DOMAIN}"
 echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
 echo "  Forgejo:   http://localhost:3000"
 echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"

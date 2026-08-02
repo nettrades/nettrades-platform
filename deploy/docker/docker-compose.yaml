@@ -341,9 +341,12 @@ services:
       - "traefik.http.routers.nettrades-ui.priority=50"
       - "traefik.http.routers.nettrades-ui.entrypoints=web,websecure"
       - "traefik.http.routers.nettrades-ui.tls=true"
-      - "traefik.http.routers.nettrades-ui.middlewares=nettrades-ui-timeout"
-      - "traefik.http.middlewares.nettrades-ui-timeout.forwardauth.timeout=60s"
       - "traefik.http.services.nettrades-ui.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     logging:
       driver: "json-file"
       options:
