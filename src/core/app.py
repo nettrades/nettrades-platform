@@ -521,6 +521,25 @@ async def create_run(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
+# Real-Time Streaming (Add SSE)
+# =============================================================================
+
+@app.post("/stream")
+async def stream(request: Request):
+    data = await request.json()
+    async def event_generator():
+        async for event in graph.astream_events(
+            {"messages": data["messages"]},
+            config={"configurable": {"thread_id": data.get("thread_id")}},
+            version="v2"
+        ):
+            if event["event"] == "on_chat_model_stream":
+                yield f"data: {json.dumps({'token': event['data']['chunk'].content})}\n\n"
+        yield "data: [DONE]\n\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+# =============================================================================
 # MAIN INFERENCE ENDPOINT (unchanged)
 # =============================================================================
 

@@ -318,6 +318,30 @@ configure_domain_email() {
 # Run the domain/email configuration after secrets are written
 configure_domain_email
 
+
+# -----------------------------------------------------------------------------
+# Default Landing Page
+# -----------------------------------------------------------------------------
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo " Default Landing Page"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Choose which page users see when they visit https://${DOMAIN}"
+echo "  1) Odoo homepage (recommended)  - /odoo"
+echo "  2) AI Chat UI                   - http://localhost:3002"
+echo "  3) Custom landing page          - a simple HTML page (you can edit later)"
+echo ""
+read -rp "Enter 1, 2, or 3 (default: 1): " landing_choice
+
+case "$landing_choice" in
+    2) DEFAULT_LANDING_PAGE="ui" ;;
+    3) DEFAULT_LANDING_PAGE="custom" ;;
+    *) DEFAULT_LANDING_PAGE="odoo" ;;
+esac
+log_info "Default landing page: $DEFAULT_LANDING_PAGE"
+
+safe_sed_replace "$ENV_FILE" "DEFAULT_LANDING_PAGE" "$DEFAULT_LANDING_PAGE"
+
 # -----------------------------------------------------------------------------
 # Set secure permissions
 # -----------------------------------------------------------------------------

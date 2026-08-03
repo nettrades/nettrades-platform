@@ -202,6 +202,15 @@ def create_gpu_management_agent() -> StateGraph:
     # =========================================================================
     # BUILD THE WORKFLOW
     # =========================================================================
+    # Add nodes for marketplace functionality
+    # async def list_available_gpus(state): ...
+    # async def create_booking(state): ...
+    # async def process_payment(state): ...
+    # async def release_gpu(state): ...
+
+    # =========================================================================
+    # BUILD THE WORKFLOW
+    # =========================================================================
 
     workflow = StateGraph(GPUManagementState)
 

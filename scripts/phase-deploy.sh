@@ -204,6 +204,7 @@ log_step "Creating required directories..."
 mkdir -p "$DATA_DIR/postgres" "$DATA_DIR/odoo" "$DATA_DIR/valkey" "$DATA_DIR/forgejo"
 mkdir -p "$DATA_DIR/prometheus" "$DATA_DIR/grafana" "$DATA_DIR/backups"
 mkdir -p "$DYNAMO_DATA_DIR" "$MODELS_DIR" "$LOGS_DIR" "$ODOO_DATA_DIR"
+mkdir -p "redirector/"
 log_success "Directories created"
 
 # -----------------------------------------------------------------------------

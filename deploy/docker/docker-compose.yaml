@@ -344,6 +344,37 @@ services:
         max-file: 3
 
   # =========================================================================
+  # REDIRECTOR – Handles root path (/) with configurable landing page
+  # =========================================================================
+  redirector:
+    image: nginx:alpine
+    container_name: redirector
+    restart: unless-stopped
+    volumes:
+      - ./redirector/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./redirector/landing-page:/usr/share/nginx/html:ro
+    environment:
+      - DEFAULT_LANDING_PAGE=${DEFAULT_LANDING_PAGE:-odoo}
+      - DOMAIN=${DOMAIN}
+    entrypoint: |
+      sh -c "envsubst '\$DOMAIN \$DEFAULT_LANDING_PAGE' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.redirector.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.redirector.priority=10"
+      - "traefik.http.routers.redirector.entrypoints=web,websecure"
+      - "traefik.http.routers.redirector.tls=true"
+      - "traefik.http.services.redirector.loadbalancer.server.port=80"
+    # No healthcheck – Nginx is always ready
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  # =========================================================================
   # 9. ODOO PROXY - HTTP JSON-RPC Shim
   # =========================================================================
   odoo-proxy:

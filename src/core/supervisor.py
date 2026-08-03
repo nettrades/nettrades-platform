@@ -50,6 +50,9 @@ from agents.lead_gen_agent import create_lead_gen_agent
 from agents.gpu_management_agent import create_gpu_management_agent
 from agents.vision_agent import create_vision_agent
 from agents.action_agent import create_action_agent
+from agents.ask_someone_agent import create_ask_someone_agent
+from agents.good_answer_agent import create_good_answer_agent
+from agents.gpu_marketplace_agent import create_gpu_marketplace_agent
 
 # -----------------------------------------------------------------------------
 # Import LLM Factory for dynamic provider selection
@@ -151,6 +154,9 @@ lead_gen_agent = create_lead_gen_agent()
 gpu_management_agent = create_gpu_management_agent()
 vision_agent = create_vision_agent()
 action_agent = create_action_agent()
+ask_someone_agent = create_ask_someone_agent()
+good_answer_agent = create_good_answer_agent()
+gpu_marketplace_agent = create_gpu_marketplace_agent()
 
 _logger.info("??? All sub-agents loaded successfully")
 
@@ -218,7 +224,9 @@ async def classify(state: dict) -> dict:
         f"Classify the intent of the following message into one of: "
         f"recruitment, freelance, lead_gen, gpu_management, medical, legal, "
         f"action (robotic control), vision (image analysis), general. "
-        f"Message: {user_msg}"
+        f"ask_someone (expert consultation), good_answer (quality scoring), "
+        f"gpu_marketplace (GPU booking), general. "
+        f"Message: {user_msg}"    
     )
 
     # Call the LLM with the prompt and extract the intent.
@@ -458,6 +466,12 @@ async def route(state: dict) -> dict:
             result = await vision_agent.ainvoke(state)
         elif "action" in intent:
             result = await action_agent.ainvoke(state)
+        elif "ask" in intent and ("someone" in intent or "expert" in intent):
+	    result = await ask_someone_agent.ainvoke(state)
+	elif "good" in intent and "answer" in intent:
+	    result = await good_answer_agent.ainvoke(state)
+	elif "marketplace" in intent or "gpu" in intent and "book" in intent:
+            result = await gpu_marketplace_agent.ainvoke(state)
         else:
             # Fallback to the company-specific LLM for unclassified intents
             company_id = state.get("company_id", 1)

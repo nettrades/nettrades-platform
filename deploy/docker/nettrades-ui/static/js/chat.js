@@ -297,15 +297,14 @@ async function sendMessage() {
     showTypingIndicator();
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/chat`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: text,
-                thread_id: state.threadId,
-            }),
+        // Use the agent-chat-ui compatible endpoint
+		const response = await fetch(`${API_BASE_URL}/runs`, {
+		    method: 'POST',
+		    headers: { 'Content-Type': 'application/json' },
+		    body: JSON.stringify({
+		        thread_id: state.threadId || crypto.randomUUID(),
+		        messages: [{ role: 'user', content: text }]
+		    })
         });
 
         hideTypingIndicator();
