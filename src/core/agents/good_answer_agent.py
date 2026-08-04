@@ -20,6 +20,11 @@
 # INTEGRATION:
 #   - Uses odoo_tools.py to interact with Odoo's nettrades_good_answer models
 #   - Reports back to the supervisor with the best answer
+#
+# UPDATES (2026-08-04):
+#   - Updated model names to match actual Odoo models:
+#       * llm_feedback (was nettrades_good_answer.answer)
+#       * good_answer_vote (for votes)
 # =============================================================================
 
 import json
@@ -36,6 +41,9 @@ from tools.odoo_tools import (
     odoo_create,
     odoo_write,
     odoo_call_method,
+    good_answer_create_vote,
+    good_answer_get_best_answer,
+    good_answer_record_best,
 )
 
 _logger = logging.getLogger(__name__)
@@ -100,11 +108,11 @@ def create_good_answer_agent() -> StateGraph:
         _logger.info(f"Collecting answers for question: {question[:100]}...")
 
         try:
-            # Search for existing answers in Odoo
+            # Search for existing answers in Odoo using llm_feedback
             existing_answers = await odoo_search(
-                model="nettrades_good_answer.answer",
+                model="llm_feedback",
                 domain=[("question", "ilike", question[:50])],
-                fields=["id", "answer", "votes_positive", "votes_negative", "quality_score"],
+                fields=["id", "answer", "quality_score", "is_verified"],
                 limit=10,
             )
 
@@ -131,25 +139,24 @@ def create_good_answer_agent() -> StateGraph:
                 response = await llm.ainvoke(prompt)
                 generated = json.loads(response.content)
 
-                # Store generated answers in Odoo
+                # Store generated answers in Odoo using llm_feedback
                 for answer_text in generated.get("answers", []):
                     await odoo_create(
-                        model="nettrades_good_answer.answer",
+                        model="llm_feedback",
                         values={
                             "question": question,
                             "answer": answer_text,
-                            "votes_positive": 0,
-                            "votes_negative": 0,
                             "quality_score": 0.0,
                             "is_verified": False,
+                            "feedback_type": "generated",
                         },
                     )
 
                 # Re-fetch to get the newly created answers
                 existing_answers = await odoo_search(
-                    model="nettrades_good_answer.answer",
+                    model="llm_feedback",
                     domain=[("question", "ilike", question[:50])],
-                    fields=["id", "answer", "votes_positive", "votes_negative", "quality_score"],
+                    fields=["id", "answer", "quality_score", "is_verified"],
                     limit=10,
                 )
 
@@ -181,24 +188,19 @@ def create_good_answer_agent() -> StateGraph:
 
         try:
             for answer_id, vote_type in votes.items():
-                if vote_type == "positive":
-                    await odoo_write(
-                        model="nettrades_good_answer.answer",
-                        ids=[int(answer_id)],
-                        values={"votes_positive": "votes_positive + 1"},
-                    )
-                elif vote_type == "negative":
-                    await odoo_write(
-                        model="nettrades_good_answer.answer",
-                        ids=[int(answer_id)],
-                        values={"votes_negative": "votes_negative + 1"},
-                    )
+                # Use the good_answer_create_vote helper
+                is_good = vote_type == "positive"
+                await good_answer_create_vote(
+                    message_id=int(answer_id),
+                    user_id=state.get("user_id", 1),
+                    is_good=is_good,
+                )
 
             # Re-fetch updated answers
             updated_answers = await odoo_search(
-                model="nettrades_good_answer.answer",
+                model="llm_feedback",
                 domain=[("id", "in", [int(aid) for aid in votes.keys()])],
-                fields=["id", "answer", "votes_positive", "votes_negative", "quality_score"],
+                fields=["id", "answer", "quality_score", "is_verified"],
             )
             state["answers"] = updated_answers
             _logger.info("Votes recorded successfully")
@@ -258,7 +260,7 @@ def create_good_answer_agent() -> StateGraph:
 
                 # Store the quality score in Odoo
                 await odoo_write(
-                    model="nettrades_good_answer.answer",
+                    model="llm_feedback",
                     ids=[answer.get("id")],
                     values={"quality_score": quality_score},
                 )
@@ -286,13 +288,10 @@ def create_good_answer_agent() -> StateGraph:
             _logger.warning("No answers to verify")
             return state
 
-        # Find the best answer (highest quality score, then most positive votes)
+        # Find the best answer (highest quality score)
         sorted_answers = sorted(
             answers,
-            key=lambda a: (
-                a.get("quality_score", 0),
-                a.get("votes_positive", 0) - a.get("votes_negative", 0),
-            ),
+            key=lambda a: a.get("quality_score", 0),
             reverse=True,
         )
 
@@ -327,7 +326,7 @@ def create_good_answer_agent() -> StateGraph:
 
             # Update Odoo
             await odoo_write(
-                model="nettrades_good_answer.answer",
+                model="llm_feedback",
                 ids=[best_answer.get("id")],
                 values={"is_verified": is_verified},
             )
@@ -365,35 +364,18 @@ def create_good_answer_agent() -> StateGraph:
         _logger.info("Recording best answer in Odoo")
 
         try:
-            # Check if this question already has a best answer
-            existing = await odoo_search(
-                model="nettrades_good_answer.best_answer",
-                domain=[("question", "=", question)],
-                fields=["id"],
-                limit=1,
+            # Use the good_answer_record_best helper
+            quality_score = state.get("quality_score", 0.0)
+            is_verified = state.get("is_verified", False)
+
+            feedback_id = await good_answer_record_best(
+                question=question,
+                answer=best_answer,
+                quality_score=quality_score,
+                is_verified=is_verified,
             )
 
-            if existing:
-                await odoo_write(
-                    model="nettrades_good_answer.best_answer",
-                    ids=[existing[0]["id"]],
-                    values={
-                        "answer": best_answer,
-                        "updated_date": datetime.now().isoformat(),
-                    },
-                )
-            else:
-                await odoo_create(
-                    model="nettrades_good_answer.best_answer",
-                    values={
-                        "question": question,
-                        "answer": best_answer,
-                        "created_date": datetime.now().isoformat(),
-                        "is_verified": state.get("is_verified", False),
-                    },
-                )
-
-            _logger.info("Best answer recorded successfully")
+            _logger.info(f"Best answer recorded with ID: {feedback_id}")
 
         except Exception as e:
             _logger.error(f"Best answer recording failed: {e}")

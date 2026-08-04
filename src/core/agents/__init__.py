@@ -56,9 +56,9 @@ __all__ = [
     'create_gpu_management_agent',
     'create_vision_agent',
     'create_action_agent',
-    "create_ask_someone_agent",
-    "create_good_answer_agent",
-    "create_gpu_marketplace_agent",
+    'create_ask_someone_agent',
+    'create_good_answer_agent',
+    'create_gpu_marketplace_agent',
 ]
 
 # -----------------------------------------------------------------------------

@@ -21,7 +21,6 @@
 #     and creates a separate ft.dataset per field. Previously, it attempted
 #     to create a single dataset without a field_id, causing a NOT NULL
 #     constraint violation.
-#
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -35,19 +34,19 @@ class LLMFeedback(models.Model):
     """
     LLM Feedback - stores (question, answer) pairs for training.
 
-    Each record corresponds to a Good Answer vote on an AI-generated
-    answer. The input_text is the user's question, output_text is the
-    AI's response. The weight reflects the vote's point value (higher
-    for qualified professionals).
+    Each record corresponds to a Good Answer vote on an AI-generated answer.
+    The input_text is the user's question, output_text is the AI's response.
+    The weight reflects the vote's point value (higher for qualified professionals).
     """
+
     _name = 'llm.feedback'
     _description = 'LLM Feedback for Fine-Tuning'
     _order = 'create_date DESC'
     _rec_name = 'id'
 
-    # -------------------------------------------------------------------------
+    # =========================================================================
     # 1. Fields
-    # -------------------------------------------------------------------------
+    # =========================================================================
 
     vote_id = fields.Many2one(
         'good.answer.vote',
@@ -91,9 +90,9 @@ class LLMFeedback(models.Model):
         help="Timestamp when this feedback record was created."
     )
 
-    # -------------------------------------------------------------------------
+    # =========================================================================
     # 2. Helper Methods
-    # -------------------------------------------------------------------------
+    # =========================================================================
 
     @api.model
     def _process_feedback_batch(self, field_id, feedback_ids):
@@ -108,6 +107,10 @@ class LLMFeedback(models.Model):
             field_id (int): The ID of the professional field.
             feedback_ids (list): List of feedback record IDs to process.
         """
+        if not feedback_ids:
+            _logger.info("No feedback records to process for field %s", field_id)
+            return
+
         # Get or create a dataset for this field
         dataset = self.env['ft.dataset'].search([
             ('field_id', '=', field_id),
@@ -115,63 +118,58 @@ class LLMFeedback(models.Model):
         ], limit=1)
 
         if not dataset:
-            dataset = self.env['ft.dataset'].create({
-                'field_id': field_id,
-                'name': 'good_answer_feedback',
-                'description': 'User votes on AI answers from Good Answer system.',
-            })
-            _logger.info("Created new dataset for field %s", field_id)
+            try:
+                dataset = self.env['ft.dataset'].create({
+                    'field_id': field_id,
+                    'name': 'good_answer_feedback',
+                    'description': 'User votes on AI answers from Good Answer system.',
+                })
+                _logger.info("Created new dataset for field %s", field_id)
+            except Exception as e:
+                _logger.error("Failed to create dataset for field %s: %s", field_id, e)
+                return
 
-        # Mark feedback as processed
-        feedback_records = self.browse(feedback_ids)
-        feedback_records.write({'processed': True})
-
-        # Update dataset record count (increment by number of processed records)
-        dataset.record_count += len(feedback_ids)
-
-        _logger.info(
-            "Processed %d feedback records for field %d. Dataset %s now has %d records.",
-            len(feedback_ids),
-            field_id,
-            dataset.name,
-            dataset.record_count
-        )
+        # Mark feedback as processed and update the dataset count
+        try:
+            feedbacks = self.browse(feedback_ids)
+            feedbacks.write({'processed': True})
+            dataset.record_count += len(feedback_ids)
+            _logger.info("Processed %d feedback records for field %s", len(feedback_ids), field_id)
+        except Exception as e:
+            _logger.error("Failed to process feedback batch: %s", e)
 
     @api.model
     def process_feedback(self):
         """
-        Process all unprocessed feedback records and group them by field.
+        Process all unprocessed feedback records.
 
-        This method is called by a scheduled cron job. It:
-        1. Fetches all unprocessed feedback records.
-        2. Groups them by field_id.
-        3. For each field, creates a dataset and marks the feedback as processed.
-        4. Increments the dataset's record_count.
+        This method groups unprocessed feedback by field_id and calls
+        _process_feedback_batch for each group. It is typically called
+        by a cron job.
 
         Returns:
             dict: Summary of processed records per field.
         """
-        # Fetch all unprocessed feedback records
-        feedbacks = self.search([('processed', '=', False)])
-        if not feedbacks:
+        # Get all unprocessed feedback records
+        unprocessed = self.search([('processed', '=', False)])
+
+        if not unprocessed:
             _logger.info("No unprocessed feedback records found.")
             return {}
 
         # Group by field_id
-        field_groups = {}
-        for fb in feedbacks:
-            field_id = fb.field_id.id
-            if not field_id:
-                # Skip records without a field (should not happen)
-                _logger.warning("Feedback record %s has no field_id; skipping.", fb.id)
-                continue
-            field_groups.setdefault(field_id, []).append(fb.id)
+        grouped = {}
+        for feedback in unprocessed:
+            field_id = feedback.field_id.id
+            if field_id not in grouped:
+                grouped[field_id] = []
+            grouped[field_id].append(feedback.id)
 
         # Process each group
-        processed_counts = {}
-        for field_id, fb_ids in field_groups.items():
-            self._process_feedback_batch(field_id, fb_ids)
-            processed_counts[field_id] = len(fb_ids)
+        results = {}
+        for field_id, feedback_ids in grouped.items():
+            self._process_feedback_batch(field_id, feedback_ids)
+            results[field_id] = len(feedback_ids)
 
-        _logger.info("Processed feedback for %d fields: %s", len(processed_counts), processed_counts)
-        return processed_counts
+        _logger.info("Processed feedback for %d fields", len(results))
+        return results

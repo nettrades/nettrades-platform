@@ -19,6 +19,11 @@
 # INTEGRATION:
 #   - Uses odoo_tools.py to interact with Odoo's nettrades_gpu_admin models
 #   - Reports back to the supervisor with booking status
+#
+# UPDATES (2026-08-04):
+#   - Updated model names to match actual Odoo models:
+#       * gpu.node (was nettrades_gpu_admin.node)
+#       * gpu_sharing_schedule (was nettrades_gpu_admin.booking)
 # =============================================================================
 
 import json
@@ -35,6 +40,8 @@ from tools.odoo_tools import (
     odoo_create,
     odoo_write,
     odoo_call_method,
+    gpu_marketplace_get_nodes,
+    gpu_marketplace_create_booking,
 )
 
 _logger = logging.getLogger(__name__)
@@ -94,20 +101,8 @@ def create_gpu_marketplace_agent() -> StateGraph:
         _logger.info("Listing available GPU nodes")
 
         try:
-            # Search for available GPU nodes in Odoo
-            nodes = await odoo_search(
-                model="nettrades_gpu_admin.node",
-                domain=[
-                    ("status", "=", "available"),
-                    ("is_active", "=", True),
-                ],
-                fields=[
-                    "id", "name", "gpu_model", "vram_gb",
-                    "compute_capability", "price_per_hour",
-                    "availability", "provider_id",
-                ],
-                limit=20,
-            )
+            # Use the updated gpu_marketplace_get_nodes helper
+            nodes = await gpu_marketplace_get_nodes(status="available")
 
             state["gpu_nodes"] = nodes
             _logger.info(f"Found {len(nodes)} available GPU nodes")
@@ -197,7 +192,7 @@ def create_gpu_marketplace_agent() -> StateGraph:
         selected_node = state.get("selected_node")
         start_time = state.get("start_time")
         end_time = state.get("end_time")
-        user_id = state.get("user_id")
+        user_id = state.get("user_id", 1)
 
         if not selected_node:
             _logger.warning("No GPU node selected for booking")
@@ -210,38 +205,30 @@ def create_gpu_marketplace_agent() -> StateGraph:
         _logger.info(f"Creating booking for GPU node: {selected_node.get('id')}")
 
         try:
-            # Calculate total cost
-            duration_hours = (end_time - start_time).total_seconds() / 3600
-            total_cost = duration_hours * selected_node.get("price_per_hour", 0)
-
-            # Create booking in Odoo
-            booking_data = {
-                "node_id": selected_node.get("id"),
-                "user_id": user_id,
-                "start_time": start_time.isoformat(),
-                "end_time": end_time.isoformat(),
-                "total_cost": total_cost,
-                "status": "pending",
-                "created_date": datetime.now().isoformat(),
-            }
-
-            booking_id = await odoo_create(
-                model="nettrades_gpu_admin.booking",
-                values=booking_data,
+            # Use the updated gpu_marketplace_create_booking helper
+            booking_id = await gpu_marketplace_create_booking(
+                node_id=selected_node.get("id"),
+                user_id=user_id,
+                start_time=start_time,
+                end_time=end_time,
             )
 
             state["booking_id"] = booking_id
-            state["total_cost"] = total_cost
             state["status"] = "pending"
 
             # Update node status to "reserved"
             await odoo_write(
-                model="nettrades_gpu_admin.node",
+                model="gpu.node",
                 ids=[selected_node.get("id")],
                 values={"status": "reserved"},
             )
 
             _logger.info(f"Booking created with ID: {booking_id}")
+
+            # Calculate total cost for display
+            duration_hours = (end_time - start_time).total_seconds() / 3600
+            total_cost = duration_hours * selected_node.get("price_per_hour", 0)
+            state["total_cost"] = total_cost
 
             state["analysis"] = (
                 f"✅ Booking created!\n"
@@ -281,7 +268,7 @@ def create_gpu_marketplace_agent() -> StateGraph:
 
             if payment_successful:
                 await odoo_write(
-                    model="nettrades_gpu_admin.booking",
+                    model="gpu_sharing_schedule",
                     ids=[booking_id],
                     values={
                         "status": "confirmed",
@@ -326,14 +313,14 @@ def create_gpu_marketplace_agent() -> StateGraph:
         try:
             # Update node status to "available"
             await odoo_write(
-                model="nettrades_gpu_admin.node",
+                model="gpu.node",
                 ids=[selected_node.get("id")],
                 values={"status": "available"},
             )
 
             # Update booking status
             await odoo_write(
-                model="nettrades_gpu_admin.booking",
+                model="gpu_sharing_schedule",
                 ids=[booking_id],
                 values={"status": "completed"},
             )

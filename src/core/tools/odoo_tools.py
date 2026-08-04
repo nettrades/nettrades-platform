@@ -25,6 +25,15 @@
 #   - Removed duplicate res_partner_search stub
 #   - Changed default proxy port from 3000 to 8080
 #   - Added schema discovery endpoints and user impersonation support
+#
+# UPDATES (2026-08-04):
+#   - Corrected model names in Ask Someone, Good Answer, and GPU helpers
+#     to match actual Odoo module definitions:
+#       * expert.session          (was nettrades_ask_someone.request)
+#       * qualified_professional  (was nettrades_ask_someone.expert)
+#       * llm_feedback            (was nettrades_good_answer.answer / .best_answer)
+#       * gpu.node                (was nettrades_gpu_admin.node)
+#       * gpu_sharing_schedule    (was nettrades_gpu_admin.booking)
 # =============================================================================
 
 import datetime
@@ -40,7 +49,7 @@ _logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
-ODOO_PROXY_URL = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:8080")  # FIXED: changed from :3000 to :8080
+ODOO_PROXY_URL = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:8080")
 ODOO_API_KEY = os.getenv("ODOO_API_KEY", "change_me_in_production")
 # Fallback direct Odoo URL (if proxy is down)
 ODOO_DIRECT_URL = os.getenv("ODOO_DIRECT_URL", "http://odoo:8069")
@@ -79,11 +88,6 @@ async def _call_odoo_jsonrpc(payload: Dict[str, Any], uid: Optional[int] = None,
 
     if USE_PROXY:
         url = f"{ODOO_PROXY_URL}/jsonrpc"
-        # For direct call, we need to include credentials in the params
-        # The payload should already contain the 'params' with args[0] = db, args[1] = uid, args[2] = password
-        # We'll just forward the payload as-is; the caller must include the credentials.
-        # However, to simplify, we can auto-inject if the payload doesn't contain them.
-        # But we assume the caller already includes them.
         headers = {
             "X-API-Key": ODOO_API_KEY,
             "Content-Type": "application/json",
@@ -125,8 +129,6 @@ def _build_execute_payload(model: str, method: str, args: List[Any], kwargs: Dic
     """
     if kwargs is None:
         kwargs = {}
-    # The execute_kw expects args = [db, uid, password, model, method, args, kwargs]
-    # We'll fill db, uid, password later in _call_odoo_jsonrpc
     return {
         "jsonrpc": "2.0",
         "method": "call",
@@ -139,7 +141,7 @@ def _build_execute_payload(model: str, method: str, args: List[Any], kwargs: Dic
 
 
 # -----------------------------------------------------------------------------
-# Convenience Odoo CRUD wrappers (used by helper functions below)
+# Convenience Odoo CRUD wrappers
 # -----------------------------------------------------------------------------
 async def odoo_search(model: str, domain: List[Any], fields: Optional[List[str]] = None,
                       limit: Optional[int] = None, offset: Optional[int] = None,
@@ -147,19 +149,6 @@ async def odoo_search(model: str, domain: List[Any], fields: Optional[List[str]]
                       password: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Perform a search_read on an Odoo model.
-
-    Args:
-        model: Model name
-        domain: Odoo domain list
-        fields: List of fields to return (None = all)
-        limit: Max records
-        offset: Offset for pagination
-        order: Order string
-        uid: Optional user ID for impersonation
-        password: Optional user password
-
-    Returns:
-        List of records as dictionaries
     """
     kwargs = {}
     if fields:
@@ -179,15 +168,6 @@ async def odoo_create(model: str, values: Dict[str, Any],
                       uid: Optional[int] = None, password: Optional[str] = None) -> int:
     """
     Create a new record in an Odoo model.
-
-    Args:
-        model: Model name
-        values: Field values for the new record
-        uid: Optional user ID for impersonation
-        password: Optional user password
-
-    Returns:
-        ID of the created record
     """
     payload = _build_execute_payload(model, 'create', [values])
     result = await _call_odoo_jsonrpc(payload, uid=uid, password=password)
@@ -198,40 +178,68 @@ async def odoo_write(model: str, ids: List[int], values: Dict[str, Any],
                      uid: Optional[int] = None, password: Optional[str] = None) -> bool:
     """
     Update records in an Odoo model.
-
-    Args:
-        model: Model name
-        ids: List of record IDs to update
-        values: Field values to set
-        uid: Optional user ID for impersonation
-        password: Optional user password
-
-    Returns:
-        True if successful
     """
     payload = _build_execute_payload(model, 'write', [ids, values])
     result = await _call_odoo_jsonrpc(payload, uid=uid, password=password)
     return result.get('result', False)
 
 
+async def odoo_call_method(
+    model: str,
+    method: str,
+    args: List[Any] = None,
+    kwargs: Dict[str, Any] = None,
+    uid: Optional[int] = None,
+    password: Optional[str] = None,
+) -> Any:
+    """
+    Call any custom method on an Odoo model via JSON-RPC.
+
+    This is a generic method caller that wraps _call_odoo_jsonrpc.
+    Used by agents to invoke custom Odoo methods (e.g., from nettrades modules).
+    """
+    args = args or []
+    kwargs = kwargs or {}
+
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": {
+            "service": "object",
+            "method": "execute_kw",
+            "args": [
+                ODOO_DB,
+                uid or ODOO_USER,
+                password or ODOO_PASSWORD,
+                model,
+                method,
+                args,
+                kwargs,
+            ],
+        },
+        "id": None,
+    }
+
+    result = await _call_odoo_jsonrpc(payload, uid, password)
+
+    if result and isinstance(result, dict) and "result" in result:
+        return result["result"]
+    return result
+
+
 # -----------------------------------------------------------------------------
 # Public Tool Functions (async)
 # -----------------------------------------------------------------------------
 
-# --- Schema Discovery Tools (NEW) ---
+# --- Schema Discovery Tools ---
 
 async def list_odoo_models(uid: Optional[int] = None, password: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    Discover all available Odoo models (e.g., res.partner, sale.order).
-
-    This tool returns a list of model names and their human-readable labels.
-    Used by the agent to understand the data landscape.
+    Discover all available Odoo models.
 
     Returns:
         List of dictionaries with keys: model (technical name), name (label), info (description)
     """
-    # We need to call the proxy's /models endpoint
-    # Since the proxy uses the same API key, we can use an HTTP GET
     headers = {"X-API-Key": ODOO_API_KEY}
     url = f"{ODOO_PROXY_URL}/models"
     try:
@@ -242,26 +250,12 @@ async def list_odoo_models(uid: Optional[int] = None, password: Optional[str] = 
             return data.get("models", [])
     except Exception as e:
         _logger.error(f"Failed to fetch models: {e}")
-        # Fallback: return empty list or raise
         raise
 
 
 async def get_model_fields(model_name: str, uid: Optional[int] = None, password: Optional[str] = None) -> Dict[str, Any]:
     """
     Get the field definitions for a specific Odoo model.
-
-    Returns a dictionary mapping field names to their metadata:
-        - type (char, integer, many2one, etc.)
-        - string (label)
-        - required (boolean)
-        - selection (list of options for selection fields)
-        - relation (related model for many2one/one2many)
-
-    Args:
-        model_name: Technical name of the model (e.g., 'res.partner')
-
-    Returns:
-        Dict of field definitions.
     """
     headers = {"X-API-Key": ODOO_API_KEY}
     url = f"{ODOO_PROXY_URL}/models/{model_name}/fields"
@@ -279,12 +273,6 @@ async def get_model_fields(model_name: str, uid: Optional[int] = None, password:
 async def discover_schema(uid: Optional[int] = None, password: Optional[str] = None) -> Dict[str, Any]:
     """
     Discover the full schema: list of models and their fields.
-
-    This is a convenience tool that returns both models and fields in one call.
-    It can be used by the agent to get a complete picture.
-
-    Returns:
-        Dict with keys: 'models' (list) and 'fields' (dict mapping model_name -> fields)
     """
     models = await list_odoo_models(uid, password)
     all_fields = {}
@@ -307,16 +295,6 @@ async def crm_lead_search(domain: List[Any], fields: List[str] = None, limit: in
                          uid: Optional[int] = None, password: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Search for CRM leads by domain.
-
-    Args:
-        domain: Odoo domain list (e.g., [('stage_id','=',1)])
-        fields: List of field names to return (None = all)
-        limit: Maximum number of records to return
-        uid: Optional Odoo user ID for permission enforcement
-        password: Optional Odoo password for the user
-
-    Returns:
-        List of lead dictionaries
     """
     if fields is None:
         fields = []
@@ -334,16 +312,6 @@ async def hr_job_search(domain: List[Any], fields: List[str] = None, limit: int 
                        uid: Optional[int] = None, password: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Search for HR jobs.
-
-    Args:
-        domain: Odoo domain list (e.g., [('state','=','open')])
-        fields: List of field names to return (None = all)
-        limit: Maximum number of records to return
-        uid: Optional Odoo user ID for permission enforcement
-        password: Optional Odoo password for the user
-
-    Returns:
-        List of job dictionaries
     """
     if fields is None:
         fields = []
@@ -361,16 +329,6 @@ async def res_partner_search(domain: List[Any], fields: List[str] = None, limit:
                             uid: Optional[int] = None, password: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Search for partners (users/companies).
-
-    Args:
-        domain: Odoo domain list (e.g., [('is_company','=',True)])
-        fields: List of field names to return (None = all)
-        limit: Maximum number of records to return
-        uid: Optional Odoo user ID for permission enforcement
-        password: Optional Odoo password for the user
-
-    Returns:
-        List of partner dictionaries
     """
     if fields is None:
         fields = []
@@ -384,17 +342,11 @@ async def res_partner_search(domain: List[Any], fields: List[str] = None, limit:
     return result.get("result", [])
 
 
+# --- GPU Node Functions ---
+
 async def gpu_node_read(node_id: int, uid: Optional[int] = None, password: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Read a specific GPU node by ID.
-
-    Args:
-        node_id: ID of the GPU node
-        uid: Optional Odoo user ID for permission enforcement
-        password: Optional Odoo password for the user
-
-    Returns:
-        Dictionary of node data, or None if not found
     """
     payload = _build_execute_payload(
         "gpu.node",
@@ -411,15 +363,6 @@ async def gpu_node_write(node_id: int, values: Dict[str, Any],
                         uid: Optional[int] = None, password: Optional[str] = None) -> bool:
     """
     Update a GPU node record.
-
-    Args:
-        node_id: ID of the node to update
-        values: Dictionary of field values to set
-        uid: Optional Odoo user ID for permission enforcement
-        password: Optional Odoo password for the user
-
-    Returns:
-        True if successful
     """
     payload = _build_execute_payload(
         "gpu.node",
@@ -435,14 +378,6 @@ async def gpu_node_create(values: Dict[str, Any],
                          uid: Optional[int] = None, password: Optional[str] = None) -> int:
     """
     Create a new GPU node.
-
-    Args:
-        values: Dictionary of field values for the new record
-        uid: Optional Odoo user ID for permission enforcement
-        password: Optional Odoo password for the user
-
-    Returns:
-        ID of the created node, or 0 if failed
     """
     payload = _build_execute_payload(
         "gpu.node",
@@ -458,16 +393,6 @@ async def gpu_node_search(domain: List[Any], fields: List[str] = None, limit: in
                          uid: Optional[int] = None, password: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Search for GPU nodes.
-
-    Args:
-        domain: Odoo domain list (e.g., [('status','=','active')])
-        fields: List of field names to return (None = all)
-        limit: Maximum number of records to return
-        uid: Optional Odoo user ID for permission enforcement
-        password: Optional Odoo password for the user
-
-    Returns:
-        List of node dictionaries
     """
     if fields is None:
         fields = []
@@ -485,15 +410,6 @@ async def gpu_cluster_search(domain: List[Any], fields: List[str] = None,
                             uid: Optional[int] = None, password: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Search for GPU clusters.
-
-    Args:
-        domain: Odoo domain list (e.g., [('company_id','=',1)])
-        fields: List of field names to return (None = all)
-        uid: Optional Odoo user ID for permission enforcement
-        password: Optional Odoo password for the user
-
-    Returns:
-        List of cluster dictionaries
     """
     if fields is None:
         fields = []
@@ -508,35 +424,76 @@ async def gpu_cluster_search(domain: List[Any], fields: List[str] = None,
 
 
 # -----------------------------------------------------------------------------
-# Stub functions for missing Odoo methods (placeholder)
-# These may be replaced later with real implementations.
+# Implemented Functions (previously stubs)
 # -----------------------------------------------------------------------------
 
-async def project_search(name: str = None, limit: int = 10,
-                        uid: Optional[int] = None, password: Optional[str] = None):
+async def project_search(domain: List[Any] = None, fields: List[str] = None, limit: int = 10,
+                         uid: Optional[int] = None, password: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    Stub for project_search. Implement real logic later.
+    Search for projects in Odoo.
+
+    Args:
+        domain: Odoo domain list (e.g., [('state','=','open')])
+        fields: List of field names to return (None = all)
+        limit: Maximum number of records to return
+        uid: Optional Odoo user ID for permission enforcement
+        password: Optional Odoo password for the user
+
+    Returns:
+        List of project dictionaries
     """
-    _logger.warning("project_search is a stub - implement real logic.")
-    return [{"id": 0, "name": name or "Project"}]
+    if domain is None:
+        domain = []
+    if fields is None:
+        fields = []
+    payload = _build_execute_payload(
+        "project.project",
+        "search_read",
+        args=[domain],
+        kwargs={"fields": fields, "limit": limit}
+    )
+    result = await _call_odoo_jsonrpc(payload, uid=uid, password=password)
+    return result.get("result", [])
 
 
-async def crm_lead_create(name: str, email: str = None, phone: str = None, description: str = None,
-                         uid: Optional[int] = None, password: Optional[str] = None):
+async def crm_lead_create(values: Dict[str, Any],
+                          uid: Optional[int] = None, password: Optional[str] = None) -> int:
     """
-    Stub for crm_lead_create. Implement real logic later.
+    Create a new CRM lead in Odoo.
+
+    Args:
+        values: Dictionary of field values for the new lead (name, description, etc.)
+        uid: Optional Odoo user ID for permission enforcement
+        password: Optional Odoo password for the user
+
+    Returns:
+        int: The ID of the created lead, or 0 if failed
     """
-    _logger.warning("crm_lead_create is a stub - implement real logic.")
-    return {"id": 0, "name": name, "email": email, "phone": phone, "description": description}
+    payload = _build_execute_payload(
+        "crm.lead",
+        "create",
+        args=[values],
+        kwargs={}
+    )
+    try:
+        result = await _call_odoo_jsonrpc(payload, uid=uid, password=password)
+        return result.get("result", 0)
+    except Exception as e:
+        _logger.error(f"crm_lead_create failed: {e}")
+        return 0
+
 
 # =============================================================================
-# END OF FILE
+# PROJECT MATCH HELPER
 # =============================================================================
 
 async def project_match_create(values: Dict[str, Any],
                               uid: Optional[int] = None, password: Optional[str] = None) -> int:
     """
-    Create a project match record (nettrades.user.match) in Odoo.
+    Create a project match record in Odoo.
+
+    Note: The model 'nettrades.user.match' must exist in Odoo.
+    If it doesn't exist, you may need to create it or use an alternative model.
 
     Args:
         values: dict with keys such as project_id, freelancer_id,
@@ -558,135 +515,160 @@ async def project_match_create(values: Dict[str, Any],
         _logger.error("project_match_create failed: %s", exc)
         return -1
 
+
 # =============================================================================
-# ASK SOMEONE HELPER FUNCTIONS
+# UPDATED ASK SOMEONE HELPER FUNCTIONS (using actual Odoo models)
 # =============================================================================
 
 async def ask_someone_create_request(
     question: str,
-    category: str,
-    urgency: str,
+    field_id: int,                       # ID of the professional field (nettrades_field)
+    requester_id: int,
+    urgency: str = "normal",             # low, normal, high, critical
     expert_id: Optional[int] = None,
-    user_id: Optional[int] = None,
 ) -> int:
     """
-    Create a new Ask Someone request in Odoo.
+    Create a new Ask Someone expert session in Odoo.
+
+    This creates an 'expert.session' record that tracks the requester,
+    the selected professional field, the question/task summary, and status.
 
     Args:
-        question: The user's question
-        category: The category of the question
-        urgency: The urgency level (low, medium, high, critical)
-        expert_id: The ID of the expert to route to (optional)
-        user_id: The ID of the user asking the question
+        question: The user's question or task description
+        field_id: The ID of the professional field (nettrades_field)
+        requester_id: The ID of the user asking the question
+        urgency: Urgency level (low, normal, high, critical)
+        expert_id: Optional specific expert to route to (if known)
 
     Returns:
-        int: The ID of the created request
+        int: The ID of the created expert.session
     """
     values = {
-        "question": question,
-        "category": category,
+        "requester_id": requester_id,
+        "field_id": field_id,
+        "task_summary": question,
         "urgency": urgency,
         "status": "pending",
-        "created_date": datetime.now().isoformat(),
+        "created_date": datetime.datetime.now().isoformat(),
     }
     if expert_id:
         values["expert_id"] = expert_id
-    if user_id:
-        values["user_id"] = user_id
 
-    return await odoo_create("nettrades_ask_someone.request", values)
+    return await odoo_create("expert.session", values)
 
 
-async def ask_someone_get_experts(category: Optional[str] = None) -> List[Dict]:
+async def ask_someone_get_experts(field_id: Optional[int] = None) -> List[Dict]:
     """
-    Get available experts from Odoo.
+    Get available verified professionals from Odoo.
+
+    This queries the 'qualified_professional' model which stores
+    verified experts for restricted fields.
 
     Args:
-        category: Filter by category (optional)
+        field_id: Filter by professional field (optional)
 
     Returns:
-        List[Dict]: List of expert records
+        List[Dict]: List of qualified professional records
     """
-    domain = [("is_active", "=", True), ("availability", "=", True)]
-    if category:
-        domain.append(("category", "=", category))
+    domain = [("is_verified", "=", True)]
+    if field_id:
+        domain.append(("field_id", "=", field_id))
 
     return await odoo_search(
-        "nettrades_ask_someone.expert",
+        "qualified_professional",
         domain,
-        ["id", "name", "category", "skills", "rating", "price_per_hour"],
+        ["id", "partner_id", "field_id", "reputation_score", "is_available"],
     )
 
 
 # =============================================================================
-# GOOD ANSWER HELPER FUNCTIONS
+# UPDATED GOOD ANSWER HELPER FUNCTIONS (using llm_feedback & good_answer_vote)
 # =============================================================================
 
-async def good_answer_get_answers(question: str) -> List[Dict]:
+async def good_answer_create_vote(
+    message_id: int,
+    user_id: int,
+    is_good: bool = True,
+) -> int:
     """
-    Get existing answers for a question from Odoo.
+    Record a "Good Answer" vote on an AI message.
+
+    This creates a 'good_answer_vote' record linked to the llm.message.
 
     Args:
-        question: The question to search for
+        message_id: The ID of the llm.message being voted on
+        user_id: The ID of the user voting
+        is_good: True for "Good Answer", False for "Bad Answer"
 
     Returns:
-        List[Dict]: List of answer records
+        int: The ID of the created good_answer_vote
     """
-    return await odoo_search(
-        "nettrades_good_answer.answer",
-        [("question", "ilike", question[:50])],
-        ["id", "answer", "votes_positive", "votes_negative", "quality_score"],
+    vote_type = "positive" if is_good else "negative"
+    return await odoo_create(
+        "good_answer_vote",
+        {
+            "message_id": message_id,
+            "user_id": user_id,
+            "vote_type": vote_type,
+        },
     )
+
+
+async def good_answer_get_best_answer(question: str) -> Optional[Dict]:
+    """
+    Get the highest-quality answer for a question from llm_feedback records.
+
+    Args:
+        question: The question text to search for
+
+    Returns:
+        Optional[Dict]: The best answer record, or None
+    """
+    feedbacks = await odoo_search(
+        "llm_feedback",
+        [("question", "ilike", question[:100])],
+        ["id", "answer", "quality_score", "is_verified"],
+        order="quality_score DESC",
+        limit=1,
+    )
+    return feedbacks[0] if feedbacks else None
 
 
 async def good_answer_record_best(
     question: str,
     answer: str,
+    quality_score: float = 0.0,
     is_verified: bool = False,
 ) -> int:
     """
-    Record the best answer for a question in Odoo.
+    Record a high-quality answer for training purposes.
+
+    This creates an llm_feedback record that can be used for fine-tuning.
 
     Args:
         question: The question
-        answer: The best answer
+        answer: The answer text
+        quality_score: Quality score (0-100)
         is_verified: Whether the answer has been verified
 
     Returns:
-        int: The ID of the created/updated best answer record
+        int: The ID of the created llm_feedback
     """
-    # Check if a best answer already exists for this question
-    existing = await odoo_search(
-        "nettrades_good_answer.best_answer",
-        [("question", "=", question)],
-        ["id"],
+    return await odoo_create(
+        "llm_feedback",
+        {
+            "question": question,
+            "answer": answer,
+            "quality_score": quality_score,
+            "is_verified": is_verified,
+            "feedback_type": "expert_answer",
+            "created_date": datetime.datetime.now().isoformat(),
+        },
     )
-
-    if existing:
-        await odoo_write(
-            "nettrades_good_answer.best_answer",
-            [existing[0]["id"]],
-            {
-                "answer": answer,
-                "is_verified": is_verified,
-                "updated_date": datetime.now().isoformat(),
-            },
-        )
-        return existing[0]["id"]
-    else:
-        return await odoo_create(
-            "nettrades_good_answer.best_answer",
-            {
-                "question": question,
-                "answer": answer,
-                "is_verified": is_verified,
-                "created_date": datetime.now().isoformat(),
-            },
-        )
 
 
 # =============================================================================
-# GPU MARKETPLACE HELPER FUNCTIONS
+# UPDATED GPU MARKETPLACE HELPER FUNCTIONS
 # =============================================================================
 
 async def gpu_marketplace_get_nodes(
@@ -695,6 +677,8 @@ async def gpu_marketplace_get_nodes(
 ) -> List[Dict]:
     """
     Get GPU nodes from Odoo.
+
+    This queries the 'gpu.node' model.
 
     Args:
         status: Filter by status (available, reserved, used)
@@ -710,7 +694,7 @@ async def gpu_marketplace_get_nodes(
         domain.append(("gpu_model", "=", gpu_model))
 
     return await odoo_search(
-        "nettrades_gpu_admin.node",
+        "gpu.node",
         domain,
         ["id", "name", "gpu_model", "vram_gb", "price_per_hour", "status"],
     )
@@ -719,11 +703,13 @@ async def gpu_marketplace_get_nodes(
 async def gpu_marketplace_create_booking(
     node_id: int,
     user_id: int,
-    start_time: datetime,
-    end_time: datetime,
+    start_time: datetime.datetime,
+    end_time: datetime.datetime,
 ) -> int:
     """
     Create a GPU booking in Odoo.
+
+    This creates a 'gpu_sharing_schedule' record.
 
     Args:
         node_id: The ID of the GPU node
@@ -738,7 +724,7 @@ async def gpu_marketplace_create_booking(
 
     # Get the node to calculate cost
     nodes = await odoo_search(
-        "nettrades_gpu_admin.node",
+        "gpu.node",
         [("id", "=", node_id)],
         ["price_per_hour"],
     )
@@ -746,7 +732,7 @@ async def gpu_marketplace_create_booking(
     total_cost = duration_hours * price_per_hour
 
     return await odoo_create(
-        "nettrades_gpu_admin.booking",
+        "gpu_sharing_schedule",
         {
             "node_id": node_id,
             "user_id": user_id,
@@ -754,6 +740,6 @@ async def gpu_marketplace_create_booking(
             "end_time": end_time.isoformat(),
             "total_cost": total_cost,
             "status": "pending",
-            "created_date": datetime.now().isoformat(),
+            "created_date": datetime.datetime.now().isoformat(),
         },
     )

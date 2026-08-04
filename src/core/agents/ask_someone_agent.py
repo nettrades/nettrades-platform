@@ -19,6 +19,11 @@
 # INTEGRATION:
 #   - Uses odoo_tools.py to interact with Odoo's nettrades_ask_someone models
 #   - Reports back to the supervisor with the expert's answer
+#
+# UPDATES (2026-08-04):
+#   - Updated model names to match actual Odoo models:
+#       * expert.session (was nettrades_ask_someone.request)
+#       * qualified_professional (was nettrades_ask_someone.expert)
 # =============================================================================
 
 import json
@@ -35,6 +40,8 @@ from tools.odoo_tools import (
     odoo_create,
     odoo_write,
     odoo_call_method,
+    ask_someone_create_request,
+    ask_someone_get_experts,
 )
 
 _logger = logging.getLogger(__name__)
@@ -138,32 +145,14 @@ def create_ask_someone_agent() -> StateGraph:
         """
         Find matching experts in Odoo based on category and required expertise.
         """
-        category = state.get("category", "general")
+        field_id = state.get("field_id")
         expertise_required = state.get("expertise_required", [])
 
-        _logger.info(f"Searching for experts in category: {category}")
+        _logger.info(f"Searching for experts with field_id: {field_id}")
 
         try:
-            # Search for experts in Odoo
-            # Uses nettrades_ask_someone.expert model
-            domain = [
-                ("category", "=", category),
-                ("is_active", "=", True),
-                ("availability", "=", True),
-            ]
-
-            # If expertise is specified, add to domain
-            if expertise_required:
-                # This is a simplified search; Odoo may have a different field name
-                # for expertise/skills. Adjust based on your Odoo model.
-                domain.append(("skills", "ilike", expertise_required[0]))
-
-            experts = await odoo_search(
-                model="nettrades_ask_someone.expert",
-                domain=domain,
-                fields=["id", "name", "email", "category", "skills", "rating", "availability", "price_per_hour"],
-                limit=10,
-            )
+            # Use the updated ask_someone_get_experts helper
+            experts = await ask_someone_get_experts(field_id=field_id)
 
             state["experts"] = experts
             _logger.info(f"Found {len(experts)} matching experts")
@@ -182,9 +171,15 @@ def create_ask_someone_agent() -> StateGraph:
         Create a request in Odoo and route it to the best matching expert.
         """
         question = state.get("question", "")
-        category = state.get("category", "general")
+        field_id = state.get("field_id")
         urgency = state.get("urgency", "medium")
         experts = state.get("experts", [])
+        requester_id = state.get("requester_id") or 1  # Default to admin if not provided
+
+        if not field_id:
+            _logger.warning("No field_id provided for routing")
+            state["error"] = "No professional field selected"
+            return state
 
         if not experts:
             _logger.warning("No experts found for routing")
@@ -192,25 +187,19 @@ def create_ask_someone_agent() -> StateGraph:
             return state
 
         # Select the best expert (highest rating, or first if no rating)
-        best_expert = max(experts, key=lambda e: e.get("rating", 0)) if experts else experts[0]
+        best_expert = max(experts, key=lambda e: e.get("reputation_score", 0)) if experts else experts[0]
         state["selected_expert"] = best_expert
 
-        _logger.info(f"Routing to expert: {best_expert.get('name', 'Unknown')}")
+        _logger.info(f"Routing to expert: {best_expert.get('partner_id', 'Unknown')}")
 
         try:
-            # Create a request in Odoo
-            request_data = {
-                "question": question,
-                "category": category,
-                "urgency": urgency,
-                "expert_id": best_expert.get("id"),
-                "status": "pending",
-                "created_date": datetime.now().isoformat(),
-            }
-
-            request_id = await odoo_create(
-                model="nettrades_ask_someone.request",
-                values=request_data,
+            # Use the updated ask_someone_create_request helper
+            request_id = await ask_someone_create_request(
+                question=question,
+                field_id=field_id,
+                requester_id=requester_id,
+                urgency=urgency,
+                expert_id=best_expert.get("id"),
             )
 
             state["request_id"] = request_id
@@ -218,13 +207,13 @@ def create_ask_someone_agent() -> StateGraph:
 
             # Notify the expert (via Odoo's notification system)
             await odoo_call_method(
-                model="nettrades_ask_someone.request",
+                model="expert.session",
                 method="notify_expert",
                 args=[request_id],
             )
 
             state["analysis"] = (
-                f"Your question has been routed to {best_expert.get('name', 'an expert')}. "
+                f"Your question has been routed to an expert. "
                 f"You will receive a response shortly."
             )
         except Exception as e:
@@ -249,17 +238,17 @@ def create_ask_someone_agent() -> StateGraph:
         _logger.info(f"Collecting answer for request: {request_id}")
 
         try:
-            # Get the request from Odoo
+            # Get the request from Odoo using the correct model
             request = await odoo_search(
-                model="nettrades_ask_someone.request",
+                model="expert.session",
                 domain=[("id", "=", request_id)],
-                fields=["id", "answer", "status", "expert_id", "expert_name"],
+                fields=["id", "task_summary", "status", "expert_id"],
                 limit=1,
             )
 
-            if request and request[0].get("answer"):
-                state["answer"] = request[0]["answer"]
-                state["analysis"] = request[0]["answer"]
+            if request and request[0].get("task_summary"):
+                state["answer"] = request[0]["task_summary"]
+                state["analysis"] = request[0]["task_summary"]
                 _logger.info("Answer collected successfully")
             else:
                 # If no answer yet, check if we should wait or return a status
@@ -295,11 +284,10 @@ def create_ask_someone_agent() -> StateGraph:
 
         try:
             await odoo_write(
-                model="nettrades_ask_someone.request",
+                model="expert.session",
                 ids=[request_id],
                 values={
-                    "rating": rating,
-                    "feedback": feedback,
+                    "rating_by_requester": rating,
                     "status": "completed",
                 },
             )

@@ -9,6 +9,7 @@
 #
 # RELATIONSHIPS:
 #   - cluster_id -> gpu.cluster (the cluster this node belongs to)
+#   - booking_ids -> gpu_sharing_schedule (bookings for this node)
 #
 # KEY FEATURES:
 #   - Hardware inventory (GPUs, VRAM, OS, TEE capabilities)
@@ -328,7 +329,24 @@ class GPUNode(models.Model):
     )
 
     # =========================================================================
-    # 12. COMPUTED FIELDS
+    # 12. BOOKINGS (NEW - added to link to gpu_sharing_schedule)
+    # =========================================================================
+
+    booking_ids = fields.One2many(
+        'gpu_sharing_schedule',
+        'node_id',
+        string='Bookings',
+        help="All bookings for this GPU node."
+    )
+
+    current_booking_id = fields.Many2one(
+        'gpu_sharing_schedule',
+        string='Current Booking',
+        help="The currently active booking for this node."
+    )
+
+    # =========================================================================
+    # 13. COMPUTED FIELDS
     # =========================================================================
 
     @api.depends('gpus')
@@ -368,7 +386,7 @@ class GPUNode(models.Model):
             node.gpu_count = count
 
     # =========================================================================
-    # 13. WIREGUARD CONFIGURATION GENERATION
+    # 14. WIREGUARD CONFIGURATION GENERATION
     # =========================================================================
 
     def _generate_wireguard_config(self):
@@ -494,7 +512,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         }
 
     # =========================================================================
-    # 14. GPUSTACK TOKEN MANAGEMENT
+    # 15. GPUSTACK TOKEN MANAGEMENT
     # =========================================================================
 
     def _generate_gpustack_token(self):
@@ -551,7 +569,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
             return None
 
     # =========================================================================
-    # 15. NODE LIFECYCLE MANAGEMENT
+    # 16. NODE LIFECYCLE MANAGEMENT
     # =========================================================================
 
     def action_remove_node(self):
@@ -699,7 +717,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         }
 
     # =========================================================================
-    # 16. CRON JOBS
+    # 17. CRON JOBS
     # =========================================================================
 
     def _cron_health_watchdog(self):
@@ -730,7 +748,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         _logger.info(f"GPU node health watchdog completed: {len(nodes)} nodes checked")
 
     # =========================================================================
-    # 17. CONSTRAINTS AND VALIDATION
+    # 18. CONSTRAINTS AND VALIDATION
     # =========================================================================
 
     @api.constrains('wireguard_public_key')
@@ -754,7 +772,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
                         ))
 
     # =========================================================================
-    # 18. HELPER METHODS FOR EXTERNAL ACCESS
+    # 19. HELPER METHODS FOR EXTERNAL ACCESS
     # =========================================================================
 
     def get_peer_info(self):
