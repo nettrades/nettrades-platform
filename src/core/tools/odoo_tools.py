@@ -27,6 +27,7 @@
 #   - Added schema discovery endpoints and user impersonation support
 # =============================================================================
 
+import datetime
 import os
 import logging
 import json
@@ -79,9 +80,9 @@ async def _call_odoo_jsonrpc(payload: Dict[str, Any], uid: Optional[int] = None,
     if USE_PROXY:
         url = f"{ODOO_PROXY_URL}/jsonrpc"
         # For direct call, we need to include credentials in the params
-	# The payload should already contain the 'params' with args[0] = db, args[1] = uid, args[2] = password
-	# We'll just forward the payload as-is; the caller must include the credentials.
-	# However, to simplify, we can auto-inject if the payload doesn't contain them.
+        # The payload should already contain the 'params' with args[0] = db, args[1] = uid, args[2] = password
+        # We'll just forward the payload as-is; the caller must include the credentials.
+        # However, to simplify, we can auto-inject if the payload doesn't contain them.
         # But we assume the caller already includes them.
         headers = {
             "X-API-Key": ODOO_API_KEY,
@@ -135,6 +136,82 @@ def _build_execute_payload(model: str, method: str, args: List[Any], kwargs: Dic
             "args": [ODOO_DB, ODOO_USER, ODOO_PASSWORD, model, method, args, kwargs]
         }
     }
+
+
+# -----------------------------------------------------------------------------
+# Convenience Odoo CRUD wrappers (used by helper functions below)
+# -----------------------------------------------------------------------------
+async def odoo_search(model: str, domain: List[Any], fields: Optional[List[str]] = None,
+                      limit: Optional[int] = None, offset: Optional[int] = None,
+                      order: Optional[str] = None, uid: Optional[int] = None,
+                      password: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    Perform a search_read on an Odoo model.
+
+    Args:
+        model: Model name
+        domain: Odoo domain list
+        fields: List of fields to return (None = all)
+        limit: Max records
+        offset: Offset for pagination
+        order: Order string
+        uid: Optional user ID for impersonation
+        password: Optional user password
+
+    Returns:
+        List of records as dictionaries
+    """
+    kwargs = {}
+    if fields:
+        kwargs['fields'] = fields
+    if limit is not None:
+        kwargs['limit'] = limit
+    if offset is not None:
+        kwargs['offset'] = offset
+    if order:
+        kwargs['order'] = order
+    payload = _build_execute_payload(model, 'search_read', [domain], kwargs)
+    result = await _call_odoo_jsonrpc(payload, uid=uid, password=password)
+    return result.get('result', [])
+
+
+async def odoo_create(model: str, values: Dict[str, Any],
+                      uid: Optional[int] = None, password: Optional[str] = None) -> int:
+    """
+    Create a new record in an Odoo model.
+
+    Args:
+        model: Model name
+        values: Field values for the new record
+        uid: Optional user ID for impersonation
+        password: Optional user password
+
+    Returns:
+        ID of the created record
+    """
+    payload = _build_execute_payload(model, 'create', [values])
+    result = await _call_odoo_jsonrpc(payload, uid=uid, password=password)
+    return result.get('result', 0)
+
+
+async def odoo_write(model: str, ids: List[int], values: Dict[str, Any],
+                     uid: Optional[int] = None, password: Optional[str] = None) -> bool:
+    """
+    Update records in an Odoo model.
+
+    Args:
+        model: Model name
+        ids: List of record IDs to update
+        values: Field values to set
+        uid: Optional user ID for impersonation
+        password: Optional user password
+
+    Returns:
+        True if successful
+    """
+    payload = _build_execute_payload(model, 'write', [ids, values])
+    result = await _call_odoo_jsonrpc(payload, uid=uid, password=password)
+    return result.get('result', False)
 
 
 # -----------------------------------------------------------------------------
