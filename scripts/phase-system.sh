@@ -314,7 +314,7 @@ case "$GPU_VENDOR" in
 esac
 
 # -----------------------------------------------------------------------------
-# 6. Firewall configuration (UFW)
+# 6. Firewall configuration (UFW) 
 # -----------------------------------------------------------------------------
 log_step "Configuring firewall..."
 if command -v ufw &>/dev/null; then
@@ -332,6 +332,17 @@ if command -v ufw &>/dev/null; then
     fi
 else
     log_warning "UFW not found – skipping firewall configuration"
+fi
+
+# Ensure port 80 is open for Let's Encrypt challenge (already present)
+log_step "Ensuring port 80 is open for Let's Encrypt challenge..."
+if command -v ufw &>/dev/null; then
+    if ! ufw status | grep -q "80/tcp"; then
+        log_warning "Port 80 not allowed in UFW. Adding..."
+        sudo ufw allow 80/tcp
+    else
+        log_success "Port 80 allowed in UFW"
+    fi
 fi
 
 # -----------------------------------------------------------------------------

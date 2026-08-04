@@ -198,14 +198,85 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 1. Create required directories
+# 1. Create required directories (including redirector landing page)
 # -----------------------------------------------------------------------------
 log_step "Creating required directories..."
 mkdir -p "$DATA_DIR/postgres" "$DATA_DIR/odoo" "$DATA_DIR/valkey" "$DATA_DIR/forgejo"
 mkdir -p "$DATA_DIR/prometheus" "$DATA_DIR/grafana" "$DATA_DIR/backups"
 mkdir -p "$DYNAMO_DATA_DIR" "$MODELS_DIR" "$LOGS_DIR" "$ODOO_DATA_DIR"
-mkdir -p "redirector/"
+mkdir -p "redirector/landing-page"
+
+# Create a default landing page if none exists
+if [[ ! -f "redirector/landing-page/index.html" ]]; then
+    cat > "redirector/landing-page/index.html" << 'EOF'
+<!DOCTYPE html>
+<html>
+<head><title>NETTRADES Platform</title></head>
+<body>
+<h1>NETTRADES Platform</h1>
+<p>Welcome to the NETTRADES AI Marketplace.</p>
+<p><a href="/odoo">Odoo</a> | <a href="http://localhost:3002">AI Chat UI</a></p>
+</body>
+</html>
+EOF
+    log_success "Default landing page created"
+fi
 log_success "Directories created"
+
+# =============================================================================
+# EARLY: Download GGUF model for llama.cpp fallback from ModelScope mirror
+# This ensures the CPU fallback engine has a model to load before the stack starts.
+# ModelScope mirrors work without authentication.
+# =============================================================================
+if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+    log_step "Downloading GGUF model for llama.cpp fallback from ModelScope mirror..."
+
+    # Ensure the models directory exists
+    mkdir -p "$MODELS_DIR"
+
+    # Run the download script with the correct model and format
+    if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-1.5b --format gguf --dir "$MODELS_DIR"; then
+        log_success "GGUF model downloaded successfully to $MODELS_DIR"
+    else
+        log_warning "GGUF model download failed. Trying alternative source..."
+        # Fallback: Try direct wget from ModelScope as a backup
+        MODEL_FILE="$MODELS_DIR/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+        if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf" --progress=dot:giga; then
+            log_success "GGUF model downloaded via fallback to $MODEL_FILE"
+        else
+            log_warning "GGUF model download failed. You may need to manually place a model in $MODELS_DIR."
+            log_info "The system will still work but llama.cpp fallback will not be available."
+        fi
+    fi
+
+    # Validate the model file exists and is not corrupted (size check)
+    MODEL_FILE="$MODELS_DIR/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+    if [[ -f "$MODEL_FILE" ]]; then
+        FILE_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
+        if [[ "$FILE_SIZE" -lt 500000000 ]]; then
+            log_warning "Model file exists but is too small ($FILE_SIZE bytes). It may be corrupted."
+            log_info "Attempting to re-download the model..."
+            rm -f "$MODEL_FILE"
+            # Retry download with direct wget
+            if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf" --progress=dot:giga; then
+                NEW_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
+                if [[ "$NEW_SIZE" -gt 500000000 ]]; then
+                    log_success "Model re-downloaded successfully ($NEW_SIZE bytes)"
+                else
+                    log_error "Re-downloaded file still too small. Please check the URL and disk space."
+                fi
+            else
+                log_error "Re-download failed. llama.cpp will not start."
+            fi
+        else
+            log_success "Model file validated: $MODEL_FILE ($FILE_SIZE bytes)"
+        fi
+    else
+        log_warning "Model file not found at $MODEL_FILE. llama.cpp will fail to start."
+    fi
+else
+    log_warning "download-model.sh not found – skipping llama.cpp model download"
+fi
 
 # -----------------------------------------------------------------------------
 # Prepare Odoo addons
@@ -1060,37 +1131,8 @@ else
     log_success "Model already present: $MODEL_NAME"
 fi
 
-# =============================================================================
-# NEW: Download GGUF model for llama.cpp fallback from ModelScope mirror
-# This ensures the CPU fallback engine has a model to load.
-# ModelScope mirrors work without authentication.
-# =============================================================================
-if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-    log_step "Downloading GGUF model for llama.cpp fallback from ModelScope mirror..."
-
-    # Ensure the models directory exists
-    mkdir -p "$MODELS_DIR"
-
-    # Run the download script with the correct model and format
-    if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-1.5b --format gguf --dir "$MODELS_DIR"; then
-        log_success "GGUF model downloaded successfully to $MODELS_DIR"
-    else
-        log_warning "GGUF model download failed. Trying alternative source..."
-        # Fallback: Try direct wget from ModelScope as a backup
-        MODEL_FILE="$MODELS_DIR/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
-        if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf" --progress=dot:giga; then
-            log_success "GGUF model downloaded via fallback to $MODEL_FILE"
-        else
-            log_warning "GGUF model download failed. You may need to manually place a model in $MODELS_DIR."
-            log_info "The system will still work but llama.cpp fallback will not be available."
-        fi
-    fi
-
-    # Restart llama-cpp to pick up the new model (if it was running)
-    docker compose restart llama-cpp 2>/dev/null || true
-else
-    log_warning "download-model.sh not found – skipping llama.cpp model download"
-fi
+# NOTE: The GGUF model for llama.cpp was downloaded earlier (before building images).
+# The container will use that model if available.
 
 # -----------------------------------------------------------------------------
 # Determine inference backend
