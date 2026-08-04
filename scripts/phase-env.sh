@@ -152,6 +152,37 @@ generate_safe_api_key() {
 }
 
 # =============================================================================
+# Password retry function – gives up to 5 attempts on mismatch or empty
+# =============================================================================
+read_password_with_retry() {
+    local prompt="$1"
+    local password1=""
+    local password2=""
+    local attempts=0
+    local max_attempts=5
+
+    while [ $attempts -lt $max_attempts ]; do
+        read -s -p "$prompt" password1
+        echo
+        read -s -p "Confirm password: " password2
+        echo
+
+        if [ "$password1" = "$password2" ] && [ -n "$password1" ]; then
+            echo "$password1"
+            return 0
+        else
+            attempts=$((attempts + 1))
+            if [ $attempts -lt $max_attempts ]; then
+                echo -e "${RED}❌ Passwords do not match or are empty. Please try again. (Attempt $attempts/$max_attempts)${NC}"
+            else
+                echo -e "${RED}❌ Too many failed attempts. Exiting.${NC}"
+                return 1
+            fi
+        fi
+    done
+}
+
+# =============================================================================
 # Handle PostgreSQL password safely
 # =============================================================================
 
@@ -161,16 +192,8 @@ if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" == true ]]; then
     echo ""
     echo -e "${YELLOW}Enter a NEW PostgreSQL password for the 'odoo' user:${NC}"
     echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
-    read -s -p "Password: " POSTGRES_PASSWORD
-    echo ""
-    read -s -p "Confirm password: " POSTGRES_PASSWORD_CONFIRM
-    echo ""
-    if [[ "$POSTGRES_PASSWORD" != "$POSTGRES_PASSWORD_CONFIRM" ]]; then
-        log_error "Passwords do not match."
-        exit 1
-    fi
-    if [[ -z "$POSTGRES_PASSWORD" ]]; then
-        log_error "Password cannot be empty"
+    if ! POSTGRES_PASSWORD=$(read_password_with_retry "Password: "); then
+        log_error "Password entry failed. Exiting."
         exit 1
     fi
 elif [[ "$AUTO" == true ]]; then
@@ -182,16 +205,8 @@ else
     echo ""
     echo -e "${YELLOW}Enter a PostgreSQL password for the 'odoo' user:${NC}"
     echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
-    read -s -p "Password: " POSTGRES_PASSWORD
-    echo ""
-    read -s -p "Confirm password: " POSTGRES_PASSWORD_CONFIRM
-    echo ""
-    if [[ "$POSTGRES_PASSWORD" != "$POSTGRES_PASSWORD_CONFIRM" ]]; then
-        log_error "Passwords do not match."
-        exit 1
-    fi
-    if [[ -z "$POSTGRES_PASSWORD" ]]; then
-        log_error "Password cannot be empty"
+    if ! POSTGRES_PASSWORD=$(read_password_with_retry "Password: "); then
+        log_error "Password entry failed. Exiting."
         exit 1
     fi
 fi
