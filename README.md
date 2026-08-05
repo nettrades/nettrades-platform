@@ -80,13 +80,17 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform
 
-**Nettrades is a Sovereign AI Autonomouse Enterprise Platform that lets organisations securely control their AI infrastructure from a single dashboard.**
+**The Nettrades Platform builds the Sovereign AI Infrastructure of an organisation using its spare GPUs capacity.**
+
+**It also acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
+
+**At peak times, it decides whether to process a request locally or route it to remote providers or a GPU market place based on the administration settings set by the organisation**
 
 **In the past, enterprises faced a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 
-**Now they just set up a Ubuntu Linux box and run the commands below to deploy the entire NETTRADES Sovereign AI in a few minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
+**Now they just install Ubuntu Linux on a computer and run the commands below to deploy the entire NETTRADES Sovereign AI Infrastructure in a few minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
-**Use their spare GPUs to talk to your organisations data.** 
+**And use their spare GPUs to talk to their organisations data.** 
 
 ### Deploy in minutes not months
 
