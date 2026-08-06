@@ -84,7 +84,7 @@ PURPOSE:
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
-**They could keep everything local or decides which types of requests to process locally and which types of requests to route to remote providers or a GPU market place, at peak time, based on the administration settings set by the organisation administrator**
+**Organisations could choose to keep everything local or decides which types of requests to process locally and which types of requests to route to remote providers or a GPU market place, at peak time, based on the administration settings set by the organisations administrator**
 
 **In the past, enterprises faced a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 
@@ -402,7 +402,7 @@ The installer executes phases in this order:
 | `0` | System Preparation – installs Docker, Docker Compose, NVIDIA drivers (if GPU), configures firewall, installs fail2ban, sets system limits, and checks for gVisor. |
 | `1` | Environment & Secrets – generates secure passwords, API keys, WireGuard keys, and creates .env. |
 | `2` | Single-VM Deployment – builds custom images (Odoo, LangGraph), prepares Odoo addons, initialises the database, starts all Docker Compose services, sets up cron backups, and performs health checks. |
-| `3` | Kubernetes Scaling – provisions Talos VMs on Proxmox, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, GPUStack, and WireGuard. |
+| `3` | Kubernetes Scaling – provisions Talos VMs on Proxmox, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, NVIDIA Dynamo, and WireGuard. |
 | `4` | Module Installation – installs all NETTRADES custom Odoo modules in the correct dependency order. |
 | `5` | Monitoring – deploys Prometheus and Grafana with pre-configured dashboards (if not already present). |
 
@@ -419,7 +419,7 @@ Once the installation is complete, open your browser and go to:
 | Service | URL | Username | Password |
 |---------|-------------|---------|-------------|
 | Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
-| GPUStack | http://YourDomainOrIP:8080 or http://localhost:8080 | admin | GPUSTACK_ADMIN_PASSWORD in the .env file |
+| NVIDIA Dynamo | http://YourDomainOrIP:8080 or http://localhost:8080 | admin | NVIDIA Dynamo_ADMIN_PASSWORD in the .env file |
 | Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
 | Prometheus | http://YourDomainOrIP:9090 or http://YourDomainOrIP:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
 | Forgejo | http://YourDomainOrIP:3000 or http://localhost:3000 | Set in after installation | Set in after installation  |
@@ -670,7 +670,7 @@ For more detailed help, see the Full Documentation.
 | `Object Storage` | Files / Models | MinIO / S3 | Latest | AGPL-3 | Model artifacts |
 | `Agent Orchestration` | Multi-agent framework | LangGraph | Latest | MIT | Stateful agents |
 | `Agent State` | Checkpointing | LangGraph Checkpoint Postgres | Latest | MIT | Durable workflows |
-| `GPU Management` | Cluster management | GPUStack | Latest	Apache-2.0 | GPU orchestration |
+| `GPU Management` | Cluster management | NVIDIA Dynamo | Latest	Apache-2.0 | GPU orchestration |
 | `Fine-Tuning` | Model training | Unsloth / Axolotl | Latest	Apache-2.0 | LLM fine-tuning |
 | `Inference` | LLM serving | vLLM, llama.cpp, SGLang | Latest	MIT | High-performance inference |
 | `Ingress` | Reverse proxy | Traefik | Latest | MIT | Dynamic routing |
@@ -783,7 +783,7 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 
 * [LangGraph](https://github.com/langchain-ai/langgraph) – Stateful agent orchestration
 
-* [GPUStack](https://gpustack.ai/) – GPU cluster management
+* NVIDIA Dynamo – GPU cluster management
 
 * [Kubernetes](https://kubernetes.io/) – Container orchestration
 
@@ -845,7 +845,7 @@ graph TB
     end
 
     subgraph Training["AI Inference & Training Layer"]
-        GPUStack["GPUStack"]
+        NVIDIA Dynamo["NVIDIA Dynamo"]
         Workers["GPU Workers\n(vLLM, llama.cpp)"]
         FineTune["Fine-Tuning Jobs\n(Unsloth / Axolotl)"]
         External["External LLM APIs"]
@@ -885,7 +885,7 @@ graph TB
 
     Frontend --> Traefik --> Core
     Integration --> SelfImproving --> Training
-    Training --> GPUStack --> Workers
+    Training --> NVIDIA Dynamo --> Workers
     Training --> FineTune
     Core --> Data
     K8s --> Core
@@ -916,7 +916,7 @@ graph TB
     subgraph Spoke1["🏢 Company A (Spoke)"]
         LocalOdoo1["Local Odoo 19 CE"]
         LocalLangGraph1["Local LangGraph Agents"]
-        LocalGPU1["Local GPUStack"]
+        LocalGPU1["Local NVIDIA Dynamo"]
         LocalBridge1["nettrades_bridge (Local Router)"]
         LocalData1["Local PostgreSQL + pgvector"]
         LocalValkey1["Local Valkey"]
@@ -925,7 +925,7 @@ graph TB
     subgraph Spoke2["🏢 Company B (Spoke)"]
         LocalOdoo2["Local Odoo 19 CE"]
         LocalLangGraph2["Local LangGraph Agents"]
-        LocalGPU2["Local GPUStack"]
+        LocalGPU2["Local NVIDIA Dynamo"]
         LocalBridge2["nettrades_bridge (Local Router)"]
         LocalData2["Local PostgreSQL + pgvector"]
         LocalValkey2["Local Valkey"]
@@ -934,7 +934,7 @@ graph TB
     subgraph SpokeN["🏢 Company N (Spoke)"]
         LocalOdooN["Local Odoo 19 CE"]
         LocalLangGraphN["Local LangGraph Agents"]
-        LocalGPUN["Local GPUStack"]
+        LocalGPUN["Local NVIDIA Dynamo"]
         LocalBridgeN["nettrades_bridge (Local Router)"]
         LocalDataN["Local PostgreSQL + pgvector"]
         LocalValkeyN["Local Valkey"]
@@ -1006,7 +1006,7 @@ graph TD
     subgraph Plan["3. PLAN (nettrades_loop)"]
         C1["Create Training Job"] --> C2["llm_training.dataset"]
         C2 --> C3["llm_training.job"]
-        C3 --> C4["GPUStack Training"]
+        C3 --> C4["NVIDIA Dynamo Training"]
     end
 
     subgraph Execute["4. EXECUTE (nettrades_loop)"]
@@ -1143,7 +1143,7 @@ graph TD
     AM --> AN[Earn Tokens]
 
     AN --> AO[Spend Tokens on Inference]
-    AO --> AP[GPUStack Inference]
+    AO --> AP[NVIDIA Dynamo Inference]
     AP --> AQ[Return Results]
 
     AF --> AR[Fine-Tuning Pipeline]
@@ -1262,7 +1262,7 @@ graph TD
 graph TD
     START([GPU Request]) --> A{Request Type?}
 
-    A -->|Inference| B[GPUStack Inference Request]
+    A -->|Inference| B[NVIDIA Dynamo Inference Request]
     A -->|Training| C[Fine-Tuning Job]
     A -->|GPU Sharing| D[GPU Marketplace]
 
@@ -1327,7 +1327,7 @@ graph TD
     subgraph Plan["3. PLAN (nettrades_loop)"]
         C1["llm_training.dataset"] --> C2["llm_training.job"]
         C2 --> C3{"Local GPU Available?"}
-        C3 -->|Yes| C4["Local GPUStack Training"]
+        C3 -->|Yes| C4["Local NVIDIA Dynamo Training"]
         C3 -->|No| C5["Route to Hub"]
         C5 --> C6["Global GPU Marketplace"]
         C6 --> C7["Distributed Training"]
@@ -1393,7 +1393,7 @@ graph TB
         C2["nettrades_good_answer"]
         C3["nettrades_ask_someone"]
         C4["nettrades_gpu_admin"]
-        C5["nettrades_gpustack_adapter"]
+        C5["nettrades_NVIDIA Dynamo_adapter"]
         C6["nettrades_queue"]
         C7["nettrades_notifications"]
         C8["nettrades_job_matching"]
@@ -1409,7 +1409,7 @@ graph TB
     end
 
     subgraph TrainingLayer["Training & Inference Layer"]
-        T1["GPUStack"]
+        T1["NVIDIA Dynamo"]
         T2["GPU Workers (vLLM)"]
         T3["GPU Workers (llama.cpp)"]
         T4["Unsloth / Axolotl"]
@@ -1470,7 +1470,7 @@ sequenceDiagram
     participant Bridge as nettrades_bridge
     participant Expert
     participant Stripe
-    participant GPUStack
+    participant NVIDIA Dynamo
 
     User->>Portal: Request help
     Portal->>Ask: Create consultation request
@@ -1492,7 +1492,7 @@ sequenceDiagram
     Expert-->>User: Provide answer
     User->>Ask: Rate answer
     Ask->>Stripe: Release payment
-    Ask->>GPUStack: Record for training
+    Ask->>NVIDIA Dynamo: Record for training
 ```
 
 
@@ -1505,14 +1505,14 @@ sequenceDiagram
     participant GPU as nettrades_gpu_admin
     participant Adapter as nettrades_gpustack_adapter
     participant Bridge as nettrades_bridge
-    participant GPUStack
+    participant NVIDIA Dynamo
     participant Token
 
     User->>Portal: Share GPU
     Portal->>GPU: Register GPU
-    GPU->>Adapter: Sync with GPUStack
-    Adapter->>GPUStack: Register node
-    GPUStack-->>Adapter: Node registered
+    GPU->>Adapter: Sync with NVIDIA Dynamo
+    Adapter->>NVIDIA Dynamo: Register node
+    NVIDIA Dynamo-->>Adapter: Node registered
     Adapter-->>GPU: Node confirmed
     GPU->>Token: Earn tokens
     Token-->>User: Tokens added
@@ -1522,11 +1522,11 @@ sequenceDiagram
     Bridge->>GPU: Check local capacity
     alt Local Capacity Available
         GPU->>Adapter: Run inference
-        Adapter->>GPUStack: Execute
-        GPUStack-->>Adapter: Result
+        Adapter->>NVIDIA Dynamo: Execute
+        NVIDIA Dynamo-->>Adapter: Result
     else No Capacity
-        Bridge->>GPUStack: Route to hub
-        GPUStack-->>Bridge: Result
+        Bridge->>NVIDIA Dynamo: Route to hub
+        NVIDIA Dynamo-->>Bridge: Result
     end
     Bridge-->>User: Return result
 ```
@@ -1590,9 +1590,9 @@ graph TB
     P --> Q[Loop Module prepares training dataset]
     Q --> R[Loop Module submits fine-tuning job]
 
-    R --> S[GPUStack allocates GPU resources]
-    S --> T[GPUStack runs Unsloth/Axolotl training]
-    T --> U[GPUStack validates model]
+    R --> S[NVIDIA Dynamo allocates GPU resources]
+    S --> T[NVIDIA Dynamo runs Unsloth/Axolotl training]
+    T --> U[NVIDIA Dynamo validates model]
 
     U --> V[Loop Module A/B tests new model]
     V --> W{Model improved?}
@@ -1628,7 +1628,7 @@ graph TB
 | Ask Someone | odoo-modules/nettrades_ask_someone/models/ |
 | Good Answer | odoo-modules/nettrades_good_answer/models/ |
 | GPU Admin | odoo-modules/nettrades_gpu_admin/models/ |
-| GPUStack Adapter | odoo-modules/nettrades_gpustack_adapter/models/ |
+| NVIDIA Dynamo Adapter | odoo-modules/nettrades_NVIDIA Dynamo_adapter/models/ |
 | Data Collection | odoo-modules/nettrades_data_collection/models/ |
 | Trigger | odoo-modules/nettrades_trigger/models/ |
 | Loop | odoo-modules/nettrades_loop/models/ |
@@ -1641,7 +1641,7 @@ graph TB
 |---------|----------|-------------|
 | `Ask Someone` | `nettrades_ask_someone, nettrades_bridge, Stripe` | Expert consultation, escrow payments, reputation |
 | `Good Answer Voting` | `nettrades_good_answer, nettrades_core, nettrades_data_collection` | User feedback, karma, qualification |
-| `GPU Sharing` | `nettrades_gpu_admin, nettrades_gpustack_adapter, GPUStack` | GPU marketplace, token economy |
+| `GPU Sharing` | `nettrades_gpu_admin, nettrades_gpustack_adapter, NVIDIA Dynamo` | GPU marketplace, token economy |
 | `Self-Improving Loop` | `nettrades_data_collection, nettrades_trigger, nettrades_loop` | Continuous learning, fine-tuning, deployment |
 | `Agent Routing` | `nettrades_bridge, LangGraph Agents` | Hub-and-spoke, local/remote routing, overflow |
 
@@ -1680,7 +1680,7 @@ graph TB
     end
 
     subgraph Training["AI Inference & Training"]
-        GPUStack["GPUStack"]
+        NVIDIA Dynamo["NVIDIA Dynamo"]
         Workers["GPU Workers (vLLM)"]
         FineTune["Unsloth / Axolotl"]
         External["External LLM APIs"]
@@ -1745,7 +1745,7 @@ graph TB
     SubAgents --> Bridge
     Bridge -->|Local| LocalBrain
     Bridge -->|Remote| RemoteBrain
-    Bridge -->|GPU Overflow| GPUStack
+    Bridge -->|GPU Overflow| NVIDIA Dynamo
 
     Odoo --> DataCollect
     DataCollect --> Trigger
@@ -1753,20 +1753,20 @@ graph TB
     Loop --> Config
     Loop --> LLMTraining
 
-    LLMTraining --> GPUStack
-    GPUStack --> Workers
-    GPUStack --> FineTune
-    GPUStack --> External
+    LLMTraining --> NVIDIA Dynamo
+    NVIDIA Dynamo --> Workers
+    NVIDIA Dynamo --> FineTune
+    NVIDIA Dynamo --> External
 
     Odoo --> PG
     Odoo --> Valkey
     Odoo --> MinIO
 
-    GPUStack --> PG
+    NVIDIA Dynamo --> PG
 
     K8sCluster --> Odoo
     K8sCluster --> MCP
-    K8sCluster --> GPUStack
+    K8sCluster --> NVIDIA Dynamo
     K8sCluster --> PG
     K8sCluster --> Valkey
     K8sCluster --> MinIO
@@ -1776,14 +1776,14 @@ graph TB
     MetalLB --> Traefik
     CertMgr --> Traefik
     CloudNativePG --> PG
-    GPUOp --> GPUStack
-    KubeRay --> GPUStack
+    GPUOp --> NVIDIA Dynamo
+    KubeRay --> NVIDIA Dynamo
 
     Forgejo --> ArgoCD
     ArgoCD --> K8sCluster
 
     Prometheus --> Odoo
-    Prometheus --> GPUStack
+    Prometheus --> NVIDIA Dynamo
     Prometheus --> PG
     Grafana --> Prometheus
 
@@ -1819,30 +1819,30 @@ graph TB
 | 9 | Sub-Agents | nettrades_bridge | Sub-agents use the bridge to decide local vs remote routing. |
 | 10 | nettrades_bridge | Local Brain | If local processing is chosen, the request is processed by local LangGraph agents. |
 | 11 | nettrades_bridge | Remote Brain | If remote processing is chosen, the request is forwarded to NETTRADES.AI. |
-| 12 | nettrades_bridge | GPUStack | If local GPU capacity is exceeded, requests overflow to GPUStack. |
+| 12 | nettrades_bridge | NVIDIA Dynamo | If local GPU capacity is exceeded, requests overflow to NVIDIA Dynamo. |
 | 13 | Odoo | nettrades_data_collection | All interactions are recorded as data episodes. |
 | 14 | data_collection | nettrades_trigger | Trigger module evaluates quality scores and data volume. |
 | 15 | nettrades_trigger | nettrades_loop | If triggers fire, the loop initiates self-improvement. |
 | 16 | nettrades_loop | llm_training | Training jobs are prepared and submitted. |
-| 17 | llm_training | GPUStack | Training jobs are executed on GPUStack. |
-| 18 | GPUStack | GPU Workers (vLLM) | Inference workloads run on vLLM. |
-| 19 | GPUStack | Fine-Tune (Unsloth/Axolotl) | Fine-tuning runs on Unsloth/Axolotl. |
-| 20 | GPUStack | External LLM APIs | Optionally route to external providers. |
+| 17 | llm_training | NVIDIA Dynamo | Training jobs are executed on NVIDIA Dynamo. |
+| 18 | NVIDIA Dynamo | GPU Workers (vLLM) | Inference workloads run on vLLM. |
+| 19 | NVIDIA Dynamo | Fine-Tune (Unsloth/Axolotl) | Fine-tuning runs on Unsloth/Axolotl. |
+| 20 | NVIDIA Dynamo | External LLM APIs | Optionally route to external providers. |
 | 21 | Odoo | PostgreSQL + pgvector | All transaction data and embeddings are persisted. |
 | 22 | Odoo | Valkey 8 | Session caching and rate limiting. |
 | 23 | Odoo | MinIO / S3 | File attachments and model artifacts are stored. |
-| 24 | GPUStack | PostgreSQL + pgvector | Embeddings and training metadata are stored. |
+| 24 | NVIDIA Dynamo | PostgreSQL + pgvector | Embeddings and training metadata are stored. |
 | 25 | Kubernetes | All Services | All services run as Kubernetes pods. |
 | 26 | Cilium | Kubernetes | Cilium provides eBPF networking. |
 | 27 | Longhorn | PostgreSQL | Longhorn provides persistent block storage. |
 | 28 | MetalLB | Traefik | MetalLB provides load balancing for Traefik. |
 | 29 | cert-manager | Traefik | Automates TLS certificate provisioning. |
 | 30 | CloudNativePG | PostgreSQL | Manages PostgreSQL clustering and failover. |
-| 31 | NVIDIA GPU Operator | GPUStack | Provisions and manages GPU resources. |
-| 32 | KubeRay | GPUStack | Enables distributed training via Ray. |
+| 31 | NVIDIA GPU Operator | NVIDIA Dynamo | Provisions and manages GPU resources. |
+| 32 | KubeRay | NVIDIA Dynamo | Enables distributed training via Ray. |
 | 33 | Forgejo | Argo CD | Git repository triggers Argo CD for GitOps. |
 | 34 | Argo CD | Kubernetes | Argo CD syncs manifests and applies changes. |
-| 35 | Prometheus | Odoo, GPUStack, PostgreSQL | Scrapes metrics from all services. |
+| 35 | Prometheus | Odoo, NVIDIA Dynamo, PostgreSQL | Scrapes metrics from all services. |
 | 36 | Grafana | Prometheus | Visualises metrics on dashboards. |
 | 37 | WireGuard | Kubernetes | Provides secure VPN access. |
 | 38 | gVisor | Containers | Sandboxes containers for enhanced security. |
@@ -1857,5 +1857,5 @@ graph TB
 |` User → Local Processing` |	1-3, 6-10 |	User request → Odoo → LangGraph → Local Brain |
 |` User → Remote Processing` |	1-3, 6-9, 11 |	User request → Odoo → LangGraph → Remote Brain |
 |` Self-Improving Loop` | 13-17, 19 |	User interaction → data_episode → trigger → loop → fine-tuning |
-|` GPU Inference` | 12, 18, 20 |	Bridge → GPUStack → vLLM / External APIs |
-|` Data Persistence` | 21-24 |	Odoo → PostgreSQL, Valkey, MinIO; GPUStack → PostgreSQL |
+|` GPU Inference` | 12, 18, 20 |	Bridge → NVIDIA Dynamo → vLLM / External APIs |
+|` Data Persistence` | 21-24 |	Odoo → PostgreSQL, Valkey, MinIO; NVIDIA Dynamo → PostgreSQL |
