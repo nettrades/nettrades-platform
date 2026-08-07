@@ -16,17 +16,25 @@
 #   --force    Force installation (reinstall) even if modules are already installed
 #   --upgrade  Upgrade existing modules to the latest version
 #   --auto     Run in non-interactive mode (no prompts for failed modules)
+#
+# UPDATES (2026-08):
+#   - Modules are now conditionally installed based on FEATURE_* flags from .env.
+#   - The module list is built dynamically, so only enabled features are installed.
+#   - Removed nettrades_gpustack_adapter (deprecated).
 # =============================================================================
 
 set -e
 
 # -----------------------------------------------------------------------------
-# Load environment variables
+# Load environment variables and feature flags
 # -----------------------------------------------------------------------------
 set -a
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$PROJECT_ROOT/deploy/docker/.env"
+# Read feature flags (defined in common.sh)
+source "$SCRIPT_DIR/lib/common.sh"
+read_feature_flags
 set +a
 
 # -----------------------------------------------------------------------------
@@ -93,48 +101,45 @@ log_success "Database connection verified."
 cd "$PROJECT_ROOT"
 
 # -----------------------------------------------------------------------------
-# Define modules in dependency order
+# Define modules based on feature flags
 # -----------------------------------------------------------------------------
-MODULES=(
-    # Core NETTRADES modules
-    "nettrades_core"
-    # "nettrades_good_answer"
-    # "nettrades_ask_someone"
+MODULES=("nettrades_core")  # core is always installed
 
-    # GPU Admin module
-    # "nettrades_gpu_admin"
+if [[ "${FEATURE_ASK_SOMEONE:-true}" == "true" ]]; then
+    MODULES+=("nettrades_ask_someone")
+fi
+if [[ "${FEATURE_GOOD_ANSWER:-true}" == "true" ]]; then
+    MODULES+=("nettrades_good_answer")
+fi
+if [[ "${FEATURE_GPU_MARKETPLACE:-false}" == "true" ]]; then
+    MODULES+=("nettrades_gpu_admin")
+fi
+if [[ "${FEATURE_ROUTER:-false}" == "true" ]]; then
+    MODULES+=("nettrades_bridge")
+    MODULES+=("nettrades_llm_config")
+fi
+if [[ "${FEATURE_TRAINING:-false}" == "true" ]]; then
+    # training modules depend on good_answer and others; we just add them
+    MODULES+=("nettrades_data_collection")
+    MODULES+=("nettrades_fairness")
+    MODULES+=("nettrades_self_improving_config")
+fi
+if [[ "${FEATURE_ENTERPRISE:-false}" == "true" ]]; then
+    MODULES+=("nettrades_job_matching")
+    MODULES+=("nettrades_lead_scoring")
+    MODULES+=("nettrades_proposals")
+    MODULES+=("nettrades_research")
+    MODULES+=("nettrades_onboarding")
+    MODULES+=("nettrades_notifications")
+    # Add forgejo integration if available
+fi
+# Always add utility modules
+MODULES+=("nettrades_queue")
 
-    # GPUStack adapter
-    # "nettrades_gpustack_adapter"
+# Remove duplicates (just in case)
+MODULES=($(printf "%s\n" "${MODULES[@]}" | sort -u))
 
-    # Queue module
-    "nettrades_queue"
-
-    # Bridge module – hub-and-spoke routing
-    # "nettrades_bridge"
-
-    # Self-improving modules – continuous learning loop (MAPE cycle)
-    # "nettrades_data_collection"
-    # "nettrades_trigger"
-    # "nettrades_loop"
-    # "nettrades_self_improving_config"
-
-    # Fairness module
-    # "nettrades_fairness"
-
-    # LLM Configuration (depends on gpu_admin)
-    # "nettrades_llm_config"
-
-    # End-user modules
-    # "nettrades_onboarding"
-    "nettrades_job_matching"
-    # "nettrades_proposals"
-    "nettrades_lead_scoring"
-    # "nettrades_research"
-    # "nettrades_chatbot"
-    "nettrades_notifications"
-#   "nettrades_pwa"   # (commented out – uncomment if needed)
-)
+log_info "Modules to install: ${MODULES[*]}"
 
 # -----------------------------------------------------------------------------
 # Install each module

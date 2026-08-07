@@ -70,6 +70,99 @@ if [[ "$OS" != "linux" ]]; then
     fi
 fi
 
+# After OS detection, add:
+PLATFORM=$(detect_platform)
+log_info "Detected platform: $PLATFORM"
+
+# -----------------------------------------------------------------------------
+# 1. Install Docker (cross-platform)
+# -----------------------------------------------------------------------------
+install_docker() {
+    if command -v docker &>/dev/null; then
+        log_success "Docker already installed"
+        return
+    fi
+    log_info "Installing Docker..."
+    case "$PLATFORM" in
+        linux|wsl)
+            curl -fsSL https://get.docker.com | sh
+            sudo usermod -aG docker "$USER"
+            ;;
+        macos)
+            log_info "Please install Docker Desktop for macOS from https://www.docker.com/products/docker-desktop"
+            log_info "After installation, ensure Docker is running and the CLI is in PATH."
+            if [[ "$AUTO" != true ]]; then
+                read -p "Press Enter after Docker is installed and running..."
+            fi
+            ;;
+        *)
+            log_error "Unsupported platform for automatic Docker installation."
+            exit 1
+            ;;
+    esac
+}
+
+# -----------------------------------------------------------------------------
+# 2. Install Docker Compose
+# -----------------------------------------------------------------------------
+install_docker_compose() {
+    if docker compose version &>/dev/null; then
+        log_success "Docker Compose already installed"
+        return
+    fi
+    log_info "Installing Docker Compose..."
+    case "$PLATFORM" in
+        linux|wsl)
+            # Use plugin installation
+            sudo apt-get update -qq
+            sudo apt-get install -y docker-compose-plugin
+            ;;
+        macos)
+            log_info "Docker Compose is included with Docker Desktop."
+            log_info "Please ensure Docker Desktop is running."
+            ;;
+        *)
+            log_error "Unsupported platform for automatic Docker Compose installation."
+            exit 1
+            ;;
+    esac
+}
+
+# -----------------------------------------------------------------------------
+# 3. Python and pip (platform-specific)
+# -----------------------------------------------------------------------------
+install_python() {
+    if command -v python3 &>/dev/null; then
+        local py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+        if [[ "$(printf '%s\n' "3.10" "$py_version" | sort -V | head -n1)" != "3.10" ]]; then
+            log_error "Python $py_version detected. Need 3.10+."
+            exit 1
+        fi
+        log_success "Python $py_version detected."
+    else
+        log_info "Installing Python 3..."
+        case "$PLATFORM" in
+            linux|wsl)
+                sudo apt-get update -qq
+                sudo apt-get install -y python3 python3-pip python3-venv
+                ;;
+            macos)
+                if command -v brew &>/dev/null; then
+                    brew install python@3.12
+                else
+                    log_error "Homebrew not found. Please install Python manually."
+                    exit 1
+                fi
+                ;;
+            *)
+                log_error "Unsupported platform for automatic Python installation."
+                exit 1
+                ;;
+        esac
+    fi
+}
+
+
 # -----------------------------------------------------------------------------
 # 1. Install Docker
 # -----------------------------------------------------------------------------

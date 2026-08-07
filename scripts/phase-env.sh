@@ -44,6 +44,8 @@ source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
+read_feature_flags
+
 # -----------------------------------------------------------------------------
 # Parse arguments
 # -----------------------------------------------------------------------------

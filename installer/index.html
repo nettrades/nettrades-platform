@@ -1,141 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NETTRADES Installer</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
+  <div id="app">
     <header>
-      <img src="icon.png" alt="NETTRADES" class="logo" width="64" height="64">
-      <h1>NETTRADES Platform</h1>
+      <h1>NETTRADES Installer</h1>
       <p class="subtitle">Sovereign AI for Autonomous Enterprises</p>
     </header>
 
-    <!-- Step 1: System Check -->
-    <section id="step-check" class="step active">
-      <h2>System Check</h2>
-      <p class="step-description">We'll check your system to ensure everything is ready for installation.</p>
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="welcome">Welcome</button>
+      <button class="tab" data-tab="deployment">Deployment</button>
+      <button class="tab" data-tab="progress">Installation</button>
+    </div>
 
-      <div id="check-results">
-        <div class="check-item" id="check-docker">
-          <span class="check-icon">⏳</span>
-          <span>Checking Docker...</span>
-        </div>
-        <div class="check-item" id="check-compose">
-          <span class="check-icon">⏳</span>
-          <span>Checking Docker Compose...</span>
-        </div>
-        <div class="check-item" id="check-os">
-          <span class="check-icon">⏳</span>
-          <span>Checking OS compatibility...</span>
-        </div>
-        <div class="check-item" id="check-wireguard">
-          <span class="check-icon">⏳</span>
-          <span>Checking WireGuard tools...</span>
-        </div>
+    <!-- Tab Content -->
+    <div id="tab-welcome" class="tab-content active">
+      <h2>Welcome</h2>
+      <p>This installer will set up the NetTrades Sovereign AI platform.</p>
+      <p>Click "Next" to continue.</p>
+      <button id="btn-next" class="btn primary">Next</button>
+    </div>
+
+    <div id="tab-deployment" class="tab-content">
+      <h2>Choose Your Deployment</h2>
+      <div id="deployment-cards"></div>
+      <div id="advanced-settings" style="display:none;">
+        <!-- Advanced options -->
       </div>
+      <button id="btn-install" class="btn success">Install</button>
+    </div>
 
-      <button id="btn-check" class="btn primary">Check System</button>
-      <div id="check-error" class="error" style="display:none;"></div>
-    </section>
-
-    <!-- Step 2: Configuration -->
-    <section id="step-config" class="step">
-      <h2>Configuration</h2>
-      <p class="step-description">Choose your installation settings.</p>
-
-      <div class="form-group">
-        <label for="profile">Installation Profile</label>
-        <select id="profile">
-          <option value="dev">Development (Quick setup)</option>
-          <option value="deploy" selected>Deploy (Single-VM Production)</option>
-          <option value="all">Full Deployment (All services)</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="environment">Environment</label>
-        <select id="environment">
-          <option value="development" selected>Development (No hardening)</option>
-          <option value="production">Production (Full hardening)</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="force">
-          Force re-run (--force) – overwrites existing configuration
-        </label>
-      </div>
-
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="auto" checked>
-          Auto mode (no prompts) – uses defaults
-        </label>
-      </div>
-
-      <button id="btn-install" class="btn success">Install NETTRADES</button>
-    </section>
-
-    <!-- Step 3: Installation Progress -->
-    <section id="step-progress" class="step">
-      <h2>Installing...</h2>
-
-      <div class="progress-bar">
-        <div id="progress-fill" class="progress-fill" style="width:0%"></div>
-      </div>
-      <p id="progress-label" class="progress-label">Starting installation...</p>
-
+    <div id="tab-progress" class="tab-content">
+      <h2>Installation Progress</h2>
+      <div class="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+      <div id="progress-label">Initializing...</div>
       <div id="log-output" class="log-output"></div>
-
-      <div class="progress-actions">
-        <button id="btn-cancel" class="btn danger" style="display:none;">Cancel</button>
-      </div>
-    </section>
-
-    <!-- Step 4: Complete -->
-    <section id="step-complete" class="step">
-      <h2>✅ Installation Complete!</h2>
-
-      <div id="complete-status">
-        <div class="service-status">
-          <span>Odoo</span>
-          <span id="status-odoo" class="status-unknown">⏳ Checking...</span>
-        </div>
-        <div class="service-status">
-          <span>LangGraph</span>
-          <span id="status-langgraph" class="status-unknown">⏳ Checking...</span>
-        </div>
-        <div class="service-status">
-          <span>GPUStack</span>
-          <span id="status-gpustack" class="status-unknown">⏳ Checking...</span>
-        </div>
-        <div class="service-status">
-          <span>PostgreSQL</span>
-          <span id="status-postgres" class="status-unknown">⏳ Checking...</span>
-        </div>
-      </div>
-
-      <div class="complete-actions">
-        <button id="btn-open-odoo" class="btn primary">Open Odoo</button>
-        <button id="btn-open-grafana" class="btn secondary">Open Grafana</button>
-        <button id="btn-open-gpustack" class="btn secondary">Open GPUStack</button>
-        <button id="btn-generate-wireguard" class="btn secondary">Generate WireGuard Key</button>
-      </div>
-
-      <p class="note">
-        📝 Credentials are stored in: <code>~/nettrades-platform/deploy/docker/.env</code>
-        <br>
-        🔑 Emergency Odoo user: <code>emergency</code> (password in <code>/root/emergency_password.txt</code>)
-      </p>
-    </section>
+    </div>
   </div>
-
   <script src="renderer.js"></script>
 </body>
 </html>

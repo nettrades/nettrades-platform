@@ -155,79 +155,47 @@ class AskSomeoneController(http.Controller):
         field = request.env['nettrades.field'].search([], limit=1)
         return field.id if field else None
 
+    # Updated _match_experts to use qualified_professional and nettrades.user
     def _match_experts(self, field_id, user_lat, user_lon, requester_id):
-        """
-        Match experts for a given field.
-
-        This method applies the following filters:
-        1. Only users with an active qualified_professional record are considered
-        2. For restricted fields (only_qualified=True), only verified professionals are shown
-        3. Experts are ranked by reputation, availability, and proximity
-
-        Args:
-            field_id (int): The professional field ID.
-            user_lat (float): User's latitude.
-            user_lon (float): User's longitude.
-            requester_id (int): The ID of the requester.
-
-        Returns:
-            list: List of expert dictionaries with keys: id, name, charge_rate, distance.
-        """
         # Get the field configuration
         field = request.env['nettrades.field'].browse(field_id)
         if not field.exists():
             return []
-
-        # Build the domain for qualified professionals
+    
         domain = [
             ('field_id', '=', field_id),
             ('is_active', '=', True),
         ]
-
-        # For restricted fields, only show manually verified professionals
         if field.only_qualified:
             domain.append(('is_verified', '=', True))
-
-        # Get qualified professionals
+    
         qualified = request.env['qualified_professional'].search(domain)
-
-        if not qualified:
-            _logger.info("No qualified professionals found for field %s", field_id)
-            return []
-
-        # Build the expert list
+    
         experts = []
         for qp in qualified:
             partner = qp.partner_id
             if not partner or partner.id == requester_id:
                 continue
-
-            # Check if the expert is online and available
-            is_online = getattr(partner, 'is_online', False)
-            is_available = getattr(partner, 'is_available', True)
-
+    
+            # Check online status from nettrades.user
+            nettrades_user = request.env['nettrades.user'].search([
+                ('partner_id', '=', partner.id)
+            ], limit=1)
+            is_online = nettrades_user.is_online if nettrades_user else False
+            is_available = nettrades_user.is_online if nettrades_user else True
+    
             if not is_online or not is_available:
                 continue
-
+    
             expert_data = {
                 'id': partner.id,
                 'name': partner.display_name or partner.name or 'Expert',
                 'charge_rate': qp.charge_rate or 1.0,
-                'reputation': qp.reputation_score or 0,
-                'distance': 0,  # In production, calculate distance using geocoding
+                'reputation': nettrades_user.reputation_score if nettrades_user else 0,
+                'distance': 0,
                 'is_verified': qp.is_verified,
             }
-
-            # Calculate distance if coordinates are provided
-            if user_lat and user_lon and partner.partner_latitude and partner.partner_longitude:
-                # Simplified distance calculation (in production, use geocoding service)
-                # For now, use a simple placeholder
-                expert_data['distance'] = 0
-
             experts.append(expert_data)
-
-        # Sort experts by reputation (highest first), then by availability
+    
         experts.sort(key=lambda e: (-e['reputation'], e.get('distance', 0)))
-
-        _logger.info("Matched %d experts for field %s", len(experts), field_id)
-        return experts
+    return experts

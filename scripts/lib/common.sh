@@ -442,3 +442,48 @@ select_inference_backend() {
             ;;
     esac
 }
+
+
+# -----------------------------------------------------------------------------
+# Feature Flag Helpers
+# -----------------------------------------------------------------------------
+# Read feature flags from .env (if exists)
+read_feature_flags() {
+    local env_file="$PROJECT_ROOT/deploy/docker/.env"
+    if [[ -f "$env_file" ]]; then
+        # Source only the FEATURE_* variables
+        set -a
+        source "$env_file"
+        set +a
+    fi
+    # Defaults if not set
+    FEATURE_ASK_SOMEONE="${FEATURE_ASK_SOMEONE:-true}"
+    FEATURE_GOOD_ANSWER="${FEATURE_GOOD_ANSWER:-true}"
+    FEATURE_GPU_MARKETPLACE="${FEATURE_GPU_MARKETPLACE:-false}"
+    FEATURE_ROUTER="${FEATURE_ROUTER:-false}"
+    FEATURE_TRAINING="${FEATURE_TRAINING:-false}"
+    FEATURE_ENTERPRISE="${FEATURE_ENTERPRISE:-false}"
+    FEATURE_FORGEJO="${FEATURE_FORGEJO:-false}"
+    FEATURE_RECRUITMENT="${FEATURE_RECRUITMENT:-false}"
+    FEATURE_LEAD_GEN="${FEATURE_LEAD_GEN:-false}"
+    FEATURE_FREELANCE="${FEATURE_FREELANCE:-false}"
+    export FEATURE_ASK_SOMEONE FEATURE_GOOD_ANSWER FEATURE_GPU_MARKETPLACE \
+           FEATURE_ROUTER FEATURE_TRAINING FEATURE_ENTERPRISE \
+           FEATURE_FORGEJO FEATURE_RECRUITMENT FEATURE_LEAD_GEN FEATURE_FREELANCE
+}
+
+# Platform detection enhancements
+detect_platform() {
+    local os=$(detect_os)
+    if [[ "$os" == "linux" ]]; then
+        if grep -qi "microsoft" /proc/version 2>/dev/null; then
+            echo "wsl"
+        else
+            echo "linux"
+        fi
+    elif [[ "$os" == "darwin" ]]; then
+        echo "macos"
+    else
+        echo "unknown"
+    fi
+}

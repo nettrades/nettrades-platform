@@ -1,57 +1,11 @@
-/**
- * =============================================================================
- * NETTRADES Installer - Preload Script
- * =============================================================================
- *
- * FILE: installer/preload.js
- *
- * PURPOSE:
- *   This script runs in the renderer process before the web page loads.
- *   It exposes a safe, whitelisted API to the renderer via contextBridge,
- *   allowing the UI to communicate with the main process without exposing
- *   Node.js APIs directly – a security best practice.
- *
- * SECURITY:
- *   - Only specific functions are exposed.
- *   - All communication is via IPC (inter-process communication).
- *   - No direct access to Node.js or the file system.
- * =============================================================================
- */
-
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose a safe API to the renderer process
 contextBridge.exposeInMainWorld('api', {
-  // System checks
-  checkDocker: () => ipcRenderer.invoke('check-docker'),
-
-  // Installation
+  getFeatureFlags: () => ipcRenderer.invoke('get-feature-flags'),
   runInstall: (options) => ipcRenderer.invoke('run-install', options),
   cancelInstall: () => ipcRenderer.invoke('cancel-install'),
-
-  // Status
-  getStatus: () => ipcRenderer.invoke('get-status'),
-
-  // WireGuard
-  generateWireGuardKey: () => ipcRenderer.invoke('generate-wireguard-key'),
-
-  // Service access
-  openOdoo: () => ipcRenderer.invoke('open-odoo'),
-  openGrafana: () => ipcRenderer.invoke('open-grafana'),
-  openGPUStack: () => ipcRenderer.invoke('open-gpustack'),
-
-  // Installation output streaming
+  openUrl: (url) => ipcRenderer.invoke('open-url', url),
   onInstallOutput: (callback) => {
     ipcRenderer.on('install-output', (event, data) => callback(data));
   },
-  removeInstallOutputListener: () => {
-    ipcRenderer.removeAllListeners('install-output');
-  },
-  runWireGuardCommand: (args) => ipcRenderer.invoke('run-wireguard-command', args),
-  onWireGuardOutput: (callback) => {
-      ipcRenderer.on('wireguard-output', (event, data) => callback(data));
-  },
-  removeWireGuardOutputListener: () => {
-      ipcRenderer.removeAllListeners('wireguard-output');
-},
 });

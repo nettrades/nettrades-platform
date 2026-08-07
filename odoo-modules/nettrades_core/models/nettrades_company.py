@@ -1,13 +1,24 @@
+# -*- coding: utf-8 -*-
+# =============================================================================
+# NETTRADES Core - NetTrades Company Model
+# =============================================================================
+# FILE: odoo-modules/nettrades_core/models/nettrades_company.py
+#
+# PURPOSE:
+#   This model stores NetTrades-specific company data.
+#   It is linked to the Odoo res.partner via a Many2one field.
+#
+# UPDATES (2026-08):
+#   - Created from former res_partner company extensions.
+# =============================================================================
+
 from odoo import fields, models, api
+
 
 class NettradesCompany(models.Model):
     _name = 'nettrades.company'
     _description = 'NetTrades Company'
     _rec_name = 'partner_id'
-
-    # =========================================================================
-    # Link to Odoo Core
-    # =========================================================================
 
     partner_id = fields.Many2one(
         'res.partner',
@@ -17,36 +28,12 @@ class NettradesCompany(models.Model):
         help="Link to the Odoo partner record"
     )
 
-    # =========================================================================
-    # NetTrades-Specific Fields
-    # =========================================================================
+    is_active = fields.Boolean(default=True)
+    industry = fields.Char()
+    website = fields.Char()
+    description = fields.Text()
 
-    is_active = fields.Boolean(
-        string='Active',
-        default=True
-    )
-
-    industry = fields.Char(
-        string='Industry'
-    )
-
-    website = fields.Char(
-        string='Website'
-    )
-
-    description = fields.Text(
-        string='Description'
-    )
-
-    # =========================================================================
-    # Computed Fields
-    # =========================================================================
-
-    name = fields.Char(
-        string='Name',
-        compute='_compute_name',
-        store=True
-    )
+    name = fields.Char(compute='_compute_name', store=True)
 
     @api.depends('partner_id')
     def _compute_name(self):

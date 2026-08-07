@@ -32,6 +32,11 @@
 #   - A background health check determines Dynamo availability.
 #   - LangGraph (via inference_tools.py) selects the healthy backend.
 #   - Odoo provides governance and model selection.
+#
+# UPDATES (2026-08):
+#   - Removed any SQL that modifies core Odoo tables (res_partner, etc.).
+#   - The init-db.sql now only creates nettrades_* tables.
+#   - Added platform detection for macOS-specific Docker volume handling.
 # =============================================================================
 
 set -euo pipefail

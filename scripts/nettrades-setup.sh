@@ -30,6 +30,7 @@
 #   --regenerate-secrets Regenerate all secrets in .env (use with caution)
 #   --reset-data        Wipe all containers and volumes (destroys data!)
 #   --with-finetune     Install fine-tuning packages (torch, unsloth, axolotl)
+#   --platform          Override platform detection (linux, macos, wsl)
 # =============================================================================
 
 set -euo pipefail
@@ -46,6 +47,11 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
+
+# -----------------------------------------------------------------------------
+# Read feature flags (early, for installer UI)
+# -----------------------------------------------------------------------------
+read_feature_flags
 
 # -----------------------------------------------------------------------------
 # Load .env if present (overrides environment)
@@ -80,6 +86,7 @@ WITH_FINETUNE=false
 PHASES_LIST=""
 PROFILE=""
 INTERACTIVE=false
+PLATFORM_OVERRIDE=""
 
 # -----------------------------------------------------------------------------
 # Show help
@@ -122,6 +129,7 @@ ${YELLOW}OPTIONS (CLI):${NC}
     --reset-data          Wipe ALL containers and volumes (destroys all data!).
     --phases=LIST         Comma-separated list of phases (overrides profile).
     --with-finetune       Install large fine-tuning packages (torch, unsloth, axolotl).
+    --platform            Override platform detection (linux, macos, wsl).
 
 ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh                        # Interactive wizard
@@ -391,6 +399,10 @@ while [[ $# -gt 0 ]]; do
         --regenerate-secrets) REGENERATE_SECRETS=true; shift ;;
         --reset-data) RESET_DATA=true; shift ;;
         --with-finetune) WITH_FINETUNE=true; shift ;;
+        --platform)
+            PLATFORM_OVERRIDE="$2"
+            shift 2
+            ;;
         --phases=*) PHASES_LIST="${1#--phases=}"; shift ;;
         --help) show_help; exit 0 ;;
         -*)
@@ -413,6 +425,13 @@ done
 
 export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE VENV_DIR
 
+# Set PLATFORM for phase scripts
+if [[ -n "$PLATFORM_OVERRIDE" ]]; then
+    export PLATFORM="$PLATFORM_OVERRIDE"
+else
+    export PLATFORM=$(detect_platform)
+fi
+
 # -----------------------------------------------------------------------------
 # Environment preparation
 # -----------------------------------------------------------------------------
@@ -421,6 +440,7 @@ prepare_environment() {
     os=$(detect_os)
     log_info "Detected OS: $os"
     log_info "Environment: $ENVIRONMENT"
+    log_info "Platform: $PLATFORM"
 
     if [[ "$os" == "windows" ]]; then
         if [[ "$(detect_wsl)" == "false" ]]; then
@@ -597,6 +617,7 @@ log_info "Upgrade: $UPGRADE"
 log_info "Auto: $AUTO"
 log_info "With Fine-tuning: $WITH_FINETUNE"
 log_info "Virtual Environment: $VENV_DIR"
+log_info "Platform: $PLATFORM"
 echo ""
 
 # -----------------------------------------------------------------------------

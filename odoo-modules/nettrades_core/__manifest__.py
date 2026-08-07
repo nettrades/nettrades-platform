@@ -1,35 +1,3 @@
-# -*- coding: utf-8 -*-
-# =============================================================================
-# NETTRADES Core - Module Manifest
-# =============================================================================
-# FILE: odoo-modules/nettrades_core/__manifest__.py
-# VERSION: 1.0 (fully commented)
-#
-# PURPOSE:
-#   This module provides the core functionality for the NETTRADES.AI platform.
-#   It extends the standard Odoo models with fields for user roles, skills,
-#   professional fields, experience, reviews, and AI matching. It also defines
-#   the security groups and views that are used across other NETTRADES modules.
-#
-# DEPENDENCIES:
-#   - base               : Odoo core
-#   - hr_recruitment     : Job postings and applicants
-#   - crm                : Lead management
-#   - project            : Project management and milestones
-#   - website_sale_marketplace : Multi-vendor marketplace (for e-commerce)
-#   - auth_signup        : Self-service onboarding (portal sign-up)
-#
-# MODELS PROVIDED:
-#   - res.partner (extended)
-#   - nettrades.field
-#   - nettrades.experience
-#   - nettrades.review
-#   - nettrades.skill
-#   - nettrades.user_match
-#   - hr_job (extended)
-#   - project.project (extended)
-#
-# =============================================================================
 {
     'name': 'NETTRADES Core',
     'version': '1.0.0',
@@ -37,41 +5,36 @@
     'summary': 'Core marketplace and AI integration',
     'description': """
         This module provides the essential building blocks for the NETTRADES.AI
-        autonomous enterprise platform. It extends Odoo's standard models to
-        support:
-        - User roles (Job Seeker, Freelancer, Company, Partner)
-        - Professional fields and qualifications
-        - Work experience and reviews
-        - AI-powered job matching
-        - Lead generation and scoring
-        This module is a dependency for all other NETTRADES modules.
+        platform. It defines separate tables for NetTrades users and companies,
+        linked to Odoo core models via Many2one fields.
     """,
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
-    'maintainer': 'Nettrades',
     'license': 'AGPL-3',
     'depends': [
         'base',
-        'hr_recruitment',
-        'crm',
-        'project',
-        'website_sale_marketplace',
-        'auth_signup',          # <-- ADDED: Enables self-service onboarding
-        'queue_job',            # <-- Required for asynchronous AI matching (with_delay)
+        # We keep these for integration with existing Odoo features
+        'hr_recruitment',   # For job matching
+        'crm',              # For lead management
+        'project',          # For project management
+        'website_sale_marketplace', # For marketplace features
+        'auth_signup',      # For self-service onboarding
+        'queue_job',        # For async jobs
     ],
     'data': [
-#        'security/nettrades_security.xml',
-#        'security/ir.model.access.csv',
-#        'views/res_partner_views.xml',
-#        'views/hr_job_views.xml',
-#        'views/project_views.xml',
-#        'views/nettrades_field_views.xml',
-#        'views/nettrades_review_views.xml',
-#        'views/nettrades_experience_views.xml',
-#        'views/nettrades_user_match_views.xml',
-#        'views/nettrades_core_menu.xml',
-#        'data/nettrades.skill.csv',
-#        'data/portal_data.xml',  # <-- ADDED: Portal menus and sign-up settings
+        # Views will be updated to use nettrades.user and nettrades.company
+        'security/nettrades_security.xml',
+        'security/ir.model.access.csv',
+        'views/nettrades_user_views.xml',       # New view for nettrades.user
+        'views/nettrades_company_views.xml',    # New view for nettrades.company
+        'views/nettrades_project_views.xml',
+        'views/nettrades_field_views.xml',
+        'views/nettrades_review_views.xml',
+        'views/nettrades_experience_views.xml',
+        'views/nettrades_user_match_views.xml',
+        'views/nettrades_core_menu.xml',
+        'data/nettrades.skill.csv',
+        'data/portal_data.xml',
     ],
     'demo': [],
     'installable': True,
