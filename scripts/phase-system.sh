@@ -113,9 +113,17 @@ install_docker_compose() {
     log_info "Installing Docker Compose..."
     case "$PLATFORM" in
         linux|wsl)
-            # Use plugin installation
-            sudo apt-get update -qq
+            # Add Docker's official repository if not already present
+            if [[ ! -f /etc/apt/sources.list.d/docker.list ]]; then
+                log_info "Adding Docker's official repository..."
+                sudo install -m 0755 -d /etc/apt/keyrings
+                sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+                sudo chmod a+r /etc/apt/keyrings/docker.asc
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                sudo apt-get update -qq
+            fi
             sudo apt-get install -y docker-compose-plugin
+            log_success "Docker Compose plugin installed"
             ;;
         macos)
             log_info "Docker Compose is included with Docker Desktop."
@@ -136,7 +144,27 @@ install_python() {
         local py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
         if [[ "$(printf '%s\n' "3.10" "$py_version" | sort -V | head -n1)" != "3.10" ]]; then
             log_error "Python $py_version detected. Need 3.10+."
-            exit 1
+            # Attempt to install Python 3.12 on macOS
+            if [[ "$PLATFORM" == "macos" ]]; then
+                if command -v brew &>/dev/null; then
+                    log_info "Installing Python 3.12 via Homebrew..."
+                    brew install python@3.12
+                    export PATH="/usr/local/opt/python@3.12/bin:$PATH"
+                    # Re-check version after installation
+                    local new_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+                    if [[ "$(printf '%s\n' "3.10" "$new_version" | sort -V | head -n1)" != "3.10" ]]; then
+                        log_error "Python $new_version still detected after installation. Please install Python 3.12 manually."
+                        exit 1
+                    fi
+                    log_success "Python $new_version installed successfully."
+                    return
+                else
+                    log_error "Homebrew not found. Please install Python 3.12 manually."
+                    exit 1
+                fi
+            else
+                exit 1
+            fi
         fi
         log_success "Python $py_version detected."
     else
@@ -167,61 +195,19 @@ install_python() {
 # 1. Install Docker
 # -----------------------------------------------------------------------------
 log_step "Checking Docker installation..."
-if ! command -v docker &>/dev/null; then
-    log_info "Installing Docker..."
-    if [[ "$OS" == "linux" ]]; then
-        curl -fsSL https://get.docker.com | sh
-        sudo usermod -aG docker "$USER"
-    else
-        log_error "Please install Docker manually for $OS"
-        exit 1
-    fi
-else
-    log_success "Docker already installed"
-fi
+install_docker
 
 # -----------------------------------------------------------------------------
 # 2. Install Docker Compose (standalone) & (plugin)
 # -----------------------------------------------------------------------------
 log_step "Checking Docker Compose installation..."
-if ! docker compose version &>/dev/null; then
-    log_info "Installing Docker Compose plugin..."
-    if [[ "$OS" == "linux" ]]; then
-        # Add Docker's official repository if not already present
-        if [[ ! -f /etc/apt/sources.list.d/docker.list ]]; then
-            log_info "Adding Docker's official repository..."
-            sudo install -m 0755 -d /etc/apt/keyrings
-            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-            sudo chmod a+r /etc/apt/keyrings/docker.asc
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-            sudo apt-get update
-        fi
-        sudo apt-get install -y docker-compose-plugin
-        log_success "Docker Compose plugin installed"
-    else
-        log_error "Please install Docker Compose manually for $OS"
-        exit 1
-    fi
-else
-    log_success "Docker Compose already installed"
-fi
+install_docker_compose
 
 # -----------------------------------------------------------------------------
 # 3. Check Python and pip
 # -----------------------------------------------------------------------------
 log_step "Checking Python and pip installation..."
-if ! command -v python3 &>/dev/null; then
-    log_error "Python3 not found. Please install Python 3.10 or higher."
-    exit 1
-fi
-
-# Check Python version
-PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-if [[ "$(printf '%s\n' "3.10" "$PYTHON_VERSION" | sort -V | head -n1)" != "3.10" ]]; then
-    log_error "Python version $PYTHON_VERSION detected. Need 3.10+."
-    exit 1
-fi
-log_success "Python $PYTHON_VERSION detected."
+install_python
 
 # Check pip3 – use apt for Ubuntu/Debian
 if ! command -v pip3 &>/dev/null; then

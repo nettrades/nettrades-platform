@@ -28,6 +28,25 @@ detect_os() {
 }
 
 # -----------------------------------------------------------------------------
+# Platform Detection (for cross-platform decisions)
+# -----------------------------------------------------------------------------
+detect_platform() {
+    local os
+    os=$(detect_os)
+    if [[ "$os" == "linux" ]]; then
+        if grep -qi "microsoft" /proc/version 2>/dev/null; then
+            echo "wsl"
+        else
+            echo "linux"
+        fi
+    elif [[ "$os" == "darwin" ]]; then
+        echo "macos"
+    else
+        echo "unknown"
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # WSL Detection
 # -----------------------------------------------------------------------------
 detect_wsl() {
@@ -443,7 +462,6 @@ select_inference_backend() {
     esac
 }
 
-
 # -----------------------------------------------------------------------------
 # Feature Flag Helpers
 # -----------------------------------------------------------------------------
@@ -470,20 +488,4 @@ read_feature_flags() {
     export FEATURE_ASK_SOMEONE FEATURE_GOOD_ANSWER FEATURE_GPU_MARKETPLACE \
            FEATURE_ROUTER FEATURE_TRAINING FEATURE_ENTERPRISE \
            FEATURE_FORGEJO FEATURE_RECRUITMENT FEATURE_LEAD_GEN FEATURE_FREELANCE
-}
-
-# Platform detection enhancements
-detect_platform() {
-    local os=$(detect_os)
-    if [[ "$os" == "linux" ]]; then
-        if grep -qi "microsoft" /proc/version 2>/dev/null; then
-            echo "wsl"
-        else
-            echo "linux"
-        fi
-    elif [[ "$os" == "darwin" ]]; then
-        echo "macos"
-    else
-        echo "unknown"
-    fi
 }

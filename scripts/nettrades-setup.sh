@@ -476,6 +476,14 @@ EOF
         fi
     elif [[ "$os" == "macos" ]]; then
         log_success "Running on macOS."
+        # Check if Homebrew is installed
+        if ! command -v brew &>/dev/null; then
+            log_warning "Homebrew not found. Installing Homebrew..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            # Add Homebrew to PATH for this session
+            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zshrc
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        fi
         if ! command -v docker &>/dev/null; then
             log_warning "Docker not found. Please install Docker Desktop for macOS."
             log_info "See: https://docs.docker.com/desktop/mac/install/"
@@ -519,16 +527,44 @@ check_dependencies() {
         fi
     fi
 
-    # Python 3.10+
+    # Python 3.10+ – attempt to install if missing
     if ! command -v python3 &>/dev/null; then
         log_error "Python3 not found. Please install Python 3.10 or higher."
-        exit 1
+        if [[ "$os" == "macos" ]]; then
+            if command -v brew &>/dev/null; then
+                log_info "Installing Python 3.12 via Homebrew..."
+                brew install python@3.12
+                export PATH="/usr/local/opt/python@3.12/bin:$PATH"
+            else
+                log_error "Homebrew not found. Please install Python 3.12 manually."
+                exit 1
+            fi
+        else
+            exit 1
+        fi
     fi
     local py_version
     py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
     if [[ "$(printf '%s\n' "3.10" "$py_version" | sort -V | head -n1)" != "3.10" ]]; then
         log_error "Python version $py_version detected. Need 3.10+."
-        exit 1
+        if [[ "$os" == "macos" ]]; then
+            if command -v brew &>/dev/null; then
+                log_info "Installing Python 3.12 via Homebrew..."
+                brew install python@3.12
+                export PATH="/usr/local/opt/python@3.12/bin:$PATH"
+                # Re-check
+                py_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+                if [[ "$(printf '%s\n' "3.10" "$py_version" | sort -V | head -n1)" != "3.10" ]]; then
+                    log_error "Python version $py_version still detected after installation. Please install Python 3.12 manually."
+                    exit 1
+                fi
+            else
+                log_error "Homebrew not found. Please install Python 3.12 manually."
+                exit 1
+            fi
+        else
+            exit 1
+        fi
     fi
     log_success "Python $py_version detected."
 
@@ -562,6 +598,11 @@ check_dependencies() {
         sudo apt update -qq 2>/dev/null || true
         sudo apt install -y build-essential python3-dev libpq-dev 2>/dev/null || {
             log_warning "Failed to install some build dependencies. Continuing anyway."
+        }
+    elif [[ "$os" == "macos" ]] && command -v brew &>/dev/null; then
+        log_step "Installing build dependencies (postgresql) via Homebrew..."
+        brew install postgresql 2>/dev/null || {
+            log_warning "Failed to install postgresql via Homebrew. Continuing anyway."
         }
     fi
 }
