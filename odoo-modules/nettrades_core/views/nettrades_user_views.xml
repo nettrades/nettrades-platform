@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_nettrades_user_tree" model="ir.ui.view">
+        <field name="name">nettrades.user.tree</field>
+        <field name="model">nettrades.user</field>
+        <field name="arch" type="xml">
+            <tree string="NetTrades Users">
+                <field name="partner_id"/>
+                <field name="username"/>
+                <field name="karma_score"/>
+                <field name="reputation_score"/>
+                <field name="is_verified"/>
+                <field name="is_online"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_nettrades_user_form" model="ir.ui.view">
+        <field name="name">nettrades.user.form</field>
+        <field name="model">nettrades.user</field>
+        <field name="arch" type="xml">
+            <form string="NetTrades User">
+                <sheet>
+                    <field name="partner_id" widget="many2one"/>
+                    <field name="username"/>
+                    <field name="wallet_address"/>
+                    <group string="Reputation">
+                        <field name="karma_score"/>
+                        <field name="reputation_score"/>
+                        <field name="is_verified"/>
+                        <field name="is_online"/>
+                        <field name="is_active"/>
+                    </group>
+                    <group string="Audit">
+                        <field name="create_date"/>
+                        <field name="write_date"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_nettrades_users" model="ir.actions.act_window">
+        <field name="name">NetTrades Users</field>
+        <field name="res_model">nettrades.user</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Manage NetTrades users and their reputation.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem id="menu_nettrades_users"
+              name="Users"
+              parent="nettrades_core.menu_nettrades_root"
+              action="action_nettrades_users"
+              sequence="10"/>
+</odoo>

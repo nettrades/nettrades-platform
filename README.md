@@ -80,11 +80,11 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform
 
-**The Nettrades Platform builds the Sovereign AI Infrastructure of any organisation using its spare GPU capacity.**
+**The Nettrades Platform builds the Sovereign AI Infrastructure of any organisation, using its spare GPU capacity.**
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
-**Organisations could choose to keep everything local or decides which types of requests to process locally and which types of requests to route to remote providers or a GPU market place, at peak time, based on the administration settings set by the organisations administrator**
+**Organisations could decide to keep everything local or they could decides which types of requests are processed locally and which types of requests to routed to remote providers or a GPU market place, at peak time, based on the administrative settings set by the organisations administrator**
 
 **In the past, enterprises faced a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 

@@ -9,12 +9,15 @@
 #
 # =============================================================================
 
-from . import res_partner
-from . import hr_job
-from . import project_project
+# from . import res_partner
+# from . import hr_job
+# from . import project_project
 from . import nettrades_user_match
 from . import nettrades_skill
 from . import nettrades_field
 from . import nettrades_experience
 from . import nettrades_review
 from . import sandbox_policy
+from . import nettrades_user
+from . import nettrades_company
+from . import nettrades_project
