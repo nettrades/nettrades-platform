@@ -187,17 +187,34 @@ generate_password() {
     openssl rand -base64 24 | tr -d '\n'
 }
 
-# -----------------------------------------------------------------------------
-# Safe sed replacement (escapes special characters)
-# -----------------------------------------------------------------------------
+# =============================================================================
+# SAFE SED REPLACEMENT – ROBUST VERSION USING PYTHON
+# =============================================================================
+# Replaces a line in a .env file with a new value, properly quoting the value.
+# Handles ANY special character (including single quotes, backslashes, etc.)
+# without breaking the shell or sed.
+#
+# Usage: safe_sed_replace <file> <key> <new_value>
+# Example: safe_sed_replace .env POSTGRES_PASSWORD "p@ssw'ord"
+# =============================================================================
 safe_sed_replace() {
     local file="$1"
     local pattern="$2"
     local replacement="$3"
-    # Escape single quotes inside the replacement: ' -> '\''
-    local escaped_replacement="${replacement//\'/\'\\\'\'}"
-    # Write as VAR='escaped_replacement'
-    sed -i "s|^${pattern}=.*|${pattern}='${escaped_replacement}'|" "$file"
+    # Use Python to safely replace the line
+    python3 -c "
+import sys
+file, pattern, repl = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(file, 'r') as f:
+    lines = f.readlines()
+with open(file, 'w') as f:
+    for line in lines:
+        if line.startswith(pattern + '='):
+            # Use repr to safely quote the replacement (handles all special chars)
+            f.write(f'{pattern}={repr(repl)}\n')
+        else:
+            f.write(line)
+" "$file" "$pattern" "$replacement"
 }
 
 # -----------------------------------------------------------------------------
