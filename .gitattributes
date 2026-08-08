@@ -1,5 +1,2 @@
-*.py text eol=lf
-*.xml text eol=lf
+* text=auto eol=lf
 *.sh text eol=lf
-*.conf text eol=lf
-*.md text eol=lf
