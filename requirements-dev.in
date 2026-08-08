@@ -1,0 +1,35 @@
+# =============================================================================
+# FILE: requirements-dev.in
+# PURPOSE: Source file for development dependencies
+# Recommended Workflow
+#    During development: Edit requirements.in and run pip-compile to update the lock file.
+#    During installation:
+#        If ENVIRONMENT=production → install from requirements-lock.txt
+#        If ENVIRONMENT=development → install from requirements.txt
+#    Before release: Run pip-compile requirements.in -o requirements-lock.txt and commit the lock file.
+#
+# requirements.in → requirements-lock.txt → Used for production installation (pinned versions)
+# requirements-dev.txt → Used for development (loose versions)
+# src/core/requirements.txt → Used by Docker build (LangGraph container)    
+#
+# =============================================================================
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Testing
+# ──────────────────────────────────────────────────────────────────────────────
+pytest>=8.0.0,<9.0.0
+pytest-asyncio>=0.23.0,<1.0.0
+pytest-cov>=5.0.0,<6.0.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Code Quality
+# ──────────────────────────────────────────────────────────────────────────────
+black>=24.0.0,<25.0.0
+ruff>=0.4.0,<1.0.0
+mypy>=1.8.0,<2.0.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Development Tools
+# ──────────────────────────────────────────────────────────────────────────────
+pip-tools>=7.0.0,<8.0.0
+pip-audit>=2.7.0,<3.0.0

@@ -194,6 +194,7 @@ if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" == true ]]; then
     echo ""
     echo -e "${YELLOW}Enter a NEW PostgreSQL password for the 'odoo' user:${NC}"
     echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
+    # Use the retry function for the regeneration case
     if ! POSTGRES_PASSWORD=$(read_password_with_retry "Password: "); then
         log_error "Password entry failed. Exiting."
         exit 1
@@ -207,6 +208,7 @@ else
     echo ""
     echo -e "${YELLOW}Enter a PostgreSQL password for the 'odoo' user:${NC}"
     echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
+    # Use the retry function for the interactive case
     if ! POSTGRES_PASSWORD=$(read_password_with_retry "Password: "); then
         log_error "Password entry failed. Exiting."
         exit 1
@@ -271,7 +273,7 @@ configure_domain_email() {
     # If DOMAIN is still 'changeit' or 'nettrades.ai' (default) or empty, we set it.
     if [[ "$CURRENT_DOMAIN" == "changeit" || "$CURRENT_DOMAIN" == "nettrades.ai" || -z "$CURRENT_DOMAIN" ]]; then
         DETECTED_IP=$(detect_ip)
-        
+
         if [[ "$AUTO" == true ]]; then
             DOMAIN="$DETECTED_IP"
             log_info "Auto mode: using detected IP $DOMAIN as DOMAIN"
@@ -292,7 +294,7 @@ configure_domain_email() {
             fi
             log_info "Using domain: $DOMAIN"
         fi
-        
+
         safe_sed_replace "$ENV_FILE" "DOMAIN" "$DOMAIN"
     else
         log_info "DOMAIN already set to: $CURRENT_DOMAIN (skipping prompt)"
@@ -372,7 +374,7 @@ if [[ "$AUTO" != true ]]; then
     # Reload the updated values from .env for display
     DOMAIN_DISPLAY=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
     ADMIN_EMAIL_DISPLAY=$(grep "^ADMIN_EMAIL=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
-    
+
     echo ""
     echo -e "${YELLOW}Important credentials (save these):${NC}"
     echo "  POSTGRES_PASSWORD: $POSTGRES_PASSWORD"

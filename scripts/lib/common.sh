@@ -489,3 +489,66 @@ read_feature_flags() {
            FEATURE_ROUTER FEATURE_TRAINING FEATURE_ENTERPRISE \
            FEATURE_FORGEJO FEATURE_RECRUITMENT FEATURE_LEAD_GEN FEATURE_FREELANCE
 }
+
+# -----------------------------------------------------------------------------
+# Dependency Locking Helpers
+# -----------------------------------------------------------------------------
+
+# Install pip-tools inside the virtual environment
+install_pip_tools() {
+    if command -v pip &>/dev/null; then
+        log_info "Installing pip-tools in virtual environment..."
+        pip install pip-tools
+        log_success "pip-tools installed"
+    else
+        log_error "pip not found in virtual environment"
+        return 1
+    fi
+}
+
+# Generate lock files from requirements.in files
+generate_lock_files() {
+    log_step "Generating lock files..."
+    cd "$PROJECT_ROOT"
+    if [[ -f "requirements.in" ]]; then
+        if command -v pip-compile &>/dev/null; then
+            pip-compile requirements.in -o requirements-lock.txt --generate-hashes
+            log_success "Generated requirements-lock.txt"
+        else
+            log_warning "pip-compile not found. Skipping lock file generation."
+        fi
+    fi
+    if [[ -f "requirements-dev.in" ]]; then
+        if command -v pip-compile &>/dev/null; then
+            pip-compile requirements-dev.in -o requirements-dev-lock.txt --generate-hashes
+            log_success "Generated requirements-dev-lock.txt"
+        fi
+    fi
+}
+
+# Install dependencies based on environment
+install_dependencies() {
+    local env="${1:-development}"
+    cd "$PROJECT_ROOT"
+    if [[ "$env" == "production" ]]; then
+        if [[ -f "requirements-lock.txt" ]]; then
+            log_info "Installing from locked requirements (production)..."
+            pip install -r requirements-lock.txt
+        elif [[ -f "requirements.txt" ]]; then
+            log_warning "requirements-lock.txt not found. Falling back to requirements.txt"
+            pip install -r requirements.txt
+        else
+            log_error "No requirements file found"
+            return 1
+        fi
+    else
+        if [[ -f "requirements.txt" ]]; then
+            log_info "Installing from requirements.txt (development)..."
+            pip install -r requirements.txt
+        else
+            log_error "requirements.txt not found"
+            return 1
+        fi
+    fi
+    return 0
+}

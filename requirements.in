@@ -1,0 +1,74 @@
+# =============================================================================
+# FILE: requirements.in
+# PURPOSE: Source file for pip-tools to generate requirements-lock.txt
+# =============================================================================
+# This file lists only your direct dependencies with version constraints.
+# Use `pip-compile requirements.in -o requirements-lock.txt` to generate
+# the lock file with all transitive dependencies pinned.
+#
+# Recommended Workflow
+#    During development: Edit requirements.in and run pip-compile to update the lock file.
+#    During installation:
+#        If ENVIRONMENT=production → install from requirements-lock.txt
+#        If ENVIRONMENT=development → install from requirements.txt
+#    Before release: Run pip-compile requirements.in -o requirements-lock.txt and commit the lock file.
+#
+# requirements.in → requirements-lock.txt → Used for production installation (pinned versions)
+# requirements-dev.txt → Used for development (loose versions)
+# src/core/requirements.txt → Used by Docker build (LangGraph container)    
+#
+# ──────────────────────────────────────────────────────────────────────────────
+# Core LangGraph & LangChain
+# ──────────────────────────────────────────────────────────────────────────────
+langgraph>=1.2.0,<2.0.0
+langgraph-checkpoint-postgres>=3.0.0,<4.0.0
+langchain-core>=1.4.0,<2.0.0
+langchain-openai>=0.3.4,<0.4.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Web Framework
+# ──────────────────────────────────────────────────────────────────────────────
+fastapi>=0.136.0,<1.0.0
+uvicorn[standard]>=0.49.0,<1.0.0
+pydantic>=2.13.0,<3.0.0
+pydantic-settings>=2.0.0,<3.0.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Database
+# ──────────────────────────────────────────────────────────────────────────────
+psycopg[binary]>=3.2.0,<4.0.0
+asyncpg>=0.31.0,<1.0.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HTTP & Utilities
+# ──────────────────────────────────────────────────────────────────────────────
+httpx>=0.27.0,<1.0.0
+aiohttp>=3.9.0,<4.0.0
+python-dotenv>=1.0.0,<2.0.0
+python-multipart>=0.0.32,<1.0.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# UI / Templates
+# ──────────────────────────────────────────────────────────────────────────────
+jinja2>=3.1.0,<4.0.0
+itsdangerous>=2.2.0,<3.0.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Security & Monitoring
+# ──────────────────────────────────────────────────────────────────────────────
+python-jose[cryptography]>=3.3.0,<4.0.0
+prometheus-client>=0.25.0,<1.0.0
+tenacity>=9.0.0,<10.0.0
+circuitbreaker>=2.0.0,<3.0.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ML & Vision
+# ──────────────────────────────────────────────────────────────────────────────
+pillow>=10.0.0,<11.0.0
+numpy>=2.4.0,<3.0.0
+opencv-python-headless>=4.10.0,<5.0.0
+
+# ──────────────────────────────────────────────────────────────────────────────
+# IoT
+# ──────────────────────────────────────────────────────────────────────────────
+paho-mqtt>=2.0.0,<3.0.0

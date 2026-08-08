@@ -1,48 +1,270 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>NETTRADES Installer</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetTrades Launcher</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app">
-    <header>
-      <h1>NETTRADES Installer</h1>
-      <p class="subtitle">Sovereign AI for Autonomous Enterprises</p>
-    </header>
+    <div id="app">
+        <!-- Sidebar -->
+        <nav id="sidebar">
+            <div class="logo">
+                <img src="icon.png" alt="NetTrades" width="48" height="48">
+                <h1>NetTrades</h1>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-tab="dashboard">
+                    <span class="nav-icon">🏠</span>
+                    <span class="nav-label">Dashboard</span>
+                </li>
+                <li class="nav-item" data-tab="installer">
+                    <span class="nav-icon">🚀</span>
+                    <span class="nav-label">Installer</span>
+                </li>
+                <li class="nav-item" data-tab="backup">
+                    <span class="nav-icon">💾</span>
+                    <span class="nav-label">Backup &amp; Restore</span>
+                </li>
+                <li class="nav-item" data-tab="logs">
+                    <span class="nav-icon">📺</span>
+                    <span class="nav-label">Logs</span>
+                </li>
+                <li class="nav-item" data-tab="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-label">Settings</span>
+                </li>
+            </ul>
+            <div class="nav-footer">
+                <span id="version">v1.0.0</span>
+                <span id="platform-info"></span>
+            </div>
+        </nav>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab active" data-tab="welcome">Welcome</button>
-      <button class="tab" data-tab="deployment">Deployment</button>
-      <button class="tab" data-tab="progress">Installation</button>
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Dashboard Tab -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="tab-header">
+                    <h2>🏠 Dashboard</h2>
+                    <span id="status-badge" class="status-badge status-unknown">⏳ Checking...</span>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <h3>Platform Status</h3>
+                        <div id="platform-status">
+                            <div class="status-row">
+                                <span>Status:</span>
+                                <span id="status-text">Checking...</span>
+                            </div>
+                            <div class="status-row">
+                                <span>Uptime:</span>
+                                <span id="uptime-text">--</span>
+                            </div>
+                            <div class="status-row">
+                                <span>Version:</span>
+                                <span id="version-text">--</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button id="btn-start-platform" class="btn btn-success">▶ Start</button>
+                            <button id="btn-stop-platform" class="btn btn-danger">⏹ Stop</button>
+                            <button id="btn-update-platform" class="btn btn-primary">🔄 Update</button>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <h3>Quick Stats</h3>
+                        <div id="quick-stats">
+                            <div class="stat-row">
+                                <span>💾 Backups:</span>
+                                <span id="stat-backups">0</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>🧠 Models:</span>
+                                <span id="stat-models">0</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>🖥️ GPUs:</span>
+                                <span id="stat-gpus">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <h3>Quick Actions</h3>
+                        <div class="card-actions">
+                            <button id="btn-quick-backup" class="btn btn-primary">💾 Backup Now</button>
+                            <button id="btn-quick-restore" class="btn btn-warning">📂 Restore</button>
+                            <button id="btn-open-odoo" class="btn btn-secondary">🔗 Open Odoo</button>
+                            <button id="btn-open-grafana" class="btn btn-secondary">📊 Open Grafana</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h3>📋 Recent Activity</h3>
+                    <div id="activity-log">
+                        <p class="activity-empty">No recent activity</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Installer Tab -->
+            <section id="tab-installer" class="tab-content">
+                <div class="tab-header">
+                    <h2>🚀 Installer</h2>
+                    <span id="install-status-badge" class="status-badge status-unknown">⏳ Ready</span>
+                </div>
+
+                <div id="installer-content">
+                    <!-- Step 1: Choose Deployment -->
+                    <div id="install-step-1" class="install-step active">
+                        <h3>Choose Your Setup</h3>
+                        <p class="step-description">Select the type of deployment you want.</p>
+                        <div id="deployment-cards" class="deployment-grid">
+                            <!-- Cards will be rendered by JavaScript -->
+                        </div>
+                        <div class="install-actions">
+                            <button id="btn-install-next" class="btn btn-primary">Next</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Configuration -->
+                    <div id="install-step-2" class="install-step">
+                        <h3>Configuration</h3>
+                        <p class="step-description">Review and confirm your settings.</p>
+                        <div id="config-summary" class="config-summary">
+                            <!-- Rendered by JavaScript -->
+                        </div>
+                        <div class="install-actions">
+                            <button id="btn-install-back" class="btn btn-secondary">Back</button>
+                            <button id="btn-install-start" class="btn btn-success">Install</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Progress -->
+                    <div id="install-step-3" class="install-step">
+                        <h3>Installing...</h3>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div id="install-progress-fill" class="progress-fill" style="width:0%"></div>
+                            </div>
+                            <p id="install-progress-label" class="progress-label">Starting installation...</p>
+                        </div>
+                        <div id="install-log-output" class="log-output">
+                            <div class="log-placeholder">Waiting for output...</div>
+                        </div>
+                        <div class="install-actions">
+                            <button id="btn-install-cancel" class="btn btn-danger">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Backup & Restore Tab -->
+            <section id="tab-backup" class="tab-content">
+                <div class="tab-header">
+                    <h2>💾 Backup &amp; Restore</h2>
+                    <span id="backup-status-badge" class="status-badge status-unknown">⏳ Ready</span>
+                </div>
+
+                <div class="backup-grid">
+                    <div class="backup-card">
+                        <h3>Create Backup</h3>
+                        <p>Backup all platform data including databases, volumes, and configuration.</p>
+                        <button id="btn-create-backup" class="btn btn-primary">💾 Backup Now</button>
+                    </div>
+
+                    <div class="backup-card">
+                        <h3>Restore from Backup</h3>
+                        <p>Restore the platform from a previous backup.</p>
+                        <select id="backup-select" class="backup-select">
+                            <option value="">Select a backup...</option>
+                        </select>
+                        <button id="btn-restore-backup" class="btn btn-warning">📂 Restore Selected</button>
+                    </div>
+                </div>
+
+                <div class="backup-list">
+                    <h3>📋 Available Backups</h3>
+                    <div id="backup-list-container">
+                        <p class="backup-empty">No backups found.</p>
+                    </div>
+                </div>
+
+                <div id="backup-log-output" class="log-output" style="display:none;">
+                    <div class="log-placeholder">Waiting for output...</div>
+                </div>
+            </section>
+
+            <!-- Logs Tab -->
+            <section id="tab-logs" class="tab-content">
+                <div class="tab-header">
+                    <h2>📺 Logs</h2>
+                    <div class="log-controls">
+                        <button id="btn-copy-logs" class="btn btn-secondary">📋 Copy</button>
+                        <button id="btn-save-logs" class="btn btn-secondary">💾 Save</button>
+                        <button id="btn-clear-logs" class="btn btn-secondary">🗑️ Clear</button>
+                    </div>
+                </div>
+                <div id="logs-output" class="log-output log-full">
+                    <div class="log-placeholder">No logs yet. Run installation, backup, or restore to see output.</div>
+                </div>
+            </section>
+
+            <!-- Settings Tab -->
+            <section id="tab-settings" class="tab-content">
+                <div class="tab-header">
+                    <h2>⚙️ Settings</h2>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Backup Settings</h3>
+                    <div class="setting-row">
+                        <label for="backup-dir">Backup Directory</label>
+                        <input type="text" id="backup-dir" placeholder="~/.nettrades/backups">
+                    </div>
+                    <div class="setting-row">
+                        <label>
+                            <input type="checkbox" id="auto-backup-enabled">
+                            Enable automatic daily backups
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <label for="backup-retention">Retention Days</label>
+                        <input type="number" id="backup-retention" value="30" min="1" max="365">
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Update Settings</h3>
+                    <div class="setting-row">
+                        <label>
+                            <input type="checkbox" id="auto-update-enabled" checked>
+                            Check for updates automatically
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <label>
+                            <input type="checkbox" id="auto-download-updates" checked>
+                            Download updates in the background
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>About</h3>
+                    <p><strong>NetTrades Launcher</strong> v1.0.0</p>
+                    <p>Built with Electron and ❤️</p>
+                    <p><a href="#" id="settings-github-link">GitHub Repository</a></p>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <!-- Tab Content -->
-    <div id="tab-welcome" class="tab-content active">
-      <h2>Welcome</h2>
-      <p>This installer will set up the NetTrades Sovereign AI platform.</p>
-      <p>Click "Next" to continue.</p>
-      <button id="btn-next" class="btn primary">Next</button>
-    </div>
-
-    <div id="tab-deployment" class="tab-content">
-      <h2>Choose Your Deployment</h2>
-      <div id="deployment-cards"></div>
-      <div id="advanced-settings" style="display:none;">
-        <!-- Advanced options -->
-      </div>
-      <button id="btn-install" class="btn success">Install</button>
-    </div>
-
-    <div id="tab-progress" class="tab-content">
-      <h2>Installation Progress</h2>
-      <div class="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
-      <div id="progress-label">Initializing...</div>
-      <div id="log-output" class="log-output"></div>
-    </div>
-  </div>
-  <script src="renderer.js"></script>
+    <script src="renderer.js"></script>
 </body>
 </html>
