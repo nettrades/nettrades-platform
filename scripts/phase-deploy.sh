@@ -37,6 +37,8 @@
 #   - Removed any SQL that modifies core Odoo tables (res_partner, etc.).
 #   - The init-db.sql now only creates nettrades_* tables.
 #   - Added platform detection for macOS-specific Docker volume handling.
+#   - Added domain auto‑detection and Let's Encrypt conditional logic.
+#   - Added fallback creation of nginx.conf.template for redirector.
 # =============================================================================
 
 set -euo pipefail
@@ -145,6 +147,48 @@ ensure_bcrypt() {
 }
 
 # -----------------------------------------------------------------------------
+# DOMAIN CONFIGURATION & LET'S ENCRYPT SETUP
+# -----------------------------------------------------------------------------
+configure_domain() {
+    local domain="${DOMAIN:-}"
+    local acme_file="$DEPLOY_DIR/traefik-data/acme.json"
+
+    if [[ -z "$domain" || "$domain" == "changeit" || "$domain" == "localhost" || "$domain" == "nettrades.ai" ]]; then
+        log_info "DOMAIN not configured or using default. Auto-detecting..."
+        local public_ip=$(curl -s ifconfig.me 2>/dev/null || echo "")
+        if [[ -n "$public_ip" ]]; then
+            DOMAIN="$public_ip"
+            log_info "Using detected public IP: $DOMAIN"
+        else
+            DOMAIN="localhost"
+            log_info "Could not detect public IP. Using localhost."
+        fi
+        safe_sed_replace "$ENV_FILE" "DOMAIN" "$DOMAIN"
+        log_success "DOMAIN set to: $DOMAIN"
+    fi
+
+    if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$DOMAIN" == "localhost" ]]; then
+        log_warning "DOMAIN is an IP or localhost. Let's Encrypt cannot issue certificates."
+        log_info "Using self-signed certificate. Your browser will show a warning."
+        USE_LETSENCRYPT=false
+    else
+        if command -v dig &>/dev/null; then
+            if dig +short "$DOMAIN" | grep -q .; then
+                log_success "Domain $DOMAIN resolves to an IP address."
+                USE_LETSENCRYPT=true
+            else
+                log_warning "Domain $DOMAIN does not resolve. Using self-signed certificate."
+                USE_LETSENCRYPT=false
+            fi
+        else
+            # No DNS tools – assume domain is valid
+            USE_LETSENCRYPT=true
+        fi
+    fi
+    export DOMAIN USE_LETSENCRYPT
+}
+
+# -----------------------------------------------------------------------------
 # Parse arguments
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
@@ -227,6 +271,50 @@ EOF
     log_success "Default landing page created"
 fi
 log_success "Directories created"
+
+# -----------------------------------------------------------------------------
+# Create redirector nginx.conf.template if missing
+# -----------------------------------------------------------------------------
+log_step "Ensuring redirector nginx.conf.template exists..."
+NGINX_TEMPLATE="$DEPLOY_DIR/redirector/nginx.conf.template"
+
+if [[ ! -f "$NGINX_TEMPLATE" ]]; then
+    log_info "nginx.conf.template not found. Creating default template..."
+    mkdir -p "$DEPLOY_DIR/redirector"
+    cat > "$NGINX_TEMPLATE" << 'EOF'
+events {
+    worker_connections 1024;
+}
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    server {
+        listen 80;
+        server_name _;
+
+        set $landing_page "${DEFAULT_LANDING_PAGE:-odoo}";
+
+        if ($landing_page = "odoo") {
+            return 302 https://${DOMAIN}/odoo;
+        }
+
+        if ($landing_page = "ui") {
+            return 302 http://${DOMAIN}:3002;
+        }
+
+        location / {
+            root   /usr/share/nginx/html;
+            index  index.html;
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}
+EOF
+    log_success "Created default nginx.conf.template"
+else
+    log_success "nginx.conf.template already exists"
+fi
 
 # =============================================================================
 # EARLY: Download GGUF model for llama.cpp fallback from ModelScope mirror
@@ -689,6 +777,9 @@ fi
 set -a
 source "$ENV_FILE"
 set +a
+
+# --- Domain configuration (after .env is loaded) ---
+configure_domain
 
 # Check PostgreSQL password consistency
 check_postgres_password() {
@@ -1301,8 +1392,15 @@ ensure_letsencrypt_certificate() {
 
     log_step "Ensuring Let's Encrypt certificate for domain: $domain"
 
-    if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        log_warning "DOMAIN is an IP address – Let's Encrypt cannot issue certificates for IPs. Skipping."
+    if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$domain" == "localhost" ]]; then
+        log_warning "DOMAIN is an IP or localhost – Let's Encrypt cannot issue certificates."
+        log_info "Using self-signed certificate. Your browser will show a warning."
+        log_info "To use Let's Encrypt, set DOMAIN to a valid domain name with DNS resolution."
+        return 0
+    fi
+
+    if [[ "${USE_LETSENCRYPT:-true}" == "false" ]]; then
+        log_info "Let's Encrypt disabled. Using self-signed certificate."
         return 0
     fi
 
