@@ -13,10 +13,10 @@
 #   - Installing fail2ban
 #   - Configuring system limits for high-performance workloads
 #   - Enabling gVisor runtime for container isolation (if on Kubernetes)
-#   - [NEW] Installing Node.js and npm for the Electron installer
-#   - [NEW] Ensuring port 80 is open for Let's Encrypt
-#   - [NEW] Multi-vendor GPU driver support (NVIDIA, AMD, Intel)
-#   - [NEW] Installing python3-venv for virtual environment creation
+#   - Installing Node.js and npm for the Electron installer
+#   - Ensuring port 80 is open for Let's Encrypt
+#   - Multi-vendor GPU driver support (NVIDIA, AMD, Intel)
+#   - Installing python3-venv for virtual environment creation
 #
 #   It is idempotent and safe to re-run.
 #
@@ -55,10 +55,12 @@ if phase_completed 0; then
 fi
 
 # -----------------------------------------------------------------------------
-# Detect OS
+# Detect OS & Platform
 # -----------------------------------------------------------------------------
 OS=$(detect_os)
+PLATFORM=$(detect_platform)
 log_info "Detected OS: $OS"
+log_info "Detected platform: $PLATFORM"
 
 if [[ "$OS" != "linux" ]]; then
     log_warning "Phase 0 is primarily designed for Linux. Some steps may not work on $OS."
@@ -69,10 +71,6 @@ if [[ "$OS" != "linux" ]]; then
         fi
     fi
 fi
-
-# After OS detection, add:
-PLATFORM=$(detect_platform)
-log_info "Detected platform: $PLATFORM"
 
 # -----------------------------------------------------------------------------
 # 1. Install Docker (cross-platform)
@@ -544,18 +542,49 @@ if ! command -v sshd &>/dev/null; then
     log_success "OpenSSH server installed"
 fi
 
-if ! pgrep -f "sshd.*rescue" > /dev/null; then
-    cat > /etc/ssh/sshd_config_rescue << EOF
+# Create /run/sshd if it doesn't exist (needed on WSL)
+if [[ ! -d /run/sshd ]]; then
+    sudo mkdir -p /run/sshd
+    sudo chmod 755 /run/sshd
+    log_success "Created /run/sshd directory"
+fi
+
+# Check if rescue SSH server is already running
+if pgrep -f "sshd.*rescue" > /dev/null; then
+    log_success "Rescue SSH server already running on port 2222"
+else
+    # On WSL, we need to start sshd differently
+    if [[ "$PLATFORM" == "wsl" ]]; then
+        log_info "WSL detected - starting rescue SSH server with platform-specific settings..."
+        # Use absolute path to sshd and ensure it uses the correct config
+        cat > /etc/ssh/sshd_config_rescue << EOF
+Port 2222
+PasswordAuthentication yes
+PermitRootLogin yes
+PubkeyAuthentication yes
+LogLevel INFO
+UsePAM no
+EOF
+        # On WSL, we need to use the full path and background it
+        /usr/sbin/sshd -f /etc/ssh/sshd_config_rescue -D &
+        sleep 2
+        if pgrep -f "sshd.*rescue" > /dev/null; then
+            log_success "Rescue SSH server started on port 2222 (password auth allowed)"
+        else
+            log_warning "Failed to start rescue SSH server on WSL. You may need to start it manually."
+            log_info "To start manually: sudo /usr/sbin/sshd -f /etc/ssh/sshd_config_rescue"
+        fi
+    else
+        cat > /etc/ssh/sshd_config_rescue << EOF
 Port 2222
 PasswordAuthentication yes
 PermitRootLogin yes
 PubkeyAuthentication yes
 LogLevel INFO
 EOF
-    /usr/sbin/sshd -f /etc/ssh/sshd_config_rescue
-    log_success "Rescue SSH server started on port 2222 (password auth allowed)"
-else
-    log_success "Rescue SSH server already running on port 2222"
+        /usr/sbin/sshd -f /etc/ssh/sshd_config_rescue
+        log_success "Rescue SSH server started on port 2222 (password auth allowed)"
+    fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -579,7 +608,7 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Setting up WireGuard admin VPN server..."
 
-# Detect the primary network interface (fix: auto-detect instead of hardcoding eth0)
+# Detect the primary network interface
 PRIMARY_IFACE=$(ip route | grep default | awk '{print $5}' | head -1)
 if [[ -z "$PRIMARY_IFACE" ]]; then
     PRIMARY_IFACE="eth0"  # fallback
@@ -593,8 +622,10 @@ if [[ ! -f "$WG_ADMIN_DIR/privatekey" ]]; then
     wg genkey | tee "$WG_ADMIN_DIR/privatekey" | wg pubkey > "$WG_ADMIN_DIR/publickey"
 fi
 
-# Create server configuration with iptables rules (using detected interface)
-cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
+# Check if WireGuard kernel module is available
+if modprobe wireguard 2>/dev/null; then
+    # Module loaded successfully, use kernel WireGuard
+    cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
 [Interface]
 Address = 10.10.10.1/24
 ListenPort = 51821
@@ -609,25 +640,54 @@ PostUp = iptables -I FORWARD -i wg0 -d 10.0.0.0/16 -j DROP
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o $PRIMARY_IFACE -j MASQUERADE
 PostDown = iptables -D FORWARD -i wg0 -d 10.0.0.0/16 -j DROP 2>/dev/null || true
 EOF
-
-# Check if WireGuard kernel module is available
-if modprobe wireguard 2>/dev/null; then
-    # Module loaded successfully, start the service
     systemctl enable wg-quick@admin-wg0 2>/dev/null || true
     systemctl start wg-quick@admin-wg0 2>/dev/null || true
     log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0/24)"
 else
-    log_warning "WireGuard kernel module not available. Skipping VPN server start."
-    log_info "Configuration and keys are still available at $WG_ADMIN_DIR"
+    log_warning "WireGuard kernel module not available."
+    
     if [[ "$PLATFORM" == "wsl" ]]; then
         log_info "On WSL, the WireGuard kernel module is not supported by default."
-        log_info "You can still use the generated keys to set up WireGuard on a native Linux node,"
-        log_info "or use a Windows WireGuard client with the generated configuration."
+        log_info "Installing wireguard-go (userspace WireGuard) as an alternative..."
+        
+        # Install wireguard-go if not already installed
+        if ! command -v wireguard-go &>/dev/null; then
+            # Download wireguard-go from GitHub releases
+            WG_GO_VERSION="0.0.20230223"
+            WG_GO_URL="https://github.com/WireGuard/wireguard-go/releases/download/v${WG_GO_VERSION}/wireguard-go-linux-amd64"
+            sudo curl -L -o /usr/local/bin/wireguard-go "$WG_GO_URL"
+            sudo chmod +x /usr/local/bin/wireguard-go
+            log_success "wireguard-go installed"
+        fi
+        
+        # Create configuration for userspace WireGuard
+        cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
+[Interface]
+Address = 10.10.10.1/24
+ListenPort = 51821
+PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
+SaveConfig = false
+EOF
+        
+        # Start wireguard-go in the background
+        sudo wireguard-go wg0 &
+        sleep 2
+        # Apply the configuration
+        wg setconf wg0 "$WG_ADMIN_DIR/wg0.conf"
+        # Add IP address
+        sudo ip addr add 10.10.10.1/24 dev wg0
+        sudo ip link set wg0 up
+        
+        log_success "WireGuard admin VPN started with userspace implementation (wireguard-go)"
+        log_info "Note: wireguard-go is slower than kernel WireGuard. For production, consider using a native Linux kernel."
+    else
+        log_warning "WireGuard kernel module not available on this system. Skipping VPN server start."
+        log_info "Configuration and keys are still available at $WG_ADMIN_DIR"
     fi
 fi
 
 # -----------------------------------------------------------------------------
-# Copy WireGuard client management script to /usr/local/bin
+# 11. Copy WireGuard client management script to /usr/local/bin
 # -----------------------------------------------------------------------------
 if [[ -f "$SCRIPT_DIR/wireguard-manager.sh" ]]; then
     cp "$SCRIPT_DIR/wireguard-manager.sh" /usr/local/bin/
@@ -638,7 +698,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 11. SSH hardening (with self-test to prevent lockout)
+# 12. SSH hardening (with self-test to prevent lockout)
 # -----------------------------------------------------------------------------
 log_step "Hardening SSH configuration (main port 22)..."
 
@@ -677,7 +737,7 @@ fi
 systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
-# 12. Self-test: Verify SSH accessibility
+# 13. Self-test: Verify SSH accessibility
 # -----------------------------------------------------------------------------
 log_step "Verifying SSH access (to prevent lockout)..."
 
@@ -704,7 +764,7 @@ fi
 log_success "SSH hardening complete – both main and rescue ports are accessible"
 
 # -----------------------------------------------------------------------------
-# 13. Install fail2ban
+# 14. Install fail2ban
 # -----------------------------------------------------------------------------
 log_step "Installing fail2ban..."
 if command -v fail2ban-client &>/dev/null; then
@@ -721,7 +781,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 14. Install dos2unix and jq
+# 15. Install dos2unix and jq
 # -----------------------------------------------------------------------------
 log_step "Installing dos2unix and jq..."
 if command -v dos2unix &>/dev/null && command -v jq &>/dev/null; then
@@ -737,14 +797,14 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 15. Install bcrypt for Prometheus password hashing (now handled in phase-deploy.sh)
+# 16. Install bcrypt for Prometheus password hashing (now handled in phase-deploy.sh)
 # -----------------------------------------------------------------------------
 # This step is moved to phase-deploy.sh to ensure it uses the venv.
 # Keeping a placeholder to avoid confusion.
 log_info "bcrypt will be installed in the virtual environment during Phase 2."
 
 # -----------------------------------------------------------------------------
-# 16. Configure system limits
+# 17. Configure system limits
 # -----------------------------------------------------------------------------
 log_step "Configuring system limits..."
 LIMITS_FILE="/etc/security/limits.conf"
@@ -763,7 +823,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 17. Check gVisor installation
+# 18. Check gVisor installation
 # -----------------------------------------------------------------------------
 log_step "Checking gVisor installation..."
 if command -v runsc &>/dev/null; then
@@ -773,7 +833,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# WireGuard client configuration reminder
+# 19. WireGuard client configuration reminder
 # -----------------------------------------------------------------------------
 echo ""
 echo "============================================================"
@@ -787,7 +847,7 @@ echo "This will create a client config in /root/wireguard-clients/"
 echo "============================================================"
 
 # -----------------------------------------------------------------------------
-# Mark phase complete
+# 20. Mark phase complete
 # -----------------------------------------------------------------------------
 mark_phase_complete 0
 log_success "Phase 0 completed – system is prepared and hardened"
