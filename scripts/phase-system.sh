@@ -536,6 +536,14 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Setting up rescue SSH port (2222)..."
 
+# Ensure OpenSSH server is installed
+if ! command -v sshd &>/dev/null; then
+    log_info "OpenSSH server not found. Installing..."
+    sudo apt-get update -qq
+    sudo apt-get install -y openssh-server
+    log_success "OpenSSH server installed"
+fi
+
 if ! pgrep -f "sshd.*rescue" > /dev/null; then
     cat > /etc/ssh/sshd_config_rescue << EOF
 Port 2222
@@ -602,9 +610,21 @@ PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING 
 PostDown = iptables -D FORWARD -i wg0 -d 10.0.0.0/16 -j DROP 2>/dev/null || true
 EOF
 
-systemctl enable wg-quick@admin-wg0 2>/dev/null || true
-systemctl start wg-quick@admin-wg0 2>/dev/null || true
-log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0/24)"
+# Check if WireGuard kernel module is available
+if modprobe wireguard 2>/dev/null; then
+    # Module loaded successfully, start the service
+    systemctl enable wg-quick@admin-wg0 2>/dev/null || true
+    systemctl start wg-quick@admin-wg0 2>/dev/null || true
+    log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0/24)"
+else
+    log_warning "WireGuard kernel module not available. Skipping VPN server start."
+    log_info "Configuration and keys are still available at $WG_ADMIN_DIR"
+    if [[ "$PLATFORM" == "wsl" ]]; then
+        log_info "On WSL, the WireGuard kernel module is not supported by default."
+        log_info "You can still use the generated keys to set up WireGuard on a native Linux node,"
+        log_info "or use a Windows WireGuard client with the generated configuration."
+    fi
+fi
 
 # -----------------------------------------------------------------------------
 # Copy WireGuard client management script to /usr/local/bin
