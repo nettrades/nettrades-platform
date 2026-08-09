@@ -19,7 +19,11 @@
 #
 #
 # requirements.in → requirements-lock.txt → Used for production installation (pinned versions)
+# pip-compile requirements.in -o requirements-lock.txt
+#
 # requirements-dev.txt → Used for development (loose versions)
+# pip-compile requirements-dev.in -o requirements-dev-lock.txt
+#
 # src/core/requirements.txt → Used by Docker build (LangGraph container)    
 #
 # =============================================================================
