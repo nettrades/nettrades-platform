@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_wireguard_peer_tree" model="ir.ui.view">
+        <field name="name">wireguard.peer.tree</field>
+        <field name="model">wireguard.peer</field>
+        <field name="arch" type="xml">
+            <tree string="WireGuard Peers">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="assigned_ip"/>
+                <field name="status" widget="badge"/>
+                <field name="is_online" widget="boolean"/>
+                <field name="last_handshake"/>
+                <field name="created_at"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_wireguard_peer_form" model="ir.ui.view">
+        <field name="name">wireguard.peer.form</field>
+        <field name="model">wireguard.peer</field>
+        <field name="arch" type="xml">
+            <form string="WireGuard Peer">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                            <field name="status" widget="badge"/>
+                            <field name="is_online" widget="boolean"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="partner_id"/>
+                        <field name="assigned_ip"/>
+                        <field name="public_key"/>
+                        <field name="last_handshake"/>
+                        <field name="transfer_rx"/>
+                        <field name="transfer_tx"/>
+                    </group>
+                    <group string="Client Configuration">
+                        <field name="config_file" nolabel="1"/>
+                    </group>
+                    <div class="oe_button_box">
+                        <button name="action_refresh_status" string="Refresh Status" type="object" class="btn-secondary"/>
+                        <button name="revoke" string="Revoke" type="object" class="btn-danger" confirm="Are you sure you want to revoke this peer?"/>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_wireguard_peers" model="ir.actions.act_window">
+        <field name="name">WireGuard Peers</field>
+        <field name="res_model">wireguard.peer</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>

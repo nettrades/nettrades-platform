@@ -35,6 +35,10 @@
                     <span class="nav-icon">⚙️</span>
                     <span class="nav-label">Settings</span>
                 </li>
+                <li class="nav-item" data-tab="vpn">
+				    <span class="nav-icon">🔒</span>
+				    <span class="nav-label">VPN</span>
+                </li>
             </ul>
             <div class="nav-footer">
                 <span id="version">v1.0.0</span>
@@ -261,6 +265,38 @@
                     <p>Built with Electron and ❤️</p>
                     <p><a href="#" id="settings-github-link">GitHub Repository</a></p>
                 </div>
+            </section>
+            <!-- VPN Management Tab -->
+			<section id="tab-vpn" class="tab-content">
+			    <div class="tab-header">
+			        <h2>🔒 VPN Management</h2>
+			        <span id="vpn-status-badge" class="status-badge status-unknown">⏳ Checking...</span>
+			    </div>
+
+			    <div class="vpn-grid">
+			        <div class="vpn-card">
+			            <h3>Add Admin</h3>
+			            <p>Create a new VPN user for secure SSH access.</p>
+			            <div class="form-group">
+			                <input type="text" id="vpn-new-name" placeholder="Name (e.g., alice-laptop)" class="vpn-input">
+			                <input type="text" id="vpn-new-partner" placeholder="Partner ID (Odoo user ID)" class="vpn-input">
+			            </div>
+			            <button id="btn-vpn-create" class="btn btn-primary">➕ Add Admin</button>
+			            <div id="vpn-create-result" style="display:none;margin-top:1rem;">
+			                <p>✅ Peer created!</p>
+			                <p><strong>IP:</strong> <span id="vpn-new-ip"></span></p>
+			                <p><strong>Config:</strong> <a href="#" id="vpn-new-config-link">Download .conf</a></p>
+			                <div id="vpn-new-qr"></div>
+			            </div>
+			        </div>
+			    </div>
+
+			    <div class="vpn-list">
+			        <h3>📋 Connected Admins</h3>
+			        <div id="vpn-list-container">
+			            <p class="vpn-empty">Loading users...</p>
+			        </div>
+			    </div>
             </section>
         </main>
     </div>

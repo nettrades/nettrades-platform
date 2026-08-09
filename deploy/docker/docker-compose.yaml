@@ -659,3 +659,34 @@ services:
       options:
         max-size: 10m
         max-file: 3
+
+  # =============================================================================
+  # WireGuard Admin VPN Server
+  # =============================================================================
+  # The WireGuard server provides secure VPN access for administrators.
+  # It uses the same configuration as the existing setup scripts.
+  # =============================================================================
+  wireguard:
+    image: linuxserver/wireguard
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - SERVERURL=${DOMAIN}
+      - SERVERPORT=51821
+      - PEERS=1
+      - PEERDNS=8.8.8.8
+      - INTERNAL_SUBNET=10.10.10.0/24
+    volumes:
+      - /etc/wireguard:/config
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "51821:51821/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    restart: unless-stopped

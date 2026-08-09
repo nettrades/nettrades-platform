@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Only administrators can manage WireGuard peers -->
+    <record id="wireguard_peer_rule_admin" model="ir.rule">
+        <field name="name">WireGuard: Admin Access</field>
+        <field name="model_id" ref="model_wireguard_peer"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+        <field name="domain_force">[]</field>
+    </record>
+</odoo>

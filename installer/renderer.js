@@ -623,3 +623,114 @@ async function init() {
 }
 
 init();
+
+// =============================================================================
+// VPN Management
+// =============================================================================
+
+async function loadVPNUsers() {
+    const container = document.getElementById('vpn-list-container');
+    try {
+        const response = await fetch('/api/wireguard/users', {
+            headers: { 'X-API-Key': localStorage.getItem('apiKey') || '' }
+        });
+        if (!response.ok) throw new Error('Failed to fetch VPN users');
+        const data = await response.json();
+
+        if (data.users.length === 0) {
+            container.innerHTML = '<p class="vpn-empty">No VPN users found. Add your first admin above.</p>';
+            return;
+        }
+
+        container.innerHTML = data.users.map(user => `
+            <div class="vpn-item">
+                <div class="vpn-item-info">
+                    <span class="vpn-item-name">${user.name}</span>
+                    <span class="vpn-item-ip">${user.assigned_ip}</span>
+                    <span class="vpn-item-status ${user.is_online ? 'online' : 'offline'}">
+                        ${user.is_online ? '🟢 Online' : '🔴 Offline'}
+                    </span>
+                </div>
+                <div class="vpn-item-actions">
+                    <a href="/api/wireguard/users/${user.id}/config" class="btn btn-secondary">📄 Config</a>
+                    <button class="btn btn-danger" onclick="revokeVPNUser(${user.id})">🗑️ Revoke</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        container.innerHTML = `<p class="vpn-empty">Error loading VPN users: ${err.message}</p>`;
+    }
+}
+
+async function createVPNUser() {
+    const nameInput = document.getElementById('vpn-new-name');
+    const partnerInput = document.getElementById('vpn-new-partner');
+    const name = nameInput.value.trim();
+    const partner_id = parseInt(partnerInput.value.trim());
+
+    if (!name || !partner_id) {
+        alert('Please enter a name and partner ID.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/wireguard/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': localStorage.getItem('apiKey') || ''
+            },
+            body: JSON.stringify({ name, partner_id })
+        });
+
+        if (!response.ok) throw new Error('Failed to create VPN user');
+        const data = await response.json();
+
+        // Show result
+        document.getElementById('vpn-create-result').style.display = 'block';
+        document.getElementById('vpn-new-ip').textContent = data.assigned_ip;
+        document.getElementById('vpn-new-config-link').href = `/api/wireguard/users/${data.id}/config`;
+
+        // Show QR code
+        const qrContainer = document.getElementById('vpn-new-qr');
+        if (data.qr_code) {
+            qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code" style="max-width:200px;">`;
+        } else {
+            qrContainer.innerHTML = '<p>QR code not available.</p>';
+        }
+
+        // Refresh the list
+        loadVPNUsers();
+
+        // Clear inputs
+        nameInput.value = '';
+        partnerInput.value = '';
+
+    } catch (err) {
+        alert(`Error creating VPN user: ${err.message}`);
+    }
+}
+
+async function revokeVPNUser(userId) {
+    if (!confirm('Are you sure you want to revoke this user?')) return;
+
+    try {
+        const response = await fetch(`/api/wireguard/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'X-API-Key': localStorage.getItem('apiKey') || '' }
+        });
+
+        if (!response.ok) throw new Error('Failed to revoke user');
+        loadVPNUsers();
+    } catch (err) {
+        alert(`Error revoking user: ${err.message}`);
+    }
+}
+
+// Event listeners
+document.getElementById('btn-vpn-create').addEventListener('click', createVPNUser);
+
+// Load VPN users when the tab is switched
+document.querySelector('.nav-item[data-tab="vpn"]').addEventListener('click', () => {
+    loadVPNUsers();
+});

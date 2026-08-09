@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_wireguard_root" name="WireGuard" sequence="50"/>
+    <menuitem id="menu_wireguard_peers" parent="menu_wireguard_root" name="Peers" action="action_wireguard_peers" sequence="10"/>
+</odoo>

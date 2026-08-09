@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_wireguard_peer_admin,wireguard.peer.admin,model_wireguard_peer,base.group_system,1,1,1,1
+access_wireguard_peer_user,wireguard.peer.user,model_wireguard_peer,base.group_user,1,0,0,0
