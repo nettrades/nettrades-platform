@@ -98,7 +98,7 @@ async def invoke(
         # Record the intent for metrics
         intent = result.get("intent", "unknown")
         record_metrics(intent)
-        logger.info(f"Request completed with intent: {intent})
+        logger.info(f"Request completed with intent: {intent}")
 
         return result
     except Exception as e:

@@ -246,9 +246,6 @@ services:
   # It uses the Dynamo API for inference, but remains separate from the core
   # inference routing so that customer agents don't break the distributed system.
   #
-  # CopilotKit Integration: The /copilotkit endpoint exposes the AG-UI protocol
-  # for the CopilotKit frontend, enabling generative UI, shared state, and
-  # human-in-the-loop workflows.
   # =========================================================================
   langgraph-server:
     build:
@@ -705,3 +702,36 @@ services:
       - net.ipv4.conf.all.src_valid_mark=1
       - net.ipv4.ip_forward=1
     restart: unless-stopped
+
+# =============================================================================
+# 16. SELF-IMPROVING SERVICE - Continuous Learning & Fine-Tuning
+# =============================================================================
+self-improving:
+  build:
+    context: ../../
+    dockerfile: deploy/docker/Dockerfile.self-improving
+  container_name: self-improving
+  restart: unless-stopped
+  networks:
+    - internal
+  environment:
+    - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
+    - ODOO_URL=${ODOO_URL:-http://odoo:8069}
+    - ODOO_API_KEY=${ODOO_API_KEY}
+    - THRESHOLD_EPISODES=50
+    - THRESHOLD_QUALITY=7.0
+    - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-1.5b}
+    - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
+  volumes:
+    - ./dynamo-data/models:/models
+    - ./training-data:/training-data
+  depends_on:
+    postgres:
+      condition: service_healthy
+    odoo:
+      condition: service_started
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: 3

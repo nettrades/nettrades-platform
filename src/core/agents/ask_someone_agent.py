@@ -12,24 +12,31 @@
 #
 # KEY FEATURES:
 #   - Classifies questions by category and urgency
+#   - Two-track system: regulated (medical/legal) vs community
 #   - Finds matching experts based on expertise and availability
+#   - Verifies expert qualifications for regulated questions
 #   - Routes questions to experts and tracks responses
 #   - Handles expert ratings and feedback
+#   - Full audit trail for compliance
+#   - Idempotency protection
 #
 # INTEGRATION:
 #   - Uses odoo_tools.py to interact with Odoo's nettrades_ask_someone models
 #   - Reports back to the supervisor with the expert's answer
 #
-# UPDATES (2026-08-04):
-#   - Updated model names to match actual Odoo models:
-#       * expert.session (was nettrades_ask_someone.request)
-#       * qualified_professional (was nettrades_ask_someone.expert)
+# UPDATES (2026-08):
+#   - Added two-track system (regulated/community)
+#   - Added verify_expert_qualification node
+#   - Added audit_trail node
+#   - Added idempotency protection
+#   - Added review workflow for regulated answers
 # =============================================================================
 
 import json
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
+import uuid
 
 from langgraph.graph import StateGraph, END, START
 from langchain_openai import ChatOpenAI
@@ -48,33 +55,37 @@ _logger = logging.getLogger(__name__)
 
 
 class AskSomeoneState(dict):
-    """
-    State carried through the Ask Someone workflow.
+    """State carried through the Ask Someone workflow.
 
     Keys:
         - question: The user's question
         - category: The category of the question (technical, business, legal, etc.)
         - urgency: The urgency level (low, medium, high, critical)
+        - track: The track (regulated or community)
         - experts: List of matching experts from Odoo
         - selected_expert: The expert who was selected to answer
         - request_id: The Odoo ID of the ask_someone request
         - answer: The expert's answer
         - rating: The user's rating of the answer
         - feedback: Additional feedback from the user
+        - idempotency_key: Unique key to prevent duplicate requests
     """
     pass
 
 
 def create_ask_someone_agent() -> StateGraph:
-    """
-    Build and return a compiled Ask Someone sub-graph.
+    """Build and return a compiled Ask Someone sub-graph.
 
-    The workflow consists of five nodes:
+    The workflow consists of eight nodes:
     1. classify_question - Determine category, urgency, and required expertise
-    2. find_experts - Find matching experts in Odoo
-    3. route_to_expert - Create a request and route to the best expert
-    4. collect_answer - Collect the expert's answer (via Odoo or callback)
-    5. record_feedback - Record user rating and feedback
+    2. determine_track - Determine if this is regulated or community
+    3. find_experts - Find matching experts in Odoo
+    4. verify_expert_qualification - Verify expert qualifications (regulated only)
+    5. route_to_expert - Create a request and route to the best expert
+    6. collect_answer - Collect the expert's answer (via Odoo or callback)
+    7. review_answer - Review the answer (regulated only)
+    8. record_feedback - Record user rating and feedback
+    9. audit_trail - Record audit trail for compliance
 
     Returns:
         StateGraph: Compiled LangGraph workflow
@@ -94,14 +105,10 @@ def create_ask_someone_agent() -> StateGraph:
     # =========================================================================
     # NODE 1: Classify Question
     # =========================================================================
-
     async def classify_question(state: AskSomeoneState) -> AskSomeoneState:
-        """
-        Classify the user's question to determine category and urgency.
-        """
+        """Classify the user's question to determine category and urgency."""
         messages = state.get("messages", [])
         user_msg = messages[-1].get("content", "") if messages else ""
-
         _logger.info(f"Classifying Ask Someone question: {user_msg[:100]}...")
 
         prompt = f"""
@@ -109,211 +116,427 @@ def create_ask_someone_agent() -> StateGraph:
 
         Question: {user_msg}
 
-        Categories: technical, business, legal, financial, medical, education, general
-        Urgency: low, medium, high, critical
+        Categories: technical, business, legal, medical, financial, educational, creative, other
 
-        Respond with JSON:
-        {{
-            "category": "category_name",
-            "urgency": "urgency_level",
-            "expertise_required": ["skill1", "skill2"],
-            "estimated_time": "estimated_time_in_minutes"
-        }}
+        Urgency levels: low, normal, high, critical
+
+        Return a JSON object with:
+        - category: the best matching category
+        - urgency: the urgency level
+        - required_expertise: a brief description of the expertise needed
+        - is_regulated: true if this falls under medical, legal, or financial regulation
         """
-
         try:
-            response = await llm.ainvoke(prompt)
-            classification = json.loads(response.content)
-            state["question"] = user_msg
-            state["category"] = classification.get("category", "general")
-            state["urgency"] = classification.get("urgency", "medium")
-            state["expertise_required"] = classification.get("expertise_required", [])
-            _logger.info(f"Question classified as: {state['category']} (urgency: {state['urgency']})")
+            response = await llm.apredict(prompt)
+            classification = json.loads(response)
+            state["category"] = classification.get("category", "other")
+            state["urgency"] = classification.get("urgency", "normal")
+            state["required_expertise"] = classification.get("required_expertise", "")
+            state["is_regulated"] = classification.get("is_regulated", False)
+            _logger.info(f"Classification: {state['category']}, urgency: {state['urgency']}, regulated: {state['is_regulated']}")
         except Exception as e:
-            _logger.error(f"Question classification failed: {e}")
-            state["category"] = "general"
-            state["urgency"] = "medium"
-            state["expertise_required"] = []
-
+            _logger.error(f"Failed to classify question: {e}")
+            state["category"] = "other"
+            state["urgency"] = "normal"
+            state["is_regulated"] = False
+            state["required_expertise"] = "General expertise"
         return state
 
     # =========================================================================
-    # NODE 2: Find Experts
+    # NODE 2: Determine Track
     # =========================================================================
+    async def determine_track(state: AskSomeoneState) -> AskSomeoneState:
+        """Determine if this request should use the regulated or community track."""
+        is_regulated = state.get("is_regulated", False)
+        category = state.get("category", "")
 
+        # Categories that always require regulated track
+        regulated_categories = ["medical", "legal", "financial"]
+
+        if category in regulated_categories or is_regulated:
+            state["track"] = "regulated"
+            _logger.info("Using regulated track for question")
+        else:
+            state["track"] = "community"
+            _logger.info("Using community track for question")
+
+        # Generate idempotency key
+        state["idempotency_key"] = str(uuid.uuid4())
+        return state
+
+    # =========================================================================
+    # NODE 3: Find Experts
+    # =========================================================================
     async def find_experts(state: AskSomeoneState) -> AskSomeoneState:
-        """
-        Find matching experts in Odoo based on category and required expertise.
-        """
-        field_id = state.get("field_id")
-        expertise_required = state.get("expertise_required", [])
+        """Find matching experts in Odoo based on category and track."""
+        category = state.get("category", "")
+        track = state.get("track", "community")
+        _logger.info(f"Finding experts for category: {category}, track: {track}")
 
-        _logger.info(f"Searching for experts with field_id: {field_id}")
+        # Build domain based on track
+        domain = [
+            ("field_id.name", "ilike", category),
+            ("is_available", "=", True),
+        ]
+
+        if track == "regulated":
+            domain.append(("verification_status", "=", "verified"))
+            domain.append(("licence_expiry", ">=", datetime.now().date().isoformat()))
+        else:
+            # Community track: find experts with high community rank
+            domain.append(("community_rank", ">", 10))
 
         try:
-            # Use the updated ask_someone_get_experts helper
-            experts = await ask_someone_get_experts(field_id=field_id)
-
+            experts = await odoo_search(
+                model="qualified_professional",
+                domain=domain,
+                fields=[
+                    "id", "partner_id", "field_id", "verification_status",
+                    "community_rank", "reputation_score", "is_available",
+                    "expertise_areas", "licence_number", "registration_body",
+                ],
+                limit=20,
+                order="reputation_score DESC" if track == "regulated" else "community_rank DESC",
+            )
             state["experts"] = experts
-            _logger.info(f"Found {len(experts)} matching experts")
+            _logger.info(f"Found {len(experts)} experts")
         except Exception as e:
-            _logger.error(f"Expert search failed: {e}")
+            _logger.error(f"Failed to find experts: {e}")
             state["experts"] = []
-
         return state
 
     # =========================================================================
-    # NODE 3: Route to Expert
+    # NODE 4: Verify Expert Qualification (Regulated Only)
     # =========================================================================
+    async def verify_expert_qualification(state: AskSomeoneState) -> AskSomeoneState:
+        """Verify that the selected expert meets qualification requirements."""
+        track = state.get("track", "community")
 
-    async def route_to_expert(state: AskSomeoneState) -> AskSomeoneState:
-        """
-        Create a request in Odoo and route it to the best matching expert.
-        """
-        question = state.get("question", "")
-        field_id = state.get("field_id")
-        urgency = state.get("urgency", "medium")
+        # Only verify for regulated track
+        if track != "regulated":
+            state["qualification_status"] = "not_required"
+            return state
+
         experts = state.get("experts", [])
-        requester_id = state.get("requester_id") or 1  # Default to admin if not provided
-
-        if not field_id:
-            _logger.warning("No field_id provided for routing")
-            state["error"] = "No professional field selected"
-            return state
-
         if not experts:
-            _logger.warning("No experts found for routing")
-            state["error"] = "No matching experts available"
+            state["qualification_status"] = "no_experts_found"
+            state["error"] = "No verified experts available for this regulated question"
             return state
 
-        # Select the best expert (highest rating, or first if no rating)
-        best_expert = max(experts, key=lambda e: e.get("reputation_score", 0)) if experts else experts[0]
-        state["selected_expert"] = best_expert
+        selected = experts[0] if experts else {}
+        state["selected_expert"] = selected
 
-        _logger.info(f"Routing to expert: {best_expert.get('partner_id', 'Unknown')}")
+        # Check verification status
+        if selected.get("verification_status") != "verified":
+            state["qualification_status"] = "verification_failed"
+            state["error"] = "Selected expert is not verified"
+            return state
+
+        # Check licence expiry
+        # licence_expiry is stored as string in Odoo
+        licence_expiry = selected.get("licence_expiry")
+        if licence_expiry:
+            try:
+                expiry_date = datetime.strptime(licence_expiry, "%Y-%m-%d").date()
+                if expiry_date < datetime.now().date():
+                    state["qualification_status"] = "licence_expired"
+                    state["error"] = "Expert licence has expired"
+                    return state
+            except (ValueError, TypeError):
+                _logger.warning(f"Could not parse licence expiry: {licence_expiry}")
+
+        state["qualification_status"] = "verified"
+        _logger.info(f"Expert verified: {selected.get('id')}")
+        return state
+
+    # =========================================================================
+    # NODE 5: Route to Expert
+    # =========================================================================
+    async def route_to_expert(state: AskSomeoneState) -> AskSomeoneState:
+        """Create a request and route to the best expert."""
+        selected = state.get("selected_expert", {})
+        if not selected:
+            # Try to find the best expert from the list
+            experts = state.get("experts", [])
+            if experts:
+                selected = experts[0]
+                state["selected_expert"] = selected
+            else:
+                state["error"] = "No expert available"
+                state["status"] = "failed"
+                return state
+
+        expert_id = selected.get("id")
+        requester_id = state.get("user_id")
+        question = state.get("question", "")
+        category = state.get("category", "")
+        urgency = state.get("urgency", "normal")
+        track = state.get("track", "community")
+        idempotency_key = state.get("idempotency_key")
+
+        _logger.info(f"Routing to expert {expert_id} for question: {question[:50]}...")
 
         try:
-            # Use the updated ask_someone_create_request helper
-            request_id = await ask_someone_create_request(
-                question=question,
-                field_id=field_id,
-                requester_id=requester_id,
-                urgency=urgency,
-                expert_id=best_expert.get("id"),
-            )
-
-            state["request_id"] = request_id
-            _logger.info(f"Ask Someone request created with ID: {request_id}")
-
-            # Notify the expert (via Odoo's notification system)
-            await odoo_call_method(
+            # Check for existing request with same idempotency key
+            existing = await odoo_search(
                 model="expert.session",
-                method="notify_expert",
-                args=[request_id],
+                domain=[("idempotency_key", "=", idempotency_key)],
+                fields=["id"],
             )
+            if existing:
+                state["request_id"] = existing[0]["id"]
+                _logger.info(f"Found existing request with idempotency key: {idempotency_key}")
+                return state
 
-            state["analysis"] = (
-                f"Your question has been routed to an expert. "
-                f"You will receive a response shortly."
-            )
+            # Create the expert session
+            values = {
+                "requester_id": requester_id,
+                "field_id": category,  # Will be resolved by Odoo
+                "task_summary": question,
+                "urgency": urgency,
+                "track": track,
+                "status": "assigned",
+                "expert_id": expert_id,
+                "assigned_at": datetime.now().isoformat(),
+                "idempotency_key": idempotency_key,
+                "data_classification": "restricted" if track == "regulated" else "confidential",
+                "consent_given": state.get("consent_given", False),
+                "consent_given_at": datetime.now().isoformat() if state.get("consent_given") else None,
+            }
+
+            request_id = await odoo_create("expert.session", values)
+            state["request_id"] = request_id
+            _logger.info(f"Created expert session with ID: {request_id}")
+
+            # Log audit
+            await odoo_create("expert.session.audit", {
+                "session_id": request_id,
+                "action": "route_to_expert",
+                "user_id": requester_id,
+                "details": json.dumps({"expert_id": expert_id, "track": track}),
+                "timestamp": datetime.now().isoformat(),
+            })
+
         except Exception as e:
-            _logger.error(f"Expert routing failed: {e}")
-            state["error"] = f"Failed to route to expert: {str(e)}"
+            _logger.error(f"Failed to route to expert: {e}")
+            state["error"] = str(e)
+            state["status"] = "failed"
 
         return state
 
     # =========================================================================
-    # NODE 4: Collect Answer
+    # NODE 6: Collect Answer
     # =========================================================================
-
     async def collect_answer(state: AskSomeoneState) -> AskSomeoneState:
-        """
-        Collect the expert's answer from Odoo or via callback.
-        """
+        """Collect the expert's answer."""
         request_id = state.get("request_id")
         if not request_id:
-            _logger.warning("No request ID available for collecting answer")
+            state["error"] = "No request ID available"
             return state
 
         _logger.info(f"Collecting answer for request: {request_id}")
 
         try:
-            # Get the request from Odoo using the correct model
-            request = await odoo_search(
+            # Query Odoo for the answer
+            sessions = await odoo_search(
                 model="expert.session",
                 domain=[("id", "=", request_id)],
-                fields=["id", "task_summary", "status", "expert_id"],
-                limit=1,
+                fields=["id", "answer", "answered_at", "status"],
             )
 
-            if request and request[0].get("task_summary"):
-                state["answer"] = request[0]["task_summary"]
-                state["analysis"] = request[0]["task_summary"]
-                _logger.info("Answer collected successfully")
+            if sessions and sessions[0].get("answer"):
+                state["answer"] = sessions[0]["answer"]
+                state["status"] = "answered"
+                _logger.info(f"Answer collected for request: {request_id}")
             else:
-                # If no answer yet, check if we should wait or return a status
-                status = request[0].get("status", "pending") if request else "unknown"
-                state["analysis"] = (
-                    f"Your question is still being processed (status: {status}). "
-                    f"You will be notified when an expert responds."
-                )
-                _logger.info(f"Request status: {status}")
+                # Not answered yet - could implement polling or callback
+                state["status"] = "waiting_for_answer"
+                _logger.info(f"Waiting for answer on request: {request_id}")
+
         except Exception as e:
-            _logger.error(f"Answer collection failed: {e}")
-            state["analysis"] = "There was an error retrieving the expert's answer."
+            _logger.error(f"Failed to collect answer: {e}")
+            state["error"] = str(e)
 
         return state
 
     # =========================================================================
-    # NODE 5: Record Feedback
+    # NODE 7: Review Answer (Regulated Only)
     # =========================================================================
+    async def review_answer(state: AskSomeoneState) -> AskSomeoneState:
+        """Review the answer for regulated track."""
+        track = state.get("track", "community")
+        if track != "regulated":
+            state["review_status"] = "not_required"
+            return state
 
-    async def record_feedback(state: AskSomeoneState) -> AskSomeoneState:
-        """
-        Record user rating and feedback for the expert.
-        """
         request_id = state.get("request_id")
-        rating = state.get("rating")
-        feedback = state.get("feedback", "")
+        if not request_id:
+            return state
 
-        if not request_id or not rating:
-            _logger.info("No rating provided, skipping feedback recording")
+        _logger.info(f"Reviewing answer for request: {request_id}")
+
+        try:
+            # In a production system, this would trigger a human review workflow
+            # For now, we use AI to check the answer quality
+            answer = state.get("answer", "")
+            if not answer:
+                return state
+
+            prompt = f"""
+            Review this answer for quality, accuracy, and safety.
+            This is a REGULATED question (medical/legal/financial).
+
+            Answer: {answer[:500]}...
+
+            Return a JSON object with:
+            - is_approved: true/false
+            - confidence: 0-10
+            - issues: list of issues found
+            - suggestions: suggested improvements
+            """
+            try:
+                response = await llm.apredict(prompt)
+                review = json.loads(response)
+                is_approved = review.get("is_approved", False)
+
+                # Update the session
+                await odoo_write(
+                    model="expert.session",
+                    ids=[request_id],
+                    values={
+                        "reviewed_at": datetime.now().isoformat(),
+                        "is_approved": is_approved,
+                        "review_notes": json.dumps(review),
+                        "status": "reviewed" if is_approved else "answered",
+                    }
+                )
+                state["review_status"] = "approved" if is_approved else "needs_improvement"
+
+                # Log audit
+                await odoo_create("expert.session.audit", {
+                    "session_id": request_id,
+                    "action": "review_answer",
+                    "user_id": state.get("user_id"),
+                    "details": json.dumps(review),
+                    "timestamp": datetime.now().isoformat(),
+                })
+
+            except Exception as e:
+                _logger.error(f"Failed to review answer: {e}")
+                state["review_status"] = "failed"
+
+        except Exception as e:
+            _logger.error(f"Failed to review answer: {e}")
+
+        return state
+
+    # =========================================================================
+    # NODE 8: Record Feedback
+    # =========================================================================
+    async def record_feedback(state: AskSomeoneState) -> AskSomeoneState:
+        """Record user rating and feedback."""
+        request_id = state.get("request_id")
+        rating = state.get("rating", 0)
+        feedback = state.get("feedback", "")
+        is_good_answer = state.get("is_good_answer", False)
+
+        if not request_id:
             return state
 
         _logger.info(f"Recording feedback for request: {request_id}")
 
         try:
-            await odoo_write(
-                model="expert.session",
-                ids=[request_id],
-                values={
-                    "rating_by_requester": rating,
-                    "status": "completed",
-                },
-            )
-            _logger.info("Feedback recorded successfully")
+            values = {
+                "rating": rating,
+                "feedback": feedback,
+                "is_good_answer": is_good_answer,
+            }
+            if is_good_answer:
+                values["status"] = "closed"
+                # Increment expert's Good Answer count
+                sessions = await odoo_search(
+                    model="expert.session",
+                    domain=[("id", "=", request_id)],
+                    fields=["expert_id"],
+                )
+                if sessions and sessions[0].get("expert_id"):
+                    await odoo_call_method(
+                        model="qualified_professional",
+                        method="add_good_answer",
+                        args=[sessions[0]["expert_id"]],
+                    )
+
+            await odoo_write("expert.session", [request_id], values)
+            state["feedback_recorded"] = True
+            _logger.info(f"Feedback recorded for request: {request_id}")
+
         except Exception as e:
-            _logger.error(f"Feedback recording failed: {e}")
+            _logger.error(f"Failed to record feedback: {e}")
+            state["error"] = str(e)
 
         return state
 
     # =========================================================================
-    # BUILD THE WORKFLOW
+    # NODE 9: Audit Trail
     # =========================================================================
+    async def audit_trail(state: AskSomeoneState) -> AskSomeoneState:
+        """Record audit trail for compliance."""
+        request_id = state.get("request_id")
+        if not request_id:
+            return state
 
+        audit_entry = {
+            "session_id": request_id,
+            "action": "complete",
+            "user_id": state.get("user_id"),
+            "details": json.dumps({
+                "track": state.get("track"),
+                "category": state.get("category"),
+                "urgency": state.get("urgency"),
+                "expert_id": state.get("selected_expert", {}).get("id"),
+                "qualification_status": state.get("qualification_status"),
+                "review_status": state.get("review_status"),
+                "rating": state.get("rating"),
+                "is_good_answer": state.get("is_good_answer", False),
+            }),
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        try:
+            await odoo_create("expert.session.audit", audit_entry)
+            _logger.info(f"Audit trail recorded for request: {request_id}")
+        except Exception as e:
+            _logger.error(f"Failed to record audit trail: {e}")
+
+        return state
+
+    # =========================================================================
+    # Build the Graph
+    # =========================================================================
     workflow = StateGraph(AskSomeoneState)
 
+    # Add nodes
     workflow.add_node("classify_question", classify_question)
+    workflow.add_node("determine_track", determine_track)
     workflow.add_node("find_experts", find_experts)
+    workflow.add_node("verify_expert_qualification", verify_expert_qualification)
     workflow.add_node("route_to_expert", route_to_expert)
     workflow.add_node("collect_answer", collect_answer)
+    workflow.add_node("review_answer", review_answer)
     workflow.add_node("record_feedback", record_feedback)
+    workflow.add_node("audit_trail", audit_trail)
 
+    # Add edges
     workflow.add_edge(START, "classify_question")
-    workflow.add_edge("classify_question", "find_experts")
-    workflow.add_edge("find_experts", "route_to_expert")
+    workflow.add_edge("classify_question", "determine_track")
+    workflow.add_edge("determine_track", "find_experts")
+    workflow.add_edge("find_experts", "verify_expert_qualification")
+    workflow.add_edge("verify_expert_qualification", "route_to_expert")
     workflow.add_edge("route_to_expert", "collect_answer")
-    workflow.add_edge("collect_answer", "record_feedback")
-    workflow.add_edge("record_feedback", END)
+    workflow.add_edge("collect_answer", "review_answer")
+    workflow.add_edge("review_answer", "record_feedback")
+    workflow.add_edge("record_feedback", "audit_trail")
+    workflow.add_edge("audit_trail", END)
 
+    # Compile and return
     return workflow.compile()
