@@ -5,7 +5,7 @@
         <field name="name">wireguard.peer.tree</field>
         <field name="model">wireguard.peer</field>
         <field name="arch" type="xml">
-            <tree string="WireGuard Peers">
+            <list string="WireGuard Peers">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="assigned_ip"/>
@@ -13,7 +13,7 @@
                 <field name="is_online" widget="boolean"/>
                 <field name="last_handshake"/>
                 <field name="created_at"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -55,6 +55,6 @@
     <record id="action_wireguard_peers" model="ir.actions.act_window">
         <field name="name">WireGuard Peers</field>
         <field name="res_model">wireguard.peer</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 </odoo>

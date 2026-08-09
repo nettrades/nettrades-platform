@@ -38,14 +38,14 @@
         <field name="name">gpu.registration.token.tree</field>
         <field name="model">gpu.registration.token</field>
         <field name="arch" type="xml">
-            <tree string="GPU Registration Tokens">
+            <list string="GPU Registration Tokens">
                 <field name="name"/>
                 <field name="cluster_id"/>
                 <field name="is_used"/>
                 <field name="is_revoked"/>
                 <field name="expires_at"/>
                 <field name="created_by"/>
-            </tree>
+            </list>
         </field>
     </record>
 </odoo>

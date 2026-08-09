@@ -24,7 +24,7 @@ PURPOSE:
         <field name="name">nettrades.fairness.flag.tree</field>
         <field name="model">nettrades.fairness.flag</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="create_date"/>
                 <field name="field_id"/>
                 <field name="rationality_score"/>
@@ -32,7 +32,7 @@ PURPOSE:
                 <field name="status" widget="badge"/>
                 <field name="reviewed_by"/>
                 <field name="reviewed_date"/>
-            </tree>
+            </list>
         </field>
     </record>
 

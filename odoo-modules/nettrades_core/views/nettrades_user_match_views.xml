@@ -4,12 +4,12 @@
         <field name="name">nettrades.user_match.tree</field>
         <field name="model">nettrades.user_match</field>
         <field name="arch" type="xml">
-            <tree string="AI Match Results" editable="bottom">
+            <list string="AI Match Results" editable="bottom">
                 <field name="job_id"/>
                 <field name="user_id"/>
                 <field name="match_score"/>
                 <field name="created_at"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -48,7 +48,7 @@
     <record id="action_nettrades_user_match" model="ir.actions.act_window">
         <field name="name">AI Match Results</field>
         <field name="res_model">nettrades.user_match</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <![CDATA[
                 <p class="o_view_nocontent_smiling_face">

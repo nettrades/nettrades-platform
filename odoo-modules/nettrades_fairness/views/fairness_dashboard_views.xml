@@ -37,7 +37,7 @@ PURPOSE:
     <record id="action_fairness_flags" model="ir.actions.act_window">
         <field name="name">Fairness Flags</field>
         <field name="res_model">nettrades.fairness.flag</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p>Review AI responses flagged for rationality or bias issues.</p>
             <p>Flags are created automatically when responses exceed thresholds.</p>
@@ -49,7 +49,7 @@ PURPOSE:
     <record id="action_fairness_audit_log" model="ir.actions.act_window">
         <field name="name">Fairness Audit Log</field>
         <field name="res_model">nettrades.fairness.audit</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p>View all fairness evaluations.</p>
             <p>Each record includes rationality and bias scores, rationale, and timestamps.</p>

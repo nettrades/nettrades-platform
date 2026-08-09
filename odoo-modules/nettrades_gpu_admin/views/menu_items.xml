@@ -49,19 +49,19 @@
     <act_window id="action_gpu_cluster"
                 name="GPU Clusters"
                 res_model="gpu.cluster"
-                view_mode="tree,form"
+                view_mode="list,form"
                 domain="[('company_id','=',user.company_id.id)]"/>
 
     <act_window id="action_gpu_nodes"
                 name="GPU Nodes"
                 res_model="gpu.node"
-                view_mode="tree,form"
+                view_mode="list,form"
                 domain="[('cluster_id.company_id','=',user.company_id.id)]"/>
 
     <act_window id="action_gpu_schedule"
                 name="Sharing Schedule"
                 res_model="gpu.sharing.schedule"
-                view_mode="tree"
+                view_mode="list"
                 domain="[('cluster_id.company_id','=',user.company_id.id)]"/>
 
     <act_window id="action_gpu_token_economics"

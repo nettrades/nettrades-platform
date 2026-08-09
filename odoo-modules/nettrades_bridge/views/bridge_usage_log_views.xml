@@ -17,7 +17,7 @@ PURPOSE:
     <record id="action_bridge_usage" model="ir.actions.act_window">
         <field name="name">Bridge Usage Logs</field>
         <field name="res_model">nettrades.bridge.usage.log</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p>View all requests routed through the bridge.</p>
             <p>This data is used for billing and monitoring purposes.</p>
@@ -29,7 +29,7 @@ PURPOSE:
         <field name="name">nettrades.bridge.usage.log.tree</field>
         <field name="model">nettrades.bridge.usage.log</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="create_date"/>
                 <field name="company_id"/>
                 <field name="intent" widget="badge"/>
@@ -37,7 +37,7 @@ PURPOSE:
                 <field name="success" widget="boolean"/>
                 <field name="response_time_ms"/>
                 <field name="tokens_used"/>
-            </tree>
+            </list>
         </field>
     </record>
 </odoo>
