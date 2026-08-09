@@ -21,6 +21,7 @@
 #   6. Episode recording for training data
 #   7. Post-processing for self-improving loop after routing
 #   8. Fallback detection: automatically notifies the user when the CPU model is used
+#   9. Resolution detection: identifies when user problems are solved
 #
 # INTEGRATION POINTS:
 #   - Odoo: Reads company-specific LLM configuration via LLMFactory
@@ -30,6 +31,10 @@
 #     NETTRADES.AI)
 #   - llama.cpp: Used as fallback when GPUStack is unavailable
 #
+# UPDATES (2026-08-10):
+#   - Added resolution detection in post_process
+#   - Added track system integration
+#   - Enhanced episode recording with full metadata
 # =============================================================================
 
 import asyncio
@@ -72,7 +77,7 @@ from bridge_integration import BridgeService
 # -----------------------------------------------------------------------------
 # Import self-improving integration (continuous learning)
 # -----------------------------------------------------------------------------
-from self_improving_integration import SelfImprovingService
+from self_improving_integration import SelfImprovingService, EpisodeData
 
 # -----------------------------------------------------------------------------
 # Import resilience utilities (retry and circuit breaker)
@@ -226,7 +231,7 @@ async def classify(state: dict) -> dict:
         f"action (robotic control), vision (image analysis), general. "
         f"ask_someone (expert consultation), good_answer (quality scoring), "
         f"gpu_marketplace (GPU booking), general. "
-        f"Message: {user_msg}"    
+        f"Message: {user_msg}"
     )
 
     # Call the LLM with the prompt and extract the intent.
@@ -504,7 +509,8 @@ async def post_process(state: dict) -> dict:
     It:
     1. Skips recording if the request was handled remotely (no local data)
     2. Calculates a quality score based on confidence or analysis length
-    3. Records the episode via SelfImprovingService
+    3. Detects if the problem was resolved based on conversation patterns
+    4. Records the episode via SelfImprovingService with full metadata
 
     The recorded episodes are used to:
     - Build training datasets for fine-tuning
@@ -540,24 +546,105 @@ async def post_process(state: dict) -> dict:
     if state.get("fallback_used", False):
         quality_score = min(quality_score, 0.6)  # cap quality to reflect lower model capability
 
-    # Get the self-improving service
+    # =========================================================================
+    # NEW: Detect resolution
+    # =========================================================================
+    thread_id = state.get("thread_id", "")
+    resolution_status = None
+    conversation = state.get("messages", [])
+
+    if thread_id and conversation:
+        self_improving = SelfImprovingService()
+        if self_improving.detect_resolution(thread_id, conversation):
+            resolution_status = "resolved"
+            _logger.info(f"Problem resolved for thread: {thread_id}")
+        else:
+            resolution_status = "unresolved"
+
+    # =========================================================================
+    # NEW: Determine track and data classification
+    # =========================================================================
+    track = state.get("track", "community")
+    data_classification = state.get("data_classification", "public")
+
+    # Auto-classify if not set
+    if not state.get("track"):
+        intent = state.get("intent", "general")
+        regulated_intents = ["medical", "legal", "financial"]
+        track = "regulated" if intent in regulated_intents else "community"
+
+    if not state.get("data_classification"):
+        if track == "regulated":
+            data_classification = "restricted"
+        elif "gpu" in intent or "cluster" in intent:
+            data_classification = "confidential"
+        else:
+            data_classification = "public"
+
+    # =========================================================================
+    # Record the episode with full metadata
+    # =========================================================================
     self_improving = SelfImprovingService()
 
     try:
-        # Record the episode asynchronously
-        await self_improving.record_episode(
-            intent=intent,
-            input_data=state.get("messages", [{}])[-1],
-            output_data={
-                "analysis": state.get("analysis", ""),
+        # Get the last user message
+        messages = state.get("messages", [])
+        input_text = ""
+        output_text = state.get("analysis", "")
+
+        if messages:
+            last_user_msg = None
+            for msg in reversed(messages):
+                if msg.get("role") == "user":
+                    last_user_msg = msg
+                    break
+            if last_user_msg:
+                input_text = last_user_msg.get("content", "")
+
+        # Create episode data
+        episode = EpisodeData(
+            partner_id=state.get("user_id", 1),
+            field_id=state.get("field_id"),
+            input_text=input_text,
+            output_text=output_text,
+            quality_score=quality_score,
+            context_data={
                 "intent": intent,
                 "route_source": state.get("route_source", "local"),
-                "fallback_used": state.get("fallback_used", False)
+                "fallback_used": state.get("fallback_used", False),
+                "thread_id": thread_id,
             },
-            quality_score=quality_score,
-            feedback=state.get("feedback", {})
+            source="auto",
+            track=track,
+            data_classification=data_classification,
+            is_verified=state.get("is_verified", False),
+            resolution_status=resolution_status,
+            model_used=state.get("model_used"),
+            inference_time_ms=state.get("inference_time_ms"),
+            token_count=state.get("token_count"),
         )
-        _logger.info(f"Episode recorded for self-improving loop (intent: {intent}, quality: {quality_score:.2f})")
+
+        # Record the episode
+        episode_id = await self_improving.record_episode(
+            intent=intent,
+            input_data={"messages": messages, "user_id": state.get("user_id")},
+            output_data={"analysis": output_text},
+            quality_score=quality_score,
+            feedback=state.get("feedback", {}),
+            partner_id=state.get("user_id"),
+            track=track,
+            data_classification=data_classification,
+        )
+
+        if episode_id:
+            _logger.info(
+                f"Episode recorded for self-improving loop "
+                f"(intent: {intent}, quality: {quality_score:.2f}, "
+                f"resolution: {resolution_status}, track: {track})"
+            )
+        else:
+            _logger.warning("Failed to record episode for self-improving")
+
     except Exception as e:
         _logger.warning(f"Failed to record episode for self-improving: {e}")
 

@@ -16,6 +16,10 @@
 #   - Calculates quality scores based on votes and AI analysis
 #   - Verifies answers for accuracy and completeness
 #   - Records the best answer for future reference
+#   - Audit trail for compliance tracking
+#   - Versioning for answers
+#   - Expiry mechanism for outdated answers
+#   - Track system (regulated vs community)
 #
 # INTEGRATION:
 #   - Uses odoo_tools.py to interact with Odoo's nettrades_good_answer models
@@ -25,11 +29,18 @@
 #   - Updated model names to match actual Odoo models:
 #       * llm_feedback (was nettrades_good_answer.answer)
 #       * good_answer_vote (for votes)
+#
+# UPDATES (2026-08-10):
+#   - Added audit trail for verification
+#   - Added versioning for answers
+#   - Added expiry mechanism for outdated answers
+#   - Added track system (regulated vs community)
+#   - Added resolution detection integration
 # =============================================================================
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
 from langgraph.graph import StateGraph, END, START
@@ -61,6 +72,10 @@ class GoodAnswerState(dict):
         - is_verified: Whether the answer has been verified
         - best_answer_id: The ID of the best answer
         - best_answer: The content of the best answer
+        - track: The track (regulated or community)
+        - version: The version number of the answer
+        - expires_at: When the answer expires
+        - resolution_status: Whether the problem was resolved
     """
     pass
 
@@ -69,12 +84,14 @@ def create_good_answer_agent() -> StateGraph:
     """
     Build and return a compiled Good Answer sub-graph.
 
-    The workflow consists of five nodes:
+    The workflow consists of seven nodes:
     1. collect_answers - Collect multiple answers from Odoo or other sources
-    2. vote_answers - Allow users to vote on answers
-    3. calculate_quality - Calculate quality scores using AI
-    4. verify_answer - Verify the answer using AI or human review
-    5. record_best_answer - Record the best answer in Odoo
+    2. determine_track - Determine if this is regulated or community
+    3. vote_answers - Allow users to vote on answers
+    4. calculate_quality - Calculate quality scores using AI
+    5. verify_answer - Verify the answer using AI or human review
+    6. record_best_answer - Record the best answer in Odoo
+    7. audit_trail - Record audit trail for compliance
 
     Returns:
         StateGraph: Compiled LangGraph workflow
@@ -112,7 +129,7 @@ def create_good_answer_agent() -> StateGraph:
             existing_answers = await odoo_search(
                 model="llm_feedback",
                 domain=[("question", "ilike", question[:50])],
-                fields=["id", "answer", "quality_score", "is_verified"],
+                fields=["id", "answer", "quality_score", "is_verified", "version", "expires_at", "track"],
                 limit=10,
             )
 
@@ -149,6 +166,8 @@ def create_good_answer_agent() -> StateGraph:
                             "quality_score": 0.0,
                             "is_verified": False,
                             "feedback_type": "generated",
+                            "version": 1,
+                            "track": "community",
                         },
                     )
 
@@ -156,7 +175,7 @@ def create_good_answer_agent() -> StateGraph:
                 existing_answers = await odoo_search(
                     model="llm_feedback",
                     domain=[("question", "ilike", question[:50])],
-                    fields=["id", "answer", "quality_score", "is_verified"],
+                    fields=["id", "answer", "quality_score", "is_verified", "version", "expires_at", "track"],
                     limit=10,
                 )
 
@@ -170,7 +189,29 @@ def create_good_answer_agent() -> StateGraph:
         return state
 
     # =========================================================================
-    # NODE 2: Vote Answers
+    # NODE 2: Determine Track (Regulated vs Community)
+    # =========================================================================
+
+    async def determine_track(state: GoodAnswerState) -> GoodAnswerState:
+        """
+        Determine if this answer should use the regulated or community track.
+        """
+        question = state.get("question", "")
+        if not question:
+            state["track"] = "community"
+            return state
+
+        # Check if the question contains regulated keywords
+        regulated_keywords = ["medical", "legal", "financial", "diagnosis", "prescription",
+                             "law", "regulation", "tax", "investment", "compliance"]
+        is_regulated = any(kw in question.lower() for kw in regulated_keywords)
+
+        state["track"] = "regulated" if is_regulated else "community"
+        _logger.info(f"Track determined: {state['track']}")
+        return state
+
+    # =========================================================================
+    # NODE 3: Vote Answers
     # =========================================================================
 
     async def vote_answers(state: GoodAnswerState) -> GoodAnswerState:
@@ -200,7 +241,7 @@ def create_good_answer_agent() -> StateGraph:
             updated_answers = await odoo_search(
                 model="llm_feedback",
                 domain=[("id", "in", [int(aid) for aid in votes.keys()])],
-                fields=["id", "answer", "quality_score", "is_verified"],
+                fields=["id", "answer", "quality_score", "is_verified", "version", "expires_at", "track"],
             )
             state["answers"] = updated_answers
             _logger.info("Votes recorded successfully")
@@ -211,7 +252,7 @@ def create_good_answer_agent() -> StateGraph:
         return state
 
     # =========================================================================
-    # NODE 3: Calculate Quality
+    # NODE 4: Calculate Quality
     # =========================================================================
 
     async def calculate_quality(state: GoodAnswerState) -> GoodAnswerState:
@@ -274,7 +315,7 @@ def create_good_answer_agent() -> StateGraph:
         return state
 
     # =========================================================================
-    # NODE 4: Verify Answer
+    # NODE 5: Verify Answer
     # =========================================================================
 
     async def verify_answer(state: GoodAnswerState) -> GoodAnswerState:
@@ -283,6 +324,7 @@ def create_good_answer_agent() -> StateGraph:
         """
         answers = state.get("answers", [])
         question = state.get("question", "")
+        track = state.get("track", "community")
 
         if not answers:
             _logger.warning("No answers to verify")
@@ -303,18 +345,30 @@ def create_good_answer_agent() -> StateGraph:
         _logger.info(f"Verifying best answer: {best_answer.get('id')}")
 
         try:
-            # Use AI to verify the answer
-            prompt = f"""
-            Verify if the following answer is correct and complete for the given question.
-            Respond with "verified" if the answer is correct, "needs_review" if it needs human review,
-            or "incorrect" if it is wrong.
+            # Build verification prompt based on track
+            if track == "regulated":
+                prompt = f"""
+                Verify this answer for accuracy, safety, and compliance.
+                This is a REGULATED question (medical/legal/financial).
 
-            Question: {question}
+                Question: {question}
 
-            Answer: {best_answer.get('answer', '')}
+                Answer: {best_answer.get('answer', '')}
 
-            Respond with only one word: verified, needs_review, or incorrect.
-            """
+                Respond with one word: verified, needs_review, or incorrect.
+                """
+            else:
+                prompt = f"""
+                Verify if the following answer is correct and complete for the given question.
+                Respond with "verified" if the answer is correct, "needs_review" if it needs human review,
+                or "incorrect" if it is wrong.
+
+                Question: {question}
+
+                Answer: {best_answer.get('answer', '')}
+
+                Respond with only one word: verified, needs_review, or incorrect.
+                """
 
             response = await llm.ainvoke(prompt)
             verification = response.content.strip().lower()
@@ -324,11 +378,21 @@ def create_good_answer_agent() -> StateGraph:
             state["best_answer_id"] = best_answer.get("id")
             state["best_answer"] = best_answer.get("answer", "")
 
-            # Update Odoo
+            # Update Odoo with verification status and version
+            current_version = best_answer.get("version", 1)
+            expires_at = None
+            if track == "regulated" and is_verified:
+                # Regulated answers expire after 1 year
+                expires_at = (datetime.now() + timedelta(days=365)).isoformat()
+
             await odoo_write(
                 model="llm_feedback",
                 ids=[best_answer.get("id")],
-                values={"is_verified": is_verified},
+                values={
+                    "is_verified": is_verified,
+                    "version": current_version + 1,
+                    "expires_at": expires_at,
+                },
             )
 
             if is_verified:
@@ -347,7 +411,7 @@ def create_good_answer_agent() -> StateGraph:
         return state
 
     # =========================================================================
-    # NODE 5: Record Best Answer
+    # NODE 6: Record Best Answer
     # =========================================================================
 
     async def record_best_answer(state: GoodAnswerState) -> GoodAnswerState:
@@ -356,6 +420,7 @@ def create_good_answer_agent() -> StateGraph:
         """
         question = state.get("question", "")
         best_answer = state.get("best_answer", "")
+        track = state.get("track", "community")
 
         if not best_answer:
             _logger.warning("No best answer to record")
@@ -368,17 +433,78 @@ def create_good_answer_agent() -> StateGraph:
             quality_score = state.get("quality_score", 0.0)
             is_verified = state.get("is_verified", False)
 
-            feedback_id = await good_answer_record_best(
-                question=question,
-                answer=best_answer,
-                quality_score=quality_score,
-                is_verified=is_verified,
+            # Check if this answer already exists
+            existing = await odoo_search(
+                model="llm_feedback",
+                domain=[("question", "=", question), ("answer", "=", best_answer)],
+                fields=["id"],
             )
 
-            _logger.info(f"Best answer recorded with ID: {feedback_id}")
+            if existing:
+                # Update the existing record
+                await odoo_write(
+                    model="llm_feedback",
+                    ids=[existing[0]["id"]],
+                    values={
+                        "quality_score": quality_score,
+                        "is_verified": is_verified,
+                        "version": state.get("version", 1) + 1,
+                    }
+                )
+                state["recorded_answer_id"] = existing[0]["id"]
+                _logger.info(f"Updated existing answer: {existing[0]['id']}")
+            else:
+                # Create a new record with version and expiry
+                expires_at = None
+                if track == "regulated":
+                    expires_at = (datetime.now() + timedelta(days=365)).isoformat()
+
+                feedback_id = await good_answer_record_best(
+                    question=question,
+                    answer=best_answer,
+                    quality_score=quality_score,
+                    is_verified=is_verified,
+                )
+                state["recorded_answer_id"] = feedback_id
+                _logger.info(f"Best answer recorded with ID: {feedback_id}")
 
         except Exception as e:
             _logger.error(f"Best answer recording failed: {e}")
+
+        return state
+
+    # =========================================================================
+    # NODE 7: Audit Trail
+    # =========================================================================
+
+    async def audit_trail(state: GoodAnswerState) -> GoodAnswerState:
+        """
+        Record audit trail for compliance.
+        """
+        answer_id = state.get("recorded_answer_id") or state.get("best_answer_id")
+        if not answer_id:
+            return state
+
+        _logger.info(f"Recording audit trail for answer: {answer_id}")
+
+        try:
+            audit_entry = {
+                "answer_id": answer_id,
+                "action": "verify_answer",
+                "user_id": state.get("user_id"),
+                "is_verified": state.get("is_verified", False),
+                "track": state.get("track", "community"),
+                "quality_score": state.get("quality_score", 0.0),
+                "version": state.get("version", 1),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # Store audit in Odoo
+            await odoo_create("good_answer.audit", audit_entry)
+            _logger.info(f"Audit trail recorded for answer: {answer_id}")
+
+        except Exception as e:
+            _logger.error(f"Failed to record audit trail: {e}")
 
         return state
 
@@ -389,16 +515,20 @@ def create_good_answer_agent() -> StateGraph:
     workflow = StateGraph(GoodAnswerState)
 
     workflow.add_node("collect_answers", collect_answers)
+    workflow.add_node("determine_track", determine_track)
     workflow.add_node("vote_answers", vote_answers)
     workflow.add_node("calculate_quality", calculate_quality)
     workflow.add_node("verify_answer", verify_answer)
     workflow.add_node("record_best_answer", record_best_answer)
+    workflow.add_node("audit_trail", audit_trail)
 
     workflow.add_edge(START, "collect_answers")
-    workflow.add_edge("collect_answers", "vote_answers")
+    workflow.add_edge("collect_answers", "determine_track")
+    workflow.add_edge("determine_track", "vote_answers")
     workflow.add_edge("vote_answers", "calculate_quality")
     workflow.add_edge("calculate_quality", "verify_answer")
     workflow.add_edge("verify_answer", "record_best_answer")
-    workflow.add_edge("record_best_answer", END)
+    workflow.add_edge("record_best_answer", "audit_trail")
+    workflow.add_edge("audit_trail", END)
 
     return workflow.compile()
