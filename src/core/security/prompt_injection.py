@@ -7,11 +7,18 @@
 #   strips or blocks them before they reach LangGraph agents.
 #
 #   It is designed to be used as a FastAPI dependency or middleware.
+#
+# UPDATES (2026-08-10):
+#   - Added PromptInjectionMiddleware class for FastAPI integration.
+#   - Kept existing detect_injection and sanitise_input functions.
 # =============================================================================
 
 import re
 import logging
 from typing import Dict, Any, Optional
+
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +36,7 @@ INJECTION_PATTERNS = [
     r"(?i)do not (?:follow|obey) (?:the|these) (?:instructions|prompts)",
 ]
 
+
 def detect_injection(text: str) -> bool:
     """
     Returns True if any injection pattern is found in the text.
@@ -37,6 +45,7 @@ def detect_injection(text: str) -> bool:
         if re.search(pattern, text, re.IGNORECASE):
             return True
     return False
+
 
 def sanitise_input(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -62,3 +71,35 @@ def sanitise_input(input_data: Dict[str, Any]) -> Dict[str, Any]:
         return [sanitise_input(item) for item in input_data]
     else:
         return input_data
+
+
+class PromptInjectionMiddleware(BaseHTTPMiddleware):
+    """
+    FastAPI middleware that sanitises incoming JSON request bodies
+    to prevent prompt injection attacks.
+
+    It extracts the request body (if JSON), passes it through sanitise_input(),
+    and stores the sanitised version in request.state._sanitised_body.
+    This allows downstream handlers to use the cleaned data instead of the raw input.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        """
+        Intercept POST requests with JSON content, sanitise the body,
+        and store it in the request state.
+        """
+        # Only process POST requests with JSON content
+        if request.method == "POST" and request.headers.get("content-type", "").startswith("application/json"):
+            try:
+                # Read the raw body (this consumes the stream, so we need to store it)
+                body = await request.json()
+                # Sanitise the data
+                sanitised = sanitise_input(body)
+                # Attach to request state for later use
+                request.state._sanitised_body = sanitised
+            except Exception as e:
+                logger.warning(f"Failed to sanitise request: {e}")
+
+        # Continue processing the request
+        response = await call_next(request)
+        return response
