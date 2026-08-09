@@ -39,6 +39,7 @@
 #   - Added platform detection for macOS-specific Docker volume handling.
 #   - Added domain auto‑detection and Let's Encrypt conditional logic.
 #   - Added fallback creation of nginx.conf.template for redirector.
+#   - Added self-improving environment variables and container startup.
 # =============================================================================
 
 set -euo pipefail
@@ -887,7 +888,34 @@ if [[ ! -f "$ENV_FILE" ]] || [[ "$REGENERATE_SECRETS" == true ]]; then
     fi
 fi
 
+# =============================================================================
+# NEW: Set Self-Improving Environment Variables
+# =============================================================================
+log_step "Setting self-improving environment variables..."
+
+if ! grep -q "^THRESHOLD_EPISODES=" "$ENV_FILE"; then
+    safe_sed_replace "$ENV_FILE" "THRESHOLD_EPISODES" "50"
+    log_info "Set THRESHOLD_EPISODES=50"
+fi
+
+if ! grep -q "^THRESHOLD_QUALITY=" "$ENV_FILE"; then
+    safe_sed_replace "$ENV_FILE" "THRESHOLD_QUALITY" "7.0"
+    log_info "Set THRESHOLD_QUALITY=7.0"
+fi
+
+if ! grep -q "^FINE_TUNE_MODEL=" "$ENV_FILE"; then
+    safe_sed_replace "$ENV_FILE" "FINE_TUNE_MODEL" "deepseek-1.5b"
+    log_info "Set FINE_TUNE_MODEL=deepseek-1.5b"
+fi
+
+if ! grep -q "^FINE_TUNE_METHOD=" "$ENV_FILE"; then
+    safe_sed_replace "$ENV_FILE" "FINE_TUNE_METHOD" "unsloth"
+    log_info "Set FINE_TUNE_METHOD=unsloth"
+fi
+
+# -----------------------------------------------------------------------------
 # Generate Grafana datasource provisioning file (using the Prometheus password)
+# -----------------------------------------------------------------------------
 log_step "Generating Grafana datasource provisioning..."
 GRAFANA_DATASOURCES_DIR="$DEPLOY_DIR/grafana-datasources"
 GRAFANA_DATASOURCES_FILE="$GRAFANA_DATASOURCES_DIR/datasources.yaml"
@@ -1474,7 +1502,19 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 17. Display final status
+# 17. Start Self-Improving Service
+# -----------------------------------------------------------------------------
+log_step "Starting self-improving service..."
+if docker compose ps -q self-improving &>/dev/null; then
+    # Ensure the self-improving container is running (it may have been started with the main stack)
+    docker compose up -d self-improving
+    log_success "Self-improving service started"
+else
+    log_warning "Self-improving service not defined in docker-compose.yaml – skipping"
+fi
+
+# -----------------------------------------------------------------------------
+# 18. Display final status
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT"
 mark_phase_complete 2
