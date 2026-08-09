@@ -11,6 +11,7 @@
 #
 # RELATIONSHIPS:
 #   - partner_id -> res.partner (the Odoo partner record)
+#   - review_ids -> nettrades.review (reviews received by this user)
 #
 # KEY FIELDS:
 #   - karma, reputation, wallet_address, is_verified, is_online, etc.
@@ -18,6 +19,7 @@
 # UPDATES (2026-08):
 #   - Created from former res_partner.py extensions.
 #   - All NetTrades-specific fields are now here.
+#   - Added review_ids field to fix @depends error.
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -147,7 +149,18 @@ class NettradesUser(models.Model):
     )
 
     # =========================================================================
-    # 3. Computed Fields
+    # 3. One2many Relations
+    # =========================================================================
+
+    review_ids = fields.One2many(
+        'nettrades.review',
+        'reviewed_partner_id',
+        string='Reviews',
+        help="Reviews received by this user"
+    )
+
+    # =========================================================================
+    # 4. Computed Fields
     # =========================================================================
 
     @api.depends('karma', 'review_ids.rating')
@@ -160,7 +173,7 @@ class NettradesUser(models.Model):
             user.reputation_score = (user.karma / 100.0) * 0.7 + (avg_review / 5.0) * 0.3
 
     # =========================================================================
-    # 4. Helper Methods
+    # 5. Helper Methods
     # =========================================================================
 
     @api.model
