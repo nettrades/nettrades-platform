@@ -9,6 +9,19 @@
 #   - Fallback: llama.cpp – CPU inference, zero-dependency, works immediately
 #   - Odoo provides the governance layer (users, models, GPU resources)
 #   - LangGraph (custom app.py + uvicorn) orchestrates agents with state persistence
+#
+#
+# SERVICES:
+#   - Traefik: Reverse proxy with automatic Let's Encrypt SSL
+#   - PostgreSQL 17 with pgvector: RAG embeddings & main database
+#   - Postgres Exporter: Prometheus metrics for PostgreSQL
+#   - Valkey 8: BSD-licensed in-memory store (sessions, ORM cache, bus)(replaces Redis for session storage, ORM cache, and bus notifications.)
+#   - Odoo 19 CE: ERP, Marketplace, and AI Hub
+#   - Odoo Proxy: HTTP JSON-RPC shim 
+#   - Prometheus: Metrics collection
+#   - Grafana: Visualisation
+#   - Node Exporter: System metrics for Prometheus
+#
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -163,8 +176,10 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     labels:
       - traefik.enable=true
+      # Route to /odoo path on the main domain
       - traefik.http.routers.odoo.rule=Host(`${DOMAIN}`) && PathPrefix(`/odoo`)
       - traefik.http.services.odoo.loadbalancer.server.port=8069
+      # Strip the /odoo prefix before forwarding to Odoo
       - traefik.http.middlewares.odoo-strip.stripprefix.prefixes=/odoo
       - traefik.http.routers.odoo.middlewares=odoo-strip
       - traefik.http.middlewares.odoo-ratelimit.ratelimit.average=100

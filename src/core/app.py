@@ -22,8 +22,6 @@
 #   - Uses a supervisor to dispatch to business sub-agents
 #   - Exposes Prometheus metrics for observability
 #   - Uses PostgresSaver for durable checkpointing
-#   - Stub endpoints for agent-chat-ui compatibility
-#   - CopilotKit AG-UI endpoint for modern agentic UI
 #
 # IMPORTANT FIXES (2026-07-02):
 #   1. Authentication Bypass: Previously, if LANGGRAPH_API_KEY was unset,
