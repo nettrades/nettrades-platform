@@ -30,6 +30,7 @@
 
 {
     'name': 'NETTRADES Fairness & Rationality',
+    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'AI Fairness, Rationality, and Bias Detection',

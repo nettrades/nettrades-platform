@@ -25,6 +25,7 @@
 # =============================================================================
 {
     'name': 'NETTRADES Data Collection',
+    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'Data collection for self-improving AI system',

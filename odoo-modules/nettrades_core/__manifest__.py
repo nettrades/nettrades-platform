@@ -1,5 +1,6 @@
 {
     'name': 'NETTRADES Core',
+    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'Core marketplace and AI integration',

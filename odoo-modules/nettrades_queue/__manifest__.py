@@ -1,5 +1,6 @@
 {
     'name': 'NETTRADES Queue Job',
+    'author': 'NETTRADES.AI',
     'version': '1.0',
     'category': 'Hidden',
     'summary': 'NETTRADES Queue Job',

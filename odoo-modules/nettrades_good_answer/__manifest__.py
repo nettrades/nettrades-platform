@@ -23,6 +23,7 @@
 # =============================================================================
 {
     'name': 'NETTRADES Good Answer System',
+    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'Voting, reputation, and fine-tuning pipeline',
