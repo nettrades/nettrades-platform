@@ -19,14 +19,15 @@
 #   - Token economics (earnings, reputation)
 #   - Health monitoring and attestation
 #
-# USAGE:
-#   - Created automatically when a GPU node registers via the agent
-#   - Managed by the GPU Administrator via the Odoo admin panel
+# UPDATES (2026-08-10):
+#   - Removed all GPUStack references (replaced by NVIDIA Dynamo)
+#   - Added `total_earnings`, `reputation_score`, `rating`, `total_bookings`
+#   - Added `uptime_percentage` computed field
+#   - Added `add_earnings()`, `increment_bookings()`, `update_rating()` helpers
+#   - Added `is_available_for_booking()` method
+#   - Kept `pool` as a related field to `gpu_pool` for backward compatibility
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# IMPORTS - Each import MUST be on its own line for valid Python syntax.
-# -----------------------------------------------------------------------------
 import logging
 import json
 import secrets
@@ -49,14 +50,6 @@ class GPUNode(models.Model):
     hardware inventory, WireGuard configuration, and operational status.
     """
 
-    partner_id = fields.Many2one(
-            'res.partner',
-            string='Partner',
-            required=True,
-            ondelete='cascade',
-            help="The partner (company or user) that owns this GPU node."
-    )
-
     _name = 'gpu.node'
     _description = 'GPU Node'
     _rec_name = 'name'
@@ -71,6 +64,14 @@ class GPUNode(models.Model):
         required=True,
         ondelete='cascade',
         help="The GPU cluster that this node belongs to."
+    )
+
+    partner_id = fields.Many2one(
+        'res.partner',
+        string='Partner',
+        required=True,
+        ondelete='cascade',
+        help="The partner (company or user) that owns this GPU node."
     )
 
     name = fields.Char(
@@ -250,14 +251,6 @@ class GPUNode(models.Model):
         help='The company that owns this GPU node.'
     )
 
-    pool = fields.Selection(
-        related='gpu_pool',
-        string='Pool',
-        readonly=False,
-        store=True,
-        help='Backward compatibility alias for the GPU pool field.'
-    )
-
     # =========================================================================
     # 8. POOL ASSIGNMENT (RENAMED to avoid conflict with Odoo's internal 'pool' attribute)
     # =========================================================================
@@ -267,6 +260,7 @@ class GPUNode(models.Model):
     # to fail with AssertionError: is_model_definition(model_def).
     # We rename it to 'gpu_pool' to avoid this conflict.
 
+    # Real stored field – safe name that does not shadow Odoo's internal `pool` attribute
     gpu_pool = fields.Selection(
         [
             ('internal', 'Internal (Trusted)'),
@@ -275,6 +269,15 @@ class GPUNode(models.Model):
         string='Pool',
         default='internal',
         help="Internal: Company trusted network. Uses Docker runtime. Public: Untrusted freelancer network. Uses gVisor runtime."
+    )
+
+    # Backward compatibility alias – points to gpu_pool
+    pool = fields.Selection(
+        related='gpu_pool',
+        string='Pool',
+        readonly=False,
+        store=True,
+        help='Backward compatibility alias for the GPU pool field.'
     )
 
     # =========================================================================
@@ -292,16 +295,7 @@ class GPUNode(models.Model):
     )
 
     # =========================================================================
-    # 10. GPUSTACK INTEGRATION
-    # =========================================================================
-
-    gpustack_worker_id = fields.Char(
-        string='GPUStack Worker ID',
-        help="The worker ID assigned by GPUStack for this node."
-    )
-
-    # =========================================================================
-    # 11. TOKEN ECONOMICS
+    # 10. TOKEN ECONOMICS
     # =========================================================================
 
     tokens_served = fields.Integer(
@@ -318,8 +312,9 @@ class GPUNode(models.Model):
 
     reputation_score = fields.Float(
         string='Reputation Score',
-        default=0.0,
-        help="The reputation score of this node (based on reliability, uptime)."
+        compute='_compute_reputation',
+        store=True,
+        help="The reputation score of this node (based on reliability, uptime, and ratings)."
     )
 
     scheduled_share = fields.Boolean(
@@ -329,7 +324,36 @@ class GPUNode(models.Model):
     )
 
     # =========================================================================
-    # 12. BOOKINGS (NEW - added to link to gpu_sharing_schedule)
+    # 11. PROVIDER ECONOMICS (NEW)
+    # =========================================================================
+
+    total_earnings = fields.Float(
+        string='Total Earnings',
+        default=0.0,
+        help="Lifetime earnings from all bookings (in the cluster's currency)."
+    )
+
+    rating = fields.Float(
+        string='Rating',
+        default=0.0,
+        help="Average user rating (1-5)."
+    )
+
+    total_bookings = fields.Integer(
+        string='Total Bookings',
+        default=0,
+        help="Total number of completed bookings for this node."
+    )
+
+    uptime_percentage = fields.Float(
+        string='Uptime (%)',
+        compute='_compute_uptime_percentage',
+        store=True,
+        help="Percentage of time the node has been online."
+    )
+
+    # =========================================================================
+    # 12. BOOKINGS
     # =========================================================================
 
     booking_ids = fields.One2many(
@@ -384,6 +408,45 @@ class GPUNode(models.Model):
                 except (json.JSONDecodeError, TypeError):
                     pass
             node.gpu_count = count
+
+    @api.depends('uptime_hours', 'status')
+    def _compute_uptime_percentage(self):
+        """
+        Calculate uptime percentage based on status and last_seen.
+        """
+        for node in self:
+            if node.status == 'online':
+                node.uptime_percentage = 100.0
+            elif node.status == 'offline':
+                if node.last_seen:
+                    hours_since_seen = (fields.Datetime.now() - node.last_seen).total_seconds() / 3600
+                    if hours_since_seen < 1:
+                        node.uptime_percentage = 90.0
+                    elif hours_since_seen < 24:
+                        node.uptime_percentage = 50.0
+                    else:
+                        node.uptime_percentage = 10.0
+                else:
+                    node.uptime_percentage = 0.0
+            else:
+                node.uptime_percentage = 50.0
+
+    @api.depends('uptime_percentage', 'rating', 'gpu_utilisation_pct')
+    def _compute_reputation(self):
+        """
+        Calculate reputation score based on uptime, rating, and utilisation.
+        """
+        for node in self:
+            # Weighted score: 40% uptime, 40% rating, 20% utilisation
+            uptime_score = node.uptime_percentage / 100.0 * 10
+            rating_score = node.rating * 2  # 0-5 -> 0-10
+            util_score = node.gpu_utilisation_pct / 100.0 * 10
+
+            node.reputation_score = (
+                uptime_score * 0.4 +
+                rating_score * 0.4 +
+                util_score * 0.2
+            )
 
     # =========================================================================
     # 14. WIREGUARD CONFIGURATION GENERATION
@@ -512,61 +575,51 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         }
 
     # =========================================================================
-    # 15. GPUSTACK TOKEN MANAGEMENT
+    # 15. PROVIDER ECONOMICS HELPERS
     # =========================================================================
 
-    def _generate_gpustack_token(self):
+    def add_earnings(self, amount):
         """
-        Generate a GPUStack token for this node.
+        Add earnings to the node's total earnings.
 
-        This method calls the GPUStack API to generate a worker token
-        specifically for this node.
-
-        Returns:
-            str: The GPUStack token, or None if generation fails.
-
-        Note:
-            This requires the GPUStack server to be reachable and the
-            cluster's API key to be valid.
+        Args:
+            amount (float): The amount to add.
         """
         self.ensure_one()
-        cluster = self.cluster_id
+        self.total_earnings += amount
+        self.token_earnings += amount
 
-        if not cluster.gpustack_server_url or not cluster.gpustack_api_key:
-            _logger.warning("GPUStack server URL or API key not configured")
-            return None
+    def increment_bookings(self):
+        """Increment the total bookings count."""
+        self.ensure_one()
+        self.total_bookings += 1
 
-        try:
-            import requests
-            url = f"{cluster.gpustack_server_url.rstrip('/')}/api/v1/workers/token"
-            headers = {
-                'Authorization': f'Bearer {cluster.gpustack_api_key}',
-                'Content-Type': 'application/json',
-            }
-            payload = {
-                'node_id': self.node_id or str(self.id),
-                'hostname': self.hostname,
-            }
+    def update_rating(self, new_rating):
+        """
+        Update the node's average rating with a new rating.
 
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
-            response.raise_for_status()
+        Args:
+            new_rating (float): The new rating (1-5).
+        """
+        self.ensure_one()
+        if self.total_bookings > 0:
+            self.rating = ((self.rating * (self.total_bookings - 1)) + new_rating) / self.total_bookings
+        else:
+            self.rating = new_rating
 
-            result = response.json()
-            token = result.get('token')
+    def is_available_for_booking(self):
+        """
+        Check if this node is available for a new booking.
 
-            if token and result.get('worker_id'):
-                self.write({
-                    'gpustack_worker_id': result.get('worker_id'),
-                })
-
-            return token
-
-        except ImportError:
-            _logger.error("requests library not available")
-            return None
-        except Exception as e:
-            _logger.error(f"Failed to generate GPUStack token: {e}")
-            return None
+        Returns:
+            bool: True if available, False otherwise.
+        """
+        self.ensure_one()
+        return (
+            self.status == 'online' and
+            not self.current_booking_id and
+            self.state == 'active'
+        )
 
     # =========================================================================
     # 16. NODE LIFECYCLE MANAGEMENT
@@ -577,9 +630,8 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         Remove this node from the cluster.
 
         This method:
-        1. Removes the node from the WireGuard peers (via the peer manager)
-        2. Deregisters the node from GPUStack
-        3. Deletes the node record
+        1. Revokes the node from the WireGuard peer list
+        2. Deletes the node record
 
         Returns:
             dict: Action result for the Odoo UI.
@@ -595,25 +647,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         except Exception as e:
             _logger.warning(f"Failed to revoke WireGuard peer for node {self.name}: {e}")
 
-        # Step 2: Deregister from GPUStack
-        if self.gpustack_worker_id:
-            try:
-                import requests
-                cluster = self.cluster_id
-                if cluster.gpustack_server_url and cluster.gpustack_api_key:
-                    url = f"{cluster.gpustack_server_url.rstrip('/')}/api/v1/workers/{self.gpustack_worker_id}"
-                    headers = {
-                        'Authorization': f'Bearer {cluster.gpustack_api_key}',
-                    }
-                    response = requests.delete(url, headers=headers, timeout=10)
-                    if response.status_code in (200, 204, 404):
-                        _logger.info(f"Deregistered worker {self.gpustack_worker_id} from GPUStack")
-            except ImportError:
-                _logger.warning("requests library not available, skipping GPUStack deregistration")
-            except Exception as e:
-                _logger.warning(f"Failed to deregister from GPUStack: {e}")
-
-        # Step 3: Delete the node record
+        # Step 2: Delete the node record
         self.unlink()
 
         return {
@@ -645,8 +679,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         """
         self.ensure_one()
 
-        # Note: The field was renamed from 'pool' to 'gpu_pool' to avoid
-        # conflicting with Odoo's internal 'pool' attribute on models.
+        # Use the stored field gpu_pool for comparison
         if new_pool == self.gpu_pool:
             return {
                 'type': 'ir.actions.client',
@@ -660,14 +693,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
             }
 
         # Validate the pool assignment
-        if new_pool == 'public' and self.cluster_id.trust_mode == 'company_multi_gpu':
-            # Warn if multi-GPU node is being moved to public pool
-            if self.gpu_count > 1:
-                _logger.warning(
-                    f"Node {self.name} has {self.gpu_count} GPUs. "
-                    "Public sharing with multi-GPU may not be fully supported."
-                )
-
+        if new_pool == 'public':
             # Automatically switch to gVisor for public pool
             self.write({
                 'gpu_pool': new_pool,
@@ -677,33 +703,8 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
             # For internal pool, use Docker runtime
             self.write({
                 'gpu_pool': new_pool,
-                'container_runtime': 'docker' if new_pool == 'internal' else self.container_runtime,
+                'container_runtime': 'docker',
             })
-
-        # Update the GPUStack worker labels if possible
-        if self.gpustack_worker_id:
-            try:
-                import requests
-                cluster = self.cluster_id
-                if cluster.gpustack_server_url and cluster.gpustack_api_key:
-                    url = f"{cluster.gpustack_server_url.rstrip('/')}/api/v1/workers/{self.gpustack_worker_id}"
-                    headers = {
-                        'Authorization': f'Bearer {cluster.gpustack_api_key}',
-                        'Content-Type': 'application/json',
-                    }
-                    payload = {
-                        'labels': {
-                            'pool': new_pool,
-                            'runtime': self.container_runtime,
-                        }
-                    }
-                    response = requests.patch(url, headers=headers, json=payload, timeout=10)
-                    if response.status_code == 200:
-                        _logger.info(f"Updated GPUStack worker labels for {self.gpustack_worker_id}")
-            except ImportError:
-                _logger.warning("requests library not available, skipping GPUStack label update")
-            except Exception as e:
-                _logger.warning(f"Failed to update GPUStack worker labels: {e}")
 
         return {
             'type': 'ir.actions.client',
