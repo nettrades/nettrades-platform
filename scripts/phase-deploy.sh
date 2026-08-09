@@ -835,6 +835,12 @@ WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
 WEB_CONFIG_FILE="$WEB_CONFIG_DIR/web.yml"
 PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
 
+# If it's a directory, remove it first
+if [[ -d "$WEB_CONFIG_FILE" ]]; then
+    log_warning "$WEB_CONFIG_FILE is a directory. Removing it."
+    rm -rf "$WEB_CONFIG_FILE"
+fi
+
 if [[ -f "$WEB_CONFIG_FILE" ]]; then
     BACKUP_WEB="${WEB_CONFIG_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
     cp "$WEB_CONFIG_FILE" "$BACKUP_WEB"
