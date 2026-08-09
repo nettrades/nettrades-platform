@@ -24,6 +24,8 @@
 #
 # =============================================================================
 
+version: '3.8'
+
 # -----------------------------------------------------------------------------
 # Networks
 # -----------------------------------------------------------------------------
@@ -703,35 +705,35 @@ services:
       - net.ipv4.ip_forward=1
     restart: unless-stopped
 
-# =============================================================================
-# 16. SELF-IMPROVING SERVICE - Continuous Learning & Fine-Tuning
-# =============================================================================
-self-improving:
-  build:
-    context: ../../
-    dockerfile: deploy/docker/Dockerfile.self-improving
-  container_name: self-improving
-  restart: unless-stopped
-  networks:
-    - internal
-  environment:
-    - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
-    - ODOO_URL=${ODOO_URL:-http://odoo:8069}
-    - ODOO_API_KEY=${ODOO_API_KEY}
-    - THRESHOLD_EPISODES=50
-    - THRESHOLD_QUALITY=7.0
-    - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-1.5b}
-    - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
-  volumes:
-    - ./dynamo-data/models:/models
-    - ./training-data:/training-data
-  depends_on:
-    postgres:
-      condition: service_healthy
-    odoo:
-      condition: service_started
-  logging:
-    driver: json-file
-    options:
-      max-size: 10m
-      max-file: 3
+  # =============================================================================
+  # 16. SELF-IMPROVING SERVICE - Continuous Learning & Fine-Tuning
+  # =============================================================================
+  self-improving:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.self-improving
+    container_name: self-improving
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
+      - ODOO_URL=${ODOO_URL:-http://odoo:8069}
+      - ODOO_API_KEY=${ODOO_API_KEY}
+      - THRESHOLD_EPISODES=50
+      - THRESHOLD_QUALITY=7.0
+      - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-1.5b}
+      - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
+    volumes:
+      - ./dynamo-data/models:/models
+      - ./training-data:/training-data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      odoo:
+        condition: service_started
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
