@@ -289,6 +289,13 @@ setup_dev_environment() {
     log_success "pip upgraded"
 
     # ============================================================
+    # Install qrcode for WireGuard QR code generation
+    # ============================================================
+    log_step "Installing qrcode for WireGuard QR generation..."
+    pip install qrcode
+    log_success "qrcode installed"
+
+    # ============================================================
     # Make all scripts executable
     # ============================================================
     log_step "Making scripts executable..."
