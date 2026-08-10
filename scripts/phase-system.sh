@@ -441,7 +441,8 @@ fi
 # Also check if something else is blocking (like iptables)
 if command -v iptables &>/dev/null; then
     if ! sudo iptables -L INPUT -n 2>/dev/null | grep -q "dpt:80"; then
-        log_warning "Port 80 might be blocked by iptables. Consider opening it."
+        sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+        log_success "Added iptables rule for port 80"
     fi
 fi
 
