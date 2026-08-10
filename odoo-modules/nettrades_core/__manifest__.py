@@ -26,6 +26,7 @@
         # Views will be updated to use nettrades.user and nettrades.company
         'security/nettrades_security.xml',
         'security/ir.model.access.csv',
+        'views/menu_views.xml', 
         'views/nettrades_user_views.xml',       # New view for nettrades.user
         'views/nettrades_company_views.xml',    # New view for nettrades.company
         'views/nettrades_project_views.xml',
