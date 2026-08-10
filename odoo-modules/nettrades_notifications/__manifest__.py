@@ -2,7 +2,6 @@
 # Section F.8 - Notifications, Reviews & Disputes
 {
     'name': 'NETTRADES Notifications & Reviews',
-    'author': 'NETTRADES.AI',
     'version': '1.0',
     'category': 'Nettrades',
     'summary': 'NETTRADES Notifications & Reviews',

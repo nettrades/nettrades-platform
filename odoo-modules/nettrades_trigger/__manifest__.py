@@ -21,7 +21,6 @@
 # =============================================================================
 {
     'name': 'NETTRADES Trigger Detection',
-    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'Trigger detection for self-improving AI system',

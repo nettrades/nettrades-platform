@@ -25,7 +25,6 @@
 
 {
     'name': 'NETTRADES LLM Configuration',
-    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades/LLM',
     'summary': 'Company-specific LLM provider configuration for LangGraph agents',

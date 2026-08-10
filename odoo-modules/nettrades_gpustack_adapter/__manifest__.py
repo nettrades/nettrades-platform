@@ -2,7 +2,6 @@
 # Section H - GPUStack Adapter
 {
     'name': 'NETTRADES GPUStack Adapter',
-    'author': 'NETTRADES.AI',
     'version': '1.0',
     'category': 'Nettrades',
     'summary': 'NETTRADES GPUStack Adapter',

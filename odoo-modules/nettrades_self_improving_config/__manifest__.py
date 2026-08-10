@@ -19,7 +19,6 @@
 # =============================================================================
 {
     'name': 'NETTRADES Self-Improving Configuration',
-    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'Administration interface for self-improving AI system',

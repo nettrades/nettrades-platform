@@ -16,7 +16,6 @@
 
 {
     'name': 'NETTRADES WireGuard',
-    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'WireGuard VPN peer management',

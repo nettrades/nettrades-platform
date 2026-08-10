@@ -2,7 +2,6 @@
 # Section F.2 - Smart Onboarding
 {
     'name': 'NETTRADES Smart Onboarding',
-    'author': 'NETTRADES.AI',
     'version': '1.0',
     'category': 'Website',
     'summary': 'AI-powered user onboarding with CV parsing and profile completeness wizard',

@@ -24,7 +24,6 @@
 # =============================================================================
 {
     'name': 'NETTRADES Ask Someone',
-    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'Expert help marketplace with Stripe escrow',

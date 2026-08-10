@@ -23,7 +23,6 @@
 # =============================================================================
 {
     'name': 'NETTRADES Bridge',
-    'author': 'NETTRADES.AI',
     'version': '1.0.0',
     'category': 'Nettrades',
     'summary': 'Hub-and-spoke routing layer for AI requests',

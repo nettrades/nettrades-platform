@@ -5,7 +5,6 @@
 # =============================================================================
 {
     'name': 'NETTRADES GPU Admin',
-    'author': 'NETTRADES.AI',
     'version': '19.0.1.1.0',
     'category': 'Technical',
     'summary': 'GPU Cluster Management with Secure Token Registration',
