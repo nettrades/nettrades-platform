@@ -395,18 +395,22 @@ esac
 # -----------------------------------------------------------------------------
 log_step "Configuring firewall..."
 if command -v ufw &>/dev/null; then
+    # Enable UFW if not active
     if ! ufw status | grep -q "active"; then
         log_info "Enabling UFW firewall..."
-        sudo ufw allow 22/tcp comment 'SSH (main)'
-        sudo ufw allow 2222/tcp comment 'SSH (rescue)'
-        sudo ufw allow 80/tcp comment 'HTTP'
-        sudo ufw allow 443/tcp comment 'HTTPS'
-        sudo ufw allow 51820/udp comment 'WireGuard (internal)'
-        sudo ufw allow 51821/udp comment 'WireGuard (admin VPN)'
         sudo ufw --force enable
     else
         log_success "UFW firewall already active"
     fi
+
+    # Ensure all required rules exist (idempotent)
+    sudo ufw allow 22/tcp comment 'SSH (main)' 2>/dev/null || true
+    sudo ufw allow 2222/tcp comment 'SSH (rescue)' 2>/dev/null || true
+    sudo ufw allow 80/tcp comment 'HTTP' 2>/dev/null || true
+    sudo ufw allow 443/tcp comment 'HTTPS' 2>/dev/null || true
+    sudo ufw allow 51820/udp comment 'WireGuard (internal)' 2>/dev/null || true
+    sudo ufw allow 51821/udp comment 'WireGuard (admin VPN)' 2>/dev/null || true
+    log_success "UFW rules ensured"
 else
     log_warning "UFW not found – skipping firewall configuration"
 fi
@@ -542,6 +546,13 @@ if ! command -v sshd &>/dev/null; then
     log_success "OpenSSH server installed"
 fi
 
+# Get the full path of sshd
+SSHD_PATH=$(command -v sshd)
+if [[ -z "$SSHD_PATH" ]]; then
+    log_error "sshd not found in PATH. Cannot set up rescue SSH server."
+    exit 1
+fi
+
 # Create /run/sshd if it doesn't exist (needed on WSL)
 if [[ ! -d /run/sshd ]]; then
     sudo mkdir -p /run/sshd
@@ -549,41 +560,47 @@ if [[ ! -d /run/sshd ]]; then
     log_success "Created /run/sshd directory"
 fi
 
-# Check if rescue SSH server is already running
-if pgrep -f "sshd.*rescue" > /dev/null; then
-    log_success "Rescue SSH server already running on port 2222"
+# Create the rescue SSH configuration file
+cat > /etc/ssh/sshd_config_rescue << EOF
+Port 2222
+PasswordAuthentication yes
+PermitRootLogin yes
+PubkeyAuthentication yes
+LogLevel INFO
+UsePAM yes
+EOF
+
+# Create a systemd service for the rescue SSH server
+cat > /etc/systemd/system/ssh-rescue.service << EOF
+[Unit]
+Description=Rescue SSH server on port 2222
+After=network.target
+
+[Service]
+ExecStart=$SSHD_PATH -f /etc/ssh/sshd_config_rescue -D
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable ssh-rescue.service
+systemctl start ssh-rescue.service
+
+# Verify it's running
+if systemctl is-active --quiet ssh-rescue.service; then
+    log_success "Rescue SSH server started on port 2222 (password auth allowed) and enabled at boot"
 else
-    # On WSL, we need to start sshd differently
-    if [[ "$PLATFORM" == "wsl" ]]; then
-        log_info "WSL detected - starting rescue SSH server with platform-specific settings..."
-        # Use absolute path to sshd and ensure it uses the correct config
-        cat > /etc/ssh/sshd_config_rescue << EOF
-Port 2222
-PasswordAuthentication yes
-PermitRootLogin yes
-PubkeyAuthentication yes
-LogLevel INFO
-UsePAM no
-EOF
-        # On WSL, we need to use the full path and background it
-        /usr/sbin/sshd -f /etc/ssh/sshd_config_rescue -D &
-        sleep 2
-        if pgrep -f "sshd.*rescue" > /dev/null; then
-            log_success "Rescue SSH server started on port 2222 (password auth allowed)"
-        else
-            log_warning "Failed to start rescue SSH server on WSL. You may need to start it manually."
-            log_info "To start manually: sudo /usr/sbin/sshd -f /etc/ssh/sshd_config_rescue"
-        fi
+    log_warning "Failed to start rescue SSH server via systemd. Trying to start manually..."
+    $SSHD_PATH -f /etc/ssh/sshd_config_rescue -D &
+    sleep 2
+    if pgrep -f "sshd.*rescue" > /dev/null; then
+        log_success "Rescue SSH server started manually on port 2222"
     else
-        cat > /etc/ssh/sshd_config_rescue << EOF
-Port 2222
-PasswordAuthentication yes
-PermitRootLogin yes
-PubkeyAuthentication yes
-LogLevel INFO
-EOF
-        /usr/sbin/sshd -f /etc/ssh/sshd_config_rescue
-        log_success "Rescue SSH server started on port 2222 (password auth allowed)"
+        log_error "Rescue SSH server could not be started. Please investigate."
+        exit 1
     fi
 fi
 
@@ -646,8 +663,8 @@ EOF
 else
     log_warning "WireGuard kernel module not available."
     
-    if [[ "$PLATFORM" == "wsl" ]]; then
-        log_info "On WSL, the WireGuard kernel module is not supported by default."
+    # Attempt to use wireguard-go as fallback on native Linux as well
+    if [[ "$PLATFORM" == "linux" ]] || [[ "$PLATFORM" == "wsl" ]]; then
         log_info "Installing wireguard-go (userspace WireGuard) as an alternative..."
         
         # Install wireguard-go if not already installed
@@ -679,7 +696,7 @@ EOF
         sudo ip link set wg0 up
         
         log_success "WireGuard admin VPN started with userspace implementation (wireguard-go)"
-        log_info "Note: wireguard-go is slower than kernel WireGuard. For production, consider using a native Linux kernel."
+        log_info "Note: wireguard-go is slower than kernel WireGuard. For production, consider installing wireguard-dkms."
     else
         log_warning "WireGuard kernel module not available on this system. Skipping VPN server start."
         log_info "Configuration and keys are still available at $WG_ADMIN_DIR"
