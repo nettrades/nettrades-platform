@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Main NETTRADES root menu -->
+    <!-- ======================================================================
+    NETTRADES Root Menu
+    ======================================================================= -->
+    <!--
+        This is the main root menu for the NETTRADES platform.
+        All other NETTRADES modules should place their menus under this root.
+    -->
     <menuitem id="menu_nettrades_root"
               name="NETTRADES"
               sequence="10"
               web_icon="nettrades_core,static/description/icon.png"/>
 
-    <!-- Sub‑menus will be added by other modules; they can reference this root -->
+    <!-- Sub-menus will be added by other modules; they can reference this root -->
 </odoo>
