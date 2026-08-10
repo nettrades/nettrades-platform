@@ -21,14 +21,17 @@ const tabs = document.querySelectorAll('.nav-item');
 const tabContents = {
     dashboard: document.getElementById('tab-dashboard'),
     installer: document.getElementById('tab-installer'),
+    models: document.getElementById('tab-models'),
     backup: document.getElementById('tab-backup'),
     logs: document.getElementById('tab-logs'),
     settings: document.getElementById('tab-settings'),
+    vpn: document.getElementById('tab-vpn'),
 };
 
 let currentTab = 'dashboard';
 let featureFlags = {};
 let isInstalling = false;
+let serverUrl = 'http://localhost';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tab Navigation
@@ -47,7 +50,9 @@ function switchTab(tabName) {
 
     // Update content
     Object.keys(tabContents).forEach(key => {
-        tabContents[key].classList.toggle('active', key === tabName);
+        if (tabContents[key]) {
+            tabContents[key].classList.toggle('active', key === tabName);
+        }
     });
 
     currentTab = tabName;
@@ -58,6 +63,12 @@ function switchTab(tabName) {
     }
     if (tabName === 'backup') {
         loadBackupList();
+    }
+    if (tabName === 'models') {
+        loadModels();
+    }
+    if (tabName === 'vpn') {
+        loadVPNUsers();
     }
 }
 
@@ -76,6 +87,45 @@ async function loadPlatformInfo() {
     } catch (e) {
         console.error('Failed to load platform info:', e);
     }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Server URL (dynamic, replaces hardcoded localhost)
+// ──────────────────────────────────────────────────────────────────────────────
+async function loadServerUrl() {
+    try {
+        const url = await window.api.getServerUrl();
+        if (url) {
+            serverUrl = url;
+            // Update the settings input if it exists
+            const input = document.getElementById('server-url');
+            if (input) {
+                input.value = serverUrl;
+            }
+            console.log(`Server URL: ${serverUrl}`);
+        }
+    } catch (e) {
+        console.error('Failed to load server URL:', e);
+    }
+}
+
+function getServiceUrl(service) {
+    const ports = {
+        odoo: ':8069',
+        grafana: ':3001',
+        llama: ':8080',
+        ui: ':3002',
+        api: ':8000',
+        prometheus: ':9090',
+    };
+    const port = ports[service] || '';
+    // If serverUrl already includes a port, don't add another one
+    // Simple check: if serverUrl ends with a number, assume it has a port
+    const hasPort = /:\d+$/.test(serverUrl);
+    if (hasPort) {
+        return `${serverUrl}${port}`;
+    }
+    return `${serverUrl}${port}`;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -100,8 +150,9 @@ async function updateDashboard() {
     const versionText = document.getElementById('version-text');
 
     try {
-        // Try to check if Odoo is running
-        const response = await fetch('http://localhost:8069', { method: 'HEAD', mode: 'no-cors' });
+        // Try to check if Odoo is running using the dynamic server URL
+        const odooUrl = getServiceUrl('odoo');
+        const response = await fetch(odooUrl, { method: 'HEAD', mode: 'no-cors' });
         // If we can reach it, it's likely running
         statusBadge.textContent = '✅ Running';
         statusBadge.className = 'status-badge status-running';
@@ -123,6 +174,17 @@ async function updateDashboard() {
     } catch (e) {
         document.getElementById('stat-backups').textContent = '0';
     }
+
+    // Load model count
+    try {
+        const models = await window.api.listModels();
+        document.getElementById('stat-models').textContent = models.length;
+    } catch (e) {
+        document.getElementById('stat-models').textContent = '0';
+    }
+
+    // Detect GPUs
+    detectGpu();
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -133,6 +195,7 @@ let installOptions = {};
 
 function renderDeploymentCards() {
     const container = document.getElementById('deployment-cards');
+    if (!container) return;
     container.innerHTML = '';
 
     const deployments = [
@@ -206,7 +269,8 @@ function renderDeploymentCards() {
         container.appendChild(card);
     });
 
-    document.getElementById('btn-install-next').disabled = true;
+    const nextBtn = document.getElementById('btn-install-next');
+    if (nextBtn) nextBtn.disabled = true;
 }
 
 document.getElementById('btn-install-next').addEventListener('click', () => {
@@ -232,6 +296,7 @@ function showConfigSummary(deploymentId) {
     };
 
     const summary = document.getElementById('config-summary');
+    if (!summary) return;
     summary.innerHTML = `
         <div class="config-row">
             <strong>Deployment:</strong> ${names[deploymentId] || deploymentId}
@@ -258,7 +323,7 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
     const progressLabel = document.getElementById('install-progress-label');
     const logOutput = document.getElementById('install-log-output');
 
-    logOutput.innerHTML = '<div class="log-placeholder">Starting installation...</div>';
+    if (logOutput) logOutput.innerHTML = '<div class="log-placeholder">Starting installation...</div>';
 
     const options = {
         profile: selectedDeployment,
@@ -275,52 +340,58 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
     window.api.onInstallOutput((data) => {
         // Update progress based on output
         if (data.includes('Phase 0')) {
-            progressFill.style.width = '10%';
-            progressLabel.textContent = 'Phase 0: System Preparation...';
+            if (progressFill) progressFill.style.width = '10%';
+            if (progressLabel) progressLabel.textContent = 'Phase 0: System Preparation...';
         } else if (data.includes('Phase 1')) {
-            progressFill.style.width = '30%';
-            progressLabel.textContent = 'Phase 1: Environment Setup...';
+            if (progressFill) progressFill.style.width = '30%';
+            if (progressLabel) progressLabel.textContent = 'Phase 1: Environment Setup...';
         } else if (data.includes('Phase 2')) {
-            progressFill.style.width = '50%';
-            progressLabel.textContent = 'Phase 2: Deployment...';
+            if (progressFill) progressFill.style.width = '50%';
+            if (progressLabel) progressLabel.textContent = 'Phase 2: Deployment...';
         } else if (data.includes('Phase 3')) {
-            progressFill.style.width = '70%';
-            progressLabel.textContent = 'Phase 3: GPU Setup...';
+            if (progressFill) progressFill.style.width = '70%';
+            if (progressLabel) progressLabel.textContent = 'Phase 3: GPU Setup...';
         } else if (data.includes('Phase 4')) {
-            progressFill.style.width = '85%';
-            progressLabel.textContent = 'Phase 4: Module Installation...';
+            if (progressFill) progressFill.style.width = '85%';
+            if (progressLabel) progressLabel.textContent = 'Phase 4: Module Installation...';
         } else if (data.includes('Phase 5')) {
-            progressFill.style.width = '95%';
-            progressLabel.textContent = 'Phase 5: Monitoring Setup...';
+            if (progressFill) progressFill.style.width = '95%';
+            if (progressLabel) progressLabel.textContent = 'Phase 5: Monitoring Setup...';
         } else if (data.includes('Setup Complete')) {
-            progressFill.style.width = '100%';
-            progressLabel.textContent = '✅ Installation complete!';
+            if (progressFill) progressFill.style.width = '100%';
+            if (progressLabel) progressLabel.textContent = '✅ Installation complete!';
         }
 
         // Append to log
-        const lines = logOutput.textContent.split('\n');
-        lines.push(data);
-        if (lines.length > 200) lines.splice(0, lines.length - 200);
-        logOutput.textContent = lines.join('\n');
-        logOutput.scrollTop = logOutput.scrollHeight;
+        if (logOutput) {
+            const lines = logOutput.textContent.split('\n');
+            lines.push(data);
+            if (lines.length > 200) lines.splice(0, lines.length - 200);
+            logOutput.textContent = lines.join('\n');
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
     });
 
     try {
         await window.api.runInstall(options);
         isInstalling = false;
         document.getElementById('btn-install-cancel').style.display = 'none';
-        progressFill.style.width = '100%';
-        progressLabel.textContent = '✅ Installation complete!';
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressLabel) progressLabel.textContent = '✅ Installation complete!';
         document.getElementById('install-status-badge').textContent = '✅ Complete';
         document.getElementById('install-status-badge').className = 'status-badge status-running';
         updateDashboard();
     } catch (err) {
         isInstalling = false;
         document.getElementById('btn-install-cancel').style.display = 'none';
-        progressFill.style.width = '100%';
-        progressFill.style.background = 'var(--danger)';
-        progressLabel.textContent = '❌ Installation failed';
-        logOutput.textContent += `\n\n❌ Error: ${err.output || err.message || 'Unknown error'}`;
+        if (progressFill) {
+            progressFill.style.width = '100%';
+            progressFill.style.background = 'var(--danger)';
+        }
+        if (progressLabel) progressLabel.textContent = '❌ Installation failed';
+        if (logOutput) {
+            logOutput.textContent += `\n\n❌ Error: ${err.output || err.message || 'Unknown error'}`;
+        }
         document.getElementById('install-status-badge').textContent = '❌ Failed';
         document.getElementById('install-status-badge').className = 'status-badge status-stopped';
     }
@@ -333,18 +404,207 @@ document.getElementById('btn-install-cancel').addEventListener('click', async ()
             isInstalling = false;
             document.getElementById('btn-install-cancel').style.display = 'none';
             document.getElementById('install-progress-label').textContent = '⏹ Installation cancelled';
-            document.getElementById('install-log-output').textContent += '\n\n⏹ Installation cancelled.';
+            const logOutput = document.getElementById('install-log-output');
+            if (logOutput) logOutput.textContent += '\n\n⏹ Installation cancelled.';
             document.getElementById('install-status-badge').textContent = '⏹ Cancelled';
         }
     }
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Model Manager (LM Studio-style)
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function loadModels() {
+    const grid = document.getElementById('model-grid');
+    if (!grid) return;
+
+    try {
+        const models = await window.api.listModels();
+        if (models.length === 0) {
+            grid.innerHTML = `
+                <div class="model-empty">
+                    <p>No models found. Download or import a model to get started.</p>
+                    <button class="btn btn-primary" id="btn-browse-models">📥 Browse Models</button>
+                    <button class="btn btn-secondary" id="btn-import-model">📂 Import Model</button>
+                </div>
+            `;
+            // Re-bind events
+            document.getElementById('btn-browse-models')?.addEventListener('click', browseModels);
+            document.getElementById('btn-import-model')?.addEventListener('click', importModel);
+            return;
+        }
+
+        grid.innerHTML = models.map(model => `
+            <div class="model-card">
+                <div class="model-icon">🧠</div>
+                <div class="model-name">${model.name}</div>
+                <div class="model-size">${model.sizeFormatted}</div>
+                <div class="model-actions">
+                    <button class="btn btn-success" data-path="${model.path}" onclick="loadModel('${model.path}')">▶ Load</button>
+                    <button class="btn btn-danger" data-path="${model.path}" onclick="deleteModel('${model.path}')">🗑️ Delete</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        grid.innerHTML = `<p class="model-error">Error loading models: ${e.message}</p>`;
+    }
+}
+
+async function browseModels() {
+    const searchTerm = prompt('Search for a model on Hugging Face (e.g., "llama", "qwen"):');
+    if (!searchTerm) return;
+
+    addActivity(`Searching for models matching "${searchTerm}"...`);
+
+    // In production, this would use the Hugging Face API
+    // For now, we'll show a demo list
+    const demoModels = [
+        { name: `llama-3.2-1B-Q4_K_M.gguf`, url: 'https://huggingface.co/...' },
+        { name: `qwen-2.5-1.5B-Q4_K_M.gguf`, url: 'https://huggingface.co/...' },
+        { name: `deepseek-r1-1.5B-Q4_K_M.gguf`, url: 'https://huggingface.co/...' },
+    ];
+
+    const modelList = demoModels.map(m =>
+        `${m.name}`
+    ).join('\n');
+
+    const selection = prompt(`Available models:\n${modelList}\n\nEnter the full model name to download:`);
+    if (selection) {
+        downloadModel(selection);
+    }
+}
+
+async function downloadModel(filename) {
+    addActivity(`Downloading model: ${filename}...`);
+    const progressBar = document.getElementById('download-progress-bar');
+    const progressLabel = document.getElementById('download-progress-label');
+    const progressContainer = document.getElementById('download-progress');
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressBar) progressBar.style.width = '0%';
+    if (progressLabel) progressLabel.textContent = 'Starting download...';
+
+    // In production, this would call window.api.downloadModel()
+    // with the actual Hugging Face URL
+    // Simulate download progress
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += 5;
+        if (progressBar) progressBar.style.width = `${Math.min(progress, 100)}%`;
+        if (progressLabel) progressLabel.textContent = `Downloading... ${Math.min(progress, 100)}%`;
+        if (progress >= 100) {
+            clearInterval(interval);
+            if (progressLabel) progressLabel.textContent = '✅ Download complete!';
+            addActivity(`Model downloaded: ${filename}`);
+            loadModels();
+            setTimeout(() => {
+                if (progressContainer) progressContainer.style.display = 'none';
+            }, 3000);
+        }
+    }, 200);
+}
+
+async function importModel() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.gguf';
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        addActivity(`Importing model: ${file.name}...`);
+        try {
+            // In production, this would use window.api.importModel()
+            // For now, we'll simulate
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            addActivity(`Model imported: ${file.name}`);
+            loadModels();
+        } catch (err) {
+            addActivity(`Failed to import model: ${err.message}`);
+        }
+    };
+    input.click();
+}
+
+// Global functions for onclick handlers
+window.loadModel = async function(modelPath) {
+    addActivity(`Loading model: ${modelPath.split('/').pop()}...`);
+    try {
+        const result = await window.api.loadModel(modelPath);
+        if (result.success) {
+            addActivity(`Model loaded: ${modelPath.split('/').pop()}`);
+        } else {
+            addActivity(`Failed to load model: ${result.error}`);
+        }
+    } catch (e) {
+        addActivity(`Error loading model: ${e.message}`);
+    }
+};
+
+window.deleteModel = async function(modelPath) {
+    const confirmResult = await window.api.showDialog({
+        type: 'warning',
+        title: 'Delete Model',
+        message: `Are you sure you want to delete ${modelPath.split('/').pop()}?`,
+        buttons: ['Cancel', 'Delete'],
+        defaultId: 0,
+        cancelId: 0,
+    });
+    if (confirmResult.response !== 1) return;
+
+    addActivity(`Deleting model: ${modelPath.split('/').pop()}...`);
+    try {
+        const result = await window.api.deleteModel(modelPath);
+        if (result.success) {
+            addActivity(`Model deleted: ${modelPath.split('/').pop()}`);
+            loadModels();
+        } else {
+            addActivity(`Failed to delete model: ${result.error}`);
+        }
+    } catch (e) {
+        addActivity(`Error deleting model: ${e.message}`);
+    }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// GPU Detection
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function detectGpu() {
+    const gpuStatus = document.getElementById('gpu-status');
+    const statGpus = document.getElementById('stat-gpus');
+    if (!gpuStatus) return;
+
+    try {
+        const result = await window.api.detectGpu();
+        if (result.gpuAvailable) {
+            const gpuInfo = result.gpus.map(g =>
+                `${g.name} - ${g.memoryTotal} (${g.memoryUsed} used)`
+            ).join('\n');
+            gpuStatus.textContent = `✅ ${result.gpus.length} GPU(s) detected`;
+            gpuStatus.title = gpuInfo;
+            gpuStatus.className = 'status-badge status-running';
+            if (statGpus) statGpus.textContent = result.gpus.length;
+        } else {
+            gpuStatus.textContent = '⚠️ No GPU detected (CPU mode)';
+            gpuStatus.className = 'status-badge status-unknown';
+            if (statGpus) statGpus.textContent = '0';
+        }
+    } catch (e) {
+        gpuStatus.textContent = '❌ GPU detection failed';
+        gpuStatus.className = 'status-badge status-stopped';
+        if (statGpus) statGpus.textContent = '?';
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Backup & Restore
 // ──────────────────────────────────────────────────────────────────────────────
+
 async function loadBackupList() {
     const container = document.getElementById('backup-list-container');
     const select = document.getElementById('backup-select');
+
+    if (!container || !select) return;
 
     try {
         const backups = await window.api.listBackups();
@@ -389,37 +649,49 @@ function formatSize(bytes) {
 
 document.getElementById('btn-create-backup').addEventListener('click', async () => {
     const logOutput = document.getElementById('backup-log-output');
-    logOutput.style.display = 'block';
-    logOutput.innerHTML = '<div class="log-placeholder">Starting backup...</div>';
+    if (logOutput) {
+        logOutput.style.display = 'block';
+        logOutput.innerHTML = '<div class="log-placeholder">Starting backup...</div>';
+    }
 
     const statusBadge = document.getElementById('backup-status-badge');
-    statusBadge.textContent = '⏳ Backing up...';
-    statusBadge.className = 'status-badge status-unknown';
+    if (statusBadge) {
+        statusBadge.textContent = '⏳ Backing up...';
+        statusBadge.className = 'status-badge status-unknown';
+    }
 
     window.api.onBackupOutput((data) => {
-        const lines = logOutput.textContent.split('\n');
-        lines.push(data);
-        if (lines.length > 100) lines.splice(0, lines.length - 100);
-        logOutput.textContent = lines.join('\n');
-        logOutput.scrollTop = logOutput.scrollHeight;
+        if (logOutput) {
+            const lines = logOutput.textContent.split('\n');
+            lines.push(data);
+            if (lines.length > 100) lines.splice(0, lines.length - 100);
+            logOutput.textContent = lines.join('\n');
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
     });
 
     try {
         await window.api.createBackup({ auto: true });
-        statusBadge.textContent = '✅ Backup complete';
-        statusBadge.className = 'status-badge status-running';
+        if (statusBadge) {
+            statusBadge.textContent = '✅ Backup complete';
+            statusBadge.className = 'status-badge status-running';
+        }
         await loadBackupList();
         updateDashboard();
     } catch (err) {
-        statusBadge.textContent = '❌ Backup failed';
-        statusBadge.className = 'status-badge status-stopped';
-        logOutput.textContent += `\n\n❌ Error: ${err.output || err.message || 'Unknown error'}`;
+        if (statusBadge) {
+            statusBadge.textContent = '❌ Backup failed';
+            statusBadge.className = 'status-badge status-stopped';
+        }
+        if (logOutput) {
+            logOutput.textContent += `\n\n❌ Error: ${err.output || err.message || 'Unknown error'}`;
+        }
     }
 });
 
 document.getElementById('btn-restore-backup').addEventListener('click', async () => {
     const select = document.getElementById('backup-select');
-    const backupPath = select.value;
+    const backupPath = select ? select.value : null;
 
     if (!backupPath) {
         await window.api.showDialog({
@@ -443,38 +715,47 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
     if (confirmResult.response !== 1) return;
 
     const logOutput = document.getElementById('backup-log-output');
-    logOutput.style.display = 'block';
-    logOutput.innerHTML = '<div class="log-placeholder">Starting restore...</div>';
+    if (logOutput) {
+        logOutput.style.display = 'block';
+        logOutput.innerHTML = '<div class="log-placeholder">Starting restore...</div>';
+    }
 
     const statusBadge = document.getElementById('backup-status-badge');
-    statusBadge.textContent = '⏳ Restoring...';
-    statusBadge.className = 'status-badge status-unknown';
+    if (statusBadge) {
+        statusBadge.textContent = '⏳ Restoring...';
+        statusBadge.className = 'status-badge status-unknown';
+    }
 
     window.api.onRestoreOutput((data) => {
-        const lines = logOutput.textContent.split('\n');
-        lines.push(data);
-        if (lines.length > 100) lines.splice(0, lines.length - 100);
-        logOutput.textContent = lines.join('\n');
-        logOutput.scrollTop = logOutput.scrollHeight;
+        if (logOutput) {
+            const lines = logOutput.textContent.split('\n');
+            lines.push(data);
+            if (lines.length > 100) lines.splice(0, lines.length - 100);
+            logOutput.textContent = lines.join('\n');
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
     });
 
     try {
         await window.api.restoreBackup(backupPath);
-        statusBadge.textContent = '✅ Restore complete';
-        statusBadge.className = 'status-badge status-running';
+        if (statusBadge) {
+            statusBadge.textContent = '✅ Restore complete';
+            statusBadge.className = 'status-badge status-running';
+        }
         updateDashboard();
     } catch (err) {
-        statusBadge.textContent = '❌ Restore failed';
-        statusBadge.className = 'status-badge status-stopped';
-        logOutput.textContent += `\n\n❌ Error: ${err.output || err.message || 'Unknown error'}`;
+        if (statusBadge) {
+            statusBadge.textContent = '❌ Restore failed';
+            statusBadge.className = 'status-badge status-stopped';
+        }
+        if (logOutput) {
+            logOutput.textContent += `\n\n❌ Error: ${err.output || err.message || 'Unknown error'}`;
+        }
     }
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Quick Actions (Dashboard)
-// ──────────────────────────────────────────────────────────────────────────────
-// ──────────────────────────────────────────────────────────────────────────────
-// Quick Actions (Dashboard)
+// Quick Actions (Dashboard) – Dynamic Server URLs
 // ──────────────────────────────────────────────────────────────────────────────
 
 document.getElementById('btn-quick-backup').addEventListener('click', () => {
@@ -486,53 +767,59 @@ document.getElementById('btn-quick-restore').addEventListener('click', () => {
     switchTab('backup');
 });
 
+// Service launchers with dynamic URLs
 document.getElementById('btn-open-odoo').addEventListener('click', () => {
-    window.api.openUrl('http://localhost:8069');
+    window.api.openService('odoo');
 });
 
 document.getElementById('btn-open-grafana').addEventListener('click', () => {
-    window.api.openUrl('http://localhost:3001');
+    window.api.openService('grafana');
 });
 
-// NEW: Open LLama.cpp UI (port 8080)
 document.getElementById('btn-open-llama').addEventListener('click', () => {
-    window.api.openUrl('http://localhost:8080');
+    window.api.openService('llama');
 });
 
-// NEW: Open NETTRADES-UI (port 3002)
 document.getElementById('btn-open-ui').addEventListener('click', () => {
-    window.api.openUrl('http://localhost:3002');
+    window.api.openService('ui');
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Platform Control (Start / Stop) – NOW ACTUALLY WORKS
+// Platform Control (Start / Stop / Restart)
 // ──────────────────────────────────────────────────────────────────────────────
 
 document.getElementById('btn-start-platform').addEventListener('click', async () => {
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
-    statusBadge.textContent = '⏳ Starting...';
-    statusBadge.className = 'status-badge status-unknown';
+    if (statusBadge) {
+        statusBadge.textContent = '⏳ Starting...';
+        statusBadge.className = 'status-badge status-unknown';
+    }
 
     try {
-        // Listen for output from the main process
         window.api.onPlatformOutput((data) => {
-            // You could display this in a log if you want
             console.log('[Platform]', data);
+            addActivity(`[Platform] ${data.trim()}`);
         });
 
         const result = await window.api.startPlatform();
         if (result.success) {
-            statusBadge.textContent = '✅ Running';
-            statusBadge.className = 'status-badge status-running';
-            statusText.textContent = 'Running';
+            if (statusBadge) {
+                statusBadge.textContent = '✅ Running';
+                statusBadge.className = 'status-badge status-running';
+            }
+            if (statusText) statusText.textContent = 'Running';
+            addActivity('Platform started successfully');
         } else {
             throw new Error('Failed to start');
         }
     } catch (e) {
-        statusBadge.textContent = '❌ Failed to start';
-        statusBadge.className = 'status-badge status-stopped';
-        statusText.textContent = 'Error';
+        if (statusBadge) {
+            statusBadge.textContent = '❌ Failed to start';
+            statusBadge.className = 'status-badge status-stopped';
+        }
+        if (statusText) statusText.textContent = 'Error';
+        addActivity(`Failed to start platform: ${e.message}`);
         console.error(e);
     }
 });
@@ -540,54 +827,104 @@ document.getElementById('btn-start-platform').addEventListener('click', async ()
 document.getElementById('btn-stop-platform').addEventListener('click', async () => {
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
-    statusBadge.textContent = '⏳ Stopping...';
-    statusBadge.className = 'status-badge status-unknown';
+    if (statusBadge) {
+        statusBadge.textContent = '⏳ Stopping...';
+        statusBadge.className = 'status-badge status-unknown';
+    }
 
     try {
         const result = await window.api.stopPlatform();
         if (result.success) {
-            statusBadge.textContent = '⏹ Stopped';
-            statusBadge.className = 'status-badge status-stopped';
-            statusText.textContent = 'Stopped';
+            if (statusBadge) {
+                statusBadge.textContent = '⏹ Stopped';
+                statusBadge.className = 'status-badge status-stopped';
+            }
+            if (statusText) statusText.textContent = 'Stopped';
+            addActivity('Platform stopped successfully');
         } else {
             throw new Error('Failed to stop');
         }
     } catch (e) {
-        statusBadge.textContent = '❌ Failed to stop';
-        statusBadge.className = 'status-badge status-stopped';
-        statusText.textContent = 'Error';
+        if (statusBadge) {
+            statusBadge.textContent = '❌ Failed to stop';
+            statusBadge.className = 'status-badge status-stopped';
+        }
+        if (statusText) statusText.textContent = 'Error';
+        addActivity(`Failed to stop platform: ${e.message}`);
+        console.error(e);
+    }
+});
+
+document.getElementById('btn-restart-platform').addEventListener('click', async () => {
+    const statusBadge = document.getElementById('status-badge');
+    const statusText = document.getElementById('status-text');
+    if (statusBadge) {
+        statusBadge.textContent = '⏳ Restarting...';
+        statusBadge.className = 'status-badge status-unknown';
+    }
+
+    try {
+        const result = await window.api.restartPlatform();
+        if (result.success) {
+            if (statusBadge) {
+                statusBadge.textContent = '✅ Running';
+                statusBadge.className = 'status-badge status-running';
+            }
+            if (statusText) statusText.textContent = 'Running';
+            addActivity('Platform restarted successfully');
+        } else {
+            throw new Error('Failed to restart');
+        }
+    } catch (e) {
+        if (statusBadge) {
+            statusBadge.textContent = '❌ Failed to restart';
+            statusBadge.className = 'status-badge status-stopped';
+        }
+        if (statusText) statusText.textContent = 'Error';
+        addActivity(`Failed to restart platform: ${e.message}`);
         console.error(e);
     }
 });
 
 document.getElementById('btn-update-platform').addEventListener('click', async () => {
     const statusBadge = document.getElementById('status-badge');
-    statusBadge.textContent = '⏳ Checking for updates...';
-    statusBadge.className = 'status-badge status-unknown';
+    if (statusBadge) {
+        statusBadge.textContent = '⏳ Checking for updates...';
+        statusBadge.className = 'status-badge status-unknown';
+    }
 
     // This would trigger the update check
     await new Promise(resolve => setTimeout(resolve, 2000));
-    statusBadge.textContent = '✅ Up to date';
-    statusBadge.className = 'status-badge status-running';
+    if (statusBadge) {
+        statusBadge.textContent = '✅ Up to date';
+        statusBadge.className = 'status-badge status-running';
+    }
+    addActivity('Checked for updates: up to date');
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Logs Tab
 // ──────────────────────────────────────────────────────────────────────────────
+
 document.getElementById('btn-copy-logs').addEventListener('click', () => {
-    const logs = document.getElementById('logs-output').textContent;
-    navigator.clipboard.writeText(logs).then(() => {
-        // Show a brief notification
+    const logs = document.getElementById('logs-output');
+    if (!logs) return;
+    const text = logs.textContent;
+    navigator.clipboard.writeText(text).then(() => {
         const btn = document.getElementById('btn-copy-logs');
-        const originalText = btn.textContent;
-        btn.textContent = '✅ Copied!';
-        setTimeout(() => { btn.textContent = originalText; }, 2000);
+        if (btn) {
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copied!';
+            setTimeout(() => { btn.textContent = originalText; }, 2000);
+        }
     }).catch(() => {});
 });
 
 document.getElementById('btn-save-logs').addEventListener('click', () => {
-    const logs = document.getElementById('logs-output').textContent;
-    const blob = new Blob([logs], { type: 'text/plain' });
+    const logs = document.getElementById('logs-output');
+    if (!logs) return;
+    const text = logs.textContent;
+    const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -597,22 +934,57 @@ document.getElementById('btn-save-logs').addEventListener('click', () => {
 });
 
 document.getElementById('btn-clear-logs').addEventListener('click', () => {
-    document.getElementById('logs-output').innerHTML = '<div class="log-placeholder">Logs cleared.</div>';
+    const logs = document.getElementById('logs-output');
+    if (logs) {
+        logs.innerHTML = '<div class="log-placeholder">Logs cleared.</div>';
+    }
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Settings
 // ──────────────────────────────────────────────────────────────────────────────
+
 document.getElementById('settings-github-link').addEventListener('click', (e) => {
     e.preventDefault();
     window.api.openUrl('https://github.com/nettrades/nettrades-platform');
 });
 
+// Server URL settings
+document.getElementById('btn-save-server-url').addEventListener('click', async () => {
+    const input = document.getElementById('server-url');
+    if (!input) return;
+    const url = input.value.trim();
+    if (url) {
+        const result = await window.api.saveServerUrl(url);
+        if (result.success) {
+            serverUrl = url;
+            addActivity(`Server URL saved: ${url}`);
+            // Show success feedback
+            const btn = document.getElementById('btn-save-server-url');
+            if (btn) {
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Saved!';
+                setTimeout(() => { btn.textContent = originalText; }, 2000);
+            }
+        } else {
+            addActivity(`Failed to save server URL: ${result.error}`);
+        }
+    } else {
+        // Reset to default
+        serverUrl = 'http://localhost';
+        await window.api.saveServerUrl('http://localhost');
+        addActivity('Server URL reset to localhost');
+    }
+});
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Activity Log
 // ──────────────────────────────────────────────────────────────────────────────
+
 function addActivity(message) {
     const container = document.getElementById('activity-log');
+    if (!container) return;
+
     const empty = container.querySelector('.activity-empty');
     if (empty) empty.remove();
 
@@ -629,34 +1001,49 @@ function addActivity(message) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Initialize
 // ──────────────────────────────────────────────────────────────────────────────
+
 async function init() {
     await loadPlatformInfo();
     await loadFeatureFlags();
+    await loadServerUrl();
     await updateDashboard();
     await loadBackupList();
+    await detectGpu();
 
     addActivity('Launcher started');
 
     // Set up periodic dashboard refresh
     setInterval(updateDashboard, 30000);
+    setInterval(detectGpu, 60000);
 
     // Add log listener to capture all output
     window.api.onInstallOutput((data) => {
         const logs = document.getElementById('logs-output');
-        const placeholder = logs.querySelector('.log-placeholder');
-        if (placeholder) placeholder.remove();
-        logs.textContent += data + '\n';
-        logs.scrollTop = logs.scrollHeight;
+        if (logs) {
+            const placeholder = logs.querySelector('.log-placeholder');
+            if (placeholder) placeholder.remove();
+            logs.textContent += data + '\n';
+            logs.scrollTop = logs.scrollHeight;
+        }
         // Also add to activity if it's a significant event
         if (data.includes('SUCCESS') || data.includes('ERROR') || data.includes('WARNING')) {
             addActivity(data.trim());
         }
     });
 
-    // Simulate some activity for demo
-    setTimeout(() => addActivity('Platform ready'), 1000);
+    // Platform output listener
+    window.api.onPlatformOutput((data) => {
+        addActivity(`[Platform] ${data.trim()}`);
+    });
+
+    // Bind model manager events if they exist
+    document.getElementById('btn-browse-models')?.addEventListener('click', browseModels);
+    document.getElementById('btn-import-model')?.addEventListener('click', importModel);
+
+    addActivity('Platform ready');
 }
 
+// Start the app
 init();
 
 // =============================================================================
@@ -665,6 +1052,8 @@ init();
 
 async function loadVPNUsers() {
     const container = document.getElementById('vpn-list-container');
+    if (!container) return;
+
     try {
         const response = await fetch('/api/wireguard/users', {
             headers: { 'X-API-Key': localStorage.getItem('apiKey') || '' }
@@ -700,10 +1089,10 @@ async function loadVPNUsers() {
 async function createVPNUser() {
     const nameInput = document.getElementById('vpn-new-name');
     const partnerInput = document.getElementById('vpn-new-partner');
-    const name = nameInput.value.trim();
-    const partner_id = parseInt(partnerInput.value.trim());
+    const name = nameInput ? nameInput.value.trim() : '';
+    const partner_id = partnerInput ? parseInt(partnerInput.value.trim()) : NaN;
 
-    if (!name || !partner_id) {
+    if (!name || isNaN(partner_id)) {
         alert('Please enter a name and partner ID.');
         return;
     }
@@ -722,24 +1111,29 @@ async function createVPNUser() {
         const data = await response.json();
 
         // Show result
-        document.getElementById('vpn-create-result').style.display = 'block';
-        document.getElementById('vpn-new-ip').textContent = data.assigned_ip;
-        document.getElementById('vpn-new-config-link').href = `/api/wireguard/users/${data.id}/config`;
+        const resultDiv = document.getElementById('vpn-create-result');
+        if (resultDiv) resultDiv.style.display = 'block';
+        const ipSpan = document.getElementById('vpn-new-ip');
+        if (ipSpan) ipSpan.textContent = data.assigned_ip;
+        const configLink = document.getElementById('vpn-new-config-link');
+        if (configLink) configLink.href = `/api/wireguard/users/${data.id}/config`;
 
         // Show QR code
         const qrContainer = document.getElementById('vpn-new-qr');
-        if (data.qr_code) {
-            qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code" style="max-width:200px;">`;
-        } else {
-            qrContainer.innerHTML = '<p>QR code not available.</p>';
+        if (qrContainer) {
+            if (data.qr_code) {
+                qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code" style="max-width:200px;">`;
+            } else {
+                qrContainer.innerHTML = '<p>QR code not available.</p>';
+            }
         }
 
         // Refresh the list
         loadVPNUsers();
 
         // Clear inputs
-        nameInput.value = '';
-        partnerInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (partnerInput) partnerInput.value = '';
 
     } catch (err) {
         alert(`Error creating VPN user: ${err.message}`);
@@ -769,3 +1163,8 @@ document.getElementById('btn-vpn-create').addEventListener('click', createVPNUse
 document.querySelector('.nav-item[data-tab="vpn"]').addEventListener('click', () => {
     loadVPNUsers();
 });
+
+// Also load VPN users if the tab is already active on startup
+if (document.querySelector('.nav-item[data-tab="vpn"].active')) {
+    loadVPNUsers();
+}

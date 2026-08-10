@@ -13,6 +13,9 @@
 //   - Streams output to the renderer for live log viewing
 //   - Handles platform detection and environment setup
 //   - Model management (download, import, list)
+//   - Platform control (start/stop Docker Compose)
+//   - GPU detection and status monitoring
+//   - Odoo authentication integration
 //
 // USAGE:
 //   npm start
@@ -44,15 +47,18 @@ const PROJECT_ROOT = isPackaged
 // Models directory (where llama.cpp and Dynamo look for models)
 const MODELS_DIR = path.join(PROJECT_ROOT, 'deploy', 'docker', 'dynamo-data', 'models');
 
+// Docker Compose file path
+const COMPOSE_FILE = path.join(PROJECT_ROOT, 'deploy', 'docker', 'docker-compose.yaml');
+
 // -----------------------------------------------------------------------------
 // Create the main window
 // -----------------------------------------------------------------------------
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1100,
-        height: 800,
-        minWidth: 800,
-        minHeight: 600,
+        width: 1200,
+        height: 850,
+        minWidth: 900,
+        minHeight: 700,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -62,6 +68,7 @@ function createWindow() {
         title: 'NetTrades Launcher',
         backgroundColor: '#0f172a',
         show: false,
+        frame: true,
     });
 
     mainWindow.loadFile('index.html');
@@ -93,6 +100,7 @@ app.whenReady().then(() => {
     logInfo(`Models directory: ${MODELS_DIR}`);
     logInfo(`Platform: ${process.platform}`);
     logInfo(`Packaged: ${isPackaged}`);
+    logInfo(`Compose file: ${COMPOSE_FILE}`);
 });
 
 app.on('window-all-closed', () => {
@@ -132,6 +140,53 @@ function ensureModelsDir() {
 }
 
 // -----------------------------------------------------------------------------
+// Utility: Format file size
+// -----------------------------------------------------------------------------
+function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    return (bytes / 1073741824).toFixed(2) + ' GB';
+}
+
+// -----------------------------------------------------------------------------
+// Utility: Get server URL from config or environment
+// -----------------------------------------------------------------------------
+function getServerUrl() {
+    // Priority: 1. User setting, 2. .env file, 3. localhost
+    const userConfigPath = path.join(os.homedir(), '.nettrades', 'config.json');
+    try {
+        if (fs.existsSync(userConfigPath)) {
+            const config = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+            if (config.serverUrl) {
+                return config.serverUrl;
+            }
+        }
+    } catch (e) {
+        logError(`Failed to read user config: ${e.message}`);
+    }
+
+    // Try to read from .env
+    const envPath = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
+    try {
+        if (fs.existsSync(envPath)) {
+            const content = fs.readFileSync(envPath, 'utf8');
+            const match = content.match(/^DOMAIN=(.+)$/m);
+            if (match) {
+                const domain = match[1].trim();
+                if (domain && domain !== 'changeit' && domain !== 'localhost') {
+                    return `https://${domain}`;
+                }
+            }
+        }
+    } catch (e) {
+        logError(`Failed to read .env: ${e.message}`);
+    }
+
+    return 'http://localhost';
+}
+
+// -----------------------------------------------------------------------------
 // IPC Handlers
 // -----------------------------------------------------------------------------
 
@@ -159,6 +214,30 @@ ipcMain.handle('get-project-root', () => {
 
 ipcMain.handle('get-models-dir', () => {
     return ensureModelsDir();
+});
+
+ipcMain.handle('get-server-url', () => {
+    return getServerUrl();
+});
+
+ipcMain.handle('save-server-url', async (event, url) => {
+    const configDir = path.join(os.homedir(), '.nettrades');
+    const configPath = path.join(configDir, 'config.json');
+    try {
+        if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+        }
+        let config = {};
+        if (fs.existsSync(configPath)) {
+            config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        }
+        config.serverUrl = url;
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        return { success: true };
+    } catch (e) {
+        logError(`Failed to save server URL: ${e.message}`);
+        return { success: false, error: e.message };
+    }
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -274,8 +353,7 @@ ipcMain.handle('get-install-status', () => {
 
 ipcMain.handle('start-platform', async (event) => {
     return new Promise((resolve, reject) => {
-        const composeFile = path.join(PROJECT_ROOT, 'deploy', 'docker', 'docker-compose.yaml');
-        const command = `docker compose -f "${composeFile}" up -d`;
+        const command = `docker compose -f "${COMPOSE_FILE}" up -d`;
 
         logInfo(`Starting platform: ${command}`);
 
@@ -311,8 +389,7 @@ ipcMain.handle('start-platform', async (event) => {
 
 ipcMain.handle('stop-platform', async (event) => {
     return new Promise((resolve, reject) => {
-        const composeFile = path.join(PROJECT_ROOT, 'deploy', 'docker', 'docker-compose.yaml');
-        const command = `docker compose -f "${composeFile}" down`;
+        const command = `docker compose -f "${COMPOSE_FILE}" down`;
 
         logInfo(`Stopping platform: ${command}`);
 
@@ -346,8 +423,71 @@ ipcMain.handle('stop-platform', async (event) => {
     });
 });
 
+ipcMain.handle('restart-platform', async (event) => {
+    return new Promise((resolve, reject) => {
+        const command = `docker compose -f "${COMPOSE_FILE}" restart`;
+
+        logInfo(`Restarting platform: ${command}`);
+
+        const proc = spawn('bash', ['-c', command], {
+            cwd: path.join(PROJECT_ROOT, 'deploy', 'docker'),
+        });
+
+        proc.stdout.on('data', (data) => {
+            const output = data.toString();
+            event.sender.send('platform-output', output);
+            logInfo(`[RESTART] ${output.trim()}`);
+        });
+
+        proc.stderr.on('data', (data) => {
+            const output = data.toString();
+            event.sender.send('platform-output', output);
+            logInfo(`[RESTART ERR] ${output.trim()}`);
+        });
+
+        proc.on('close', (code) => {
+            if (code === 0) {
+                resolve({ success: true });
+            } else {
+                reject({ success: false, code });
+            }
+        });
+
+        proc.on('error', (err) => {
+            reject({ success: false, error: err.message });
+        });
+    });
+});
+
+ipcMain.handle('platform-status', async () => {
+    return new Promise((resolve) => {
+        const command = `docker compose -f "${COMPOSE_FILE}" ps --format json`;
+
+        exec(command, { cwd: path.join(PROJECT_ROOT, 'deploy', 'docker') }, (error, stdout, stderr) => {
+            if (error) {
+                resolve({ running: false, error: error.message });
+                return;
+            }
+            try {
+                const containers = JSON.parse(stdout);
+                const services = {};
+                for (const c of containers) {
+                    services[c.Service] = {
+                        name: c.Name,
+                        status: c.Status,
+                        state: c.State,
+                    };
+                }
+                resolve({ running: true, services });
+            } catch (e) {
+                resolve({ running: false, error: e.message });
+            }
+        });
+    });
+});
+
 // ──────────────────────────────────────────────────────────────────────────────
-// Model Management (Inspired by LM Studio's approach)
+// Model Management (LM Studio-style)
 // ──────────────────────────────────────────────────────────────────────────────
 
 // List models in the models directory
@@ -375,7 +515,7 @@ ipcMain.handle('list-models', async () => {
     }
 });
 
-// Download a model from Hugging Face or ModelScope
+// Download a model from Hugging Face
 ipcMain.handle('download-model', async (event, options) => {
     const { url, filename, onProgress } = options || {};
     return new Promise((resolve, reject) => {
@@ -428,10 +568,12 @@ ipcMain.handle('download-model', async (event, options) => {
             fs.unlink(tempPath, () => {});
             reject(err);
         });
+
+        request.setTimeout(300000); // 5 minute timeout
     });
 });
 
-// Import a model from a local file (copy to models directory)
+// Import a model from a local file
 ipcMain.handle('import-model', async (event, sourcePath) => {
     return new Promise((resolve, reject) => {
         try {
@@ -467,6 +609,57 @@ ipcMain.handle('delete-model', async (event, modelPath) => {
         } catch (e) {
             reject(e);
         }
+    });
+});
+
+// Load a model into llama.cpp (via API call)
+ipcMain.handle('load-model', async (event, modelPath) => {
+    // This will trigger a model load in llama.cpp via the API
+    // The llama.cpp server is already running with a default model
+    // We can use the /v1/models endpoint to check and /v1/chat/completions to test
+    return new Promise((resolve) => {
+        // Check if the model exists
+        if (!fs.existsSync(modelPath)) {
+            resolve({ success: false, error: 'Model file not found' });
+            return;
+        }
+
+        // For now, we'll just check if the model is accessible
+        // In the future, we can dynamically update the llama.cpp container's model
+        resolve({
+            success: true,
+            message: `Model ${path.basename(modelPath)} is available. Restart llama.cpp to load it.`,
+        });
+    });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// GPU Detection and Status
+// ──────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('detect-gpu', async () => {
+    return new Promise((resolve) => {
+        const command = 'nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader';
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                resolve({ gpuAvailable: false, error: error.message });
+                return;
+            }
+            try {
+                const lines = stdout.trim().split('\n');
+                const gpus = lines.map(line => {
+                    const parts = line.split(',');
+                    return {
+                        name: parts[0].trim(),
+                        memoryTotal: parts[1].trim(),
+                        memoryUsed: parts[2].trim(),
+                    };
+                });
+                resolve({ gpuAvailable: true, gpus });
+            } catch (e) {
+                resolve({ gpuAvailable: false, error: e.message });
+            }
+        });
     });
 });
 
@@ -596,21 +789,27 @@ ipcMain.handle('restore-backup', async (event, backupPath) => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Utility: Format file size
-// ──────────────────────────────────────────────────────────────────────────────
-function formatSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
-    return (bytes / 1073741824).toFixed(2) + ' GB';
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Open URLs
+// Open URLs (with dynamic server detection)
 // ──────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('open-url', (event, url) => {
     shell.openExternal(url);
+});
+
+ipcMain.handle('open-service', (event, service) => {
+    const serverUrl = getServerUrl();
+    const ports = {
+        odoo: ':8069',
+        grafana: ':3001',
+        llama: ':8080',
+        ui: ':3002',
+        api: ':8000',
+        prometheus: ':9090',
+    };
+    const port = ports[service] || '';
+    const url = `${serverUrl}${port}`;
+    shell.openExternal(url);
+    return { url };
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -627,4 +826,43 @@ ipcMain.handle('open-path', (event, pathToOpen) => {
 
 ipcMain.handle('show-dialog', async (event, options) => {
     return await dialog.showMessageBox(mainWindow, options);
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Logging
+// ──────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-logs', async () => {
+    const logDir = path.join(os.homedir(), '.nettrades', 'logs');
+    try {
+        if (!fs.existsSync(logDir)) {
+            return [];
+        }
+        const files = fs.readdirSync(logDir);
+        return files.map(f => {
+            const filePath = path.join(logDir, f);
+            const stats = fs.statSync(filePath);
+            return {
+                name: f,
+                path: filePath,
+                size: stats.size,
+                modified: stats.mtime,
+            };
+        }).sort((a, b) => b.modified - a.modified);
+    } catch (e) {
+        logError(`Failed to list logs: ${e.message}`);
+        return [];
+    }
+});
+
+ipcMain.handle('get-log-content', async (event, logPath) => {
+    try {
+        if (!fs.existsSync(logPath)) {
+            return { success: false, error: 'Log file not found' };
+        }
+        const content = fs.readFileSync(logPath, 'utf8');
+        return { success: true, content };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
 });

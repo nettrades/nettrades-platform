@@ -1,116 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NetTrades Launcher</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+    <!-- ======================================================================
+    APP CONTAINER
+    ====================================================================== -->
     <div id="app">
-        <!-- Sidebar -->
-        <nav id="sidebar">
+
+        <!-- ======================================================================
+        SIDEBAR
+        ====================================================================== -->
+        <aside id="sidebar">
             <div class="logo">
-                <img src="icon.png" alt="NetTrades" width="48" height="48">
-                <h1>NetTrades</h1>
+                <h1>🚀 NetTrades</h1>
             </div>
-            <ul class="nav-menu">
-                <li class="nav-item active" data-tab="dashboard">
-                    <span class="nav-icon">🏠</span>
-                    <span class="nav-label">Dashboard</span>
-                </li>
-                <li class="nav-item" data-tab="installer">
-                    <span class="nav-icon">🚀</span>
-                    <span class="nav-label">Installer</span>
-                </li>
-                <li class="nav-item" data-tab="backup">
-                    <span class="nav-icon">💾</span>
-                    <span class="nav-label">Backup &amp; Restore</span>
-                </li>
-                <li class="nav-item" data-tab="logs">
-                    <span class="nav-icon">📺</span>
-                    <span class="nav-label">Logs</span>
-                </li>
-                <li class="nav-item" data-tab="settings">
-                    <span class="nav-icon">⚙️</span>
-                    <span class="nav-label">Settings</span>
-                </li>
-                <li class="nav-item" data-tab="vpn">
-				    <span class="nav-icon">🔒</span>
-				    <span class="nav-label">VPN</span>
-                </li>
-            </ul>
+
+            <nav>
+                <ul class="nav-menu">
+                    <li class="nav-item active" data-tab="dashboard">
+                        <span class="nav-icon">🏠</span>
+                        <span class="nav-label">Dashboard</span>
+                    </li>
+                    <li class="nav-item" data-tab="installer">
+                        <span class="nav-icon">🚀</span>
+                        <span class="nav-label">Installer</span>
+                    </li>
+                    <li class="nav-item" data-tab="models">
+                        <span class="nav-icon">🧠</span>
+                        <span class="nav-label">Models</span>
+                    </li>
+                    <li class="nav-item" data-tab="backup">
+                        <span class="nav-icon">💾</span>
+                        <span class="nav-label">Backup &amp; Restore</span>
+                    </li>
+                    <li class="nav-item" data-tab="logs">
+                        <span class="nav-icon">📺</span>
+                        <span class="nav-label">Logs</span>
+                    </li>
+                    <li class="nav-item" data-tab="settings">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-label">Settings</span>
+                    </li>
+                    <li class="nav-item" data-tab="vpn">
+                        <span class="nav-icon">🔒</span>
+                        <span class="nav-label">VPN</span>
+                    </li>
+                </ul>
+            </nav>
+
             <div class="nav-footer">
                 <span id="version">v1.0.0</span>
-                <span id="platform-info"></span>
+                <span id="platform-info">linux (x64)</span>
             </div>
-        </nav>
+        </aside>
 
-        <!-- Main Content -->
+        <!-- ======================================================================
+        MAIN CONTENT
+        ====================================================================== -->
         <main id="main-content">
-            <!-- Dashboard Tab -->
+
+            <!-- ──────────────────────────────────────────────────────────────
+            TAB: Dashboard
+            ────────────────────────────────────────────────────────────── -->
             <section id="tab-dashboard" class="tab-content active">
                 <div class="tab-header">
-                    <h2>🏠 Dashboard</h2>
+                    <h2>📊 Dashboard</h2>
                     <span id="status-badge" class="status-badge status-unknown">⏳ Checking...</span>
                 </div>
 
                 <div class="dashboard-grid">
+                    <!-- Platform Status Card -->
                     <div class="dashboard-card">
-                        <h3>Platform Status</h3>
-                        <div id="platform-status">
-                            <div class="status-row">
-                                <span>Status:</span>
-                                <span id="status-text">Checking...</span>
-                            </div>
-                            <div class="status-row">
-                                <span>Uptime:</span>
-                                <span id="uptime-text">--</span>
-                            </div>
-                            <div class="status-row">
-                                <span>Version:</span>
-                                <span id="version-text">--</span>
-                            </div>
+                        <h3>🖥️ Platform Status</h3>
+                        <div class="status-row">
+                            <span>Status:</span>
+                            <span id="status-text">Checking...</span>
+                        </div>
+                        <div class="status-row">
+                            <span>Uptime:</span>
+                            <span id="uptime-text">--</span>
+                        </div>
+                        <div class="status-row">
+                            <span>Version:</span>
+                            <span id="version-text">--</span>
                         </div>
                         <div class="card-actions">
-						    <button class="btn btn-secondary" id="btn-quick-backup">💾 Backup Now</button>
-						    <button class="btn btn-secondary" id="btn-quick-restore">🔄 Restore</button>
-						    <button class="btn btn-secondary" id="btn-open-odoo">🏢 Open Odoo</button>
-						    <button class="btn btn-secondary" id="btn-open-grafana">📊 Open Grafana</button>
-						    <button class="btn btn-secondary" id="btn-open-llama">🦙 LLama.cpp UI</button>
-						    <button class="btn btn-secondary" id="btn-open-ui">🖥️ NETTRADES UI</button>
+                            <button class="btn btn-success" id="btn-start-platform">▶ Start</button>
+                            <button class="btn btn-danger" id="btn-stop-platform">⏹ Stop</button>
+                            <button class="btn btn-secondary" id="btn-restart-platform">🔄 Restart</button>
                         </div>
                     </div>
 
+                    <!-- Quick Stats Card -->
                     <div class="dashboard-card">
-                        <h3>Quick Stats</h3>
-                        <div id="quick-stats">
-                            <div class="stat-row">
-                                <span>💾 Backups:</span>
-                                <span id="stat-backups">0</span>
-                            </div>
-                            <div class="stat-row">
-                                <span>🧠 Models:</span>
-                                <span id="stat-models">0</span>
-                            </div>
-                            <div class="stat-row">
-                                <span>🖥️ GPUs:</span>
-                                <span id="stat-gpus">0</span>
-                            </div>
+                        <h3>📊 Quick Stats</h3>
+                        <div class="stat-row">
+                            <span>💾 Backups:</span>
+                            <span id="stat-backups">0</span>
                         </div>
+                        <div class="stat-row">
+                            <span>🧠 Models:</span>
+                            <span id="stat-models">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>🖥️ GPUs:</span>
+                            <span id="stat-gpus">0</span>
+                        </div>
+                        <div id="gpu-status" class="status-badge status-unknown" style="margin-top:0.5rem;">Detecting...</div>
                     </div>
 
+                    <!-- Quick Actions Card -->
                     <div class="dashboard-card">
-                        <h3>Quick Actions</h3>
+                        <h3>⚡ Quick Actions</h3>
                         <div class="card-actions">
-                            <button id="btn-quick-backup" class="btn btn-primary">💾 Backup Now</button>
-                            <button id="btn-quick-restore" class="btn btn-warning">📂 Restore</button>
-                            <button id="btn-open-odoo" class="btn btn-secondary">🔗 Open Odoo</button>
-                            <button id="btn-open-grafana" class="btn btn-secondary">📊 Open Grafana</button>
+                            <button class="btn btn-secondary" id="btn-quick-backup">💾 Backup Now</button>
+                            <button class="btn btn-secondary" id="btn-quick-restore">🔄 Restore</button>
+                            <button class="btn btn-secondary" id="btn-open-odoo">🏢 Open Odoo</button>
+                            <button class="btn btn-secondary" id="btn-open-grafana">📊 Open Grafana</button>
+                            <button class="btn btn-secondary" id="btn-open-llama">🦙 LLama.cpp UI</button>
+                            <button class="btn btn-secondary" id="btn-open-ui">🖥️ NETTRADES UI</button>
                         </div>
                     </div>
                 </div>
 
+                <!-- Recent Activity -->
                 <div class="recent-activity">
                     <h3>📋 Recent Activity</h3>
                     <div id="activity-log">
@@ -119,59 +138,89 @@
                 </div>
             </section>
 
-            <!-- Installer Tab -->
+            <!-- ──────────────────────────────────────────────────────────────
+            TAB: Installer
+            ────────────────────────────────────────────────────────────── -->
             <section id="tab-installer" class="tab-content">
                 <div class="tab-header">
                     <h2>🚀 Installer</h2>
                     <span id="install-status-badge" class="status-badge status-unknown">⏳ Ready</span>
                 </div>
 
-                <div id="installer-content">
-                    <!-- Step 1: Choose Deployment -->
-                    <div id="install-step-1" class="install-step active">
-                        <h3>Choose Your Setup</h3>
-                        <p class="step-description">Select the type of deployment you want.</p>
-                        <div id="deployment-cards" class="deployment-grid">
-                            <!-- Cards will be rendered by JavaScript -->
-                        </div>
-                        <div class="install-actions">
-                            <button id="btn-install-next" class="btn btn-primary">Next</button>
-                        </div>
+                <!-- Step 1: Choose Deployment -->
+                <div id="install-step-1" class="install-step active">
+                    <p class="step-description">
+                        Select the type of deployment you want.
+                    </p>
+                    <div id="deployment-cards" class="deployment-grid">
+                        <!-- Rendered by JavaScript -->
                     </div>
-
-                    <!-- Step 2: Configuration -->
-                    <div id="install-step-2" class="install-step">
-                        <h3>Configuration</h3>
-                        <p class="step-description">Review and confirm your settings.</p>
-                        <div id="config-summary" class="config-summary">
-                            <!-- Rendered by JavaScript -->
-                        </div>
-                        <div class="install-actions">
-                            <button id="btn-install-back" class="btn btn-secondary">Back</button>
-                            <button id="btn-install-start" class="btn btn-success">Install</button>
-                        </div>
+                    <div class="install-actions">
+                        <button class="btn btn-primary" id="btn-install-next" disabled>Next →</button>
                     </div>
+                </div>
 
-                    <!-- Step 3: Progress -->
-                    <div id="install-step-3" class="install-step">
-                        <h3>Installing...</h3>
-                        <div class="progress-container">
-                            <div class="progress-bar">
-                                <div id="install-progress-fill" class="progress-fill" style="width:0%"></div>
-                            </div>
-                            <p id="install-progress-label" class="progress-label">Starting installation...</p>
+                <!-- Step 2: Configuration Summary -->
+                <div id="install-step-2" class="install-step">
+                    <p class="step-description">
+                        Review and confirm your settings.
+                    </p>
+                    <div id="config-summary" class="config-summary">
+                        <!-- Rendered by JavaScript -->
+                    </div>
+                    <div class="install-actions">
+                        <button class="btn btn-secondary" id="btn-install-back">← Back</button>
+                        <button class="btn btn-success" id="btn-install-start">🚀 Install</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Installation Progress -->
+                <div id="install-step-3" class="install-step">
+                    <p class="step-description">
+                        Installing... This may take several minutes.
+                    </p>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="install-progress-fill" class="progress-fill" style="width:0%"></div>
                         </div>
-                        <div id="install-log-output" class="log-output">
-                            <div class="log-placeholder">Waiting for output...</div>
-                        </div>
-                        <div class="install-actions">
-                            <button id="btn-install-cancel" class="btn btn-danger">Cancel</button>
-                        </div>
+                        <div id="install-progress-label" class="progress-label">Starting installation...</div>
+                    </div>
+                    <div id="install-log-output" class="log-output log-full">
+                        <div class="log-placeholder">Waiting for output...</div>
+                    </div>
+                    <div class="install-actions">
+                        <button class="btn btn-danger" id="btn-install-cancel" style="display:none;">Cancel</button>
                     </div>
                 </div>
             </section>
 
-            <!-- Backup & Restore Tab -->
+            <!-- ──────────────────────────────────────────────────────────────
+            TAB: Models
+            ────────────────────────────────────────────────────────────── -->
+            <section id="tab-models" class="tab-content">
+                <div class="tab-header">
+                    <h2>🧠 Model Manager</h2>
+                    <div class="model-actions">
+                        <button class="btn btn-primary" id="btn-browse-models">📥 Browse Models</button>
+                        <button class="btn btn-secondary" id="btn-import-model">📂 Import Model</button>
+                    </div>
+                </div>
+
+                <div id="download-progress" style="display:none; margin-bottom:1rem;">
+                    <div class="progress-bar">
+                        <div id="download-progress-bar" class="progress-fill" style="width:0%"></div>
+                    </div>
+                    <div id="download-progress-label" class="progress-label">Starting download...</div>
+                </div>
+
+                <div id="model-grid" class="model-grid">
+                    <!-- Rendered by JavaScript -->
+                </div>
+            </section>
+
+            <!-- ──────────────────────────────────────────────────────────────
+            TAB: Backup & Restore
+            ────────────────────────────────────────────────────────────── -->
             <section id="tab-backup" class="tab-content">
                 <div class="tab-header">
                     <h2>💾 Backup &amp; Restore</h2>
@@ -179,22 +228,25 @@
                 </div>
 
                 <div class="backup-grid">
+                    <!-- Create Backup -->
                     <div class="backup-card">
-                        <h3>Create Backup</h3>
+                        <h3>📤 Create Backup</h3>
                         <p>Backup all platform data including databases, volumes, and configuration.</p>
-                        <button id="btn-create-backup" class="btn btn-primary">💾 Backup Now</button>
+                        <button class="btn btn-primary" id="btn-create-backup">💾 Backup Now</button>
                     </div>
 
+                    <!-- Restore from Backup -->
                     <div class="backup-card">
-                        <h3>Restore from Backup</h3>
+                        <h3>📥 Restore from Backup</h3>
                         <p>Restore the platform from a previous backup.</p>
                         <select id="backup-select" class="backup-select">
                             <option value="">Select a backup...</option>
                         </select>
-                        <button id="btn-restore-backup" class="btn btn-warning">📂 Restore Selected</button>
+                        <button class="btn btn-warning" id="btn-restore-backup">🔄 Restore Selected</button>
                     </div>
                 </div>
 
+                <!-- Backup List -->
                 <div class="backup-list">
                     <h3>📋 Available Backups</h3>
                     <div id="backup-list-container">
@@ -202,19 +254,21 @@
                     </div>
                 </div>
 
-                <div id="backup-log-output" class="log-output" style="display:none;">
+                <div id="backup-log-output" class="log-output" style="display:none; margin-top:1rem;">
                     <div class="log-placeholder">Waiting for output...</div>
                 </div>
             </section>
 
-            <!-- Logs Tab -->
+            <!-- ──────────────────────────────────────────────────────────────
+            TAB: Logs
+            ────────────────────────────────────────────────────────────── -->
             <section id="tab-logs" class="tab-content">
                 <div class="tab-header">
                     <h2>📺 Logs</h2>
                     <div class="log-controls">
-                        <button id="btn-copy-logs" class="btn btn-secondary">📋 Copy</button>
-                        <button id="btn-save-logs" class="btn btn-secondary">💾 Save</button>
-                        <button id="btn-clear-logs" class="btn btn-secondary">🗑️ Clear</button>
+                        <button class="btn btn-secondary" id="btn-copy-logs">📋 Copy</button>
+                        <button class="btn btn-secondary" id="btn-save-logs">💾 Save</button>
+                        <button class="btn btn-danger" id="btn-clear-logs">🗑️ Clear</button>
                     </div>
                 </div>
                 <div id="logs-output" class="log-output log-full">
@@ -222,88 +276,113 @@
                 </div>
             </section>
 
-            <!-- Settings Tab -->
+            <!-- ──────────────────────────────────────────────────────────────
+            TAB: Settings
+            ────────────────────────────────────────────────────────────── -->
             <section id="tab-settings" class="tab-content">
                 <div class="tab-header">
                     <h2>⚙️ Settings</h2>
                 </div>
 
+                <!-- Server Configuration -->
                 <div class="settings-group">
-                    <h3>Backup Settings</h3>
+                    <h3>🌐 Server Configuration</h3>
+                    <div class="setting-row">
+                        <label for="server-url">Server URL</label>
+                        <input type="text" id="server-url" placeholder="https://your-domain.com or http://192.168.1.100" />
+                        <button class="btn btn-primary" id="btn-save-server-url">Save</button>
+                    </div>
+                    <p class="setting-help">
+                        Enter the IP address or domain name of your NETTRADES server.
+                        Leave empty to use localhost.
+                    </p>
+                </div>
+
+                <!-- Backup Settings -->
+                <div class="settings-group">
+                    <h3>💾 Backup Settings</h3>
                     <div class="setting-row">
                         <label for="backup-dir">Backup Directory</label>
-                        <input type="text" id="backup-dir" placeholder="~/.nettrades/backups">
+                        <input type="text" id="backup-dir" placeholder="~/.nettrades/backups" />
                     </div>
                     <div class="setting-row">
                         <label>
-                            <input type="checkbox" id="auto-backup-enabled">
-                            Enable automatic daily backups
+                            <input type="checkbox" id="auto-backup" /> Enable automatic daily backups
                         </label>
                     </div>
                     <div class="setting-row">
-                        <label for="backup-retention">Retention Days</label>
-                        <input type="number" id="backup-retention" value="30" min="1" max="365">
+                        <label for="retention-days">Retention Days</label>
+                        <input type="number" id="retention-days" value="30" min="1" max="365" />
                     </div>
                 </div>
 
+                <!-- Update Settings -->
                 <div class="settings-group">
-                    <h3>Update Settings</h3>
+                    <h3>🔄 Update Settings</h3>
                     <div class="setting-row">
                         <label>
-                            <input type="checkbox" id="auto-update-enabled" checked>
-                            Check for updates automatically
+                            <input type="checkbox" id="auto-check-updates" checked /> Check for updates automatically
                         </label>
                     </div>
                     <div class="setting-row">
                         <label>
-                            <input type="checkbox" id="auto-download-updates" checked>
-                            Download updates in the background
+                            <input type="checkbox" id="auto-download-updates" /> Download updates in the background
                         </label>
                     </div>
                 </div>
 
+                <!-- About -->
                 <div class="settings-group">
-                    <h3>About</h3>
+                    <h3>ℹ️ About</h3>
                     <p><strong>NetTrades Launcher</strong> v1.0.0</p>
                     <p>Built with Electron and ❤️</p>
-                    <p><a href="#" id="settings-github-link">GitHub Repository</a></p>
+                    <p>
+                        <a href="#" id="settings-github-link">GitHub Repository</a>
+                    </p>
                 </div>
             </section>
-            <!-- VPN Management Tab -->
-			<section id="tab-vpn" class="tab-content">
-			    <div class="tab-header">
-			        <h2>🔒 VPN Management</h2>
-			        <span id="vpn-status-badge" class="status-badge status-unknown">⏳ Checking...</span>
-			    </div>
 
-			    <div class="vpn-grid">
-			        <div class="vpn-card">
-			            <h3>Add Admin</h3>
-			            <p>Create a new VPN user for secure SSH access.</p>
-			            <div class="form-group">
-			                <input type="text" id="vpn-new-name" placeholder="Name (e.g., alice-laptop)" class="vpn-input">
-			                <input type="text" id="vpn-new-partner" placeholder="Partner ID (Odoo user ID)" class="vpn-input">
-			            </div>
-			            <button id="btn-vpn-create" class="btn btn-primary">➕ Add Admin</button>
-			            <div id="vpn-create-result" style="display:none;margin-top:1rem;">
-			                <p>✅ Peer created!</p>
-			                <p><strong>IP:</strong> <span id="vpn-new-ip"></span></p>
-			                <p><strong>Config:</strong> <a href="#" id="vpn-new-config-link">Download .conf</a></p>
-			                <div id="vpn-new-qr"></div>
-			            </div>
-			        </div>
-			    </div>
+            <!-- ──────────────────────────────────────────────────────────────
+            TAB: VPN
+            ────────────────────────────────────────────────────────────── -->
+            <section id="tab-vpn" class="tab-content">
+                <div class="tab-header">
+                    <h2>🔒 VPN Management</h2>
+                    <span id="vpn-status-badge" class="status-badge status-unknown">⏳ Checking...</span>
+                </div>
 
-			    <div class="vpn-list">
-			        <h3>📋 Connected Admins</h3>
-			        <div id="vpn-list-container">
-			            <p class="vpn-empty">Loading users...</p>
-			        </div>
-			    </div>
+                <!-- Add Admin -->
+                <div class="vpn-card">
+                    <h3>➕ Add Admin</h3>
+                    <p>Create a new VPN user for secure SSH access.</p>
+                    <div class="vpn-form">
+                        <input type="text" id="vpn-new-name" placeholder="Name (e.g. john-doe)" />
+                        <input type="number" id="vpn-new-partner" placeholder="Partner ID (Odoo res.partner id)" />
+                        <button class="btn btn-primary" id="btn-vpn-create">➕ Add Admin</button>
+                    </div>
+                    <div id="vpn-create-result" style="display:none; margin-top:1rem; padding:1rem; background:var(--bg-card); border-radius:var(--radius); border:1px solid var(--border);">
+                        <p>✅ Peer created!</p>
+                        <p><strong>IP:</strong> <span id="vpn-new-ip"></span></p>
+                        <p><strong>Config:</strong> <a href="#" id="vpn-new-config-link" class="btn btn-secondary">📄 Download .conf</a></p>
+                        <div id="vpn-new-qr"></div>
+                    </div>
+                </div>
+
+                <!-- Connected Admins -->
+                <div class="vpn-list">
+                    <h3>🔗 Connected Admins</h3>
+                    <div id="vpn-list-container">
+                        <p class="vpn-empty">Loading users...</p>
+                    </div>
+                </div>
             </section>
+
         </main>
     </div>
 
+    <!-- ======================================================================
+    SCRIPTS
+    ====================================================================== -->
     <script src="renderer.js"></script>
 </body>
 </html>
