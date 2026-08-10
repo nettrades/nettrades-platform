@@ -56,8 +56,8 @@
                     </group>
                     <group string="Expert Information">
                         <field name="is_expert"/>
-                        <field name="expert_rate" attrs="{'invisible': [('is_expert', '=', False)]}"/>
-                        <field name="expert_bio" attrs="{'invisible': [('is_expert', '=', False)]}"/>
+                        <field name="expert_rate" invisible="not is_expert"/>
+                        <field name="expert_bio" invisible="not is_expert"/>
                     </group>
                     <group string="Worker Agent">
                         <field name="worker_agent"/>
