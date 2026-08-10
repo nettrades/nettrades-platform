@@ -364,12 +364,17 @@ services:
     image: nginx:alpine
     container_name: redirector
     restart: unless-stopped
+    ports:
+      - "80:80"
     volumes:
-      - ./redirector/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
-      - ./redirector/landing-page:/usr/share/nginx/html:ro
+      - ./redirector/nginx.conf.template:/etc/nginx/nginx.conf.template:ro   # mount template
+      - ./redirector/landing-page:/usr/share/nginx/html:ro                   # for custom landing
     environment:
-      - DEFAULT_LANDING_PAGE=${DEFAULT_LANDING_PAGE:-odoo}
       - DOMAIN=${DOMAIN}
+      - DEFAULT_LANDING_PAGE=${DEFAULT_LANDING_PAGE:-odoo}
+    command: >
+      sh -c "envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf &&
+           nginx -g 'daemon off;'"    
     entrypoint: |
       sh -c "
         if [ ! -f /usr/share/nginx/html/index.html ]; then
