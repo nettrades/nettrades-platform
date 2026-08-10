@@ -2,29 +2,24 @@ events {
     worker_connections 1024;
 }
 http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
     server {
         listen 80;
-        # Redirect based on DEFAULT_LANDING_PAGE
         server_name _;
-        
-        # Determine the destination
-        set $landing_page "${DEFAULT_LANDING_PAGE:-odoo}";
-        
-        # For Odoo
-        if ($landing_page = "odoo") {
-            return 302 https://${DOMAIN}/odoo;
-        }
-        
-        # For Custom UI (port 3002)
-        if ($landing_page = "ui") {
-            return 302 http://${DOMAIN}:3002;
-        }
-        
-        # For Custom landing page (serve static HTML)
-        # – if none of the above match, serve static content        
+
         location / {
-            root /usr/share/nginx/html;
-            index index.html;
+            # Use the environment variable directly
+            if ($DEFAULT_LANDING_PAGE = "odoo") {
+                return 302 https://${DOMAIN}/odoo;
+            }
+            if ($DEFAULT_LANDING_PAGE = "ui") {
+                return 302 http://${DOMAIN}:3002;
+            }
+            root   /usr/share/nginx/html;
+            index  index.html;
+            try_files $uri $uri/ /index.html;
         }
     }
 }
