@@ -12,6 +12,7 @@
 #   Windows ↔ Linux corruption issues.
 #
 #   NEW: Automatically clones the Odoo repository if third-party/odoo is missing.
+#   NEW: With --force, it always copies fresh modules (overwrites existing).
 # =============================================================================
 
 set -euo pipefail
@@ -42,8 +43,14 @@ ODOO_REPO="$THIRD_PARTY/odoo"
 TARGET="$PROJECT_ROOT/deploy/docker/odoo-modules"
 
 # Parse arguments
-FORCE="${1:-}"
-if [[ "$FORCE" == "--force" ]]; then
+FORCE=false
+for arg in "$@"; do
+    case $arg in
+        --force) FORCE=true ;;
+    esac
+done
+
+if [[ "$FORCE" == true ]]; then
     log_info "Force mode – removing existing target directory"
     rm -rf "$TARGET"
 fi
@@ -54,7 +61,7 @@ fi
 if [[ ! -d "$ODOO_REPO" ]] || [[ -z "$(ls -A "$ODOO_REPO" 2>/dev/null)" ]]; then
     log_info "Odoo repository not found at $ODOO_REPO"
     log_info "Cloning Odoo (this may take a few minutes)..."
-    
+
     # Create third-party directory if it doesn't exist
     mkdir -p "$THIRD_PARTY"
     
@@ -84,64 +91,56 @@ if [[ -d "$ODOO_MODULES" ]]; then
     log_info "Copying from odoo-modules/"
     cp -r "$ODOO_MODULES"/* "$TARGET/" 2>/dev/null || true
 else
-    log_warning "odoo-modules directory not found"
+    log_warning "odoo-modules directory not found at $ODOO_MODULES"
 fi
 
 # -----------------------------------------------------------------------------
-# Copy from third-party/ (skip the huge 'odoo' source)
+# Copy from third-party/ (excluding the huge 'odoo' source)
 # -----------------------------------------------------------------------------
 if [[ -d "$THIRD_PARTY" ]]; then
     log_info "Scanning third-party/ (skipping the huge 'odoo' source)"
-    find "$THIRD_PARTY" -maxdepth 2 -type f \( -name "__manifest__.py" -o -name "__openerp__.py" \) -print0 | while IFS= read -r -d '' manifest; do
-        module_dir="$(dirname "$manifest")"
-        module_name="$(basename "$module_dir")"
-        if [[ "$module_name" == "odoo" ]]; then
-            continue
+    for module in "$THIRD_PARTY"/*; do
+        if [[ -d "$module" ]] && [[ "$(basename "$module")" != "odoo" ]]; then
+            module_name="$(basename "$module")"
+            if [[ ! -d "$TARGET/$module_name" ]]; then
+                cp -r "$module" "$TARGET/"
+                log_info "  - Copied $module_name"
+            else
+                log_info "  - Skipped $module_name (already exists)"
+            fi
         fi
-        log_info "  - Copied $module_name"
-        cp -r "$module_dir" "$TARGET/"
     done
 else
-    log_warning "third-party directory not found"
+    log_warning "third-party/ directory not found"
 fi
 
 # -----------------------------------------------------------------------------
-# Ensure every module has a top-level __init__.py
+# Ensure __init__.py for all modules
 # -----------------------------------------------------------------------------
-log_info "Ensuring __init__.py for all modules..."
+log_step "Ensuring __init__.py for all modules..."
 for module_dir in "$TARGET"/*/; do
-    if [[ -d "$module_dir" ]] && [[ ! -f "$module_dir/__init__.py" ]]; then
-        echo "# -*- coding: utf-8 -*-" > "$module_dir/__init__.py"
-        echo "from . import models" >> "$module_dir/__init__.py"
-        log_info "  - Created __init__.py for $(basename "$module_dir")"
+    if [[ -d "$module_dir" ]]; then
+        init_file="${module_dir}__init__.py"
+        if [[ ! -f "$init_file" ]]; then
+            touch "$init_file"
+            log_info "  - Created __init__.py for $(basename "$module_dir")"
+        fi
     fi
 done
 
 # -----------------------------------------------------------------------------
-# Convert all text files to Unix (LF) line endings
+# NEW: Convert line endings to LF for all text files in Odoo modules
 # -----------------------------------------------------------------------------
+log_step "Converting line endings to LF in Odoo modules..."
 if command -v dos2unix &>/dev/null; then
-    log_info "Converting line endings to LF in Odoo modules..."
-    find "$TARGET" -type f \( \
-        -name "*.py" -o \
-        -name "*.xml" -o \
-        -name "*.sh" -o \
-        -name "*.conf" -o \
-        -name "*.txt" -o \
-        -name "*.md" -o \
-        -name "*.yml" -o \
-        -name "*.yaml" -o \
-        -name "*.json" -o \
-        -name "*.csv" -o \
-        -name "*.sql" \
-    \) -exec dos2unix {} \; >/dev/null 2>&1
+    find "$TARGET" -type f \( -name "*.py" -o -name "*.xml" -o -name "*.csv" -o -name "*.txt" -o -name "*.conf" -o -name "*.js" -o -name "*.css" -o -name "*.html" \) -exec dos2unix -q {} \;
     log_success "All text files in Odoo modules converted to LF"
 else
     log_warning "dos2unix not found – skipping line ending conversion"
-    log_info "Install dos2unix with: sudo apt install dos2unix"
 fi
 
 # -----------------------------------------------------------------------------
-# Done
+# Count modules
 # -----------------------------------------------------------------------------
-log_success "$(find "$TARGET" -maxdepth 1 -type d | wc -l) modules prepared in $TARGET"
+MODULE_COUNT=$(find "$TARGET" -maxdepth 1 -type d | tail -n +2 | wc -l)
+log_success "$MODULE_COUNT modules prepared in $TARGET"

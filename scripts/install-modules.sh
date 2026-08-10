@@ -80,6 +80,16 @@ if ! docker ps | grep -q odoo; then
 fi
 
 # -----------------------------------------------------------------------------
+# Ensure Odoo is using the latest modules (restart if --force)
+# -----------------------------------------------------------------------------
+if [[ "$FORCE" == true ]]; then
+    log_info "Force mode – restarting Odoo to load latest modules..."
+    docker compose restart odoo
+    sleep 5
+    log_success "Odoo restarted"
+fi
+
+# -----------------------------------------------------------------------------
 # Test database connection
 # -----------------------------------------------------------------------------
 log_info "Testing database connection..."

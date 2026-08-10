@@ -391,29 +391,29 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Building custom Docker images..."
 
-# Odoo image
+# Odoo image - ALWAYS rebuild when --force is used to pick up module changes
 ODOO_DOCKERFILE="$DEPLOY_DIR/Dockerfile.odoo"
 if [[ -f "$ODOO_DOCKERFILE" ]]; then
-    if ! docker image inspect nettrades-odoo:latest &>/dev/null || [[ "$FORCE" == true ]]; then
-        log_info "Building Odoo image..."
+    if [[ "$FORCE" == true ]] || ! docker image inspect nettrades-odoo:latest &>/dev/null; then
+        log_info "Building Odoo image (force=$FORCE)..."
         docker build -f "$ODOO_DOCKERFILE" -t nettrades-odoo:latest "$DEPLOY_DIR"
         log_success "Odoo image built"
     else
-        log_success "Odoo image already exists"
+        log_success "Odoo image already exists (use --force to rebuild)"
     fi
 else
     log_warning "Dockerfile.odoo not found – skipping Odoo image build"
 fi
 
-# LangGraph image
+# LangGraph image - rebuild if --force
 LANGGRAPH_DOCKERFILE="$PROJECT_ROOT/src/core/Dockerfile"
 if [[ -f "$LANGGRAPH_DOCKERFILE" ]]; then
-    if ! docker image inspect nettrades-langgraph:latest &>/dev/null || [[ "$FORCE" == true ]]; then
-        log_info "Building LangGraph image..."
+    if [[ "$FORCE" == true ]] || ! docker image inspect nettrades-langgraph:latest &>/dev/null; then
+        log_info "Building LangGraph image (force=$FORCE)..."
         docker build -f "$LANGGRAPH_DOCKERFILE" -t nettrades-langgraph:latest "$PROJECT_ROOT/src/core"
         log_success "LangGraph image built"
     else
-        log_success "LangGraph image already exists"
+        log_success "LangGraph image already exists (use --force to rebuild)"
     fi
 else
     log_warning "Dockerfile for LangGraph not found – skipping build"

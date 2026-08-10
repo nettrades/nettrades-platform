@@ -14,12 +14,14 @@
 #   - review_ids -> nettrades.review (reviews received by this user)
 #
 # KEY FIELDS:
-#   - karma, reputation, wallet_address, is_verified, is_online, etc.
+#   - karma, karma_score, reputation, wallet_address, is_verified, is_online, etc.
 #
 # UPDATES (2026-08):
 #   - Created from former res_partner.py extensions.
 #   - All NetTrades-specific fields are now here.
 #   - Added review_ids field to fix @depends error.
+#   - Added karma_score field (alias for karma, used in views).
+#   - Added is_active field for soft deletion / activation.
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -67,6 +69,14 @@ class NettradesUser(models.Model):
         help="Reputation points earned from contributions."
     )
 
+    # Alias field for views that expect 'karma_score'
+    karma_score = fields.Integer(
+        string='Karma Score',
+        compute='_compute_karma_score',
+        store=True,
+        help="Computed alias for karma (used in views)."
+    )
+
     reputation_score = fields.Float(
         string='Reputation Score',
         compute='_compute_reputation',
@@ -84,6 +94,12 @@ class NettradesUser(models.Model):
         string='Online',
         default=False,
         help="Whether the user is currently online"
+    )
+
+    is_active = fields.Boolean(
+        string='Active',
+        default=True,
+        help="Whether the user account is active (soft delete)."
     )
 
     is_qualified = fields.Boolean(
@@ -163,6 +179,12 @@ class NettradesUser(models.Model):
     # 4. Computed Fields
     # =========================================================================
 
+    @api.depends('karma')
+    def _compute_karma_score(self):
+        """Compute karma_score as a direct alias for karma."""
+        for user in self:
+            user.karma_score = user.karma
+
     @api.depends('karma', 'review_ids.rating')
     def _compute_reputation(self):
         for user in self:
@@ -173,7 +195,25 @@ class NettradesUser(models.Model):
             user.reputation_score = (user.karma / 100.0) * 0.7 + (avg_review / 5.0) * 0.3
 
     # =========================================================================
-    # 5. Helper Methods
+    # 5. Constraints
+    # =========================================================================
+
+    @api.constrains('karma')
+    def _check_karma(self):
+        """Prevent negative karma values."""
+        for user in self:
+            if user.karma < 0:
+                raise ValidationError(_("Karma cannot be negative."))
+
+    @api.constrains('karma_score')
+    def _check_karma_score(self):
+        """Prevent negative karma_score values."""
+        for user in self:
+            if user.karma_score < 0:
+                raise ValidationError(_("Karma Score cannot be negative."))
+
+    # =========================================================================
+    # 6. Helper Methods
     # =========================================================================
 
     @api.model
