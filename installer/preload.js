@@ -59,4 +59,25 @@ contextBridge.exposeInMainWorld('api', {
     openUrl: (url) => ipcRenderer.invoke('open-url', url),
     openPath: (path) => ipcRenderer.invoke('open-path', path),
     showDialog: (options) => ipcRenderer.invoke('show-dialog', options),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Platform Control
+    // ──────────────────────────────────────────────────────────────────────────
+    startPlatform: () => ipcRenderer.invoke('start-platform'),
+    stopPlatform: () => ipcRenderer.invoke('stop-platform'),
+    onPlatformOutput: (callback) => {
+        ipcRenderer.on('platform-output', (event, data) => callback(data));
+    },
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Model Management
+    // ──────────────────────────────────────────────────────────────────────────
+    listModels: () => ipcRenderer.invoke('list-models'),
+    downloadModel: (options) => ipcRenderer.invoke('download-model', options),
+    importModel: (path) => ipcRenderer.invoke('import-model', path),
+    deleteModel: (path) => ipcRenderer.invoke('delete-model', path),
+    getModelsDir: () => ipcRenderer.invoke('get-models-dir'),
+    onDownloadProgress: (callback) => {
+        ipcRenderer.on('download-progress', (event, data) => callback(data));
+    },
 });

@@ -473,6 +473,10 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
 // ──────────────────────────────────────────────────────────────────────────────
 // Quick Actions (Dashboard)
 // ──────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
+// Quick Actions (Dashboard)
+// ──────────────────────────────────────────────────────────────────────────────
+
 document.getElementById('btn-quick-backup').addEventListener('click', () => {
     switchTab('backup');
     document.getElementById('btn-create-backup').click();
@@ -490,38 +494,69 @@ document.getElementById('btn-open-grafana').addEventListener('click', () => {
     window.api.openUrl('http://localhost:3001');
 });
 
+// NEW: Open LLama.cpp UI (port 8080)
+document.getElementById('btn-open-llama').addEventListener('click', () => {
+    window.api.openUrl('http://localhost:8080');
+});
+
+// NEW: Open NETTRADES-UI (port 3002)
+document.getElementById('btn-open-ui').addEventListener('click', () => {
+    window.api.openUrl('http://localhost:3002');
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Platform Control (Start / Stop) – NOW ACTUALLY WORKS
+// ──────────────────────────────────────────────────────────────────────────────
+
 document.getElementById('btn-start-platform').addEventListener('click', async () => {
-    // This would start the platform via docker compose
     const statusBadge = document.getElementById('status-badge');
+    const statusText = document.getElementById('status-text');
     statusBadge.textContent = '⏳ Starting...';
     statusBadge.className = 'status-badge status-unknown';
 
     try {
-        // For now, just simulate
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        statusBadge.textContent = '✅ Running';
-        statusBadge.className = 'status-badge status-running';
-        document.getElementById('status-text').textContent = 'Running';
+        // Listen for output from the main process
+        window.api.onPlatformOutput((data) => {
+            // You could display this in a log if you want
+            console.log('[Platform]', data);
+        });
+
+        const result = await window.api.startPlatform();
+        if (result.success) {
+            statusBadge.textContent = '✅ Running';
+            statusBadge.className = 'status-badge status-running';
+            statusText.textContent = 'Running';
+        } else {
+            throw new Error('Failed to start');
+        }
     } catch (e) {
         statusBadge.textContent = '❌ Failed to start';
         statusBadge.className = 'status-badge status-stopped';
+        statusText.textContent = 'Error';
+        console.error(e);
     }
 });
 
 document.getElementById('btn-stop-platform').addEventListener('click', async () => {
     const statusBadge = document.getElementById('status-badge');
+    const statusText = document.getElementById('status-text');
     statusBadge.textContent = '⏳ Stopping...';
     statusBadge.className = 'status-badge status-unknown';
 
     try {
-        // For now, just simulate
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        statusBadge.textContent = '⏹ Stopped';
-        statusBadge.className = 'status-badge status-stopped';
-        document.getElementById('status-text').textContent = 'Stopped';
+        const result = await window.api.stopPlatform();
+        if (result.success) {
+            statusBadge.textContent = '⏹ Stopped';
+            statusBadge.className = 'status-badge status-stopped';
+            statusText.textContent = 'Stopped';
+        } else {
+            throw new Error('Failed to stop');
+        }
     } catch (e) {
         statusBadge.textContent = '❌ Failed to stop';
         statusBadge.className = 'status-badge status-stopped';
+        statusText.textContent = 'Error';
+        console.error(e);
     }
 });
 
