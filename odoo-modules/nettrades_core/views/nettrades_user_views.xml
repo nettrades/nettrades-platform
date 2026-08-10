@@ -1,17 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Tree View -->
-    <record id="view_nettrades_user_tree" model="ir.ui.view">
-        <field name="name">nettrades.user.tree</field>
+    <!-- ======================================================================
+    NETTRADES User Views
+    ======================================================================= -->
+    <!--
+        This file defines the views for the nettrades.user model.
+        It includes:
+          - List view (formerly tree view)
+          - Form view
+          - Action
+          - Menu item (under the NETTRADES root menu)
+    -->
+
+    <!-- List View -->
+    <record id="view_nettrades_user_list" model="ir.ui.view">
+        <field name="name">nettrades.user.list</field>
         <field name="model">nettrades.user</field>
         <field name="arch" type="xml">
-            <list string="NetTrades Users">
+            <list string="NetTrades Users" editable="bottom">
                 <field name="partner_id"/>
                 <field name="username"/>
                 <field name="karma_score"/>
                 <field name="reputation_score"/>
                 <field name="is_verified"/>
                 <field name="is_online"/>
+                <field name="is_active"/>
             </list>
         </field>
     </record>
@@ -23,15 +36,33 @@
         <field name="arch" type="xml">
             <form string="NetTrades User">
                 <sheet>
-                    <field name="partner_id" widget="many2one"/>
-                    <field name="username"/>
-                    <field name="wallet_address"/>
-                    <group string="Reputation">
-                        <field name="karma_score"/>
-                        <field name="reputation_score"/>
-                        <field name="is_verified"/>
-                        <field name="is_online"/>
-                        <field name="is_active"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="partner_id" widget="many2one"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="User Details">
+                            <field name="username"/>
+                            <field name="wallet_address"/>
+                            <field name="is_verified"/>
+                            <field name="is_online"/>
+                            <field name="is_active"/>
+                        </group>
+                        <group string="Reputation">
+                            <field name="karma_score"/>
+                            <field name="reputation_score"/>
+                        </group>
+                    </group>
+                    <group string="Expert Information">
+                        <field name="is_expert"/>
+                        <field name="expert_rate" attrs="{'invisible': [('is_expert', '=', False)]}"/>
+                        <field name="expert_bio" attrs="{'invisible': [('is_expert', '=', False)]}"/>
+                    </group>
+                    <group string="Worker Agent">
+                        <field name="worker_agent"/>
+                        <field name="worker_context"/>
+                        <field name="worker_started"/>
                     </group>
                     <group string="Audit">
                         <field name="create_date"/>
@@ -54,7 +85,7 @@
         </field>
     </record>
 
-    <!-- Menu -->
+    <!-- Menu Item -->
     <menuitem id="menu_nettrades_users"
               name="Users"
               parent="nettrades_core.menu_nettrades_root"
