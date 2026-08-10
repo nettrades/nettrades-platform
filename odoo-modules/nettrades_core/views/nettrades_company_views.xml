@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- List View for Companies -->
+    <record id="view_nettrades_company_list" model="ir.ui.view">
+        <field name="name">nettrades.company.list</field>
+        <field name="model">nettrades.company</field>
+        <field name="arch" type="xml">
+            <list string="Companies">
+                <field name="name"/>
+                <field name="industry"/>
+                <field name="is_active"/>
+                <field name="create_date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View for Companies -->
+    <record id="view_nettrades_company_form" model="ir.ui.view">
+        <field name="name">nettrades.company.form</field>
+        <field name="model">nettrades.company</field>
+        <field name="arch" type="xml">
+            <form string="Company">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <field name="description"/>
+                        <field name="website"/>
+                        <field name="industry"/>
+                        <field name="is_active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_nettrades_companies" model="ir.actions.act_window">
+        <field name="name">Companies</field>
+        <field name="res_model">nettrades.company</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Manage companies registered on the platform.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_nettrades_companies"
+              name="Companies"
+              parent="nettrades_core.menu_nettrades_root"
+              action="action_nettrades_companies"
+              sequence="20"/>
+</odoo>
