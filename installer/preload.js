@@ -11,17 +11,26 @@
 //   - Model management APIs
 //   - Platform control APIs
 //   - Odoo authentication integration
+//   - GPU management APIs
+//   - Training and fine-tuning APIs
+//   - "Ask Someone" and "Good Answer" APIs
+//   - Queue and task management APIs
+//   - Marketplace APIs
+//   - Backup and restore APIs
 // =============================================================================
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, shell } = require('electron');
 
 // -----------------------------------------------------------------------------
 // Expose safe API to renderer
 // -----------------------------------------------------------------------------
+
 contextBridge.exposeInMainWorld('api', {
+
     // ──────────────────────────────────────────────────────────────────────────
     // Platform & System
     // ──────────────────────────────────────────────────────────────────────────
+
     getPlatform: () => ipcRenderer.invoke('get-platform'),
     getProjectRoot: () => ipcRenderer.invoke('get-project-root'),
     getModelsDir: () => ipcRenderer.invoke('get-models-dir'),
@@ -31,21 +40,27 @@ contextBridge.exposeInMainWorld('api', {
     // ──────────────────────────────────────────────────────────────────────────
     // Feature Flags
     // ──────────────────────────────────────────────────────────────────────────
+
     getFeatureFlags: () => ipcRenderer.invoke('get-feature-flags'),
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Installation
+    // Installation / Deployment
     // ──────────────────────────────────────────────────────────────────────────
+
     runInstall: (options) => ipcRenderer.invoke('run-install', options),
     cancelInstall: () => ipcRenderer.invoke('cancel-install'),
     getInstallStatus: () => ipcRenderer.invoke('get-install-status'),
     onInstallOutput: (callback) => {
         ipcRenderer.on('install-output', (event, data) => callback(data));
     },
+    onInstallProgress: (callback) => {
+        ipcRenderer.on('install-progress', (event, data) => callback(data));
+    },
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Platform Control
+    // Platform Control (Docker Compose)
     // ──────────────────────────────────────────────────────────────────────────
+
     startPlatform: () => ipcRenderer.invoke('start-platform'),
     stopPlatform: () => ipcRenderer.invoke('stop-platform'),
     restartPlatform: () => ipcRenderer.invoke('restart-platform'),
@@ -57,6 +72,7 @@ contextBridge.exposeInMainWorld('api', {
     // ──────────────────────────────────────────────────────────────────────────
     // Model Management
     // ──────────────────────────────────────────────────────────────────────────
+
     listModels: () => ipcRenderer.invoke('list-models'),
     downloadModel: (options) => ipcRenderer.invoke('download-model', options),
     importModel: (path) => ipcRenderer.invoke('import-model', path),
@@ -69,36 +85,121 @@ contextBridge.exposeInMainWorld('api', {
     // ──────────────────────────────────────────────────────────────────────────
     // GPU Detection
     // ──────────────────────────────────────────────────────────────────────────
+
     detectGpu: () => ipcRenderer.invoke('detect-gpu'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // "Ask Someone" Expert System
+    // ──────────────────────────────────────────────────────────────────────────
+
+    askSomeone: (data) => ipcRenderer.invoke('ask-someone', data),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // "Good Answer" Training Data
+    // ──────────────────────────────────────────────────────────────────────────
+
+    goodAnswer: (data) => ipcRenderer.invoke('good-answer', data),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Training & Fine-Tuning
+    // ──────────────────────────────────────────────────────────────────────────
+
+    startTraining: (data) => ipcRenderer.invoke('start-training', data),
+    trainingStatus: () => ipcRenderer.invoke('training-status'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Agent Management
+    // ──────────────────────────────────────────────────────────────────────────
+
+    listAgents: () => ipcRenderer.invoke('list-agents'),
+    agentStatus: (agentId) => ipcRenderer.invoke('agent-status', agentId),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Queue Management
+    // ──────────────────────────────────────────────────────────────────────────
+
+    listQueue: () => ipcRenderer.invoke('list-queue'),
+    cancelTask: (taskId) => ipcRenderer.invoke('cancel-task', taskId),
+    retryTask: (taskId) => ipcRenderer.invoke('retry-task', taskId),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // GPU Marketplace
+    // ──────────────────────────────────────────────────────────────────────────
+
+    marketplaceListings: () => ipcRenderer.invoke('marketplace-listings'),
+    marketplaceListGPU: (data) => ipcRenderer.invoke('marketplace-list-gpu', data),
+    marketplaceBookGPU: (data) => ipcRenderer.invoke('marketplace-book-gpu', data),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Node Discovery
+    // ──────────────────────────────────────────────────────────────────────────
+
+    getDiscoveredNodes: () => ipcRenderer.invoke('get-discovered-nodes'),
+    onNodeDiscovered: (callback) => {
+        ipcRenderer.on('node-discovered', (event, data) => callback(data));
+    },
+    onNodeLost: (callback) => {
+        ipcRenderer.on('node-lost', (event, data) => callback(data));
+    },
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // VPN Management (WireGuard)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    vpnAddPeer: (username, ip) => ipcRenderer.invoke('vpn-add-peer', username, ip),
+    vpnListPeers: () => ipcRenderer.invoke('vpn-list-peers'),
+    vpnStatus: () => ipcRenderer.invoke('vpn-status'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // System Health & Monitoring
+    // ──────────────────────────────────────────────────────────────────────────
+
+    systemHealth: () => ipcRenderer.invoke('system-health'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Logs
+    // ──────────────────────────────────────────────────────────────────────────
+
+    getLogs: (options) => ipcRenderer.invoke('get-logs', options),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Alerts & Notifications
+    // ──────────────────────────────────────────────────────────────────────────
+
+    getAlerts: () => ipcRenderer.invoke('get-alerts'),
+    getNotifications: () => ipcRenderer.invoke('get-notifications'),
+    markNotificationRead: (id) => ipcRenderer.invoke('mark-notification-read', id),
 
     // ──────────────────────────────────────────────────────────────────────────
     // Backup & Restore
     // ──────────────────────────────────────────────────────────────────────────
+
     createBackup: (options) => ipcRenderer.invoke('create-backup', options),
     listBackups: () => ipcRenderer.invoke('list-backups'),
     restoreBackup: (backupPath) => ipcRenderer.invoke('restore-backup', backupPath),
     onBackupOutput: (callback) => {
         ipcRenderer.on('backup-output', (event, data) => callback(data));
     },
-    onRestoreOutput: (callback) => {
-        ipcRenderer.on('restore-output', (event, data) => callback(data));
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Utilities
+    // ──────────────────────────────────────────────────────────────────────────
+
+    openExternal: (url) => shell.openExternal(url),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Window Controls
+    // ──────────────────────────────────────────────────────────────────────────
+
+    minimize: () => ipcRenderer.send('window-minimize'),
+    maximize: () => ipcRenderer.send('window-maximize'),
+    close: () => ipcRenderer.send('window-close'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Update Status
+    // ──────────────────────────────────────────────────────────────────────────
+
+    onUpdateStatus: (callback) => {
+        ipcRenderer.on('update-status', (event, data) => callback(data));
     },
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Service Launcher (Dynamic Server URLs)
-    // ──────────────────────────────────────────────────────────────────────────
-    openUrl: (url) => ipcRenderer.invoke('open-url', url),
-    openService: (service) => ipcRenderer.invoke('open-service', service),
-    openPath: (path) => ipcRenderer.invoke('open-path', path),
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Logs
-    // ──────────────────────────────────────────────────────────────────────────
-    getLogs: () => ipcRenderer.invoke('get-logs'),
-    getLogContent: (path) => ipcRenderer.invoke('get-log-content', path),
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Dialog
-    // ──────────────────────────────────────────────────────────────────────────
-    showDialog: (options) => ipcRenderer.invoke('show-dialog', options),
 });

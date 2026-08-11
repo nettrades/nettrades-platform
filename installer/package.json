@@ -1,10 +1,10 @@
 {
-  "name": "nettrades-installer",
+  "name": "nettrades-launcher",
   "version": "1.0.0",
-  "description": "NETTRADES Platform Installer – Sovereign AI for Autonomous Enterprises",
+  "description": "NETTRADES Launcher – Sovereign AI Control Centre for Autonomous Enterprises",
   "main": "main.js",
   "homepage": "https://nettrades.ai",
-  "author": "NETTRADES.AI <info@nettrades.ai>",
+  "author": "NETTRADES.AI",
   "license": "AGPL-3.0",
   "scripts": {
     "start": "electron .",
@@ -22,11 +22,13 @@
   },
   "dependencies": {
     "sudo-prompt": "^9.2.1",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "bonjour": "^3.5.0",
+    "axios": "^1.7.2"
   },
   "build": {
-    "appId": "ai.nettrades.installer",
-    "productName": "NETTRADES Installer",
+    "appId": "ai.nettrades.launcher",
+    "productName": "NETTRADES Launcher",
     "directories": {
       "output": "dist"
     },
@@ -34,9 +36,6 @@
       "main.js",
       "preload.js",
       "index.html",
-      "renderer.js",
-      "styles.css",
-      "icon.png",
       "build/**/*"
     ],
     "extraResources": [
@@ -68,7 +67,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "NETTRADES Installer",
+      "shortcutName": "NETTRADES Launcher",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "license": "LICENSE.txt"

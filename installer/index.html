@@ -6,10 +6,9 @@
     <title>NETTRADES Launcher</title>
     <style>
         /* =========================================================================
-           NETTRADES Launcher – Modern Steam-like UI
-           Dark theme with gaming aesthetics, smooth animations, and professional layout
+           NETTRADES Launcher – Steam-Inspired Dark Theme
            ========================================================================= */
-        
+
         /* ─── Reset & Base ─── */
         * {
             margin: 0;
@@ -26,7 +25,7 @@
             user-select: none;
         }
 
-        /* ─── Scrollbar Styling ─── */
+        /* ─── Scrollbar ─── */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -58,8 +57,8 @@
             background: rgba(10, 10, 15, 0.95);
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             flex-shrink: 0;
-            -webkit-app-region: drag;
             height: 40px;
+            -webkit-app-region: drag;
         }
 
         .title-bar .logo {
@@ -165,7 +164,7 @@
         }
 
         .sidebar .nav-item.active {
-            background: rgba(64, 128, 255, 0.1);
+            background: rgba(74, 138, 255, 0.1);
             color: #4a8aff;
             border-left-color: #4a8aff;
         }
@@ -198,7 +197,7 @@
             background: rgba(10, 10, 15, 0.5);
         }
 
-        /* ─── Dashboard ─── */
+        /* ─── Dashboard Header ─── */
         .dashboard-header {
             display: flex;
             justify-content: space-between;
@@ -245,7 +244,7 @@
             color: #fff;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 8px 24px rgba(74, 138, 255, 0.3);
         }
@@ -275,6 +274,11 @@
             color: #fff;
         }
 
+        .btn-warning {
+            background: linear-gradient(135deg, #ffbd2e, #f5a623);
+            color: #1a1a2e;
+        }
+
         .btn-outline {
             background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -284,6 +288,17 @@
         .btn-outline:hover {
             background: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-lg {
+            padding: 14px 32px;
+            font-size: 16px;
+            border-radius: 12px;
+        }
+
+        .btn-block {
+            width: 100%;
+            justify-content: center;
         }
 
         /* ─── Status Cards ─── */
@@ -336,6 +351,44 @@
         }
         .status-card .value .status-dot.warning {
             background: #ffbd2e;
+        }
+
+        /* ─── Quick Actions ─── */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .quick-action {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-action:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .quick-action .icon {
+            font-size: 32px;
+        }
+
+        .quick-action .label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #b0b0c0;
         }
 
         /* ─── GPU List ─── */
@@ -497,7 +550,7 @@
             background: #6a6a7a;
         }
 
-        /* ─── Deployment Log ─── */
+        /* ─── Log Container ─── */
         .log-container {
             background: rgba(0, 0, 0, 0.5);
             border-radius: 12px;
@@ -554,6 +607,7 @@
             gap: 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
             margin-bottom: 20px;
+            overflow-x: auto;
         }
 
         .tab-bar .tab {
@@ -564,6 +618,7 @@
             font-weight: 500;
             border-bottom: 2px solid transparent;
             transition: all 0.3s;
+            white-space: nowrap;
         }
 
         .tab-bar .tab:hover {
@@ -583,67 +638,22 @@
             display: block;
         }
 
-        /* ─── Responsive ─── */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 60px;
-            }
-            .sidebar .nav-item span:not(.icon) {
-                display: none;
-            }
-            .sidebar .nav-item .badge {
-                display: none;
-            }
-            .sidebar .nav-section .section-title {
-                display: none;
-            }
-            .content {
-                padding: 16px;
-            }
-            .dashboard-header {
-                flex-direction: column;
-                gap: 12px;
-            }
-            .status-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            .gpu-list {
-                grid-template-columns: 1fr;
-            }
+        /* ─── Section Headers ─── */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
         }
 
-        /* ─── Animations ─── */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .section-header h2 {
+            font-size: 18px;
+            font-weight: 600;
         }
 
-        .fade-in {
-            animation: fadeIn 0.3s ease forwards;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .pulse {
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        /* ─── Loading Spinner ─── */
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-top-color: #4a8aff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .section-header .count {
+            font-size: 13px;
+            color: #6a6a7a;
         }
 
         /* ─── Empty States ─── */
@@ -667,24 +677,6 @@
             font-size: 14px;
             max-width: 400px;
             margin: 0 auto;
-        }
-
-        /* ─── Section Headers ─── */
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .section-header h2 {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .section-header .count {
-            font-size: 13px;
-            color: #6a6a7a;
         }
 
         /* ─── Toast Notifications ─── */
@@ -721,6 +713,564 @@
         .toast.warning {
             border-color: rgba(255, 189, 46, 0.3);
         }
+
+        /* ─── Forms ─── */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #8a8a9a;
+            margin-bottom: 4px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #e8e8e8;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #4a8aff;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group .helper-text {
+            font-size: 12px;
+            color: #6a6a7a;
+            margin-top: 4px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ─── Animations ─── */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #4a8aff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+            }
+            .sidebar .nav-item span:not(.icon) {
+                display: none;
+            }
+            .sidebar .nav-item .badge {
+                display: none;
+            }
+            .sidebar .nav-section .section-title {
+                display: none;
+            }
+            .content {
+                padding: 16px;
+            }
+            .dashboard-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .status-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .quick-actions {
+                grid-template-columns: 1fr 1fr;
+            }
+            .gpu-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ─── Chat Interface ─── */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 500px;
+        }
+
+        .chat-message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .chat-message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #4a8aff, #6a5aff);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-message.assistant {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-message .role {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #6a6a7a;
+            margin-bottom: 4px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .chat-message.user .role {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .chat-message .content {
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 0 0 12px 12px;
+        }
+
+        .chat-input-container textarea {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #e8e8e8;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 44px;
+            max-height: 120px;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input-container textarea:focus {
+            border-color: #4a8aff;
+        }
+
+        .chat-input-container textarea::placeholder {
+            color: #4a4a5a;
+        }
+
+        .chat-input-container button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #4a8aff, #6a5aff);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .chat-input-container button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(74, 138, 255, 0.3);
+        }
+
+        .chat-input-container button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .chat-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chat-controls select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 4px 10px;
+            color: #e8e8e8;
+            font-size: 12px;
+            outline: none;
+        }
+
+        /* ─── Ask Someone Interface ─── */
+        .ask-someone-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .ask-someone-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .ask-someone-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .ask-someone-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .ask-someone-card .expert-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .ask-someone-card .expert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+        }
+
+        .ask-someone-card .expert-item .expert-name {
+            font-weight: 500;
+        }
+
+        .ask-someone-card .expert-item .expert-status {
+            font-size: 12px;
+            color: #6a6a7a;
+        }
+
+        .ask-someone-card .expert-item .expert-status.online {
+            color: #28c840;
+        }
+
+        /* ─── Good Answer Interface ─── */
+        .good-answer-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .good-answer-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .good-answer-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .good-answer-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .good-answer-item {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .good-answer-item .question {
+            font-weight: 500;
+        }
+
+        .good-answer-item .answer {
+            color: #8a8a9a;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .good-answer-item .rating {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .good-answer-item .rating button {
+            background: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 2px 12px;
+            color: #8a8a9a;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .good-answer-item .rating button:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .good-answer-item .rating button.active {
+            background: rgba(40, 200, 64, 0.2);
+            border-color: #28c840;
+            color: #28c840;
+        }
+
+        /* ─── Training Interface ─── */
+        .training-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .training-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .training-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .training-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .training-progress {
+            margin-top: 12px;
+        }
+
+        .training-progress .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #8a8a9a;
+        }
+
+        .training-progress .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .training-progress .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4a8aff, #6a5aff);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* ─── Marketplace ─── */
+        .marketplace-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .marketplace-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px 20px;
+            transition: all 0.3s;
+        }
+
+        .marketplace-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .marketplace-card .gpu-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .marketplace-card .gpu-specs {
+            font-size: 13px;
+            color: #8a8a9a;
+            margin-top: 4px;
+        }
+
+        .marketplace-card .gpu-price {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a8aff;
+            margin-top: 8px;
+        }
+
+        .marketplace-card .gpu-owner {
+            font-size: 12px;
+            color: #6a6a7a;
+            margin-top: 4px;
+        }
+
+        /* ─── Queue ─── */
+        .queue-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .queue-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border-left: 3px solid #4a8aff;
+            transition: all 0.2s;
+        }
+
+        .queue-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .queue-item .task-info .task-name {
+            font-weight: 500;
+        }
+
+        .queue-item .task-info .task-details {
+            font-size: 12px;
+            color: #6a6a7a;
+        }
+
+        .queue-item .task-status {
+            font-size: 12px;
+            padding: 2px 10px;
+            border-radius: 12px;
+        }
+
+        .queue-item .task-status.pending {
+            background: rgba(255, 189, 46, 0.2);
+            color: #ffbd2e;
+        }
+
+        .queue-item .task-status.running {
+            background: rgba(74, 138, 255, 0.2);
+            color: #4a8aff;
+        }
+
+        .queue-item .task-status.completed {
+            background: rgba(40, 200, 64, 0.2);
+            color: #28c840;
+        }
+
+        .queue-item .task-status.failed {
+            background: rgba(255, 95, 87, 0.2);
+            color: #ff5f57;
+        }
+
+        .queue-item .task-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .queue-item .task-actions button {
+            background: none;
+            border: none;
+            color: #6a6a7a;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .queue-item .task-actions button:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .queue-item .task-actions button.retry:hover {
+            color: #4a8aff;
+        }
+
+        .queue-item .task-actions button.cancel:hover {
+            color: #ff5f57;
+        }
     </style>
 </head>
 <body>
@@ -728,41 +1278,39 @@
         <!-- Title Bar -->
         <div class="title-bar">
             <div class="logo">
-                <img src="build/icon.png" alt="NETTRADES" />
-                <span>NETTRADES</span>
-                <span class="version">v1.0.0</span>
+                <span>🧠 NETTRADES</span>
+                <span class="version" id="app-version">v1.0.0</span>
             </div>
             <div class="window-controls">
-                <button class="btn-minimize" onclick="window.electron.minimize()"></button>
-                <button class="btn-maximize" onclick="window.electron.maximize()"></button>
-                <button class="btn-close" onclick="window.electron.close()"></button>
+                <button class="btn-minimize" onclick="window.api.minimize()"></button>
+                <button class="btn-maximize" onclick="window.api.maximize()"></button>
+                <button class="btn-close" onclick="window.api.close()"></button>
             </div>
         </div>
 
         <!-- Main Layout -->
         <div class="main-layout">
             <!-- Sidebar -->
-            <nav class="sidebar">
+            <nav class="sidebar" id="sidebar">
                 <div class="nav-section">
                     <div class="section-title">Main</div>
                     <div class="nav-item active" data-tab="dashboard">
                         <span class="icon">🏠</span>
                         <span>Dashboard</span>
                     </div>
-                    <div class="nav-item" data-tab="deploy">
-                        <span class="icon">🚀</span>
-                        <span>Deploy</span>
-                        <span class="badge" id="deploy-badge"></span>
-                    </div>
-                    <div class="nav-item" data-tab="gpus">
-                        <span class="icon">🎮</span>
-                        <span>GPUs</span>
-                        <span class="badge" id="gpu-count">0</span>
+                    <div class="nav-item" data-tab="chat">
+                        <span class="icon">💬</span>
+                        <span>AI Chat</span>
                     </div>
                     <div class="nav-item" data-tab="models">
                         <span class="icon">🧠</span>
                         <span>Models</span>
                         <span class="badge" id="model-count">0</span>
+                    </div>
+                    <div class="nav-item" data-tab="gpus">
+                        <span class="icon">🎮</span>
+                        <span>GPUs</span>
+                        <span class="badge" id="gpu-count">0</span>
                     </div>
                 </div>
                 <div class="nav-section">
@@ -772,29 +1320,49 @@
                         <span>Nodes</span>
                         <span class="badge" id="node-count">0</span>
                     </div>
-                    <div class="nav-item" data-tab="wireguard">
+                    <div class="nav-item" data-tab="vpn">
                         <span class="icon">🔒</span>
-                        <span>WireGuard</span>
-                        <span class="badge" id="wg-status"></span>
+                        <span>VPN</span>
+                        <span class="badge" id="vpn-status"></span>
                     </div>
                 </div>
                 <div class="nav-section">
-                    <div class="section-title">Apps</div>
-                    <div class="nav-item" data-app="odoo">
-                        <span class="icon">📊</span>
-                        <span>Odoo</span>
+                    <div class="section-title">AI Services</div>
+                    <div class="nav-item" data-tab="ask-someone">
+                        <span class="icon">🙋</span>
+                        <span>Ask Someone</span>
+                        <span class="badge" id="ask-someone-badge">New</span>
                     </div>
-                    <div class="nav-item" data-app="ui">
-                        <span class="icon">💬</span>
-                        <span>AI Chat</span>
+                    <div class="nav-item" data-tab="good-answer">
+                        <span class="icon">⭐</span>
+                        <span>Good Answer</span>
                     </div>
-                    <div class="nav-item" data-app="grafana">
+                    <div class="nav-item" data-tab="training">
+                        <span class="icon">🎯</span>
+                        <span>Training</span>
+                    </div>
+                    <div class="nav-item" data-tab="marketplace">
+                        <span class="icon">💰</span>
+                        <span>Marketplace</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="section-title">Operations</div>
+                    <div class="nav-item" data-tab="deploy">
+                        <span class="icon">🚀</span>
+                        <span>Deploy</span>
+                    </div>
+                    <div class="nav-item" data-tab="queue">
+                        <span class="icon">📋</span>
+                        <span>Queue</span>
+                    </div>
+                    <div class="nav-item" data-tab="monitor">
                         <span class="icon">📈</span>
-                        <span>Grafana</span>
+                        <span>Monitor</span>
                     </div>
-                    <div class="nav-item" data-app="llama">
-                        <span class="icon">🦙</span>
-                        <span>llama.cpp</span>
+                    <div class="nav-item" data-tab="backup">
+                        <span class="icon">💾</span>
+                        <span>Backup</span>
                     </div>
                 </div>
                 <div class="nav-section">
@@ -802,6 +1370,10 @@
                     <div class="nav-item" data-tab="settings">
                         <span class="icon">⚙️</span>
                         <span>Settings</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs">
+                        <span class="icon">📄</span>
+                        <span>Logs</span>
                     </div>
                     <div class="nav-item" data-tab="about">
                         <span class="icon">ℹ️</span>
@@ -812,7 +1384,9 @@
 
             <!-- Content -->
             <div class="content">
-                <!-- Dashboard Tab -->
+                <!-- ============================================================
+                DASHBOARD TAB
+                ============================================================ -->
                 <div id="tab-dashboard" class="tab-content active">
                     <div class="dashboard-header fade-in">
                         <div>
@@ -825,6 +1399,33 @@
                         </div>
                     </div>
 
+                    <div class="quick-actions">
+                        <div class="quick-action" onclick="switchTab('chat')">
+                            <span class="icon">💬</span>
+                            <span class="label">Chat Now</span>
+                        </div>
+                        <div class="quick-action" onclick="switchTab('models')">
+                            <span class="icon">📥</span>
+                            <span class="label">Download Model</span>
+                        </div>
+                        <div class="quick-action" onclick="switchTab('ask-someone')">
+                            <span class="icon">🙋</span>
+                            <span class="label">Ask Someone</span>
+                        </div>
+                        <div class="quick-action" onclick="switchTab('marketplace')">
+                            <span class="icon">💰</span>
+                            <span class="label">GPU Marketplace</span>
+                        </div>
+                        <div class="quick-action" onclick="switchTab('training')">
+                            <span class="icon">🎯</span>
+                            <span class="label">Train Model</span>
+                        </div>
+                        <div class="quick-action" onclick="switchTab('deploy')">
+                            <span class="icon">🚀</span>
+                            <span class="label">Deploy</span>
+                        </div>
+                    </div>
+
                     <div class="status-grid">
                         <div class="status-card">
                             <div class="label">Platform Status</div>
@@ -834,27 +1435,17 @@
                             </div>
                         </div>
                         <div class="status-card">
-                            <div class="label">GPUs Detected</div>
+                            <div class="label">GPUs Available</div>
                             <div class="value" id="dashboard-gpu-count">0</div>
                         </div>
                         <div class="status-card">
-                            <div class="label">Models Available</div>
+                            <div class="label">Models Installed</div>
                             <div class="value" id="dashboard-model-count">0</div>
                         </div>
                         <div class="status-card">
                             <div class="label">Network Nodes</div>
                             <div class="value" id="dashboard-node-count">0</div>
                         </div>
-                    </div>
-
-                    <div class="section-header">
-                        <h2>Quick Actions</h2>
-                    </div>
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
-                        <button class="btn btn-primary" onclick="switchTab('deploy')">🚀 Deploy Platform</button>
-                        <button class="btn btn-success" onclick="switchTab('models')">📥 Download Model</button>
-                        <button class="btn btn-secondary" onclick="switchTab('gpus')">🎮 View GPUs</button>
-                        <button class="btn btn-secondary" onclick="switchTab('nodes')">🌐 Discover Nodes</button>
                     </div>
 
                     <div class="section-header">
@@ -866,62 +1457,94 @@
                     </div>
                 </div>
 
-                <!-- Deploy Tab -->
-                <div id="tab-deploy" class="tab-content">
+                <!-- ============================================================
+                CHAT TAB
+                ============================================================ -->
+                <div id="tab-chat" class="tab-content">
                     <div class="dashboard-header">
                         <div>
-                            <h2>🚀 Deploy Platform</h2>
-                            <div class="subtitle">One-click deployment of the full NETTRADES stack</div>
+                            <h2>💬 AI Chat</h2>
+                            <div class="subtitle">Chat with your AI models and agents</div>
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary" onclick="clearChat()">🗑️ Clear</button>
+                            <button class="btn btn-primary" onclick="newChat()">➕ New Chat</button>
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
-                        <button class="btn btn-primary" id="deploy-btn" onclick="startDeployment()">
-                            ⚡ Deploy All
-                        </button>
-                        <button class="btn btn-secondary" onclick="startDeployment('deploy')">
-                            📦 Deploy (Phase 0-2)
-                        </button>
-                        <button class="btn btn-secondary" onclick="startDeployment('modules')">
-                            📦 Install Modules
-                        </button>
-                        <button class="btn btn-secondary" onclick="startDeployment('monitoring')">
-                            📊 Monitoring
-                        </button>
+                    <div class="chat-controls">
+                        <span style="font-size:13px;color:#6a6a7a;">Model:</span>
+                        <select id="chat-model">
+                            <option value="deepseek-1.5b">DeepSeek 1.5B</option>
+                            <option value="qwen-1.5b">Qwen 1.5B</option>
+                            <option value="llama-3.2">Llama 3.2</option>
+                            <option value="agent-default">🤖 Agent (Default)</option>
+                        </select>
+                        <span style="font-size:13px;color:#6a6a7a;margin-left:12px;">Temperature:</span>
+                        <select id="chat-temperature">
+                            <option value="0.1">0.1 (Precise)</option>
+                            <option value="0.5">0.5 (Balanced)</option>
+                            <option value="0.7" selected>0.7 (Creative)</option>
+                            <option value="1.0">1.0 (Random)</option>
+                        </select>
+                        <span style="font-size:13px;color:#6a6a7a;margin-left:12px;display:flex;align-items:center;gap:4px;">
+                            <input type="checkbox" id="chat-stream" checked /> Stream
+                        </span>
                     </div>
 
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; gap: 8px; color: #8a8a9a; font-size: 13px;">
-                            <input type="checkbox" id="deploy-force" /> Force Re-run
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; color: #8a8a9a; font-size: 13px;">
-                            <input type="checkbox" id="deploy-auto" checked /> Auto Mode
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; color: #8a8a9a; font-size: 13px;">
-                            <input type="checkbox" id="deploy-production" /> Production Mode
-                        </label>
+                    <div id="chat-messages" class="chat-messages" style="border:1px solid rgba(255,255,255,0.06);border-radius:12px;margin-top:12px;">
+                        <div class="chat-message assistant">
+                            <div class="role">Assistant</div>
+                            <div class="content">Hello! I'm your AI assistant. How can I help you today?
+
+You can:
+• Ask me anything about your data
+• Use "Ask Someone" to get expert help
+• Mark my answers as "Good" to help train me!</div>
+                        </div>
                     </div>
 
-                    <div id="deploy-status" style="margin-bottom: 12px;">
-                        <span style="color: #6a6a7a;">Ready to deploy</span>
+                    <div class="chat-input-container" style="margin-top:12px;">
+                        <textarea id="chat-input" rows="1" placeholder="Type your message..." onkeydown="handleChatKeyDown(event)"></textarea>
+                        <button id="chat-send-btn" onclick="sendChatMessage()">Send</button>
                     </div>
-
-                    <div class="progress-container">
-                        <div class="progress-bar" id="deploy-progress" style="width: 0%;"></div>
-                    </div>
-
-                    <div id="deploy-log" class="log-container" style="max-height: 400px; margin-top: 12px;">
-                        <div class="log-line info">⏳ Waiting for deployment to start...</div>
+                    <div style="display:flex;gap:8px;margin-top:8px;">
+                        <button class="btn btn-secondary" onclick="askSomeoneFromChat()" style="font-size:12px;padding:4px 12px;">🙋 Ask Someone</button>
+                        <button class="btn btn-secondary" onclick="markGoodAnswer()" style="font-size:12px;padding:4px 12px;">⭐ Good Answer</button>
                     </div>
                 </div>
 
-                <!-- GPUs Tab -->
+                <!-- ============================================================
+                MODELS TAB
+                ============================================================ -->
+                <div id="tab-models" class="tab-content">
+                    <div class="section-header">
+                        <h2>🧠 Model Library</h2>
+                        <div>
+                            <button class="btn btn-primary" onclick="downloadModel()">📥 Download Model</button>
+                            <button class="btn btn-secondary" onclick="refreshModels()">🔄 Refresh</button>
+                        </div>
+                    </div>
+                    <div id="model-list" class="model-list">
+                        <div class="empty-state">
+                            <div class="icon">📦</div>
+                            <h3>No Models Installed</h3>
+                            <p>Download a model to get started with AI inference.</p>
+                            <button class="btn btn-primary" onclick="downloadModel()" style="margin-top:12px;">📥 Download Model</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                GPUS TAB
+                ============================================================ -->
                 <div id="tab-gpus" class="tab-content">
                     <div class="section-header">
                         <h2>🎮 GPU Management</h2>
                         <div>
                             <button class="btn btn-secondary" onclick="detectGPUs()">🔍 Scan</button>
                             <button class="btn btn-secondary" onclick="installNvidiaDrivers()">📥 Install Drivers</button>
+                            <button class="btn btn-primary" onclick="showRegisterGPU()">➕ Register GPU</button>
                         </div>
                     </div>
                     <div id="gpu-list" class="gpu-list">
@@ -933,25 +1556,9 @@
                     </div>
                 </div>
 
-                <!-- Models Tab -->
-                <div id="tab-models" class="tab-content">
-                    <div class="section-header">
-                        <h2>🧠 Model Management</h2>
-                        <div>
-                            <button class="btn btn-primary" onclick="downloadModel()">📥 Download Model</button>
-                            <button class="btn btn-secondary" onclick="refreshModels()">🔄 Refresh</button>
-                        </div>
-                    </div>
-                    <div id="model-list" class="model-list">
-                        <div class="empty-state">
-                            <div class="icon">📦</div>
-                            <h3>No Models Installed</h3>
-                            <p>Download a model to get started with AI inference.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Nodes Tab -->
+                <!-- ============================================================
+                NODES TAB
+                ============================================================ -->
                 <div id="tab-nodes" class="tab-content">
                     <div class="section-header">
                         <h2>🌐 Network Nodes</h2>
@@ -969,75 +1576,536 @@
                     </div>
                 </div>
 
-                <!-- WireGuard Tab -->
-                <div id="tab-wireguard" class="tab-content">
+                <!-- ============================================================
+                VPN TAB
+                ============================================================ -->
+                <div id="tab-vpn" class="tab-content">
                     <div class="section-header">
-                        <h2>🔒 WireGuard VPN</h2>
+                        <h2>🔒 VPN Management</h2>
                         <div>
-                            <button class="btn btn-primary" onclick="addWireGuardPeer()">➕ Add Peer</button>
-                            <button class="btn btn-secondary" onclick="refreshWireGuard()">🔄 Refresh</button>
+                            <button class="btn btn-primary" onclick="addVPNPeer()">➕ Add Peer</button>
+                            <button class="btn btn-secondary" onclick="refreshVPN()">🔄 Refresh</button>
                         </div>
                     </div>
-                    <div id="wireguard-status" style="margin-bottom: 16px;">
-                        <span style="color: #6a6a7a;">Loading WireGuard status...</span>
+                    <div id="vpn-status-container" style="margin-bottom:16px;">
+                        <span style="color:#6a6a7a;">Loading VPN status...</span>
                     </div>
-                    <div id="wireguard-peers" style="margin-top: 12px;">
+                    <div id="vpn-peers">
                         <div class="empty-state">
                             <div class="icon">🔒</div>
-                            <h3>No WireGuard Peers</h3>
+                            <h3>No VPN Peers</h3>
                             <p>Add peers to establish secure VPN connections.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Settings Tab -->
-                <div id="tab-settings" class="tab-content">
-                    <h2>⚙️ Settings</h2>
-                    <div style="margin-top: 16px; max-width: 600px;">
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; color: #8a8a9a; font-size: 13px; margin-bottom: 4px;">Server URL</label>
-                            <input type="text" id="server-url" style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #e8e8e8; font-size: 14px;" />
-                            <button class="btn btn-secondary" onclick="saveServerUrl()" style="margin-top: 8px;">Save</button>
+                <!-- ============================================================
+                ASK SOMEONE TAB
+                ============================================================ -->
+                <div id="tab-ask-someone" class="tab-content">
+                    <div class="dashboard-header">
+                        <div>
+                            <h2>🙋 Ask Someone</h2>
+                            <div class="subtitle">Get expert answers from trusted professionals</div>
                         </div>
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; color: #8a8a9a; font-size: 13px; margin-bottom: 4px;">Auto-Update</label>
-                            <label style="display: flex; align-items: center; gap: 8px; color: #b0b0c0; font-size: 13px;">
-                                <input type="checkbox" id="auto-update" checked /> Check for updates automatically
-                            </label>
+                    </div>
+
+                    <div class="ask-someone-container">
+                        <div class="ask-someone-card">
+                            <h3>Ask a Question</h3>
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select id="ask-category">
+                                    <option value="general">General</option>
+                                    <option value="technical">Technical</option>
+                                    <option value="business">Business</option>
+                                    <option value="medical">Medical</option>
+                                    <option value="legal">Legal</option>
+                                    <option value="education">Education</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Urgency</label>
+                                <select id="ask-urgency">
+                                    <option value="low">Low (1-2 days)</option>
+                                    <option value="medium" selected>Medium (24 hours)</option>
+                                    <option value="high">High (4 hours)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Your Question</label>
+                                <textarea id="ask-question" rows="4" placeholder="Describe your question in detail..."></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-block" onclick="submitAskSomeone()">Submit Question</button>
                         </div>
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; color: #8a8a9a; font-size: 13px; margin-bottom: 4px;">Node Discovery</label>
-                            <label style="display: flex; align-items: center; gap: 8px; color: #b0b0c0; font-size: 13px;">
-                                <input type="checkbox" id="node-discovery" checked /> Enable mDNS discovery
-                            </label>
+
+                        <div class="ask-someone-card">
+                            <h3>Available Experts</h3>
+                            <div id="expert-list" class="expert-list">
+                                <div class="expert-item">
+                                    <span class="expert-name">Dr. Sarah Chen</span>
+                                    <span class="expert-status online">🟢 Online</span>
+                                </div>
+                                <div class="expert-item">
+                                    <span class="expert-name">Prof. Michael Roberts</span>
+                                    <span class="expert-status">⚪ Offline</span>
+                                </div>
+                                <div class="expert-item">
+                                    <span class="expert-name">Dr. Emily Watson</span>
+                                    <span class="expert-status online">🟢 Online</span>
+                                </div>
+                                <div class="expert-item">
+                                    <span class="expert-name">Prof. David Kim</span>
+                                    <span class="expert-status">⚪ Offline</span>
+                                </div>
+                                <div style="margin-top:12px;font-size:13px;color:#6a6a7a;">
+                                    <span id="ask-someone-status">Ready to connect you with an expert</span>
+                                </div>
+                            </div>
                         </div>
-                        <div style="margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 24px;">
-                            <button class="btn btn-danger" onclick="resetPlatform()">🗑️ Reset Platform</button>
-                            <button class="btn btn-secondary" onclick="viewLogs()">📄 View Logs</button>
+                    </div>
+
+                    <div style="margin-top:16px;">
+                        <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Your Questions</h3>
+                        <div id="ask-history">
+                            <div class="empty-state" style="padding:20px;">
+                                <p>No questions asked yet.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- About Tab -->
+                <!-- ============================================================
+                GOOD ANSWER TAB
+                ============================================================ -->
+                <div id="tab-good-answer" class="tab-content">
+                    <div class="dashboard-header">
+                        <div>
+                            <h2>⭐ Good Answer</h2>
+                            <div class="subtitle">Review and rate answers to help train AI models</div>
+                        </div>
+                    </div>
+
+                    <div class="good-answer-container">
+                        <div class="good-answer-card">
+                            <h3>Recent Answers</h3>
+                            <div id="good-answer-list">
+                                <div class="good-answer-item">
+                                    <div class="question">How do I optimise my Docker containers for AI workloads?</div>
+                                    <div class="answer">Use NVIDIA Container Toolkit, set memory limits, and enable GPU sharing...</div>
+                                    <div class="rating">
+                                        <button class="active">👍 Good</button>
+                                        <button>👎 Not Helpful</button>
+                                        <button>⭐ Excellent</button>
+                                    </div>
+                                </div>
+                                <div class="good-answer-item">
+                                    <div class="question">What's the best way to fine-tune a model on custom data?</div>
+                                    <div class="answer">Use Unsloth or Axolotl with QLoRA for efficient fine-tuning...</div>
+                                    <div class="rating">
+                                        <button>👍 Good</button>
+                                        <button>👎 Not Helpful</button>
+                                        <button class="active">⭐ Excellent</button>
+                                    </div>
+                                </div>
+                                <div class="good-answer-item">
+                                    <div class="question">How does NETTRADES handle distributed inference?</div>
+                                    <div class="answer">NETTRADES uses NVIDIA Dynamo with vLLM for distributed inference...</div>
+                                    <div class="rating">
+                                        <button class="active">👍 Good</button>
+                                        <button>👎 Not Helpful</button>
+                                        <button>⭐ Excellent</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="good-answer-card">
+                            <h3>Training Data Insights</h3>
+                            <div style="margin-top:12px;">
+                                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                                    <span>Total Good Answers</span>
+                                    <span style="font-weight:600;">1,247</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                                    <span>Training Episodes</span>
+                                    <span style="font-weight:600;">892</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                                    <span>Average Quality Score</span>
+                                    <span style="font-weight:600;color:#28c840;">8.7/10</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;padding:8px 0;">
+                                    <span>Models Trained</span>
+                                    <span style="font-weight:600;">3</span>
+                                </div>
+                                <div style="margin-top:16px;">
+                                    <button class="btn btn-primary btn-block" onclick="triggerTraining()">🎯 Trigger Training</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                TRAINING TAB
+                ============================================================ -->
+                <div id="tab-training" class="tab-content">
+                    <div class="dashboard-header">
+                        <div>
+                            <h2>🎯 Training & Fine-Tuning</h2>
+                            <div class="subtitle">Train and fine-tune models on your data</div>
+                        </div>
+                    </div>
+
+                    <div class="training-container">
+                        <div class="training-card">
+                            <h3>Start New Training</h3>
+                            <div class="form-group">
+                                <label>Dataset</label>
+                                <select id="training-dataset">
+                                    <option value="good-answers">Good Answers Dataset</option>
+                                    <option value="ask-someone">Ask Someone Dataset</option>
+                                    <option value="custom">Custom Dataset</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Base Model</label>
+                                <select id="training-model">
+                                    <option value="deepseek-1.5b">DeepSeek 1.5B</option>
+                                    <option value="qwen-1.5b">Qwen 1.5B</option>
+                                    <option value="llama-3.2">Llama 3.2</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Method</label>
+                                <select id="training-method">
+                                    <option value="unsloth">Unsloth (Fast)</option>
+                                    <option value="axolotl">Axolotl (Full)</option>
+                                    <option value="qlora">QLoRA (Efficient)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Training Parameters</label>
+                                <div class="form-row">
+                                    <div>
+                                        <label style="font-size:12px;">Epochs</label>
+                                        <input type="number" id="training-epochs" value="3" min="1" max="20" />
+                                    </div>
+                                    <div>
+                                        <label style="font-size:12px;">Learning Rate</label>
+                                        <input type="number" id="training-lr" value="2e-4" step="0.1e-4" />
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary btn-block" onclick="startTraining()">🚀 Start Training</button>
+                        </div>
+
+                        <div class="training-card">
+                            <h3>Training Progress</h3>
+                            <div id="training-status">
+                                <div style="color:#6a6a7a;">No training jobs running</div>
+                            </div>
+                            <div class="training-progress" style="display:none;" id="training-progress-container">
+                                <div class="progress-label">
+                                    <span id="training-progress-label">Training...</span>
+                                    <span id="training-progress-percent">0%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="training-progress-fill" style="width:0%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-top:16px;">
+                                <h4 style="font-size:14px;font-weight:500;margin-bottom:8px;">Previous Training Jobs</h4>
+                                <div id="training-history">
+                                    <div style="color:#6a6a7a;font-size:13px;">No previous training jobs</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                MARKETPLACE TAB
+                ============================================================ -->
+                <div id="tab-marketplace" class="tab-content">
+                    <div class="section-header">
+                        <h2>💰 GPU Marketplace</h2>
+                        <div>
+                            <button class="btn btn-primary" onclick="showListGPU()">📝 List Your GPU</button>
+                            <button class="btn btn-secondary" onclick="refreshMarketplace()">🔄 Refresh</button>
+                        </div>
+                    </div>
+                    <div id="marketplace-listings" class="marketplace-grid">
+                        <div class="empty-state">
+                            <div class="icon">💰</div>
+                            <h3>No GPU Listings</h3>
+                            <p>List your GPU to earn passive income, or browse available GPUs.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                DEPLOY TAB
+                ============================================================ -->
+                <div id="tab-deploy" class="tab-content">
+                    <div class="dashboard-header">
+                        <div>
+                            <h2>🚀 Deploy Platform</h2>
+                            <div class="subtitle">One-click deployment of the full NETTRADES stack</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+                        <button class="btn btn-primary" id="deploy-btn" onclick="startDeployment('all')">⚡ Deploy All</button>
+                        <button class="btn btn-secondary" onclick="startDeployment('deploy')">📦 Deploy (Phases 0-2)</button>
+                        <button class="btn btn-secondary" onclick="startDeployment('modules')">📦 Install Modules</button>
+                        <button class="btn btn-secondary" onclick="startDeployment('monitoring')">📊 Monitoring</button>
+                    </div>
+
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+                        <label style="display:flex;align-items:center;gap:8px;color:#8a8a9a;font-size:13px;">
+                            <input type="checkbox" id="deploy-force" /> Force Re-run
+                        </label>
+                        <label style="display:flex;align-items:center;gap:8px;color:#8a8a9a;font-size:13px;">
+                            <input type="checkbox" id="deploy-auto" checked /> Auto Mode
+                        </label>
+                        <label style="display:flex;align-items:center;gap:8px;color:#8a8a9a;font-size:13px;">
+                            <input type="checkbox" id="deploy-production" /> Production Mode
+                        </label>
+                    </div>
+
+                    <div id="deploy-status" style="margin-bottom:12px;">
+                        <span style="color:#6a6a7a;">Ready to deploy</span>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-bar" id="deploy-progress" style="width:0%;"></div>
+                    </div>
+
+                    <div id="deploy-log" class="log-container" style="max-height:400px;margin-top:12px;">
+                        <div class="log-line info">⏳ Waiting for deployment to start...</div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                QUEUE TAB
+                ============================================================ -->
+                <div id="tab-queue" class="tab-content">
+                    <div class="section-header">
+                        <h2>📋 Task Queue</h2>
+                        <div>
+                            <button class="btn btn-secondary" onclick="refreshQueue()">🔄 Refresh</button>
+                        </div>
+                    </div>
+                    <div id="queue-list" class="queue-list">
+                        <div class="empty-state">
+                            <div class="icon">📋</div>
+                            <h3>No Tasks in Queue</h3>
+                            <p>Tasks will appear here when they are queued for execution.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                MONITOR TAB
+                ============================================================ -->
+                <div id="tab-monitor" class="tab-content">
+                    <div class="dashboard-header">
+                        <div>
+                            <h2>📈 System Monitor</h2>
+                            <div class="subtitle">Real-time health and performance monitoring</div>
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary" onclick="refreshMonitor()">🔄 Refresh</button>
+                            <button class="btn btn-primary" onclick="openApp('grafana')">Open Grafana</button>
+                        </div>
+                    </div>
+
+                    <div class="status-grid">
+                        <div class="status-card">
+                            <div class="label">Odoo</div>
+                            <div class="value">
+                                <span class="status-dot" id="monitor-odoo-dot"></span>
+                                <span id="monitor-odoo-status">Checking...</span>
+                            </div>
+                        </div>
+                        <div class="status-card">
+                            <div class="label">LangGraph</div>
+                            <div class="value">
+                                <span class="status-dot" id="monitor-langgraph-dot"></span>
+                                <span id="monitor-langgraph-status">Checking...</span>
+                            </div>
+                        </div>
+                        <div class="status-card">
+                            <div class="label">Dynamo</div>
+                            <div class="value">
+                                <span class="status-dot" id="monitor-dynamo-dot"></span>
+                                <span id="monitor-dynamo-status">Checking...</span>
+                            </div>
+                        </div>
+                        <div class="status-card">
+                            <div class="label">PostgreSQL</div>
+                            <div class="value">
+                                <span class="status-dot" id="monitor-postgres-dot"></span>
+                                <span id="monitor-postgres-status">Checking...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-header">
+                        <h2>Alerts</h2>
+                    </div>
+                    <div id="alerts-container">
+                        <div class="empty-state" style="padding:20px;">
+                            <p>No active alerts</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                BACKUP TAB
+                ============================================================ -->
+                <div id="tab-backup" class="tab-content">
+                    <div class="section-header">
+                        <h2>💾 Backup & Restore</h2>
+                        <div>
+                            <button class="btn btn-primary" onclick="createBackup()">💾 Backup Now</button>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                        <div>
+                            <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Create Backup</h3>
+                            <p style="color:#8a8a9a;font-size:14px;margin-bottom:12px;">
+                                Backup all platform data including databases, volumes, and configuration.
+                            </p>
+                            <button class="btn btn-primary btn-block" onclick="createBackup()">💾 Create Backup</button>
+                        </div>
+                        <div>
+                            <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Restore from Backup</h3>
+                            <div class="form-group">
+                                <label>Select Backup</label>
+                                <select id="backup-select">
+                                    <option value="">No backups found</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-warning btn-block" onclick="restoreBackup()">↩️ Restore Selected</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px;">
+                        <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Available Backups</h3>
+                        <div id="backup-list">
+                            <div class="empty-state" style="padding:20px;">
+                                <p>No backups found.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="backup-log" class="log-container" style="max-height:200px;margin-top:12px;">
+                        <div class="log-line info">⏳ Ready</div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                LOGS TAB
+                ============================================================ -->
+                <div id="tab-logs" class="tab-content">
+                    <div class="section-header">
+                        <h2>📄 System Logs</h2>
+                        <div>
+                            <button class="btn btn-secondary" onclick="refreshLogs()">🔄 Refresh</button>
+                            <button class="btn btn-secondary" onclick="clearLogs()">🗑️ Clear</button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="max-width:300px;">
+                        <label>Service</label>
+                        <select id="log-service" onchange="refreshLogs()">
+                            <option value="all">All Services</option>
+                            <option value="odoo">Odoo</option>
+                            <option value="langgraph">LangGraph</option>
+                            <option value="dynamo">Dynamo</option>
+                            <option value="postgres">PostgreSQL</option>
+                            <option value="traefik">Traefik</option>
+                        </select>
+                    </div>
+                    <div id="logs-container" class="log-container" style="max-height:500px;">
+                        <div class="log-line info">📄 Select a service to view logs</div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                SETTINGS TAB
+                ============================================================ -->
+                <div id="tab-settings" class="tab-content">
+                    <h2>⚙️ Settings</h2>
+
+                    <div style="max-width:600px;margin-top:16px;">
+                        <div class="form-group">
+                            <label>Server URL</label>
+                            <input type="text" id="settings-server-url" placeholder="http://localhost" />
+                            <div class="helper-text">Enter the IP address or domain name of your NETTRADES server.</div>
+                            <button class="btn btn-secondary" onclick="saveSettings()" style="margin-top:8px;">Save</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Auto-Update</label>
+                            <label style="display:flex;align-items:center;gap:8px;color:#b0b0c0;font-size:13px;">
+                                <input type="checkbox" id="settings-auto-update" checked /> Check for updates automatically
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Node Discovery</label>
+                            <label style="display:flex;align-items:center;gap:8px;color:#b0b0c0;font-size:13px;">
+                                <input type="checkbox" id="settings-node-discovery" checked /> Enable mDNS discovery
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>External LLM Providers</label>
+                            <div style="display:grid;gap:8px;">
+                                <div>
+                                    <label style="font-size:12px;">OpenAI API Key</label>
+                                    <input type="password" id="settings-openai-key" placeholder="sk-..." />
+                                </div>
+                                <div>
+                                    <label style="font-size:12px;">Anthropic API Key</label>
+                                    <input type="password" id="settings-anthropic-key" placeholder="sk-ant-..." />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.05);padding-top:24px;">
+                            <button class="btn btn-danger" onclick="resetPlatform()">🗑️ Reset Platform</button>
+                            <button class="btn btn-secondary" onclick="viewLogsDirectory()">📄 Open Logs Directory</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                ABOUT TAB
+                ============================================================ -->
                 <div id="tab-about" class="tab-content">
-                    <div style="text-align: center; padding: 40px 0;">
-                        <img src="build/icon.png" alt="NETTRADES" style="width: 80px; height: 80px; margin-bottom: 16px;" />
-                        <h1 style="font-size: 32px; font-weight: 700; background: linear-gradient(135deg, #fff 0%, #4a8aff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NETTRADES</h1>
-                        <div style="font-size: 16px; color: #6a6a7a; margin-top: 4px;">Sovereign AI Platform</div>
-                        <div style="font-size: 14px; color: #4a4a5a; margin-top: 4px;">Version <span id="about-version">1.0.0</span></div>
-                        <div style="margin-top: 24px; max-width: 400px; margin-left: auto; margin-right: auto; color: #8a8a9a; font-size: 14px; line-height: 1.6;">
+                    <div style="text-align:center;padding:40px 0;">
+                        <span style="font-size:80px;">🧠</span>
+                        <h1 style="font-size:32px;font-weight:700;margin-top:16px;background:linear-gradient(135deg,#fff 0%,#4a8aff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">NETTRADES</h1>
+                        <div style="font-size:16px;color:#6a6a7a;margin-top:4px;">Sovereign AI Platform</div>
+                        <div style="font-size:14px;color:#4a4a5a;margin-top:4px;">Version <span id="about-version">1.0.0</span></div>
+                        <div style="margin-top:24px;max-width:400px;margin-left:auto;margin-right:auto;color:#8a8a9a;font-size:14px;line-height:1.6;">
                             <p>Build your Sovereign AI Infrastructure using your spare GPU capacity.</p>
-                            <p style="margin-top: 8px;">🔒 Your data never leaves your network.</p>
+                            <p style="margin-top:8px;">🔒 Your data never leaves your network.</p>
                             <p>🚀 Deploy in minutes, not months.</p>
                             <p>🌐 Fully open-source, no vendor lock-in.</p>
                         </div>
-                        <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
-                            <button class="btn btn-secondary" onclick="window.electron.openExternal('https://github.com/nettrades/nettrades-platform')">GitHub</button>
-                            <button class="btn btn-secondary" onclick="window.electron.openExternal('https://nettrades.ai')">Website</button>
-                            <button class="btn btn-secondary" onclick="window.electron.openExternal('https://docs.nettrades.ai')">Documentation</button>
+                        <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                            <button class="btn btn-secondary" onclick="window.api.openExternal('https://github.com/nettrades/nettrades-platform')">GitHub</button>
+                            <button class="btn btn-secondary" onclick="window.api.openExternal('https://nettrades.ai')">Website</button>
+                            <button class="btn btn-secondary" onclick="window.api.openExternal('https://docs.nettrades.ai')">Documentation</button>
                         </div>
-                        <div style="margin-top: 32px; font-size: 12px; color: #3a3a4a;">
-                            © 2026 NETTRADES. All rights reserved.
+                        <div style="margin-top:32px;font-size:12px;color:#3a3a4a;">
+                            © 2026 NETTRADES. All rights reserved. AGPL-3.0 Licensed.
                         </div>
                     </div>
                 </div>
@@ -1048,61 +2116,157 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toast-container"></div>
 
+    <!-- ============================================================
+    MODAL OVERLAY
+    ============================================================ -->
+    <div id="modal-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;">
+        <div style="background:#1a1a2e;border-radius:16px;padding:32px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
     <script>
         // =========================================================================
         // NETTRADES Launcher – Renderer Logic
         // =========================================================================
 
-        const { ipcRenderer, shell } = require('electron');
-
         // ─── State ───
         let currentTab = 'dashboard';
-        let isDeploying = false;
         let gpus = [];
         let models = [];
         let nodes = [];
-        let wireguardPeers = [];
+        let vpnPeers = [];
+        let chatHistory = [];
+        let isChatStreaming = false;
 
-        // ─── DOM References ───
-        const tabs = document.querySelectorAll('.tab-content');
-        const navItems = document.querySelectorAll('.nav-item[data-tab]');
-        const appItems = document.querySelectorAll('.nav-item[data-app]');
+        // ─── DOM Ready ───
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get platform info
+            window.api.getPlatform().then((platform) => {
+                document.getElementById('app-version').textContent = `v${platform.version}`;
+                document.getElementById('about-version').textContent = platform.version;
+            });
+
+            // Load settings
+            window.api.getServerUrl().then((url) => {
+                document.getElementById('settings-server-url').value = url || 'http://localhost';
+            });
+
+            // Feature flags
+            window.api.getFeatureFlags().then((flags) => {
+                if (!flags.askSomeone) {
+                    document.querySelector('[data-tab="ask-someone"]').style.display = 'none';
+                }
+                if (!flags.goodAnswer) {
+                    document.querySelector('[data-tab="good-answer"]').style.display = 'none';
+                }
+                if (!flags.training) {
+                    document.querySelector('[data-tab="training"]').style.display = 'none';
+                }
+                if (!flags.gpuMarketplace) {
+                    document.querySelector('[data-tab="marketplace"]').style.display = 'none';
+                }
+            });
+
+            // Tab navigation
+            document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+                item.addEventListener('click', () => {
+                    switchTab(item.dataset.tab);
+                });
+            });
+
+            // Set up IPC listeners
+            setupIpcListeners();
+
+            // Load initial data
+            refreshAll();
+
+            // Auto-refresh every 30 seconds
+            setInterval(refreshAll, 30000);
+        });
+
+        // ─── IPC Listeners ───
+        function setupIpcListeners() {
+            // Install output
+            window.api.onInstallOutput((data) => {
+                const logContainer = document.getElementById('deploy-log');
+                if (logContainer) {
+                    const line = document.createElement('div');
+                    line.className = `log-line ${data.type === 'stderr' ? 'error' : 'info'}`;
+                    line.textContent = data.data.trim();
+                    logContainer.appendChild(line);
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+            });
+
+            // Install progress
+            window.api.onInstallProgress((data) => {
+                const progressBar = document.getElementById('deploy-progress');
+                if (progressBar) {
+                    progressBar.style.width = `${data.progress}%`;
+                }
+            });
+
+            // Download progress
+            window.api.onDownloadProgress((data) => {
+                // Show in models tab
+                const statusEl = document.getElementById('model-download-status');
+                if (statusEl) {
+                    statusEl.textContent = data.data || 'Downloading...';
+                }
+            });
+
+            // Node discovery
+            window.api.onNodeDiscovered((node) => {
+                showToast(`Node discovered: ${node.name}`, 'info');
+                discoverNodes();
+            });
+
+            // Backup output
+            window.api.onBackupOutput((data) => {
+                const logContainer = document.getElementById('backup-log');
+                if (logContainer) {
+                    const line = document.createElement('div');
+                    line.className = `log-line ${data.type === 'stderr' ? 'error' : 'info'}`;
+                    line.textContent = data.data.trim();
+                    logContainer.appendChild(line);
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+            });
+
+            // Update status
+            window.api.onUpdateStatus((status) => {
+                if (status.status === 'available') {
+                    showToast(`New version ${status.version} available!`, 'success');
+                }
+            });
+        }
 
         // ─── Tab Switching ───
         function switchTab(tabName) {
             currentTab = tabName;
-            
-            // Update nav items
-            navItems.forEach(item => {
+
+            document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
                 item.classList.toggle('active', item.dataset.tab === tabName);
             });
 
-            // Update content
-            tabs.forEach(tab => {
+            document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.toggle('active', tab.id === `tab-${tabName}`);
             });
 
             // Refresh data for the tab
-            switch(tabName) {
+            switch (tabName) {
                 case 'dashboard': refreshDashboard(); break;
                 case 'gpus': detectGPUs(); break;
                 case 'models': refreshModels(); break;
                 case 'nodes': discoverNodes(); break;
-                case 'wireguard': refreshWireGuard(); break;
+                case 'vpn': refreshVPN(); break;
+                case 'queue': refreshQueue(); break;
+                case 'monitor': refreshMonitor(); break;
+                case 'logs': refreshLogs(); break;
+                case 'backup': refreshBackups(); break;
+                case 'marketplace': refreshMarketplace(); break;
             }
-        }
-
-        // ─── App Launching ───
-        function openApp(appName) {
-            const serverUrl = document.getElementById('server-url')?.value || 'http://localhost';
-            const ports = {
-                odoo: 8069,
-                ui: 3002,
-                grafana: 3001,
-                llama: 8080,
-            };
-            const url = `${serverUrl}:${ports[appName]}`;
-            shell.openExternal(url);
         }
 
         // ─── Toast Notifications ───
@@ -1112,7 +2276,7 @@
             toast.className = `toast ${type}`;
             toast.textContent = message;
             container.appendChild(toast);
-            
+
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateX(100px)';
@@ -1120,63 +2284,65 @@
             }, duration);
         }
 
-        // ─── Logging ───
-        function addLog(message, type = 'info', containerId = 'activity-log') {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            const line = document.createElement('div');
-            line.className = `log-line ${type}`;
-            line.textContent = message;
-            container.appendChild(line);
-            container.scrollTop = container.scrollHeight;
+        // ─── App Launcher ───
+        function openApp(appName) {
+            window.api.getServerUrl().then((serverUrl) => {
+                const ports = { odoo: 8069, grafana: 3001, llama: 8080, dynamo: 8001, langgraph: 8000, ui: 3002 };
+                const url = `${serverUrl}:${ports[appName]}`;
+                window.api.openExternal(url);
+            });
+        }
+
+        // ─── Refresh All ───
+        function refreshAll() {
+            refreshDashboard();
+            detectGPUs();
+            refreshModels();
+            discoverNodes();
+            refreshVPN();
+            refreshQueue();
+            refreshMonitor();
+            refreshBackups();
+            refreshMarketplace();
         }
 
         // ─── Dashboard ───
         function refreshDashboard() {
-            // Get counts
-            const gpuCount = gpus.length;
-            const modelCount = models.length;
-            const nodeCount = nodes.length;
-
-            document.getElementById('dashboard-gpu-count').textContent = gpuCount;
-            document.getElementById('dashboard-model-count').textContent = modelCount;
-            document.getElementById('dashboard-node-count').textContent = nodeCount;
-
-            // Update status
-            const statusDot = document.getElementById('platform-status-dot');
-            const statusText = document.getElementById('platform-status-text');
-            
-            // Check if Docker is running
-            ipcRenderer.invoke('check-docker').then((result) => {
-                if (result) {
-                    statusDot.className = 'status-dot online';
-                    statusText.textContent = 'Online';
+            window.api.getPlatformStatus().then((status) => {
+                const dot = document.getElementById('platform-status-dot');
+                const text = document.getElementById('platform-status-text');
+                if (status && status.running) {
+                    dot.className = 'status-dot online';
+                    text.textContent = 'Online';
                 } else {
-                    statusDot.className = 'status-dot offline';
-                    statusText.textContent = 'Offline (Docker not running)';
+                    dot.className = 'status-dot offline';
+                    text.textContent = 'Offline';
                 }
             }).catch(() => {
-                statusDot.className = 'status-dot offline';
-                statusText.textContent = 'Unknown';
+                const dot = document.getElementById('platform-status-dot');
+                const text = document.getElementById('platform-status-text');
+                dot.className = 'status-dot offline';
+                text.textContent = 'Unknown';
             });
         }
 
         // ─── GPU Detection ───
-        async function detectGPUs() {
+        function detectGPUs() {
             const container = document.getElementById('gpu-list');
             container.innerHTML = '<div class="empty-state"><div class="spinner"></div><h3>Scanning for GPUs...</h3></div>';
 
-            try {
-                gpus = await ipcRenderer.invoke('detect-gpus');
+            window.api.detectGpu().then((detected) => {
+                gpus = detected;
                 document.getElementById('gpu-count').textContent = gpus.length;
-                
+                document.getElementById('dashboard-gpu-count').textContent = gpus.filter(g => g.vendor === 'nvidia').length;
+
                 if (gpus.length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <div class="icon">🔍</div>
                             <h3>No GPUs Detected</h3>
-                            <p>No compatible GPUs found. Click "Install Drivers" to install NVIDIA drivers, or check your GPU connection.</p>
-                            <button class="btn btn-primary" onclick="installNvidiaDrivers()" style="margin-top: 12px;">Install NVIDIA Drivers</button>
+                            <p>No compatible GPUs found. Click "Install Drivers" to install NVIDIA drivers.</p>
+                            <button class="btn btn-primary" onclick="installNvidiaDrivers()" style="margin-top:12px;">Install NVIDIA Drivers</button>
                         </div>
                     `;
                     return;
@@ -1189,39 +2355,88 @@
                             ${gpu.vendor.toUpperCase()} • ${gpu.memory} • Compute ${gpu.computeCapability}
                         </div>
                         <div class="gpu-status available">✓ Available</div>
-                        <div style="font-size: 12px; color: #6a6a7a; margin-top: 4px;">Driver: ${gpu.driverVersion || 'Unknown'}</div>
                     </div>
                 `).join('');
-
-            } catch (error) {
+            }).catch(() => {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="icon">❌</div>
                         <h3>GPU Detection Failed</h3>
-                        <p>${error.message}</p>
+                        <p>Could not detect GPUs. Please ensure drivers are installed.</p>
                     </div>
                 `;
-            }
+            });
         }
 
-        async function installNvidiaDrivers() {
-            const result = await ipcRenderer.invoke('install-nvidia-drivers');
-            if (result) {
-                showToast('NVIDIA drivers installed successfully. Please restart the system.', 'success');
-                setTimeout(detectGPUs, 3000);
-            } else {
-                showToast('Driver installation cancelled or failed.', 'error');
-            }
+        function installNvidiaDrivers() {
+            showToast('Opening NVIDIA driver download page...', 'info');
+            window.api.openExternal('https://www.nvidia.com/download/');
         }
 
-        // ─── Model Management ───
-        async function refreshModels() {
+        function showRegisterGPU() {
+            showModal(`
+                <h2 style="margin-bottom:16px;">Register GPU</h2>
+                <div class="form-group">
+                    <label>GPU Name</label>
+                    <input type="text" id="register-gpu-name" placeholder="RTX 4090" />
+                </div>
+                <div class="form-group">
+                    <label>GPU Model</label>
+                    <input type="text" id="register-gpu-model" placeholder="NVIDIA GeForce RTX 4090" />
+                </div>
+                <div class="form-group">
+                    <label>VRAM (GB)</label>
+                    <input type="number" id="register-gpu-vram" placeholder="24" />
+                </div>
+                <div class="form-group">
+                    <label>Price per Hour ($)</label>
+                    <input type="number" id="register-gpu-price" placeholder="0.50" step="0.01" />
+                </div>
+                <div style="display:flex;gap:12px;margin-top:16px;">
+                    <button class="btn btn-primary" onclick="submitRegisterGPU()">Register</button>
+                    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                </div>
+            `);
+        }
+
+        function submitRegisterGPU() {
+            const name = document.getElementById('register-gpu-name').value;
+            const model = document.getElementById('register-gpu-model').value;
+            const vram = document.getElementById('register-gpu-vram').value;
+            const price = document.getElementById('register-gpu-price').value;
+
+            if (!name || !model || !vram || !price) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+
+            window.api.marketplaceListGPU({
+                name,
+                model,
+                vram: parseInt(vram),
+                price: parseFloat(price)
+            }).then((result) => {
+                if (result.success) {
+                    showToast('GPU registered successfully!', 'success');
+                    closeModal();
+                    refreshMarketplace();
+                } else {
+                    showToast(`Failed to register GPU: ${result.error}`, 'error');
+                }
+            }).catch((error) => {
+                showToast(`Error: ${error.message}`, 'error');
+            });
+        }
+
+        // ─── Models ───
+        function refreshModels() {
             const container = document.getElementById('model-list');
             container.innerHTML = '<div class="empty-state"><div class="spinner"></div><h3>Loading models...</h3></div>';
 
-            try {
-                models = await ipcRenderer.invoke('get-models');
+            window.api.listModels().then((modelList) => {
+                models = modelList;
                 document.getElementById('model-count').textContent = models.length;
+                document.getElementById('dashboard-model-count').textContent = models.length;
 
                 if (models.length === 0) {
                     container.innerHTML = `
@@ -1229,7 +2444,7 @@
                             <div class="icon">📦</div>
                             <h3>No Models Installed</h3>
                             <p>Download a model to get started with AI inference.</p>
-                            <button class="btn btn-primary" onclick="downloadModel()" style="margin-top: 12px;">📥 Download Model</button>
+                            <button class="btn btn-primary" onclick="downloadModel()" style="margin-top:12px;">📥 Download Model</button>
                         </div>
                     `;
                     return;
@@ -1242,82 +2457,328 @@
                             <div class="model-size">${formatSize(model.size)} • ${model.format}</div>
                         </div>
                         <div class="model-actions">
-                            <button onclick="useModel('${model.name}')" title="Use this model">▶️</button>
+                            <button onclick="useModel('${model.path}')" title="Use this model">▶️</button>
                             <button class="delete" onclick="deleteModel('${model.path}')" title="Delete model">🗑️</button>
                         </div>
                     </div>
                 `).join('');
-
-            } catch (error) {
+            }).catch(() => {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="icon">❌</div>
                         <h3>Failed to Load Models</h3>
-                        <p>${error.message}</p>
+                        <p>Could not load models. Please check the models directory.</p>
                     </div>
                 `;
+            });
+        }
+
+        function downloadModel() {
+            showModal(`
+                <h2 style="margin-bottom:16px;">📥 Download Model</h2>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="download-model-select">
+                        <option value="deepseek-1.5b">DeepSeek 1.5B (Recommended)</option>
+                        <option value="deepseek-7b">DeepSeek 7B</option>
+                        <option value="qwen-1.5b">Qwen 1.5B</option>
+                        <option value="llama-3.2">Llama 3.2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Format</label>
+                    <select id="download-format-select">
+                        <option value="gguf">GGUF (llama.cpp) - Recommended</option>
+                        <option value="hf">Hugging Face</option>
+                    </select>
+                </div>
+                <div id="download-status" style="color:#6a6a7a;font-size:13px;margin-bottom:12px;">Ready</div>
+                <div style="display:flex;gap:12px;">
+                    <button class="btn btn-primary" onclick="submitDownloadModel()">Download</button>
+                    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                </div>
+            `);
+        }
+
+        function submitDownloadModel() {
+            const model = document.getElementById('download-model-select').value;
+            const format = document.getElementById('download-format-select').value;
+            const statusEl = document.getElementById('download-status');
+
+            statusEl.textContent = 'Downloading... This may take a few minutes.';
+
+            window.api.downloadModel({ model, format }).then((result) => {
+                if (result.success) {
+                    showToast(`Model ${model} downloaded successfully!`, 'success');
+                    closeModal();
+                    refreshModels();
+                } else {
+                    statusEl.textContent = `❌ Failed: ${result.error}`;
+                    showToast(`Download failed: ${result.error}`, 'error');
+                }
+            }).catch((error) => {
+                statusEl.textContent = `❌ Error: ${error.message}`;
+                showToast(`Download error: ${error.message}`, 'error');
+            });
+        }
+
+        function deleteModel(path) {
+            if (!confirm('Delete this model? This action cannot be undone.')) return;
+
+            window.api.deleteModel(path).then((result) => {
+                if (result.success) {
+                    showToast('Model deleted successfully.', 'success');
+                    refreshModels();
+                } else {
+                    showToast(`Delete failed: ${result.error}`, 'error');
+                }
+            });
+        }
+
+        function useModel(path) {
+            window.api.loadModel(path).then((result) => {
+                if (result.success) {
+                    showToast(`Model loaded: ${result.model}`, 'success');
+                    // Update chat model selector
+                    const select = document.getElementById('chat-model');
+                    if (select) {
+                        // Add the model to the dropdown if not already present
+                        const option = document.createElement('option');
+                        option.value = result.model;
+                        option.textContent = result.model;
+                        if (!Array.from(select.options).some(o => o.value === result.model)) {
+                            select.appendChild(option);
+                        }
+                        select.value = result.model;
+                    }
+                } else {
+                    showToast(`Failed to load model: ${result.error}`, 'error');
+                }
+            });
+        }
+
+        // ─── Chat ───
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message || isChatStreaming) return;
+
+            const messagesContainer = document.getElementById('chat-messages');
+            const model = document.getElementById('chat-model').value;
+            const temperature = parseFloat(document.getElementById('chat-temperature').value);
+            const stream = document.getElementById('chat-stream').checked;
+
+            // Add user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'chat-message user';
+            userMsg.innerHTML = `<div class="role">You</div><div class="content">${escapeHtml(message)}</div>`;
+            messagesContainer.appendChild(userMsg);
+
+            // Add assistant placeholder
+            const assistantMsg = document.createElement('div');
+            assistantMsg.className = 'chat-message assistant';
+            assistantMsg.innerHTML = `<div class="role">Assistant</div><div class="content"><span class="spinner" style="width:16px;height:16px;"></span></div>`;
+            messagesContainer.appendChild(assistantMsg);
+
+            input.value = '';
+            input.style.height = 'auto';
+            isChatStreaming = true;
+            document.getElementById('chat-send-btn').disabled = true;
+
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Send to API (use the LangGraph endpoint)
+            const serverUrl = document.getElementById('settings-server-url').value || 'http://localhost';
+            const messages = Array.from(messagesContainer.querySelectorAll('.chat-message')).map(msg => {
+                const role = msg.classList.contains('user') ? 'user' : 'assistant';
+                const content = msg.querySelector('.content')?.textContent || '';
+                return { role, content };
+            });
+
+            // For now, use a simple fetch to the LangGraph endpoint
+            fetch(`${serverUrl}:8000/runs/stream`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    input: { messages: messages.slice(-10) },
+                    config: { configurable: { thread_id: crypto.randomUUID() } }
+                })
+            }).then(response => {
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                return response.json();
+            }).then(data => {
+                const content = data.output?.messages?.[0]?.content || 'No response';
+                assistantMsg.querySelector('.content').textContent = content;
+                isChatStreaming = false;
+                document.getElementById('chat-send-btn').disabled = false;
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }).catch(error => {
+                assistantMsg.querySelector('.content').textContent = `⚠️ Error: ${error.message}`;
+                isChatStreaming = false;
+                document.getElementById('chat-send-btn').disabled = false;
+            });
+        }
+
+        function clearChat() {
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = `
+                <div class="chat-message assistant">
+                    <div class="role">Assistant</div>
+                    <div class="content">Hello! I'm your AI assistant. How can I help you today?</div>
+                </div>
+            `;
+        }
+
+        function newChat() {
+            clearChat();
+            showToast('New chat started', 'info');
+        }
+
+        function handleChatKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
             }
         }
 
-        async function downloadModel() {
-            const modelName = prompt('Enter model name (e.g., deepseek-1.5b):', 'deepseek-1.5b');
-            if (!modelName) return;
+        // ─── Ask Someone ───
+        function submitAskSomeone() {
+            const question = document.getElementById('ask-question').value.trim();
+            const category = document.getElementById('ask-category').value;
+            const urgency = document.getElementById('ask-urgency').value;
 
-            const format = confirm('Download GGUF format (OK) or Hugging Face format (Cancel)?') ? 'gguf' : 'hf';
-
-            showToast(`Downloading ${modelName} (${format})...`, 'info', 0);
-            
-            try {
-                await ipcRenderer.invoke('download-model', modelName, format);
-                showToast(`Model ${modelName} downloaded successfully!`, 'success');
-                refreshModels();
-            } catch (error) {
-                showToast(`Download failed: ${error.message}`, 'error');
+            if (!question) {
+                showToast('Please enter a question', 'error');
+                return;
             }
+
+            showToast('Submitting your question...', 'info');
+
+            window.api.askSomeone({ question, category, urgency }).then((result) => {
+                if (result.success) {
+                    showToast('Question submitted! An expert will respond shortly.', 'success');
+                    document.getElementById('ask-question').value = '';
+                    // Add to history
+                    const history = document.getElementById('ask-history');
+                    history.innerHTML = `
+                        <div class="good-answer-item fade-in">
+                            <div class="question">${escapeHtml(question)}</div>
+                            <div style="font-size:12px;color:#6a6a7a;margin-top:4px;">
+                                Category: ${category} • Urgency: ${urgency} • Status: Pending
+                            </div>
+                        </div>
+                    ` + history.innerHTML;
+                } else {
+                    showToast(`Failed to submit: ${result.error}`, 'error');
+                }
+            }).catch((error) => {
+                showToast(`Error: ${error.message}`, 'error');
+            });
         }
 
-        async function deleteModel(path) {
-            const result = confirm('Delete this model? This action cannot be undone.');
-            if (!result) return;
+        function askSomeoneFromChat() {
+            switchTab('ask-someone');
+            document.getElementById('ask-question').focus();
+        }
 
-            try {
-                await ipcRenderer.invoke('delete-model', path);
-                showToast('Model deleted successfully.', 'success');
-                refreshModels();
-            } catch (error) {
-                showToast(`Delete failed: ${error.message}`, 'error');
+        // ─── Good Answer ───
+        function markGoodAnswer() {
+            // Get the last assistant message
+            const messages = document.getElementById('chat-messages').querySelectorAll('.chat-message.assistant');
+            if (messages.length === 0) {
+                showToast('No assistant message to rate', 'warning');
+                return;
             }
+            const lastMsg = messages[messages.length - 1];
+            const question = lastMsg.previousElementSibling?.querySelector('.content')?.textContent || '';
+            const answer = lastMsg.querySelector('.content')?.textContent || '';
+
+            if (!answer) {
+                showToast('No answer to rate', 'warning');
+                return;
+            }
+
+            window.api.goodAnswer({ question, answer, rating: 5 }).then((result) => {
+                if (result.success) {
+                    showToast('Marked as Good Answer! This helps train our models.', 'success');
+                } else {
+                    showToast(`Failed to mark: ${result.error}`, 'error');
+                }
+            });
         }
 
-        function useModel(name) {
-            showToast(`Switching to model: ${name}`, 'success');
-            // TODO: Update inference engine to use this model
+        // ─── Training ───
+        function startTraining() {
+            const dataset = document.getElementById('training-dataset').value;
+            const model = document.getElementById('training-model').value;
+            const method = document.getElementById('training-method').value;
+            const epochs = parseInt(document.getElementById('training-epochs').value) || 3;
+            const lr = parseFloat(document.getElementById('training-lr').value) || 2e-4;
+
+            showToast('Starting training...', 'info');
+
+            window.api.startTraining({
+                dataset,
+                model,
+                method,
+                params: { epochs, learning_rate: lr }
+            }).then((result) => {
+                if (result.success) {
+                    showToast('Training started successfully!', 'success');
+                    const container = document.getElementById('training-progress-container');
+                    container.style.display = 'block';
+                    document.getElementById('training-progress-label').textContent = `Training ${model} on ${dataset}`;
+                    // Start polling for status
+                    pollTrainingStatus();
+                } else {
+                    showToast(`Failed to start training: ${result.error}`, 'error');
+                }
+            }).catch((error) => {
+                showToast(`Error: ${error.message}`, 'error');
+            });
         }
 
-        function formatSize(bytes) {
-            if (bytes < 1024) return `${bytes} B`;
-            if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-            if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
-            return `${(bytes / 1073741824).toFixed(2)} GB`;
+        function pollTrainingStatus() {
+            window.api.trainingStatus().then((result) => {
+                if (result.success && result.data) {
+                    const progress = result.data.progress || 0;
+                    document.getElementById('training-progress-fill').style.width = `${progress}%`;
+                    document.getElementById('training-progress-percent').textContent = `${progress}%`;
+                    if (progress < 100) {
+                        setTimeout(pollTrainingStatus, 5000);
+                    } else {
+                        document.getElementById('training-progress-label').textContent = '✅ Training Complete!';
+                        showToast('Training completed successfully!', 'success');
+                    }
+                }
+            }).catch(() => {
+                // Continue polling anyway
+                setTimeout(pollTrainingStatus, 10000);
+            });
         }
 
-        // ─── Node Discovery ───
+        function triggerTraining() {
+            startTraining();
+        }
+
+        // ─── Nodes ───
         function discoverNodes() {
             const container = document.getElementById('nodes-list');
             container.innerHTML = '<div class="empty-state"><div class="spinner"></div><h3>Discovering nodes...</h3></div>';
 
-            ipcRenderer.invoke('get-discovered-nodes').then((discovered) => {
+            window.api.getDiscoveredNodes().then((discovered) => {
                 nodes = discovered;
                 document.getElementById('node-count').textContent = nodes.length;
                 document.getElementById('node-count-display').textContent = `${nodes.length} nodes discovered`;
+                document.getElementById('dashboard-node-count').textContent = nodes.length;
 
                 if (nodes.length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <div class="icon">🌐</div>
                             <h3>No Nodes Discovered</h3>
-                            <p>mDNS discovery is running. Other NETTRADES nodes on your network will appear here.</p>
-                            <p style="font-size: 12px; color: #4a4a5a; margin-top: 8px;">Make sure other nodes have mDNS enabled.</p>
+                            <p>mDNS discovery is running. Other NETTRADES nodes will appear here.</p>
                         </div>
                     `;
                     return;
@@ -1329,18 +2790,15 @@
                             <span class="node-status online"></span> ${node.name}
                         </div>
                         <div class="node-address">${node.host}:${node.port}</div>
-                        <div style="font-size: 12px; color: #6a6a7a; margin-top: 4px;">
-                            ${node.addresses ? node.addresses.join(', ') : ''}
-                        </div>
-                        <button class="btn btn-secondary" onclick="connectToNode('${node.host}', ${node.port})" style="margin-top: 8px; padding: 4px 12px; font-size: 11px;">Connect</button>
+                        <button class="btn btn-secondary" onclick="connectToNode('${node.host}', ${node.port})" style="margin-top:8px;padding:4px 12px;font-size:11px;">Connect</button>
                     </div>
                 `).join('');
-            }).catch((error) => {
+            }).catch(() => {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="icon">❌</div>
                         <h3>Discovery Failed</h3>
-                        <p>${error.message}</p>
+                        <p>Could not discover nodes. Please check your network.</p>
                     </div>
                 `;
             });
@@ -1348,254 +2806,437 @@
 
         function connectToNode(host, port) {
             const url = `http://${host}:${port}`;
-            document.getElementById('server-url').value = url;
+            document.getElementById('settings-server-url').value = url;
+            window.api.saveServerUrl(url);
             showToast(`Connected to ${host}:${port}`, 'success');
-            shell.openExternal(url);
+            window.api.openExternal(url);
         }
 
-        // ─── WireGuard ───
-        async function refreshWireGuard() {
-            const statusContainer = document.getElementById('wireguard-status');
-            const peersContainer = document.getElementById('wireguard-peers');
+        // ─── VPN ───
+        function refreshVPN() {
+            const statusContainer = document.getElementById('vpn-status-container');
+            const peersContainer = document.getElementById('vpn-peers');
 
-            try {
-                const status = await ipcRenderer.invoke('get-wireguard-status');
-                const peers = await ipcRenderer.invoke('get-wireguard-peers');
-                wireguardPeers = peers;
-
-                if (status) {
+            window.api.vpnStatus().then((status) => {
+                if (status && status.running) {
                     statusContainer.innerHTML = `
-                        <span style="color: #28c840;">🟢 WireGuard is running</span>
-                        <span style="color: #6a6a7a; margin-left: 16px;">${peers.length} peers connected</span>
+                        <span style="color:#28c840;">🟢 WireGuard is running</span>
                     `;
-                    document.getElementById('wg-status').textContent = '🟢';
-                    document.getElementById('wg-status').className = 'badge active-badge';
+                    document.getElementById('vpn-status').textContent = '🟢';
+                    document.getElementById('vpn-status').className = 'badge active-badge';
                 } else {
                     statusContainer.innerHTML = `
-                        <span style="color: #ff5f57;">🔴 WireGuard is not running</span>
-                        <button class="btn btn-secondary" onclick="startWireGuard()" style="margin-left: 12px;">Start</button>
+                        <span style="color:#ff5f57;">🔴 WireGuard is not running</span>
                     `;
-                    document.getElementById('wg-status').textContent = '🔴';
-                    document.getElementById('wg-status').className = 'badge';
+                    document.getElementById('vpn-status').textContent = '🔴';
+                    document.getElementById('vpn-status').className = 'badge';
                 }
+            });
 
-                if (peers.length === 0) {
-                    peersContainer.innerHTML = `
-                        <div class="empty-state">
-                            <div class="icon">🔒</div>
-                            <h3>No WireGuard Peers</h3>
-                            <p>Add peers to establish secure VPN connections.</p>
-                            <button class="btn btn-primary" onclick="addWireGuardPeer()" style="margin-top: 12px;">➕ Add Peer</button>
+            window.api.vpnListPeers().then((result) => {
+                if (result.success) {
+                    // Parse the output
+                    const output = result.output || '';
+                    const lines = output.split('\n').filter(l => l.trim());
+                    if (lines.length === 0) {
+                        peersContainer.innerHTML = `
+                            <div class="empty-state">
+                                <div class="icon">🔒</div>
+                                <h3>No VPN Peers</h3>
+                                <p>Add peers to establish secure VPN connections.</p>
+                                <button class="btn btn-primary" onclick="addVPNPeer()" style="margin-top:12px;">➕ Add Peer</button>
+                            </div>
+                        `;
+                        return;
+                    }
+                    // Simple display for now
+                    peersContainer.innerHTML = lines.map(line => `
+                        <div class="node-card fade-in">
+                            <div class="node-name">🔒 Peer</div>
+                            <div style="font-size:12px;color:#6a6a7a;font-family:monospace;">${escapeHtml(line)}</div>
                         </div>
-                    `;
-                    return;
+                    `).join('');
                 }
-
-                peersContainer.innerHTML = peers.map(peer => `
-                    <div class="node-card fade-in">
-                        <div class="node-name">
-                            <span class="node-status online"></span> Peer
-                        </div>
-                        <div style="font-size: 12px; color: #6a6a7a; font-family: monospace;">
-                            ${peer.publicKey.substring(0, 16)}...
-                        </div>
-                        <div style="font-size: 12px; color: #6a6a7a;">
-                            Endpoint: ${peer.endpoint || 'unknown'}
-                        </div>
-                        <div style="font-size: 12px; color: #6a6a7a;">
-                            Allowed IPs: ${peer.allowedIPs || 'N/A'}
-                        </div>
-                        <button class="btn btn-danger" onclick="removeWireGuardPeer('${peer.publicKey}')" style="margin-top: 8px; padding: 4px 12px; font-size: 11px;">Remove</button>
-                    </div>
-                `).join('');
-
-            } catch (error) {
-                statusContainer.innerHTML = `<span style="color: #ff5f57;">❌ ${error.message}</span>`;
-            }
+            });
         }
 
-        async function addWireGuardPeer() {
-            const name = prompt('Enter peer name:', 'laptop');
-            if (!name) return;
-            const ip = prompt('Enter IP address (optional, press Enter for auto):', '');
-            
-            try {
-                const result = await ipcRenderer.invoke('add-wireguard-peer', name, ip || null);
-                showToast(`Peer ${name} added successfully!`, 'success');
-                refreshWireGuard();
-            } catch (error) {
-                showToast(`Failed to add peer: ${error.message}`, 'error');
-            }
+        function addVPNPeer() {
+            showModal(`
+                <h2 style="margin-bottom:16px;">➕ Add VPN Peer</h2>
+                <div class="form-group">
+                    <label>Peer Name</label>
+                    <input type="text" id="vpn-peer-name" placeholder="laptop" />
+                </div>
+                <div class="form-group">
+                    <label>IP Address (optional)</label>
+                    <input type="text" id="vpn-peer-ip" placeholder="10.10.10.50" />
+                </div>
+                <div style="display:flex;gap:12px;margin-top:16px;">
+                    <button class="btn btn-primary" onclick="submitVPNPeer()">Add Peer</button>
+                    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                </div>
+            `);
         }
 
-        async function removeWireGuardPeer(publicKey) {
-            const result = confirm('Remove this WireGuard peer?');
-            if (!result) return;
-            
-            try {
-                await ipcRenderer.invoke('remove-wireguard-peer', publicKey);
-                showToast('Peer removed.', 'success');
-                refreshWireGuard();
-            } catch (error) {
-                showToast(`Failed to remove peer: ${error.message}`, 'error');
-            }
-        }
+        function submitVPNPeer() {
+            const name = document.getElementById('vpn-peer-name').value.trim();
+            const ip = document.getElementById('vpn-peer-ip').value.trim();
 
-        async function startWireGuard() {
-            // TODO: Implement WireGuard start
-            showToast('WireGuard start not yet implemented in launcher.', 'warning');
-        }
-
-        // ─── Deployment ───
-        async function startDeployment(profile = 'all') {
-            if (isDeploying) {
-                showToast('Deployment already in progress.', 'warning');
+            if (!name) {
+                showToast('Please enter a peer name', 'error');
                 return;
             }
 
-            const force = document.getElementById('deploy-force')?.checked || false;
-            const auto = document.getElementById('deploy-auto')?.checked || true;
-            const production = document.getElementById('deploy-production')?.checked || false;
+            window.api.vpnAddPeer(name, ip || undefined).then((result) => {
+                if (result.success) {
+                    showToast(`Peer ${name} added successfully!`, 'success');
+                    closeModal();
+                    refreshVPN();
+                } else {
+                    showToast(`Failed to add peer: ${result.error}`, 'error');
+                }
+            });
+        }
 
+        // ─── Queue ───
+        function refreshQueue() {
+            const container = document.getElementById('queue-list');
+
+            window.api.listQueue().then((result) => {
+                if (result.success && result.data && result.data.length > 0) {
+                    container.innerHTML = result.data.map(task => `
+                        <div class="queue-item">
+                            <div class="task-info">
+                                <div class="task-name">${escapeHtml(task.name || 'Task')}</div>
+                                <div class="task-details">${escapeHtml(task.details || '')}</div>
+                            </div>
+                            <div class="task-status ${task.status || 'pending'}">${task.status || 'pending'}</div>
+                            <div class="task-actions">
+                                <button class="retry" onclick="retryTask('${task.id}')">🔄</button>
+                                <button class="cancel" onclick="cancelTask('${task.id}')">✕</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📋</div>
+                            <h3>No Tasks in Queue</h3>
+                            <p>Tasks will appear here when they are queued for execution.</p>
+                        </div>
+                    `;
+                }
+            }).catch(() => {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <h3>Failed to Load Queue</h3>
+                        <p>Could not load the task queue.</p>
+                    </div>
+                `;
+            });
+        }
+
+        function cancelTask(taskId) {
+            if (!confirm('Cancel this task?')) return;
+            window.api.cancelTask(taskId).then((result) => {
+                if (result.success) {
+                    showToast('Task cancelled', 'success');
+                    refreshQueue();
+                } else {
+                    showToast(`Failed to cancel task: ${result.error}`, 'error');
+                }
+            });
+        }
+
+        function retryTask(taskId) {
+            window.api.retryTask(taskId).then((result) => {
+                if (result.success) {
+                    showToast('Task retried', 'success');
+                    refreshQueue();
+                } else {
+                    showToast(`Failed to retry task: ${result.error}`, 'error');
+                }
+            });
+        }
+
+        // ─── Monitor ───
+        function refreshMonitor() {
+            window.api.systemHealth().then((health) => {
+                // Update service status
+                const services = ['odoo', 'langgraph', 'dynamo', 'postgres'];
+                for (const service of services) {
+                    const dot = document.getElementById(`monitor-${service}-dot`);
+                    const text = document.getElementById(`monitor-${service}-status`);
+                    if (dot && text) {
+                        const status = health.services?.[service] || 'unhealthy';
+                        dot.className = `status-dot ${status === 'healthy' ? 'online' : 'offline'}`;
+                        text.textContent = status === 'healthy' ? '✅ Healthy' : '❌ Unhealthy';
+                    }
+                }
+            }).catch(() => {
+                // Set all to unknown
+                document.querySelectorAll('[id^="monitor-"]').forEach(el => {
+                    if (el.id.endsWith('-status')) {
+                        el.textContent = '❓ Unknown';
+                    }
+                });
+            });
+        }
+
+        // ─── Backup ───
+        function refreshBackups() {
+            const container = document.getElementById('backup-list');
+            const select = document.getElementById('backup-select');
+
+            window.api.listBackups().then((backups) => {
+                if (backups.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state" style="padding:20px;">
+                            <p>No backups found.</p>
+                        </div>
+                    `;
+                    select.innerHTML = '<option value="">No backups found</option>';
+                    return;
+                }
+
+                container.innerHTML = backups.map(backup => `
+                    <div class="queue-item" style="border-left-color:#4a8aff;">
+                        <div class="task-info">
+                            <div class="task-name">${backup.name}</div>
+                            <div class="task-details">${formatSize(backup.size)} • ${new Date(backup.created).toLocaleString()}</div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="restoreBackup('${backup.path}')" style="font-size:12px;padding:4px 12px;">Restore</button>
+                    </div>
+                `).join('');
+
+                select.innerHTML = backups.map(b => `<option value="${b.path}">${b.name}</option>`).join('');
+            });
+        }
+
+        function createBackup() {
+            showToast('Creating backup...', 'info');
+            window.api.createBackup({ auto: true }).then((result) => {
+                if (result.success) {
+                    showToast('Backup created successfully!', 'success');
+                    refreshBackups();
+                } else {
+                    showToast(`Backup failed: ${result.error}`, 'error');
+                }
+            });
+        }
+
+        function restoreBackup(backupPath) {
+            if (!backupPath) {
+                backupPath = document.getElementById('backup-select')?.value;
+            }
+            if (!backupPath) {
+                showToast('Please select a backup to restore', 'warning');
+                return;
+            }
+            if (!confirm(`Restore from ${backupPath}? This will overwrite current data.`)) return;
+
+            showToast('Restoring backup...', 'info');
+            window.api.restoreBackup(backupPath).then((result) => {
+                if (result.success) {
+                    showToast('Backup restored successfully!', 'success');
+                } else {
+                    showToast(`Restore failed: ${result.error}`, 'error');
+                }
+            });
+        }
+
+        // ─── Marketplace ───
+        function refreshMarketplace() {
+            const container = document.getElementById('marketplace-listings');
+
+            window.api.marketplaceListings().then((result) => {
+                if (result.success && result.data && result.data.length > 0) {
+                    container.innerHTML = result.data.map(listing => `
+                        <div class="marketplace-card fade-in">
+                            <div class="gpu-name">${escapeHtml(listing.name || 'GPU')}</div>
+                            <div class="gpu-specs">${escapeHtml(listing.model || '')} • ${listing.vram || '?'}GB VRAM</div>
+                            <div class="gpu-price">$${listing.price || '0.00'}/hour</div>
+                            <div class="gpu-owner">Owner: ${escapeHtml(listing.owner || 'Unknown')}</div>
+                            <button class="btn btn-primary" onclick="bookGPU('${listing.id}')" style="margin-top:8px;font-size:12px;padding:4px 12px;">Book Now</button>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">💰</div>
+                            <h3>No GPU Listings</h3>
+                            <p>List your GPU to earn passive income, or browse available GPUs.</p>
+                            <button class="btn btn-primary" onclick="showListGPU()" style="margin-top:12px;">📝 List Your GPU</button>
+                        </div>
+                    `;
+                }
+            }).catch(() => {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <h3>Failed to Load Marketplace</h3>
+                        <p>Could not load GPU listings.</p>
+                    </div>
+                `;
+            });
+        }
+
+        function showListGPU() {
+            showRegisterGPU();
+        }
+
+        function bookGPU(listingId) {
+            showModal(`
+                <h2 style="margin-bottom:16px;">📅 Book GPU</h2>
+                <div class="form-group">
+                    <label>Start Time</label>
+                    <input type="datetime-local" id="booking-start" />
+                </div>
+                <div class="form-group">
+                    <label>End Time</label>
+                    <input type="datetime-local" id="booking-end" />
+                </div>
+                <div style="display:flex;gap:12px;margin-top:16px;">
+                    <button class="btn btn-primary" onclick="submitBooking('${listingId}')">Book</button>
+                    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                </div>
+            `);
+        }
+
+        function submitBooking(listingId) {
+            const start = document.getElementById('booking-start').value;
+            const end = document.getElementById('booking-end').value;
+
+            if (!start || !end) {
+                showToast('Please select start and end times', 'error');
+                return;
+            }
+
+            window.api.marketplaceBookGPU({ listingId, start, end }).then((result) => {
+                if (result.success) {
+                    showToast('GPU booked successfully!', 'success');
+                    closeModal();
+                    refreshMarketplace();
+                } else {
+                    showToast(`Booking failed: ${result.error}`, 'error');
+                }
+            });
+        }
+
+        // ─── Logs ───
+        function refreshLogs() {
+            const service = document.getElementById('log-service').value;
+            const container = document.getElementById('logs-container');
+
+            if (service === 'all') {
+                container.innerHTML = '<div class="log-line info">📄 Select a specific service to view logs</div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="log-line info">⏳ Loading logs...</div>';
+
+            window.api.getLogs({ service, lines: 100 }).then((result) => {
+                if (result.success && result.data) {
+                    const lines = result.data.split('\n').filter(l => l.trim());
+                    container.innerHTML = lines.map(line => `
+                        <div class="log-line">${escapeHtml(line)}</div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `<div class="log-line error">❌ Failed to load logs: ${result.error || 'Unknown error'}</div>`;
+                }
+            }).catch(() => {
+                container.innerHTML = '<div class="log-line error">❌ Failed to load logs</div>';
+            });
+        }
+
+        function clearLogs() {
+            document.getElementById('logs-container').innerHTML = '<div class="log-line info">📄 Logs cleared</div>';
+        }
+
+        // ─── Settings ───
+        function saveSettings() {
+            const url = document.getElementById('settings-server-url').value.trim();
+            const openaiKey = document.getElementById('settings-openai-key').value.trim();
+            const anthropicKey = document.getElementById('settings-anthropic-key').value.trim();
+
+            window.api.saveServerUrl(url || 'http://localhost');
+            showToast('Settings saved', 'success');
+        }
+
+        function resetPlatform() {
+            if (!confirm('⚠️ This will reset the entire platform and delete all data. This action cannot be undone. Continue?')) return;
+            if (prompt('Type "RESET" to confirm:') !== 'RESET') return;
+            showToast('Reset not yet implemented in the launcher.', 'warning');
+        }
+
+        function viewLogsDirectory() {
+            window.api.openExternal('file:///var/log/nettrades');
+        }
+
+        // ─── Deployment ───
+        function startDeployment(profile) {
             const deployBtn = document.getElementById('deploy-btn');
             const logContainer = document.getElementById('deploy-log');
             const progressBar = document.getElementById('deploy-progress');
             const statusDisplay = document.getElementById('deploy-status');
 
-            isDeploying = true;
+            const force = document.getElementById('deploy-force').checked;
+            const auto = document.getElementById('deploy-auto').checked;
+            const production = document.getElementById('deploy-production').checked;
+
             deployBtn.disabled = true;
             deployBtn.textContent = '⏳ Deploying...';
-            statusDisplay.innerHTML = '<span style="color: #ffbd2e;">⏳ Deployment in progress...</span>';
+            statusDisplay.innerHTML = '<span style="color:#ffbd2e;">⏳ Deployment in progress...</span>';
             logContainer.innerHTML = '';
 
-            try {
-                // Set up progress listeners
-                const progressHandler = (event, data) => {
-                    progressBar.style.width = `${data.progress}%`;
-                    addLog(data.message, 'info', 'deploy-log');
-                };
-
-                const phaseHandler = (event, data) => {
-                    addLog(`✅ ${data}`, 'success', 'deploy-log');
-                };
-
-                const completeHandler = (event, data) => {
-                    if (data.success) {
-                        statusDisplay.innerHTML = '<span style="color: #28c840;">✅ Deployment completed successfully!</span>';
-                        showToast('Deployment completed successfully!', 'success');
-                    } else {
-                        statusDisplay.innerHTML = `<span style="color: #ff5f57;">❌ Deployment failed: ${data.error}</span>`;
-                        showToast('Deployment failed. Check logs.', 'error');
-                    }
-                    isDeploying = false;
-                    deployBtn.disabled = false;
-                    deployBtn.textContent = '⚡ Deploy All';
+            window.api.runInstall({ profile, force, auto, production }).then((result) => {
+                if (result.success) {
+                    statusDisplay.innerHTML = '<span style="color:#28c840;">✅ Deployment completed successfully!</span>';
+                    showToast('Deployment completed successfully!', 'success');
                     progressBar.style.width = '100%';
-                    ipcRenderer.removeListener('deployment-progress', progressHandler);
-                    ipcRenderer.removeListener('deployment-phase', phaseHandler);
-                    ipcRenderer.removeListener('deployment-complete', completeHandler);
-                };
-
-                ipcRenderer.on('deployment-progress', progressHandler);
-                ipcRenderer.on('deployment-phase', phaseHandler);
-                ipcRenderer.on('deployment-complete', completeHandler);
-
-                // Start deployment
-                await ipcRenderer.invoke('deploy', profile, { force, auto, production });
-
-            } catch (error) {
-                statusDisplay.innerHTML = `<span style="color: #ff5f57;">❌ ${error.message}</span>`;
-                showToast(`Deployment error: ${error.message}`, 'error');
-                isDeploying = false;
+                } else {
+                    statusDisplay.innerHTML = `<span style="color:#ff5f57;">❌ Deployment failed: ${result.error}</span>`;
+                    showToast(`Deployment failed: ${result.error}`, 'error');
+                }
                 deployBtn.disabled = false;
                 deployBtn.textContent = '⚡ Deploy All';
-            }
+            }).catch((error) => {
+                statusDisplay.innerHTML = `<span style="color:#ff5f57;">❌ ${error.message}</span>`;
+                showToast(`Deployment error: ${error.message}`, 'error');
+                deployBtn.disabled = false;
+                deployBtn.textContent = '⚡ Deploy All';
+            });
         }
 
-        // ─── Settings ───
-        function saveServerUrl() {
-            const url = document.getElementById('server-url').value;
-            ipcRenderer.invoke('set-server-url', url);
-            showToast('Server URL saved.', 'success');
+        // ─── Modal ───
+        function showModal(content) {
+            document.getElementById('modal-content').innerHTML = content;
+            document.getElementById('modal-overlay').style.display = 'flex';
         }
 
-        // ─── Reset ───
-        async function resetPlatform() {
-            const result = confirm('⚠️ This will reset the entire platform and delete all data. This action cannot be undone. Continue?');
-            if (!result) return;
-            
-            const confirm2 = prompt('Type "RESET" to confirm:');
-            if (confirm2 !== 'RESET') return;
-
-            showToast('Resetting platform...', 'warning', 0);
-            // TODO: Implement reset
-            showToast('Reset not yet implemented in launcher.', 'error');
+        function closeModal() {
+            document.getElementById('modal-overlay').style.display = 'none';
         }
 
-        function viewLogs() {
-            shell.openPath('/var/log/nettrades');
-        }
-
-        // ─── Refresh All ───
-        function refreshAll() {
-            refreshDashboard();
-            detectGPUs();
-            refreshModels();
-            discoverNodes();
-            refreshWireGuard();
-            showToast('Refreshed all data.', 'success');
-        }
-
-        // ─── Event Listeners ───
-        document.addEventListener('DOMContentLoaded', () => {
-            // Tab navigation
-            navItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    switchTab(item.dataset.tab);
-                });
-            });
-
-            // App launching
-            appItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    openApp(item.dataset.app);
-                });
-            });
-
-            // Get server URL
-            ipcRenderer.invoke('get-server-url').then((url) => {
-                document.getElementById('server-url').value = url || 'http://localhost';
-            });
-
-            // Load initial data
-            refreshAll();
-
-            // Set up IPC listeners for real-time updates
-            ipcRenderer.on('node-discovered', (event, node) => {
-                showToast(`Node discovered: ${node.name} at ${node.host}:${node.port}`, 'info');
-                discoverNodes();
-            });
-
-            ipcRenderer.on('node-lost', (event, data) => {
-                discoverNodes();
-            });
-
-            ipcRenderer.on('gpu-detected', (event, detectedGpus) => {
-                gpus = detectedGpus;
-                document.getElementById('gpu-count').textContent = gpus.length;
-                detectGPUs();
-            });
-
-            ipcRenderer.on('update-status', (event, data) => {
-                if (data.status === 'available') {
-                    showToast(`New version ${data.version} available!`, 'success', 0);
-                    addLog(`⬆️ Update available: v${data.version}`, 'info');
-                }
-            });
-
-            // Version display
-            document.getElementById('about-version').textContent = '1.0.0';
+        // Close modal on overlay click
+        document.getElementById('modal-overlay').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeModal();
         });
+
+        // ─── Utility Functions ───
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+            if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
+            return `${(bytes / 1073741824).toFixed(2)} GB`;
+        }
 
         // ─── Expose to window ───
         window.switchTab = switchTab;
@@ -1603,23 +3244,49 @@
         window.refreshAll = refreshAll;
         window.detectGPUs = detectGPUs;
         window.installNvidiaDrivers = installNvidiaDrivers;
+        window.showRegisterGPU = showRegisterGPU;
+        window.submitRegisterGPU = submitRegisterGPU;
         window.refreshModels = refreshModels;
         window.downloadModel = downloadModel;
+        window.submitDownloadModel = submitDownloadModel;
         window.deleteModel = deleteModel;
         window.useModel = useModel;
+        window.sendChatMessage = sendChatMessage;
+        window.clearChat = clearChat;
+        window.newChat = newChat;
+        window.handleChatKeyDown = handleChatKeyDown;
+        window.askSomeoneFromChat = askSomeoneFromChat;
+        window.markGoodAnswer = markGoodAnswer;
+        window.submitAskSomeone = submitAskSomeone;
+        window.startTraining = startTraining;
+        window.triggerTraining = triggerTraining;
         window.discoverNodes = discoverNodes;
         window.connectToNode = connectToNode;
-        window.refreshWireGuard = refreshWireGuard;
-        window.addWireGuardPeer = addWireGuardPeer;
-        window.removeWireGuardPeer = removeWireGuardPeer;
-        window.startWireGuard = startWireGuard;
-        window.startDeployment = startDeployment;
-        window.saveServerUrl = saveServerUrl;
+        window.refreshVPN = refreshVPN;
+        window.addVPNPeer = addVPNPeer;
+        window.submitVPNPeer = submitVPNPeer;
+        window.refreshQueue = refreshQueue;
+        window.cancelTask = cancelTask;
+        window.retryTask = retryTask;
+        window.refreshMonitor = refreshMonitor;
+        window.refreshBackups = refreshBackups;
+        window.createBackup = createBackup;
+        window.restoreBackup = restoreBackup;
+        window.refreshMarketplace = refreshMarketplace;
+        window.showListGPU = showListGPU;
+        window.bookGPU = bookGPU;
+        window.submitBooking = submitBooking;
+        window.refreshLogs = refreshLogs;
+        window.clearLogs = clearLogs;
+        window.saveSettings = saveSettings;
         window.resetPlatform = resetPlatform;
-        window.viewLogs = viewLogs;
+        window.viewLogsDirectory = viewLogsDirectory;
+        window.startDeployment = startDeployment;
+        window.showModal = showModal;
+        window.closeModal = closeModal;
         window.showToast = showToast;
-        window.addLog = addLog;
         window.formatSize = formatSize;
+        window.escapeHtml = escapeHtml;
     </script>
 </body>
 </html>

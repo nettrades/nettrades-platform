@@ -16,34 +16,45 @@
 //   - Platform control (start/stop Docker Compose)
 //   - GPU detection and status monitoring
 //   - Odoo authentication integration
+//   - "Ask Someone" expert system integration
+//   - "Good Answer" training data management
+//   - Agent management and orchestration
+//   - Training and fine-tuning job management
+//   - Queue monitoring and task management
+//   - GPU marketplace integration
+//   - Node discovery and WireGuard VPN management
 //
 // USAGE:
 //   npm start
 // =============================================================================
 
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const https = require('https');
+const crypto = require('crypto');
 
 // -----------------------------------------------------------------------------
 // Global variables
 // -----------------------------------------------------------------------------
+
 let mainWindow = null;
 let installProcess = null;
 let downloadProcess = null;
 let logFile = null;
+let discoveredNodes = new Map();
+let isDeploying = false;
+let deploymentProgress = 0;
 
 // Determine project root – CRITICAL FIX for packaged app and development
 // When running from source (npm start), __dirname is /path/to/repo/installer
 // So PROJECT_ROOT should be one level up: /path/to/repo
 // When packaged, resources are in process.resourcesPath
 const isPackaged = app.isPackaged;
-const PROJECT_ROOT = isPackaged
-    ? process.resourcesPath
-    : path.join(__dirname, '..');   // FIXED: was '../..' which pointed to wrong location
+const PROJECT_ROOT = isPackaged ? process.resourcesPath : path.join(__dirname, '..');
 
 // Models directory (where llama.cpp and Dynamo look for models)
 const MODELS_DIR = path.join(PROJECT_ROOT, 'deploy', 'docker', 'dynamo-data', 'models');
@@ -51,23 +62,58 @@ const MODELS_DIR = path.join(PROJECT_ROOT, 'deploy', 'docker', 'dynamo-data', 'm
 // Docker Compose file path
 const COMPOSE_FILE = path.join(PROJECT_ROOT, 'deploy', 'docker', 'docker-compose.yaml');
 
+// Virtual environment directory
+const VENV_DIR = path.join(PROJECT_ROOT, '.venv');
+
+// -----------------------------------------------------------------------------
+// Logging
+// -----------------------------------------------------------------------------
+
+function logInfo(message) {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[INFO] ${timestamp} ${message}`;
+    console.log(logMessage);
+    if (mainWindow) {
+        mainWindow.webContents.send('log-output', { type: 'info', message: logMessage });
+    }
+}
+
+function logError(message) {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[ERROR] ${timestamp} ${message}`;
+    console.error(logMessage);
+    if (mainWindow) {
+        mainWindow.webContents.send('log-output', { type: 'error', message: logMessage });
+    }
+}
+
+function logSuccess(message) {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[SUCCESS] ${timestamp} ${message}`;
+    console.log(logMessage);
+    if (mainWindow) {
+        mainWindow.webContents.send('log-output', { type: 'success', message: logMessage });
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Create the main window
 // -----------------------------------------------------------------------------
+
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 850,
-        minWidth: 900,
-        minHeight: 700,
+        width: 1400,
+        height: 900,
+        minWidth: 1000,
+        minHeight: 750,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js'),
         },
-        icon: path.join(__dirname, 'icon.png'),
-        title: 'NetTrades Launcher',
-        backgroundColor: '#0f172a',
+        icon: path.join(__dirname, 'build', 'icon.png'),
+        title: 'NETTRADES Launcher',
+        backgroundColor: '#0a0a0f',
         show: false,
         frame: true,
     });
@@ -94,14 +140,30 @@ function createWindow() {
 // -----------------------------------------------------------------------------
 // App lifecycle
 // -----------------------------------------------------------------------------
+
 app.whenReady().then(() => {
     createWindow();
-    logInfo('NetTrades Launcher started');
+    logInfo('NETTRADES Launcher started');
     logInfo(`Project root: ${PROJECT_ROOT}`);
     logInfo(`Models directory: ${MODELS_DIR}`);
+    logInfo(`Virtual environment: ${VENV_DIR}`);
     logInfo(`Platform: ${process.platform}`);
     logInfo(`Packaged: ${isPackaged}`);
     logInfo(`Compose file: ${COMPOSE_FILE}`);
+
+    // Check for virtual environment
+    checkVirtualEnvironment();
+
+    // Start auto-updater
+    setupAutoUpdater();
+
+    // Start node discovery
+    startNodeDiscovery();
+
+    // Check for updates on startup
+    setTimeout(() => {
+        autoUpdater.checkForUpdates();
+    }, 5000);
 });
 
 app.on('window-all-closed', () => {
@@ -117,762 +179,1275 @@ app.on('activate', () => {
 });
 
 // -----------------------------------------------------------------------------
-// Logging helper (main process)
+// Auto-Updater
 // -----------------------------------------------------------------------------
-function logInfo(message) {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [INFO] ${message}`);
-}
 
-function logError(message) {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}] [ERROR] ${message}`);
-}
+function setupAutoUpdater() {
+    autoUpdater.setFeedURL({
+        provider: 'github',
+        repo: 'nettrades-platform',
+        owner: 'nettrades',
+    });
 
-// -----------------------------------------------------------------------------
-// Utility: Ensure models directory exists
-// -----------------------------------------------------------------------------
-function ensureModelsDir() {
-    if (!fs.existsSync(MODELS_DIR)) {
-        fs.mkdirSync(MODELS_DIR, { recursive: true });
-        logInfo(`Created models directory: ${MODELS_DIR}`);
-    }
-    return MODELS_DIR;
-}
+    autoUpdater.on('checking-for-update', () => {
+        mainWindow?.webContents.send('update-status', { status: 'checking' });
+    });
 
-// -----------------------------------------------------------------------------
-// Utility: Format file size
-// -----------------------------------------------------------------------------
-function formatSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
-    return (bytes / 1073741824).toFixed(2) + ' GB';
-}
+    autoUpdater.on('update-available', (info) => {
+        mainWindow?.webContents.send('update-status', {
+            status: 'available',
+            version: info.version,
+            releaseNotes: info.releaseNotes,
+        });
+    });
 
-// -----------------------------------------------------------------------------
-// Utility: Get server URL from config or environment
-// -----------------------------------------------------------------------------
-function getServerUrl() {
-    // Priority: 1. User setting, 2. .env file, 3. localhost
-    const userConfigPath = path.join(os.homedir(), '.nettrades', 'config.json');
-    try {
-        if (fs.existsSync(userConfigPath)) {
-            const config = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
-            if (config.serverUrl) {
-                return config.serverUrl;
+    autoUpdater.on('update-not-available', () => {
+        mainWindow?.webContents.send('update-status', { status: 'uptodate' });
+    });
+
+    autoUpdater.on('download-progress', (progress) => {
+        mainWindow?.webContents.send('update-progress', {
+            percent: progress.percent,
+            bytesPerSecond: progress.bytesPerSecond,
+            transferred: progress.transferred,
+            total: progress.total,
+        });
+    });
+
+    autoUpdater.on('update-downloaded', () => {
+        mainWindow?.webContents.send('update-status', { status: 'downloaded' });
+        dialog.showMessageBox({
+            type: 'info',
+            title: 'Update Ready',
+            message: 'A new version has been downloaded. Restart the application to install it.',
+            buttons: ['Restart Now', 'Later'],
+        }).then((result) => {
+            if (result.response === 0) {
+                autoUpdater.quitAndInstall();
             }
-        }
-    } catch (e) {
-        logError(`Failed to read user config: ${e.message}`);
-    }
+        });
+    });
 
-    // Try to read from .env
-    const envPath = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
+    autoUpdater.on('error', (err) => {
+        mainWindow?.webContents.send('update-status', {
+            status: 'error',
+            error: err.message,
+        });
+    });
+
+    // Check for updates every 6 hours
+    setInterval(() => {
+        autoUpdater.checkForUpdates();
+    }, 21600000);
+}
+
+// -----------------------------------------------------------------------------
+// Virtual Environment Check
+// -----------------------------------------------------------------------------
+
+function checkVirtualEnvironment() {
+    const venvActivate = path.join(VENV_DIR, 'bin', 'activate');
+    if (!fs.existsSync(venvActivate)) {
+        logError(`Virtual environment not found at ${VENV_DIR}`);
+        logInfo('Please run Phase 1 first: ./scripts/nettrades-setup.sh dev');
+        dialog.showMessageBox({
+            type: 'warning',
+            title: 'Virtual Environment Not Found',
+            message: 'The Python virtual environment is not set up. Please run the deployment script first.',
+            detail: `Expected: ${VENV_DIR}`,
+            buttons: ['OK'],
+        });
+    } else {
+        logSuccess(`Virtual environment found at ${VENV_DIR}`);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Node Discovery (mDNS/Avahi)
+// -----------------------------------------------------------------------------
+
+function startNodeDiscovery() {
+    // Use bonjour for mDNS discovery
     try {
-        if (fs.existsSync(envPath)) {
-            const content = fs.readFileSync(envPath, 'utf8');
-            const match = content.match(/^DOMAIN=(.+)$/m);
-            if (match) {
-                const domain = match[1].trim();
-                if (domain && domain !== 'changeit' && domain !== 'localhost') {
-                    return `https://${domain}`;
+        const bonjour = require('bonjour')();
+        
+        // Discover NETTRADES nodes
+        bonjour.find({ type: 'nettrades' }, (service) => {
+            const nodeId = `${service.name}-${service.host}`;
+            if (!discoveredNodes.has(nodeId)) {
+                discoveredNodes.set(nodeId, {
+                    name: service.name,
+                    host: service.host,
+                    port: service.port,
+                    addresses: service.addresses,
+                    txt: service.txt || {},
+                    firstSeen: Date.now(),
+                    lastSeen: Date.now(),
+                });
+                mainWindow?.webContents.send('node-discovered', {
+                    name: service.name,
+                    host: service.host,
+                    port: service.port,
+                    addresses: service.addresses,
+                });
+                logInfo(`Node discovered: ${service.name} at ${service.host}:${service.port}`);
+            } else {
+                const node = discoveredNodes.get(nodeId);
+                node.lastSeen = Date.now();
+            }
+        });
+
+        // Also broadcast our own service
+        const serverIP = getServerIP();
+        bonjour.publish({
+            name: `NETTRADES-${crypto.randomBytes(4).toString('hex')}`,
+            type: 'nettrades',
+            port: 3002,
+            host: serverIP,
+            txt: {
+                version: app.getVersion(),
+                platform: process.platform,
+                gpus: '0',
+            },
+        });
+        logInfo(`Broadcasting NETTRADES service on ${serverIP}:3002`);
+
+        // Clean up stale nodes (not seen for 60 seconds)
+        setInterval(() => {
+            const now = Date.now();
+            for (const [id, node] of discoveredNodes) {
+                if (now - node.lastSeen > 60000) {
+                    discoveredNodes.delete(id);
+                    mainWindow?.webContents.send('node-lost', { id });
+                }
+            }
+        }, 30000);
+    } catch (error) {
+        logError(`mDNS discovery error: ${error.message}`);
+    }
+}
+
+function getServerIP() {
+    try {
+        const interfaces = os.networkInterfaces();
+        for (const name of Object.keys(interfaces)) {
+            for (const iface of interfaces[name]) {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    return iface.address;
                 }
             }
         }
-    } catch (e) {
-        logError(`Failed to read .env: ${e.message}`);
-    }
-
-    return 'http://localhost';
+    } catch {}
+    return 'localhost';
 }
 
 // -----------------------------------------------------------------------------
 // IPC Handlers
 // -----------------------------------------------------------------------------
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Platform & System Information
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Platform & System
+// ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('get-platform', () => {
     return {
         platform: process.platform,
         arch: process.arch,
-        hostname: os.hostname(),
-        cpus: os.cpus().length,
-        totalMemory: os.totalmem(),
-        freeMemory: os.freemem(),
-        homeDir: os.homedir(),
-        isPackaged: app.isPackaged,
-        resourcesPath: process.resourcesPath,
+        version: app.getVersion(),
+        projectRoot: PROJECT_ROOT,
+        modelsDir: MODELS_DIR,
+        venvDir: VENV_DIR,
+        isPackaged: isPackaged,
     };
 });
 
-ipcMain.handle('get-project-root', () => {
-    return PROJECT_ROOT;
-});
+ipcMain.handle('get-project-root', () => PROJECT_ROOT);
+ipcMain.handle('get-models-dir', () => MODELS_DIR);
 
-ipcMain.handle('get-models-dir', () => {
-    return ensureModelsDir();
-});
+let serverUrl = 'http://localhost';
 
 ipcMain.handle('get-server-url', () => {
-    return getServerUrl();
+    // Try to read from a config file
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.serverUrl) {
+                serverUrl = config.serverUrl;
+            }
+        }
+    } catch (error) {
+        logError(`Error reading config: ${error.message}`);
+    }
+    return serverUrl;
 });
 
-ipcMain.handle('save-server-url', async (event, url) => {
-    const configDir = path.join(os.homedir(), '.nettrades');
-    const configPath = path.join(configDir, 'config.json');
+ipcMain.handle('save-server-url', (event, url) => {
+    serverUrl = url;
     try {
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
-        let config = {};
-        if (fs.existsSync(configPath)) {
-            config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        }
-        config.serverUrl = url;
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        const config = { serverUrl: url };
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        logInfo(`Server URL saved: ${url}`);
         return { success: true };
-    } catch (e) {
-        logError(`Failed to save server URL: ${e.message}`);
-        return { success: false, error: e.message };
+    } catch (error) {
+        logError(`Error saving config: ${error.message}`);
+        return { success: false, error: error.message };
     }
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Feature Flags
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-feature-flags', async () => {
+ipcMain.handle('get-feature-flags', () => {
+    // Read from .env file if available
     const envPath = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
-    const defaults = {
-        FEATURE_ASK_SOMEONE: true,
-        FEATURE_GOOD_ANSWER: true,
-        FEATURE_GPU_MARKETPLACE: false,
-        FEATURE_ROUTER: false,
-        FEATURE_TRAINING: false,
-        FEATURE_ENTERPRISE: false,
-        FEATURE_FORGEJO: false,
-        FEATURE_RECRUITMENT: false,
-        FEATURE_LEAD_GEN: false,
-        FEATURE_FREELANCE: false,
+    const flags = {
+        gpuMarketplace: true,
+        askSomeone: true,
+        goodAnswer: true,
+        selfImproving: true,
+        training: true,
+        bridge: true,
+        notifications: true,
+        fairness: false,      // Coming soon
+        jobMatching: false,   // Coming soon
+        research: false,      // Coming soon
+        triggers: false,      // Coming soon
     };
 
     try {
-        const content = fs.readFileSync(envPath, 'utf8');
-        const lines = content.split('\n');
-        const flags = {};
-        for (const line of lines) {
-            const match = line.match(/^FEATURE_(\w+)=(.+)/);
-            if (match) {
-                const key = `FEATURE_${match[1]}`;
-                flags[key] = match[2].trim().toLowerCase() === 'true';
+        if (fs.existsSync(envPath)) {
+            const envContent = fs.readFileSync(envPath, 'utf8');
+            const lines = envContent.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('FEATURE_')) {
+                    const [key, value] = line.split('=');
+                    const featureKey = key.replace('FEATURE_', '').toLowerCase();
+                    if (flags.hasOwnProperty(featureKey)) {
+                        flags[featureKey] = value.trim().toLowerCase() === 'true';
+                    }
+                }
             }
         }
-        return { ...defaults, ...flags };
-    } catch (e) {
-        logInfo('No .env file found, using default feature flags');
-        return defaults;
+    } catch (error) {
+        logError(`Error reading feature flags: ${error.message}`);
     }
+
+    return flags;
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Installation
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Installation / Deployment
+// ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('run-install', async (event, options) => {
-    const { profile, environment, force, auto } = options;
-    return new Promise((resolve, reject) => {
-        const script = path.join(PROJECT_ROOT, 'scripts', 'nettrades-setup.sh');
-        const args = [profile, '--environment', environment];
-        if (force) args.push('--force');
-        if (auto) args.push('--auto');
+    if (installProcess) {
+        return { success: false, error: 'Installation already in progress' };
+    }
 
-        logInfo(`Running installation: ${script} ${args.join(' ')}`);
+    const { profile = 'all', force = false, auto = true, production = false } = options || {};
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'nettrades-setup.sh');
 
-        // Ensure script is executable
-        try {
-            fs.chmodSync(script, 0o755);
-        } catch (e) {
-            logError(`Failed to make script executable: ${e.message}`);
-        }
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `Deployment script not found: ${scriptPath}` };
+    }
 
-        installProcess = spawn('bash', [script, ...args], {
+    // Ensure the virtual environment exists
+    const venvActivate = path.join(VENV_DIR, 'bin', 'activate');
+    if (!fs.existsSync(venvActivate)) {
+        logError('Virtual environment not found. Please run Phase 1 first.');
+        return { success: false, error: 'Virtual environment not found. Please run Phase 1 first.' };
+    }
+
+    return new Promise((resolve) => {
+        let cmd = `bash ${scriptPath} ${profile}`;
+        if (force) cmd += ' --force';
+        if (auto) cmd += ' --auto';
+        if (production) cmd += ' --production';
+
+        logInfo(`Starting deployment: ${cmd}`);
+
+        installProcess = spawn('bash', ['-c', cmd], {
             cwd: PROJECT_ROOT,
-            env: { ...process.env, FORCE_COLOR: 'true' },
+            env: { ...process.env, VIRTUAL_ENV: VENV_DIR },
+            shell: true,
         });
 
+        let output = '';
+        let errorOutput = '';
+
         installProcess.stdout.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('install-output', output);
-            logInfo(`[INSTALL] ${output.trim()}`);
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('install-output', { type: 'stdout', data: text });
+            
+            // Parse progress
+            const progressMatch = text.match(/\[([0-9]+)%\]/);
+            if (progressMatch) {
+                deploymentProgress = parseInt(progressMatch[1]);
+                mainWindow?.webContents.send('install-progress', { progress: deploymentProgress });
+            }
         });
 
         installProcess.stderr.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('install-output', output);
-            logInfo(`[INSTALL ERR] ${output.trim()}`);
+            const text = data.toString();
+            errorOutput += text;
+            mainWindow?.webContents.send('install-output', { type: 'stderr', data: text });
         });
 
         installProcess.on('close', (code) => {
             installProcess = null;
+            isDeploying = false;
+            deploymentProgress = 100;
+            
             if (code === 0) {
-                resolve({ success: true });
+                logSuccess('Deployment completed successfully');
+                resolve({ success: true, output });
             } else {
-                reject({ success: false, code });
+                logError(`Deployment failed with code ${code}`);
+                resolve({ success: false, error: errorOutput || `Process exited with code ${code}` });
             }
         });
 
         installProcess.on('error', (err) => {
             installProcess = null;
-            reject({ success: false, error: err.message });
+            isDeploying = false;
+            logError(`Deployment error: ${err.message}`);
+            resolve({ success: false, error: err.message });
         });
     });
 });
 
 ipcMain.handle('cancel-install', () => {
     if (installProcess) {
-        installProcess.kill('SIGINT');
+        installProcess.kill('SIGTERM');
         installProcess = null;
+        isDeploying = false;
+        logInfo('Deployment cancelled');
         return { success: true };
     }
-    return { success: false };
+    return { success: false, error: 'No installation in progress' };
 });
 
 ipcMain.handle('get-install-status', () => {
     return {
-        running: !!installProcess,
-        pid: installProcess ? installProcess.pid : null,
+        isRunning: !!installProcess,
+        progress: deploymentProgress,
     };
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Platform Control (Start / Stop Docker Compose)
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Platform Control (Docker Compose)
+// ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('start-platform', async (event) => {
-    return new Promise((resolve, reject) => {
-        const command = `docker compose -f "${COMPOSE_FILE}" up -d`;
-
-        logInfo(`Starting platform: ${command}`);
-
-        const proc = spawn('bash', ['-c', command], {
-            cwd: path.join(PROJECT_ROOT, 'deploy', 'docker'),
-        });
-
-        proc.stdout.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('platform-output', output);
-            logInfo(`[START] ${output.trim()}`);
-        });
-
-        proc.stderr.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('platform-output', output);
-            logInfo(`[START ERR] ${output.trim()}`);
-        });
-
-        proc.on('close', (code) => {
-            if (code === 0) {
-                resolve({ success: true });
-            } else {
-                reject({ success: false, code });
-            }
-        });
-
-        proc.on('error', (err) => {
-            reject({ success: false, error: err.message });
-        });
-    });
+ipcMain.handle('start-platform', () => {
+    return runDockerCompose('up -d');
 });
 
-ipcMain.handle('stop-platform', async (event) => {
-    return new Promise((resolve, reject) => {
-        const command = `docker compose -f "${COMPOSE_FILE}" down`;
-
-        logInfo(`Stopping platform: ${command}`);
-
-        const proc = spawn('bash', ['-c', command], {
-            cwd: path.join(PROJECT_ROOT, 'deploy', 'docker'),
-        });
-
-        proc.stdout.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('platform-output', output);
-            logInfo(`[STOP] ${output.trim()}`);
-        });
-
-        proc.stderr.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('platform-output', output);
-            logInfo(`[STOP ERR] ${output.trim()}`);
-        });
-
-        proc.on('close', (code) => {
-            if (code === 0) {
-                resolve({ success: true });
-            } else {
-                reject({ success: false, code });
-            }
-        });
-
-        proc.on('error', (err) => {
-            reject({ success: false, error: err.message });
-        });
-    });
+ipcMain.handle('stop-platform', () => {
+    return runDockerCompose('down');
 });
 
-ipcMain.handle('restart-platform', async (event) => {
-    return new Promise((resolve, reject) => {
-        const command = `docker compose -f "${COMPOSE_FILE}" restart`;
-
-        logInfo(`Restarting platform: ${command}`);
-
-        const proc = spawn('bash', ['-c', command], {
-            cwd: path.join(PROJECT_ROOT, 'deploy', 'docker'),
-        });
-
-        proc.stdout.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('platform-output', output);
-            logInfo(`[RESTART] ${output.trim()}`);
-        });
-
-        proc.stderr.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('platform-output', output);
-            logInfo(`[RESTART ERR] ${output.trim()}`);
-        });
-
-        proc.on('close', (code) => {
-            if (code === 0) {
-                resolve({ success: true });
-            } else {
-                reject({ success: false, code });
-            }
-        });
-
-        proc.on('error', (err) => {
-            reject({ success: false, error: err.message });
-        });
-    });
+ipcMain.handle('restart-platform', () => {
+    return runDockerCompose('restart');
 });
 
-ipcMain.handle('platform-status', async () => {
+ipcMain.handle('platform-status', () => {
+    return getDockerStatus();
+});
+
+function runDockerCompose(command) {
     return new Promise((resolve) => {
-        const command = `docker compose -f "${COMPOSE_FILE}" ps --format json`;
+        const cmd = `docker compose -f ${COMPOSE_FILE} ${command}`;
+        logInfo(`Running: ${cmd}`);
+        
+        const proc = spawn('bash', ['-c', cmd], {
+            cwd: path.dirname(COMPOSE_FILE),
+        });
 
-        exec(command, { cwd: path.join(PROJECT_ROOT, 'deploy', 'docker') }, (error, stdout, stderr) => {
+        let output = '';
+        proc.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('platform-output', { type: 'stdout', data: text });
+        });
+
+        proc.stderr.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('platform-output', { type: 'stderr', data: text });
+        });
+
+        proc.on('close', (code) => {
+            if (code === 0) {
+                logSuccess(`Docker compose ${command} completed`);
+                resolve({ success: true, output });
+            } else {
+                logError(`Docker compose ${command} failed with code ${code}`);
+                resolve({ success: false, error: output || `Process exited with code ${code}` });
+            }
+        });
+    });
+}
+
+function getDockerStatus() {
+    return new Promise((resolve) => {
+        const cmd = `docker compose -f ${COMPOSE_FILE} ps --format json`;
+        exec(cmd, { cwd: path.dirname(COMPOSE_FILE) }, (error, stdout) => {
             if (error) {
                 resolve({ running: false, error: error.message });
                 return;
             }
             try {
-                const containers = JSON.parse(stdout);
-                const services = {};
-                for (const c of containers) {
-                    services[c.Service] = {
-                        name: c.Name,
-                        status: c.Status,
-                        state: c.State,
-                    };
-                }
-                resolve({ running: true, services });
+                const services = JSON.parse(stdout);
+                const allRunning = services.every(s => s.State === 'running');
+                resolve({
+                    running: allRunning,
+                    services: services.map(s => ({
+                        name: s.Name,
+                        status: s.State,
+                        ports: s.Ports,
+                    })),
+                });
             } catch (e) {
-                resolve({ running: false, error: e.message });
+                resolve({ running: false, error: 'Failed to parse docker compose output' });
+            }
+        });
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Model Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('list-models', () => {
+    return listModels();
+});
+
+ipcMain.handle('download-model', async (event, options) => {
+    const { model = 'deepseek-1.5b', format = 'gguf' } = options || {};
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'download-model.sh');
+
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `Download script not found: ${scriptPath}` };
+    }
+
+    // Ensure models directory exists
+    if (!fs.existsSync(MODELS_DIR)) {
+        fs.mkdirSync(MODELS_DIR, { recursive: true });
+    }
+
+    return new Promise((resolve) => {
+        const cmd = `bash ${scriptPath} --model ${model} --format ${format} --dir ${MODELS_DIR}`;
+        logInfo(`Downloading model: ${model} (${format})`);
+        
+        downloadProcess = spawn('bash', ['-c', cmd], {
+            cwd: PROJECT_ROOT,
+        });
+
+        let output = '';
+        downloadProcess.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('download-progress', { data: text });
+        });
+
+        downloadProcess.stderr.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('download-progress', { data: text });
+        });
+
+        downloadProcess.on('close', (code) => {
+            downloadProcess = null;
+            if (code === 0) {
+                logSuccess(`Model ${model} downloaded successfully`);
+                resolve({ success: true, output });
+            } else {
+                logError(`Model download failed with code ${code}`);
+                resolve({ success: false, error: output || `Process exited with code ${code}` });
             }
         });
     });
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Model Management (LM Studio-style)
-// ──────────────────────────────────────────────────────────────────────────────
+ipcMain.handle('import-model', async (event, modelPath) => {
+    if (!fs.existsSync(modelPath)) {
+        return { success: false, error: `Model path not found: ${modelPath}` };
+    }
 
-// List models in the models directory
-ipcMain.handle('list-models', async () => {
+    const targetPath = path.join(MODELS_DIR, path.basename(modelPath));
     try {
-        const modelsDir = ensureModelsDir();
-        const files = fs.readdirSync(modelsDir);
-        const models = files
-            .filter(f => f.endsWith('.gguf'))
-            .map(f => {
-                const filePath = path.join(modelsDir, f);
-                const stats = fs.statSync(filePath);
-                return {
-                    name: f,
-                    path: filePath,
-                    size: stats.size,
-                    sizeFormatted: formatSize(stats.size),
-                    modified: stats.mtime,
-                };
-            });
-        return models;
-    } catch (e) {
-        logError(`Failed to list models: ${e.message}`);
-        return [];
+        fs.cpSync(modelPath, targetPath, { recursive: true });
+        logSuccess(`Model imported: ${targetPath}`);
+        return { success: true, path: targetPath };
+    } catch (error) {
+        logError(`Model import failed: ${error.message}`);
+        return { success: false, error: error.message };
     }
 });
 
-// Download a model from Hugging Face
-ipcMain.handle('download-model', async (event, options) => {
-    const { url, filename, onProgress } = options || {};
-    return new Promise((resolve, reject) => {
-        const modelsDir = ensureModelsDir();
-        const filePath = path.join(modelsDir, filename || 'model.gguf');
-        const tempPath = filePath + '.download';
+ipcMain.handle('delete-model', async (event, modelPath) => {
+    try {
+        fs.rmSync(modelPath, { recursive: true, force: true });
+        logSuccess(`Model deleted: ${modelPath}`);
+        return { success: true };
+    } catch (error) {
+        logError(`Model deletion failed: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
 
-        logInfo(`Downloading model from ${url} to ${filePath}`);
+ipcMain.handle('load-model', async (event, modelPath) => {
+    // Update the .env file to use this model
+    const envPath = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
+    try {
+        let envContent = fs.readFileSync(envPath, 'utf8');
+        const modelName = path.basename(modelPath);
+        envContent = envContent.replace(/^MODEL_NAME=.*$/m, `MODEL_NAME=${modelName}`);
+        fs.writeFileSync(envPath, envContent);
+        logSuccess(`Model loaded: ${modelName}`);
+        return { success: true, model: modelName };
+    } catch (error) {
+        logError(`Failed to load model: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
 
-        const file = fs.createWriteStream(tempPath);
-        let downloadedSize = 0;
+function listModels() {
+    const models = [];
+    if (!fs.existsSync(MODELS_DIR)) return models;
 
-        const request = https.get(url, (response) => {
-            if (response.statusCode !== 200) {
-                reject(new Error(`Download failed with status ${response.statusCode}`));
-                return;
-            }
-
-            const totalSize = parseInt(response.headers['content-length'], 10);
-
-            response.on('data', (chunk) => {
-                downloadedSize += chunk.length;
-                if (event && totalSize) {
-                    const progress = (downloadedSize / totalSize) * 100;
-                    event.sender.send('download-progress', {
-                        filename,
-                        progress: Math.round(progress),
-                        downloaded: downloadedSize,
-                        total: totalSize,
+    try {
+        const files = fs.readdirSync(MODELS_DIR);
+        for (const file of files) {
+            const fullPath = path.join(MODELS_DIR, file);
+            const stats = fs.statSync(fullPath);
+            
+            if (stats.isDirectory()) {
+                // Check for config.json (HF model)
+                if (fs.existsSync(path.join(fullPath, 'config.json'))) {
+                    models.push({
+                        name: file,
+                        type: 'hf',
+                        path: fullPath,
+                        size: getDirectorySize(fullPath),
+                        format: 'Hugging Face',
                     });
                 }
-            });
-
-            response.pipe(file);
-
-            file.on('finish', () => {
-                file.close();
-                fs.renameSync(tempPath, filePath);
-                logInfo(`Download complete: ${filePath}`);
-                resolve({ success: true, path: filePath, size: downloadedSize });
-            });
-
-            file.on('error', (err) => {
-                fs.unlink(tempPath, () => {});
-                reject(err);
-            });
-        });
-
-        request.on('error', (err) => {
-            fs.unlink(tempPath, () => {});
-            reject(err);
-        });
-
-        request.setTimeout(300000); // 5 minute timeout
-    });
-});
-
-// Import a model from a local file
-ipcMain.handle('import-model', async (event, sourcePath) => {
-    return new Promise((resolve, reject) => {
-        try {
-            const modelsDir = ensureModelsDir();
-            const filename = path.basename(sourcePath);
-            const destPath = path.join(modelsDir, filename);
-
-            if (!fs.existsSync(sourcePath)) {
-                reject(new Error(`Source file not found: ${sourcePath}`));
-                return;
-            }
-
-            fs.copyFileSync(sourcePath, destPath);
-            logInfo(`Imported model: ${sourcePath} -> ${destPath}`);
-            resolve({ success: true, path: destPath });
-        } catch (e) {
-            reject(e);
-        }
-    });
-});
-
-// Delete a model
-ipcMain.handle('delete-model', async (event, modelPath) => {
-    return new Promise((resolve, reject) => {
-        try {
-            if (fs.existsSync(modelPath)) {
-                fs.unlinkSync(modelPath);
-                logInfo(`Deleted model: ${modelPath}`);
-                resolve({ success: true });
-            } else {
-                reject(new Error(`Model not found: ${modelPath}`));
-            }
-        } catch (e) {
-            reject(e);
-        }
-    });
-});
-
-// Load a model into llama.cpp (via API call)
-ipcMain.handle('load-model', async (event, modelPath) => {
-    // This will trigger a model load in llama.cpp via the API
-    // The llama.cpp server is already running with a default model
-    // We can use the /v1/models endpoint to check and /v1/chat/completions to test
-    return new Promise((resolve) => {
-        // Check if the model exists
-        if (!fs.existsSync(modelPath)) {
-            resolve({ success: false, error: 'Model file not found' });
-            return;
-        }
-
-        // For now, we'll just check if the model is accessible
-        // In the future, we can dynamically update the llama.cpp container's model
-        resolve({
-            success: true,
-            message: `Model ${path.basename(modelPath)} is available. Restart llama.cpp to load it.`,
-        });
-    });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// GPU Detection and Status
-// ──────────────────────────────────────────────────────────────────────────────
-
-ipcMain.handle('detect-gpu', async () => {
-    return new Promise((resolve) => {
-        const command = 'nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader';
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                resolve({ gpuAvailable: false, error: error.message });
-                return;
-            }
-            try {
-                const lines = stdout.trim().split('\n');
-                const gpus = lines.map(line => {
-                    const parts = line.split(',');
-                    return {
-                        name: parts[0].trim(),
-                        memoryTotal: parts[1].trim(),
-                        memoryUsed: parts[2].trim(),
-                    };
+            } else if (file.endsWith('.gguf')) {
+                models.push({
+                    name: file.replace('.gguf', ''),
+                    type: 'gguf',
+                    path: fullPath,
+                    size: stats.size,
+                    format: 'GGUF (llama.cpp)',
                 });
-                resolve({ gpuAvailable: true, gpus });
-            } catch (e) {
-                resolve({ gpuAvailable: false, error: e.message });
             }
-        });
-    });
+        }
+    } catch (error) {
+        logError(`Error listing models: ${error.message}`);
+    }
+    return models;
+}
+
+function getDirectorySize(dirPath) {
+    let size = 0;
+    try {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+            const fullPath = path.join(dirPath, file);
+            const stats = fs.statSync(fullPath);
+            if (stats.isDirectory()) {
+                size += getDirectorySize(fullPath);
+            } else {
+                size += stats.size;
+            }
+        }
+    } catch {}
+    return size;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GPU Detection
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('detect-gpu', () => {
+    return detectGPUs();
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
+function detectGPUs() {
+    const gpus = [];
+    const platform = process.platform;
+
+    try {
+        // NVIDIA GPU detection
+        if (platform === 'linux' || platform === 'win32') {
+            const result = execSync('nvidia-smi --query-gpu=name,index,memory.total,compute_cap --format=csv,noheader', { encoding: 'utf8', stdio: 'pipe' });
+            if (result) {
+                const lines = result.trim().split('\n');
+                for (const line of lines) {
+                    const parts = line.split(',').map(s => s.trim());
+                    gpus.push({
+                        vendor: 'nvidia',
+                        name: parts[0] || 'Unknown',
+                        index: parseInt(parts[1]) || 0,
+                        memory: parts[2] || '0 MiB',
+                        computeCapability: parts[3] || 'unknown',
+                    });
+                }
+            }
+        }
+
+        // AMD GPU detection (ROCm)
+        if (platform === 'linux') {
+            try {
+                const result = execSync('rocminfo | grep "Name:"', { encoding: 'utf8', stdio: 'pipe' });
+                if (result) {
+                    const lines = result.trim().split('\n');
+                    for (const line of lines) {
+                        const name = line.replace('Name:', '').trim();
+                        if (name && !name.includes('AMD')) {
+                            gpus.push({
+                                vendor: 'amd',
+                                name: name,
+                                index: gpus.length,
+                                memory: 'Unknown',
+                                computeCapability: 'unknown',
+                            });
+                        }
+                    }
+                }
+            } catch {}
+        }
+
+        // Intel GPU detection
+        if (platform === 'linux') {
+            try {
+                const result = execSync('clinfo | grep -i "intel"', { encoding: 'utf8', stdio: 'pipe' });
+                if (result) {
+                    gpus.push({
+                        vendor: 'intel',
+                        name: 'Intel GPU',
+                        index: gpus.length,
+                        memory: 'Unknown',
+                        computeCapability: 'unknown',
+                    });
+                }
+            } catch {}
+        }
+    } catch (error) {
+        logError(`GPU detection error: ${error.message}`);
+    }
+
+    return gpus;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Backup & Restore
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('create-backup', async (event, options) => {
-    return new Promise((resolve, reject) => {
-        const script = path.join(PROJECT_ROOT, 'scripts', 'backup.sh');
-        const args = [];
-        if (options && options.outputDir) {
-            args.push('--output-dir', options.outputDir);
-        }
-        if (options && options.auto) {
-            args.push('--auto');
-        }
+    const { outputDir } = options || {};
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'backup.sh');
 
-        logInfo(`Running backup: ${script} ${args.join(' ')}`);
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `Backup script not found: ${scriptPath}` };
+    }
 
-        try {
-            fs.chmodSync(script, 0o755);
-        } catch (e) {
-            logError(`Failed to make script executable: ${e.message}`);
-        }
+    return new Promise((resolve) => {
+        let cmd = `bash ${scriptPath}`;
+        if (outputDir) cmd += ` --output-dir ${outputDir}`;
+        if (options?.auto) cmd += ' --auto';
 
-        const proc = spawn('bash', [script, ...args], {
+        logInfo(`Starting backup: ${cmd}`);
+        
+        const proc = spawn('bash', ['-c', cmd], {
             cwd: PROJECT_ROOT,
-            env: { ...process.env, FORCE_COLOR: 'true' },
         });
 
+        let output = '';
         proc.stdout.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('backup-output', output);
-            logInfo(`[BACKUP] ${output.trim()}`);
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('backup-output', { type: 'stdout', data: text });
         });
 
         proc.stderr.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('backup-output', output);
-            logInfo(`[BACKUP ERR] ${output.trim()}`);
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('backup-output', { type: 'stderr', data: text });
         });
 
         proc.on('close', (code) => {
             if (code === 0) {
-                resolve({ success: true });
+                logSuccess('Backup completed successfully');
+                resolve({ success: true, output });
             } else {
-                reject({ success: false, code });
+                logError(`Backup failed with code ${code}`);
+                resolve({ success: false, error: output || `Process exited with code ${code}` });
             }
-        });
-
-        proc.on('error', (err) => {
-            reject({ success: false, error: err.message });
         });
     });
 });
 
-ipcMain.handle('list-backups', async () => {
+ipcMain.handle('list-backups', () => {
     const backupDir = path.join(os.homedir(), '.nettrades', 'backups');
+    const backups = [];
+    
     try {
-        if (!fs.existsSync(backupDir)) {
-            return [];
+        if (fs.existsSync(backupDir)) {
+            const files = fs.readdirSync(backupDir);
+            for (const file of files) {
+                if (file.startsWith('nettrades-backup-') && file.endsWith('.tar.gz')) {
+                    const fullPath = path.join(backupDir, file);
+                    const stats = fs.statSync(fullPath);
+                    backups.push({
+                        name: file,
+                        path: fullPath,
+                        size: stats.size,
+                        created: stats.mtime,
+                    });
+                }
+            }
         }
-        const files = fs.readdirSync(backupDir);
-        const backups = files
-            .filter(f => f.startsWith('nettrades-backup-') && f.endsWith('.tar.gz'))
-            .map(f => {
-                const filePath = path.join(backupDir, f);
-                const stats = fs.statSync(filePath);
-                return {
-                    name: f,
-                    path: filePath,
-                    size: stats.size,
-                    modified: stats.mtime,
-                };
-            })
-            .sort((a, b) => b.modified - a.modified);
-        return backups;
-    } catch (e) {
-        logError(`Failed to list backups: ${e.message}`);
-        return [];
+    } catch (error) {
+        logError(`Error listing backups: ${error.message}`);
     }
+    
+    return backups.sort((a, b) => b.created - a.created);
 });
 
 ipcMain.handle('restore-backup', async (event, backupPath) => {
-    return new Promise((resolve, reject) => {
-        const script = path.join(PROJECT_ROOT, 'scripts', 'restore.sh');
-        const args = [backupPath, '--auto'];
+    if (!fs.existsSync(backupPath)) {
+        return { success: false, error: `Backup file not found: ${backupPath}` };
+    }
 
-        logInfo(`Running restore: ${script} ${args.join(' ')}`);
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'restore.sh');
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `Restore script not found: ${scriptPath}` };
+    }
 
-        try {
-            fs.chmodSync(script, 0o755);
-        } catch (e) {
-            logError(`Failed to make script executable: ${e.message}`);
-        }
-
-        const proc = spawn('bash', [script, ...args], {
+    return new Promise((resolve) => {
+        const cmd = `bash ${scriptPath} ${backupPath} --auto`;
+        logInfo(`Starting restore: ${cmd}`);
+        
+        const proc = spawn('bash', ['-c', cmd], {
             cwd: PROJECT_ROOT,
-            env: { ...process.env, FORCE_COLOR: 'true' },
         });
 
+        let output = '';
         proc.stdout.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('restore-output', output);
-            logInfo(`[RESTORE] ${output.trim()}`);
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('backup-output', { type: 'stdout', data: text });
         });
 
         proc.stderr.on('data', (data) => {
-            const output = data.toString();
-            event.sender.send('restore-output', output);
-            logInfo(`[RESTORE ERR] ${output.trim()}`);
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('backup-output', { type: 'stderr', data: text });
         });
 
         proc.on('close', (code) => {
             if (code === 0) {
-                resolve({ success: true });
+                logSuccess('Restore completed successfully');
+                resolve({ success: true, output });
             } else {
-                reject({ success: false, code });
+                logError(`Restore failed with code ${code}`);
+                resolve({ success: false, error: output || `Process exited with code ${code}` });
             }
         });
+    });
+});
 
-        proc.on('error', (err) => {
-            reject({ success: false, error: err.message });
+// ─────────────────────────────────────────────────────────────────────────────
+// VPN Management (WireGuard)
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('vpn-add-peer', async (event, username) => {
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'add-wireguard-user.sh');
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `WireGuard script not found: ${scriptPath}` };
+    }
+
+    return new Promise((resolve) => {
+        const cmd = `bash ${scriptPath} ${username}`;
+        logInfo(`Adding WireGuard peer: ${username}`);
+        
+        exec(cmd, { cwd: PROJECT_ROOT }, (error, stdout, stderr) => {
+            if (error) {
+                logError(`WireGuard peer add failed: ${stderr}`);
+                resolve({ success: false, error: stderr || error.message });
+            } else {
+                logSuccess(`WireGuard peer added: ${username}`);
+                resolve({ success: true, output: stdout });
+            }
         });
     });
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Open URLs (with dynamic server detection and error handling)
-// ──────────────────────────────────────────────────────────────────────────────
-
-ipcMain.handle('open-url', (event, url) => {
-    shell.openExternal(url).catch((err) => {
-        logError(`Failed to open URL ${url}: ${err.message}`);
-        // Send error back to renderer
-        event.sender.send('open-error', { url, error: err.message });
+ipcMain.handle('vpn-list-peers', () => {
+    return new Promise((resolve) => {
+        exec('wg show', { cwd: PROJECT_ROOT }, (error, stdout) => {
+            if (error) {
+                resolve({ success: false, error: error.message });
+            } else {
+                resolve({ success: true, output: stdout });
+            }
+        });
     });
 });
 
-ipcMain.handle('open-service', (event, service) => {
-    const serverUrl = getServerUrl();
-    const ports = {
-        odoo: ':8069',
-        grafana: ':3001',
-        llama: ':8080',
-        ui: ':3002',
-        api: ':8000',
-        prometheus: ':9090',
-    };
-    const port = ports[service] || '';
-    const url = `${serverUrl}${port}`;
+ipcMain.handle('vpn-status', () => {
+    return new Promise((resolve) => {
+        exec('wg show', { cwd: PROJECT_ROOT }, (error, stdout) => {
+            if (error) {
+                resolve({ running: false, error: error.message });
+            } else {
+                resolve({ running: true, output: stdout });
+            }
+        });
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "Ask Someone" Expert System Integration
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('ask-someone', async (event, data) => {
+    const { question, category, urgency, expertId } = data || {};
+    const serverUrl = await ipcMain.handle('get-server-url');
     
-    shell.openExternal(url).catch((err) => {
-        logError(`Failed to open service ${service} at ${url}: ${err.message}`);
-        // Send error back to renderer for user feedback
-        event.sender.send('open-error', { service, url, error: err.message });
-    });
-    return { url };
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Open File Explorer
-// ──────────────────────────────────────────────────────────────────────────────
-
-ipcMain.handle('open-path', (event, pathToOpen) => {
-    shell.openPath(pathToOpen);
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Show dialog
-// ──────────────────────────────────────────────────────────────────────────────
-
-ipcMain.handle('show-dialog', async (event, options) => {
-    return await dialog.showMessageBox(mainWindow, options);
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Logging
-// ──────────────────────────────────────────────────────────────────────────────
-
-ipcMain.handle('get-logs', async () => {
-    const logDir = path.join(os.homedir(), '.nettrades', 'logs');
+    // Call the LangGraph Ask Someone agent
     try {
-        if (!fs.existsSync(logDir)) {
-            return [];
+        const response = await fetch(`${serverUrl}:8000/runs/stream`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                input: {
+                    question,
+                    category,
+                    urgency,
+                    expert_id: expertId,
+                    action: 'ask_someone',
+                },
+                config: {
+                    configurable: {
+                        thread_id: crypto.randomUUID(),
+                    },
+                },
+            }),
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
         }
-        const files = fs.readdirSync(logDir);
-        return files.map(f => {
-            const filePath = path.join(logDir, f);
-            const stats = fs.statSync(filePath);
-            return {
-                name: f,
-                path: filePath,
-                size: stats.size,
-                modified: stats.mtime,
-            };
-        }).sort((a, b) => b.modified - a.modified);
-    } catch (e) {
-        logError(`Failed to list logs: ${e.message}`);
-        return [];
+    } catch (error) {
+        logError(`Ask Someone error: ${error.message}`);
+        return { success: false, error: error.message };
     }
 });
 
-ipcMain.handle('get-log-content', async (event, logPath) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// "Good Answer" Training Data Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('good-answer', async (event, data) => {
+    const { question, answer, rating, userId } = data || {};
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    // Call the LangGraph Good Answer agent
     try {
-        if (!fs.existsSync(logPath)) {
-            return { success: false, error: 'Log file not found' };
+        const response = await fetch(`${serverUrl}:8000/runs/stream`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                input: {
+                    question,
+                    answer,
+                    rating,
+                    user_id: userId,
+                    action: 'good_answer',
+                },
+                config: {
+                    configurable: {
+                        thread_id: crypto.randomUUID(),
+                    },
+                },
+            }),
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
         }
-        const content = fs.readFileSync(logPath, 'utf8');
-        return { success: true, content };
-    } catch (e) {
-        return { success: false, error: e.message };
+    } catch (error) {
+        logError(`Good Answer error: ${error.message}`);
+        return { success: false, error: error.message };
     }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Training & Fine-Tuning
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('start-training', async (event, data) => {
+    const { dataset, model, method, params } = data || {};
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/runs/stream`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                input: {
+                    dataset,
+                    model,
+                    method: method || 'unsloth',
+                    params: params || {},
+                    action: 'start_training',
+                },
+                config: {
+                    configurable: {
+                        thread_id: crypto.randomUUID(),
+                    },
+                },
+            }),
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        logError(`Training error: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('training-status', async () => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/training/status`);
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Agent Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('list-agents', async () => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/agents/list`);
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('agent-status', async (event, agentId) => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/agents/${agentId}/status`);
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Queue Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('list-queue', async () => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/queue/list`);
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('cancel-task', async (event, taskId) => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/queue/${taskId}/cancel`, {
+            method: 'POST',
+        });
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('retry-task', async (event, taskId) => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/queue/${taskId}/retry`, {
+            method: 'POST',
+        });
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GPU Marketplace
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('marketplace-listings', async () => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8090/api/v1/gpu/listings`);
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('marketplace-list-gpu', async (event, data) => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8090/api/v1/gpu/list`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('marketplace-book-gpu', async (event, data) => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8090/api/v1/gpu/book`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Node Discovery
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-discovered-nodes', () => {
+    return Array.from(discoveredNodes.values());
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// System Health & Monitoring
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('system-health', async () => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    const health = {
+        services: {},
+        gpus: [],
+        models: [],
+        uptime: process.uptime(),
+    };
+
+    // Check Odoo
+    try {
+        const response = await fetch(`${serverUrl}:8069/web/health`);
+        health.services.odoo = response.ok ? 'healthy' : 'unhealthy';
+    } catch {
+        health.services.odoo = 'unhealthy';
+    }
+
+    // Check LangGraph
+    try {
+        const response = await fetch(`${serverUrl}:8000/health`);
+        health.services.langgraph = response.ok ? 'healthy' : 'unhealthy';
+    } catch {
+        health.services.langgraph = 'unhealthy';
+    }
+
+    // Check Dynamo
+    try {
+        const response = await fetch(`${serverUrl}:8001/v1/models`);
+        health.services.dynamo = response.ok ? 'healthy' : 'unhealthy';
+    } catch {
+        health.services.dynamo = 'unhealthy';
+    }
+
+    // Get GPU info
+    health.gpus = detectGPUs();
+
+    // Get models
+    health.models = listModels();
+
+    return health;
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Logs
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-logs', async (event, options) => {
+    const { service, lines = 100 } = options || {};
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/logs/${service}?lines=${lines}`);
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Alerts
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-alerts', async () => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/alerts`);
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notifications
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-notifications', async () => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/notifications`);
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('mark-notification-read', async (event, notificationId) => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    
+    try {
+        const response = await fetch(`${serverUrl}:8000/notifications/${notificationId}/read`, {
+            method: 'POST',
+        });
+        if (response.ok) {
+            const result = await response.json();
+            return { success: true, data: result };
+        } else {
+            return { success: false, error: `HTTP error: ${response.status}` };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// -----------------------------------------------------------------------------
+// Export
+// -----------------------------------------------------------------------------
+
+module.exports = { app };

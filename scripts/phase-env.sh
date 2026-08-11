@@ -5,6 +5,7 @@
 # PURPOSE:
 #   Phase 1: Environment & Secrets Generation.
 #   This phase generates all required secrets and creates the .env file.
+#   VIRTUAL ENVIRONMENT IS NOW MANDATORY – this script creates it if missing.
 #
 #   SAFETY FEATURES:
 #   - If .env already exists, the script will NOT modify it unless --force is used.
@@ -72,6 +73,37 @@ fi
 # -----------------------------------------------------------------------------
 ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
 ENV_EXAMPLE="$PROJECT_ROOT/deploy/docker/.env.example"
+VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
+export VENV_DIR
+
+# =============================================================================
+# VIRTUAL ENVIRONMENT IS MANDATORY – create it if missing
+# =============================================================================
+if [[ ! -d "$VENV_DIR" ]]; then
+    log_info "Virtual environment not found at $VENV_DIR – creating it..."
+    if ! python3 -c "import venv" 2>/dev/null; then
+        log_error "python3-venv not installed. Please install it:"
+        log_info "  Ubuntu/Debian: sudo apt install python3-venv"
+        log_info "  macOS: brew install python3"
+        exit 1
+    fi
+    python3 -m venv "$VENV_DIR"
+    log_success "Virtual environment created at $VENV_DIR"
+fi
+
+# Activate venv
+if [ ! -f "$VENV_DIR/bin/activate" ]; then
+    log_error "Virtual environment activation file not found at $VENV_DIR/bin/activate"
+    exit 1
+fi
+source "$VENV_DIR/bin/activate"
+log_success "Virtual environment activated"
+
+# Verify venv is active
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+    log_error "Virtual environment not active. Please activate it manually: source $VENV_DIR/bin/activate"
+    exit 1
+fi
 
 # -----------------------------------------------------------------------------
 # Check if .env already exists

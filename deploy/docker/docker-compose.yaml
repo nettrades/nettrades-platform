@@ -15,13 +15,18 @@
 #   - Traefik: Reverse proxy with automatic Let's Encrypt SSL
 #   - PostgreSQL 17 with pgvector: RAG embeddings & main database
 #   - Postgres Exporter: Prometheus metrics for PostgreSQL
-#   - Valkey 8: BSD-licensed in-memory store (sessions, ORM cache, bus)(replaces Redis for session storage, ORM cache, and bus notifications.)
+#   - Valkey 8: BSD-licensed in-memory store (sessions, ORM cache, bus)
 #   - Odoo 19 CE: ERP, Marketplace, and AI Hub
-#   - Odoo Proxy: HTTP JSON-RPC shim 
+#   - Odoo Proxy: HTTP JSON-RPC shim
 #   - Prometheus: Metrics collection
 #   - Grafana: Visualisation
 #   - Node Exporter: System metrics for Prometheus
-#
+#   - NVIDIA Dynamo: Primary GPU inference engine (vLLM + distributed serving)
+#   - llama.cpp: CPU fallback inference engine
+#   - Self-Improving Service: Continuous learning and fine-tuning
+#   - WireGuard: Admin VPN server
+#   - Redirector: Landing page redirector
+#   - gVisor: Container isolation runtime (security hardening)#
 # =============================================================================
 # -----------------------------------------------------------------------------
 # Networks
@@ -160,6 +165,8 @@ services:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.odoo
     container_name: odoo
+    # gVisor runtime for container isolation (security hardening)
+    runtime: "runsc"
     ports:
       - "8069:8069"
     volumes:
@@ -198,6 +205,9 @@ services:
         limits:
           memory: 4G
           cpus: '2'
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=unconfined
     logging:
       driver: json-file
       options:
@@ -252,6 +262,8 @@ services:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.langgraph
     container_name: langgraph-server
+    # gVisor runtime for container isolation (security hardening)
+    runtime: "runsc"
     restart: unless-stopped
     networks:
       - web
@@ -309,6 +321,9 @@ services:
       - postgres
       - valkey
       - odoo-proxy
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=unconfined
     logging:
       driver: json-file
       options:
@@ -349,6 +364,8 @@ services:
       - odoo-proxy
       - langgraph-server
     # No Traefik labels - served directly on port 3002
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -393,6 +410,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -425,6 +444,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -467,6 +488,8 @@ services:
     # - MODEL_PATH=/models/${MODEL_NAME:-Qwen2.5-1.5B-Instruct}
       - DYNAMO_LOG_LEVEL=info
     # Frontend command with file-based discovery (no etcd needed)
+    # For GPU-enabled Dynamo, use the default runtime (not gVisor)
+    # gVisor does not support GPU passthrough yet
     entrypoint: ["python3", "-m", "dynamo.frontend"]
     command:
       - "--http-port"
@@ -485,6 +508,8 @@ services:
         limits:
           memory: 2G   # Frontend is lightweight; adjust for production
           cpus: '2'
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -576,6 +601,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s  # Allow time for model loading
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -608,6 +635,8 @@ services:
       - traefik.enable=true
       - traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)
       - traefik.http.services.prometheus.loadbalancer.server.port=9090
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -640,6 +669,8 @@ services:
       - traefik.http.services.grafana.loadbalancer.server.port=3000
     depends_on:
       - prometheus
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:
@@ -730,6 +761,8 @@ services:
         condition: service_healthy
       odoo:
         condition: service_started
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:

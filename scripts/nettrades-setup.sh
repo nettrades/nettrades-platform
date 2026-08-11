@@ -31,6 +31,11 @@
 #   --reset-data        Wipe all containers and volumes (destroys data!)
 #   --with-finetune     Install fine-tuning packages (torch, unsloth, axolotl)
 #   --platform          Override platform detection (linux, macos, wsl)
+#
+# UPDATES (2026-08):
+#   - VIRTUAL ENVIRONMENT IS NOW MANDATORY – Phase 1 must create it.
+#   - All Python scripts now run inside the venv.
+#   - Added checks to ensure venv exists before any Python operations.
 # =============================================================================
 
 set -euo pipefail
@@ -68,6 +73,7 @@ export USE_UV
 
 # -----------------------------------------------------------------------------
 # Python virtual environment setup – exported for all phases
+# VIRTUAL ENVIRONMENT IS NOW MANDATORY.
 # -----------------------------------------------------------------------------
 VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
 export VENV_DIR
@@ -106,7 +112,7 @@ ${YELLOW}ENVIRONMENTS:${NC}
 
 ${YELLOW}PHASES:${NC}
     0  System Preparation & Hardening
-    1  Development Environment (with Python virtual environment)
+    1  Development Environment (with Python virtual environment) – MANDATORY
     2  Single-VM Deployment (with NVIDIA Dynamo + llama.cpp fallback)
     3  Kubernetes Scaling
     4  Module Installation
@@ -259,7 +265,7 @@ setup_dev_environment() {
     log_step "Setting up development environment..."
 
     # ============================================================
-    # Python virtual environment setup
+    # Python virtual environment setup – MANDATORY
     # ============================================================
 
     # Check if venv module is available
@@ -279,9 +285,23 @@ setup_dev_environment() {
         log_info "Virtual environment already exists at $VENV_DIR (use --force to recreate)"
     fi
 
-    # Activate virtual environment
+    # ============================================================
+    # ACTIVATE VIRTUAL ENVIRONMENT – MANDATORY
+    # ============================================================
+    if [ ! -f "$VENV_DIR/bin/activate" ]; then
+        log_error "Virtual environment activation file not found at $VENV_DIR/bin/activate"
+        exit 1
+    fi
+
     source "$VENV_DIR/bin/activate"
     log_success "Virtual environment activated"
+
+    # Verify venv is active
+    if [ -z "${VIRTUAL_ENV:-}" ]; then
+        log_error "Virtual environment not active. Please activate it manually: source $VENV_DIR/bin/activate"
+        exit 1
+    fi
+    log_success "Virtual environment active at $VIRTUAL_ENV"
 
     # Upgrade pip inside the venv
     log_step "Upgrading pip in virtual environment..."
@@ -382,9 +402,15 @@ setup_dev_environment() {
     fi
 
     # NOTE: apt-mark hold python3-jwt removed – virtual environment provides isolation
-
     # NOTE: Odoo module installation has been moved to Phase 2/4.
-    # Phase 1 only sets up the local development environment.
+
+    # ============================================================
+    # Verify venv is still active
+    # ============================================================
+    if [ -z "${VIRTUAL_ENV:-}" ]; then
+        log_error "Virtual environment was deactivated. Please re-activate it."
+        exit 1
+    fi
 
     mark_phase_complete 1
 }
