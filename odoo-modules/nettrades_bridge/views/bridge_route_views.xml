@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- =================================================================
+        TREE VIEW – Overview of all routes with status
+        ================================================================= -->
+        <record id="view_nettrades_bridge_route_tree" model="ir.ui.view">
+            <field name="name">nettrades.bridge.route.tree</field>
+            <field name="model">nettrades_bridge.route</field>
+            <field name="arch" type="xml">
+                <tree string="Bridge Routes"
+                      decoration-success="health_status=='healthy'"
+                      decoration-danger="health_status=='unhealthy'"
+                      decoration-warning="health_status=='unknown'">
+                    <field name="name"/>
+                    <field name="route_type" widget="badge"/>
+                    <field name="routing_mode" widget="badge"/>
+                    <field name="target_type" widget="badge"/>
+                    <field name="health_status" widget="badge"/>
+                    <field name="is_active" widget="boolean_toggle"/>
+                    <field name="priority"/>
+                    <field name="load_balancing_strategy"/>
+                    <field name="last_health_check"/>
+                </tree>
+            </field>
+        </record>
+
+        <!-- =================================================================
+        FORM VIEW – Full configuration with all routing options
+        ================================================================= -->
+        <record id="view_nettrades_bridge_route_form" model="ir.ui.view">
+            <field name="name">nettrades.bridge.route.form</field>
+            <field name="model">nettrades_bridge.route</field>
+            <field name="arch" type="xml">
+                <form string="Bridge Route">
+                    <header>
+                        <button name="check_health" string="Check Health" type="object" class="btn-primary"/>
+                        <field name="health_status" widget="badge"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" placeholder="Route Name..."/>
+                            </h1>
+                            <field name="description" placeholder="Description"/>
+                        </div>
+
+                        <!-- ─── Basic Settings ─── -->
+                        <group>
+                            <group>
+                                <field name="route_type"/>
+                                <field name="routing_mode"/>
+                                <field name="is_active"/>
+                                <field name="priority"/>
+                            </group>
+                            <group>
+                                <field name="target_type"/>
+                                <field name="target_node"/>
+                                <field name="target_url" placeholder="http://dynamo:8000/v1"/>
+                                <field name="api_key" password="True" groups="base.group_system"/>
+                            </group>
+                        </group>
+
+                        <!-- ─── Notebook ─── -->
+                        <notebook>
+
+                            <!-- ==============================================
+                            PAGE 1: ROUTING RULES (OLD LOGIC – Admin Config)
+                            ============================================== -->
+                            <page string="Routing Rules">
+                                <group string="Local Infrastructure">
+                                    <group>
+                                        <field name="use_local_dynamo"/>
+                                        <field name="use_local_llama"/>
+                                    </group>
+                                </group>
+
+                                <group string="Remote Providers">
+                                    <group>
+                                        <field name="use_gpu_marketplace"/>
+                                        <field name="use_external_api"/>
+                                    </group>
+                                </group>
+
+                                <group string="GPU Marketplace Settings"
+                                       attrs="{'invisible': [('use_gpu_marketplace', '=', False)]}">
+                                    <group>
+                                        <field name="marketplace_min_rating"/>
+                                        <field name="marketplace_max_price"/>
+                                    </group>
+                                    <group>
+                                        <field name="marketplace_preferred_nodes"/>
+                                    </group>
+                                </group>
+
+                                <group string="External API Settings"
+                                       attrs="{'invisible': [('use_external_api', '=', False)]}">
+                                    <group>
+                                        <field name="external_provider"/>
+                                        <field name="external_model"/>
+                                    </group>
+                                    <group>
+                                        <field name="external_api_url"
+                                               attrs="{'invisible': [('external_provider', '!=', 'custom')]}"/>
+                                        <field name="external_api_key" password="True"/>
+                                    </group>
+                                </group>
+
+                                <group string="Request Type Routing">
+                                    <group>
+                                        <field name="inference_routing"/>
+                                        <field name="training_routing"/>
+                                    </group>
+                                    <group>
+                                        <field name="fine_tuning_routing"/>
+                                        <field name="embedding_routing"/>
+                                    </group>
+                                </group>
+
+                                <group string="Routing Conditions">
+                                    <group>
+                                        <field name="route_by_request_type"/>
+                                        <field name="route_by_priority"/>
+                                    </group>
+                                    <group>
+                                        <field name="route_by_cost"/>
+                                    </group>
+                                </group>
+
+                                <group string="Cost Settings"
+                                       attrs="{'invisible': [('route_by_cost', '=', False)]}">
+                                    <group>
+                                        <field name="local_cost_per_token"/>
+                                        <field name="remote_cost_per_token"/>
+                                    </group>
+                                </group>
+
+                                <group string="Fallback">
+                                    <group>
+                                        <field name="fallback_enabled"/>
+                                        <field name="fallback_target_url"/>
+                                    </group>
+                                    <group>
+                                        <field name="fallback_target_type"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                            <!-- ==============================================
+                            PAGE 2: LOAD BALANCING (NEW LOGIC – Dynamo)
+                            ============================================== -->
+                            <page string="Load Balancing">
+                                <group>
+                                    <group>
+                                        <field name="load_balancing_enabled"/>
+                                        <field name="load_balancing_strategy"
+                                               attrs="{'invisible': [('load_balancing_enabled', '=', False)]}"/>
+                                    </group>
+                                    <group>
+                                        <field name="weight"
+                                               attrs="{'invisible': [('load_balancing_strategy', '!=', 'weighted')]}"/>
+                                    </group>
+                                </group>
+                                <group string="GPU Requirements">
+                                    <group>
+                                        <field name="min_gpu_memory"/>
+                                        <field name="min_compute_capability"/>
+                                    </group>
+                                    <group>
+                                        <field name="required_gpu_count"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                            <!-- ==============================================
+                            PAGE 3: HEALTH CHECK
+                            ============================================== -->
+                            <page string="Health Check">
+                                <group>
+                                    <group>
+                                        <field name="health_check_enabled"/>
+                                        <field name="health_check_endpoint"/>
+                                    </group>
+                                    <group>
+                                        <field name="health_check_interval"/>
+                                        <field name="health_check_timeout"/>
+                                    </group>
+                                </group>
+                                <group string="Health Status">
+                                    <field name="last_health_check"/>
+                                    <field name="health_status" widget="badge"/>
+                                </group>
+                            </page>
+
+                            <!-- ==============================================
+                            PAGE 4: CONFIGURATION (JSON)
+                            ============================================== -->
+                            <page string="Configuration">
+                                <field name="config"/>
+                            </page>
+
+                            <!-- ==============================================
+                            PAGE 5: TIMESTAMPS
+                            ============================================== -->
+                            <page string="History">
+                                <group>
+                                    <group>
+                                        <field name="created_at"/>
+                                    </group>
+                                    <group>
+                                        <field name="updated_at"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- =================================================================
+        SEARCH VIEW
+        ================================================================= -->
+        <record id="view_nettrades_bridge_route_search" model="ir.ui.view">
+            <field name="name">nettrades.bridge.route.search</field>
+            <field name="model">nettrades_bridge.route</field>
+            <field name="arch" type="xml">
+                <search string="Search Routes">
+                    <field name="name"/>
+                    <field name="target_node"/>
+                    <filter name="active" string="Active" domain="[('is_active','=',True)]"/>
+                    <filter name="healthy" string="Healthy" domain="[('health_status','=','healthy')]"/>
+                    <filter name="dynamo" string="Dynamo" domain="[('target_type','=','dynamo')]"/>
+                    <filter name="local_only" string="Local Only" domain="[('routing_mode','=','local_only')]"/>
+                    <filter name="remote_only" string="Remote Only" domain="[('routing_mode','=','remote_only')]"/>
+                    <separator/>
+                    <filter name="marketplace" string="GPU Marketplace" domain="[('use_gpu_marketplace','=',True)]"/>
+                    <filter name="external_api" string="External API" domain="[('use_external_api','=',True)]"/>
+                    <group expand="0" string="Group By">
+                        <filter name="group_by_type" string="Type" context="{'group_by':'route_type'}"/>
+                        <filter name="group_by_status" string="Health" context="{'group_by':'health_status'}"/>
+                        <filter name="group_by_target" string="Target" context="{'group_by':'target_type'}"/>
+                        <filter name="group_by_routing" string="Routing Mode" context="{'group_by':'routing_mode'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- =================================================================
+        ACTION
+        ================================================================= -->
+        <record id="action_nettrades_bridge_route" model="ir.actions.act_window">
+            <field name="name">Bridge Routes</field>
+            <field name="res_model">nettrades_bridge.route</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p><strong>NETTRADES Sovereign AI Router</strong></p>
+                <p>Manage bridge routes for AI inference, training, and fine-tuning.</p>
+                <p><strong>Routing Modes:</strong></p>
+                <ul>
+                    <li><strong>Local Only:</strong> All requests stay on local infrastructure</li>
+                    <li><strong>Remote Only:</strong> All requests go to external providers</li>
+                    <li><strong>Hybrid (Local First):</strong> Try local, fallback to remote</li>
+                    <li><strong>Hybrid (Remote First):</strong> Try remote, fallback to local</li>
+                    <li><strong>Auto:</strong> AI agent decides based on context</li>
+                </ul>
+                <p><strong>Target Types:</strong></p>
+                <ul>
+                    <li><strong>Dynamo:</strong> NVIDIA Dynamo (GPU-accelerated, distributed)</li>
+                    <li><strong>llama.cpp:</strong> CPU fallback inference</li>
+                    <li><strong>Marketplace:</strong> GPU Marketplace (remote GPUs)</li>
+                    <li><strong>OpenAI/Anthropic:</strong> External API providers</li>
+                </ul>
+            </field>
+        </record>
+
+        <!-- =================================================================
+        MENU ITEM
+        ================================================================= -->
+        <menuitem id="menu_nettrades_bridge_route"
+                  name="Bridge Routes"
+                  parent="menu_nettrades_bridge"
+                  action="action_nettrades_bridge_route"
+                  sequence="10"/>
+
+    </data>
+</odoo>
