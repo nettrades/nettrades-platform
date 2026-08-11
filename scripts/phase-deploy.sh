@@ -40,6 +40,7 @@
 #   - Added domain auto‑detection and Let's Encrypt conditional logic.
 #   - Added fallback creation of nginx.conf.template for redirector.
 #   - Added self-improving environment variables and container startup.
+#   - FIXED: Virtual environment is now MANDATORY – script fails if not found.
 # =============================================================================
 
 set -euo pipefail
@@ -68,15 +69,16 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
 # Ensure VENV_DIR is available and activate the virtual environment
-# This ensures that any Python commands (e.g., bcrypt) use the venv's Python
-# and installed packages, not the system Python.
+# VIRTUAL ENVIRONMENT IS NOW MANDATORY – fail if not found
 # -----------------------------------------------------------------------------
 VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
 if [ -f "$VENV_DIR/bin/activate" ]; then
     source "$VENV_DIR/bin/activate"
     log_info "Activated Python virtual environment: $VENV_DIR"
 else
-    log_warning "Virtual environment not found at $VENV_DIR – using system Python."
+    log_error "Virtual environment not found at $VENV_DIR"
+    log_info "Please run Phase 1 first: ./scripts/nettrades-setup.sh dev"
+    exit 1
 fi
 
 # -----------------------------------------------------------------------------

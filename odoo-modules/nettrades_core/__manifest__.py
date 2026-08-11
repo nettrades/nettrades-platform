@@ -29,6 +29,8 @@
         'views/menu_views.xml',
 
         # Views
+        'views/hr_job_views.xml',
+        'views/res_partner_views.xml',
         'views/nettrades_user_views.xml',
         'views/nettrades_company_views.xml',
         'views/nettrades_project_views.xml',

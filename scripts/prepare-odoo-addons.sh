@@ -15,6 +15,7 @@
 #   NEW: With --force, it always copies fresh modules (overwrites existing).
 #   NEW: Validates that all view files referenced in module manifests exist,
 #        and creates placeholder files if they are missing (with a warning).
+#   FIXED: Validates PROJECT_ROOT to prevent duplicate path issues.
 # =============================================================================
 
 set -euo pipefail
@@ -39,6 +40,19 @@ log_step() { echo -e "${BLUE}▶${NC} $1"; }
 # -----------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# =============================================================================
+# CRITICAL FIX: Validate PROJECT_ROOT to prevent duplicate path issues
+# =============================================================================
+if [[ ! -d "$PROJECT_ROOT/scripts" ]]; then
+    log_error "PROJECT_ROOT is incorrect: $PROJECT_ROOT"
+    log_error "Expected to find scripts/ directory at $PROJECT_ROOT/scripts"
+    log_error "This usually happens when the script is run from the wrong directory."
+    log_error "Please run this script from the project root or use absolute paths."
+    exit 1
+fi
+log_success "PROJECT_ROOT validated: $PROJECT_ROOT"
+
 ODOO_MODULES="$PROJECT_ROOT/odoo-modules"
 THIRD_PARTY="$PROJECT_ROOT/third-party"
 ODOO_REPO="$THIRD_PARTY/odoo"
@@ -66,7 +80,7 @@ if [[ ! -d "$ODOO_REPO" ]] || [[ -z "$(ls -A "$ODOO_REPO" 2>/dev/null)" ]]; then
 
     # Create third-party directory if it doesn't exist
     mkdir -p "$THIRD_PARTY"
-    
+
     # Clone Odoo (shallow clone to save time and bandwidth)
     if git clone --depth 1 --branch 19.0 https://github.com/odoo/odoo.git "$ODOO_REPO"; then
         log_success "Odoo repository cloned successfully"
@@ -139,7 +153,7 @@ for manifest in "$TARGET"/*/__manifest__.py; do
     if [[ -f "$manifest" ]]; then
         module_dir="$(dirname "$manifest")"
         module_name="$(basename "$module_dir")"
-        
+
         # Extract data files from manifest (simple grep for 'views/*.xml')
         # This is a best-effort approach – Odoo's manifest can be more complex,
         # but this catches the common case.
@@ -151,10 +165,10 @@ for manifest in "$TARGET"/*/__manifest__.py; do
                 if [[ ! -f "$full_path" ]]; then
                     log_warning "  - Missing view file: $view_file in module $module_name"
                     log_info "    Creating placeholder file to prevent Odoo failure..."
-                    
+
                     # Create the directory if it doesn't exist
                     mkdir -p "$(dirname "$full_path")"
-                    
+
                     # Create a minimal placeholder XML file
                     cat > "$full_path" << EOF
 <?xml version="1.0" encoding="utf-8"?>
