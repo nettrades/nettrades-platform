@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ======================================================================
+    NETTRADES Project Views
+    ======================================================================
+    Defines views for the nettrades.project model, used for tracking
+    projects that are part of the platform's marketplace or internal work.
+    -->
+
+    <!-- List View -->
+    <record id="view_nettrades_project_list" model="ir.ui.view">
+        <field name="name">nettrades.project.list</field>
+        <field name="model">nettrades.project</field>
+        <field name="arch" type="xml">
+            <list string="Projects">
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="status"/>
+                <field name="budget"/>
+                <field name="create_date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_nettrades_project_form" model="ir.ui.view">
+        <field name="name">nettrades.project.form</field>
+        <field name="model">nettrades.project</field>
+        <field name="arch" type="xml">
+            <form string="Project">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="company_id"/>
+                            <field name="status"/>
+                            <field name="budget"/>
+                            <field name="required_skills" widget="many2many_tags"/>
+                        </group>
+                        <group>
+                            <field name="description"/>
+                            <field name="create_date"/>
+                            <field name="write_date"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_nettrades_project_search" model="ir.ui.view">
+        <field name="name">nettrades.project.search</field>
+        <field name="model">nettrades.project</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="company_id"/>
+                <field name="status"/>
+                <filter name="active" string="Active" domain="[('status','!=','closed')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_status" string="Status" context="{'group_by':'status'}"/>
+                    <filter name="group_company" string="Company" context="{'group_by':'company_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_nettrades_projects" model="ir.actions.act_window">
+        <field name="name">Projects</field>
+        <field name="res_model">nettrades.project</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Manage projects for the NETTRADES platform.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_nettrades_projects"
+              name="Projects"
+              parent="nettrades_core.menu_nettrades_root"
+              action="action_nettrades_projects"
+              sequence="30"/>
+</odoo>

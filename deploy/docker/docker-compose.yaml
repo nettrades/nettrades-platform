@@ -23,9 +23,6 @@
 #   - Node Exporter: System metrics for Prometheus
 #
 # =============================================================================
-
-version: '3.8'
-
 # -----------------------------------------------------------------------------
 # Networks
 # -----------------------------------------------------------------------------
@@ -76,8 +73,9 @@ services:
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --entrypoints.websecure.http.tls=true
       - --accesslog
-      - --api.insecure=true        #   REMOVE IN PRODUCTION
-      - --log.level=DEBUG          #   REMOVE IN PRODUCTION
+   #   - --api.insecure=true        #   REMOVE IN PRODUCTION
+   #   - --log.level=DEBUG          #   REMOVE IN PRODUCTION
+      - "--log.level=INFO"
     ports:
       - "80:80"
       - "443:443"
@@ -358,17 +356,15 @@ services:
         max-file: 3
 
   # =========================================================================
-  # REDIRECTOR – Handles root path (/) with configurable landing page
+  # 8. REDIRECTOR
   # =========================================================================
   redirector:
     image: nginx:alpine
     container_name: redirector
     restart: unless-stopped
-#    ports:
-#      - "80:80"
     volumes:
-      - ./redirector/nginx.conf.template:/etc/nginx/nginx.conf.template:ro   # mount template
-      - ./redirector/landing-page:/usr/share/nginx/html:ro                   # for custom landing
+      - ./redirector/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./redirector/landing-page:/usr/share/nginx/html:ro
     environment:
       - DOMAIN=${DOMAIN}
       - DEFAULT_LANDING_PAGE=${DEFAULT_LANDING_PAGE:-odoo}
@@ -687,7 +683,7 @@ services:
     container_name: wireguard
     cap_add:
       - NET_ADMIN
-      - SYS_MODULE
+      # - SYS_MODULE
     environment:
       - PUID=1000
       - PGID=1000

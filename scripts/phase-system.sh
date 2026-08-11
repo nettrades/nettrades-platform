@@ -17,6 +17,7 @@
 #   - Ensuring port 80 is open for Let's Encrypt
 #   - Multi-vendor GPU driver support (NVIDIA, AMD, Intel)
 #   - Installing python3-venv for virtual environment creation
+#   - Installing xdg-utils for the Electron launcher to open URLs
 #
 #   It is idempotent and safe to re-run.
 #
@@ -799,18 +800,19 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 15. Install dos2unix and jq
+# 15. Install dos2unix, jq, and xdg-utils (for the Electron launcher)
 # -----------------------------------------------------------------------------
-log_step "Installing dos2unix and jq..."
-if command -v dos2unix &>/dev/null && command -v jq &>/dev/null; then
-    log_success "dos2unix and jq already installed"
+log_step "Installing dos2unix, jq, and xdg-utils..."
+if command -v dos2unix &>/dev/null && command -v jq &>/dev/null && command -v xdg-open &>/dev/null; then
+    log_success "dos2unix, jq, and xdg-utils already installed"
 else
     if [[ "$OS" == "linux" ]]; then
         sudo apt-get update -qq
-        sudo apt-get install -y dos2unix curl wget git jq
-        log_success "dos2unix and jq installed"
+        sudo apt-get install -y dos2unix curl wget git jq xdg-utils
+        log_success "dos2unix, jq, and xdg-utils installed"
     else
-        log_warning "Please install dos2unix and jq manually for $OS"
+        log_warning "Please install dos2unix, jq, and xdg-utils manually for $OS"
+        log_info "  xdg-utils is required for the Electron launcher to open URLs."
     fi
 fi
 

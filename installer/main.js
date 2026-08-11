@@ -36,13 +36,14 @@ let installProcess = null;
 let downloadProcess = null;
 let logFile = null;
 
-// Determine project root – CRITICAL FIX for packaged app
-// When running from source (npm start), use __dirname/../..
+// Determine project root – CRITICAL FIX for packaged app and development
+// When running from source (npm start), __dirname is /path/to/repo/installer
+// So PROJECT_ROOT should be one level up: /path/to/repo
 // When packaged, resources are in process.resourcesPath
 const isPackaged = app.isPackaged;
 const PROJECT_ROOT = isPackaged
     ? process.resourcesPath
-    : path.join(__dirname, '..', '..');
+    : path.join(__dirname, '..');   // FIXED: was '../..' which pointed to wrong location
 
 // Models directory (where llama.cpp and Dynamo look for models)
 const MODELS_DIR = path.join(PROJECT_ROOT, 'deploy', 'docker', 'dynamo-data', 'models');
@@ -789,11 +790,15 @@ ipcMain.handle('restore-backup', async (event, backupPath) => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Open URLs (with dynamic server detection)
+// Open URLs (with dynamic server detection and error handling)
 // ──────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('open-url', (event, url) => {
-    shell.openExternal(url);
+    shell.openExternal(url).catch((err) => {
+        logError(`Failed to open URL ${url}: ${err.message}`);
+        // Send error back to renderer
+        event.sender.send('open-error', { url, error: err.message });
+    });
 });
 
 ipcMain.handle('open-service', (event, service) => {
@@ -808,7 +813,12 @@ ipcMain.handle('open-service', (event, service) => {
     };
     const port = ports[service] || '';
     const url = `${serverUrl}${port}`;
-    shell.openExternal(url);
+    
+    shell.openExternal(url).catch((err) => {
+        logError(`Failed to open service ${service} at ${url}: ${err.message}`);
+        // Send error back to renderer for user feedback
+        event.sender.send('open-error', { service, url, error: err.message });
+    });
     return { url };
 });
 

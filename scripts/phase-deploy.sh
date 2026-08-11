@@ -949,38 +949,51 @@ EOF
 log_success "Grafana datasource provisioning created"
 
 # Generate Prometheus web.yml with basic auth (using the password from .env)
+
 log_step "Generating Prometheus web.yml with basic auth..."
 WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
 WEB_CONFIG_FILE="$WEB_CONFIG_DIR/web.yml"
 PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
 
-# If it's a directory, remove it first
 if [[ -d "$WEB_CONFIG_FILE" ]]; then
-    log_warning "$WEB_CONFIG_FILE is a directory. Removing it."
     rm -rf "$WEB_CONFIG_FILE"
 fi
 
-if [[ -f "$WEB_CONFIG_FILE" ]]; then
-    BACKUP_WEB="${WEB_CONFIG_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
-    cp "$WEB_CONFIG_FILE" "$BACKUP_WEB"
-    log_info "Backed up existing web.yml to $BACKUP_WEB"
+mkdir -p "$WEB_CONFIG_DIR"
+
+# Ensure bcrypt is available in the current environment (venv)
+if command -v python3 &>/dev/null; then
+    # Install bcrypt if missing (use venv if available)
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        pip install bcrypt 2>/dev/null || true
+    else
+        python3 -m pip install bcrypt 2>/dev/null || true
+    fi
 fi
 
-mkdir -p "$WEB_CONFIG_DIR"
-if command -v python3 &>/dev/null && python3 -c "import bcrypt" 2>/dev/null; then
+# Generate hash using Python (with fallback)
+HASH=""
+if python3 -c "import bcrypt" 2>/dev/null; then
     HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PROMETHEUS_PASSWORD'.encode(), bcrypt.gensalt()).decode())")
-    cat > "$WEB_CONFIG_FILE" << EOF
+else
+    log_warning "bcrypt not available – using plain-text password (INSECURE)."
+    HASH="$PROMETHEUS_PASSWORD"
+fi
+
+cat > "$WEB_CONFIG_FILE" << EOF
 basic_auth_users:
     admin: '$HASH'
 EOF
-    log_success "Prometheus web.yml generated with bcrypt hash"
-else
+
+if [[ "$HASH" == "$PROMETHEUS_PASSWORD" ]]; then
     log_warning "bcrypt not available in Python – using plain-text password (INSECURE)."
     cat > "$WEB_CONFIG_FILE" << EOF
 # WARNING: No bcrypt – basic auth uses plain text!
 basic_auth_users:
     admin: '$PROMETHEUS_PASSWORD'
 EOF
+else
+    log_success "Prometheus web.yml generated with bcrypt hash"
 fi
 
 # Determine if we should remove the Dynamo volume (only if --reset-data)
