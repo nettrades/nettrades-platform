@@ -1,388 +1,1625 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NetTrades Launcher</title>
-    <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NETTRADES Launcher</title>
+    <style>
+        /* =========================================================================
+           NETTRADES Launcher – Modern Steam-like UI
+           Dark theme with gaming aesthetics, smooth animations, and professional layout
+           ========================================================================= */
+        
+        /* ─── Reset & Base ─── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0a0a0f;
+            color: #e8e8e8;
+            overflow: hidden;
+            height: 100vh;
+            user-select: none;
+        }
+
+        /* ─── Scrollbar Styling ─── */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a2a3a;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3a3a4a;
+        }
+
+        /* ─── App Container ─── */
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0a0f 0%, #14141e 100%);
+        }
+
+        /* ─── Title Bar ─── */
+        .title-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            flex-shrink: 0;
+            -webkit-app-region: drag;
+            height: 40px;
+        }
+
+        .title-bar .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            -webkit-app-region: no-drag;
+        }
+
+        .title-bar .logo img {
+            height: 24px;
+            width: auto;
+        }
+
+        .title-bar .logo span {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .title-bar .logo .version {
+            font-size: 11px;
+            color: #6a6a7a;
+            font-weight: 400;
+        }
+
+        .title-bar .window-controls {
+            display: flex;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+
+        .title-bar .window-controls button {
+            width: 12px;
+            height: 12px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            padding: 0;
+        }
+
+        .title-bar .window-controls button:hover {
+            opacity: 0.8;
+        }
+
+        .title-bar .window-controls .btn-close {
+            background: #ff5f57;
+        }
+        .title-bar .window-controls .btn-minimize {
+            background: #ffbd2e;
+        }
+        .title-bar .window-controls .btn-maximize {
+            background: #28c840;
+        }
+
+        /* ─── Main Layout ─── */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            width: 220px;
+            background: rgba(20, 20, 30, 0.8);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 16px 0;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+
+        .sidebar .nav-section {
+            margin-bottom: 8px;
+        }
+
+        .sidebar .nav-section .section-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #6a6a7a;
+            padding: 8px 20px 4px;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .sidebar .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #b0b0c0;
+            font-size: 13px;
+            border-left: 2px solid transparent;
+        }
+
+        .sidebar .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .sidebar .nav-item.active {
+            background: rgba(64, 128, 255, 0.1);
+            color: #4a8aff;
+            border-left-color: #4a8aff;
+        }
+
+        .sidebar .nav-item .icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .sidebar .nav-item .badge {
+            margin-left: auto;
+            font-size: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+            color: #8a8a9a;
+        }
+
+        .sidebar .nav-item .badge.active-badge {
+            background: #28c840;
+            color: #fff;
+        }
+
+        /* ─── Content Area ─── */
+        .content {
+            flex: 1;
+            padding: 24px 32px;
+            overflow-y: auto;
+            background: rgba(10, 10, 15, 0.5);
+        }
+
+        /* ─── Dashboard ─── */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+
+        .dashboard-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #4a8aff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .dashboard-header .subtitle {
+            font-size: 14px;
+            color: #8a8a9a;
+            margin-top: 4px;
+            -webkit-text-fill-color: #8a8a9a;
+        }
+
+        .dashboard-header .actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* ─── Buttons ─── */
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4a8aff, #6a5aff);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(74, 138, 255, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: #c0c0d0;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28c840, #20a030);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff5f57, #e04040);
+            color: #fff;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #b0b0c0;
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* ─── Status Cards ─── */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px 20px;
+            transition: all 0.3s;
+        }
+
+        .status-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .status-card .label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #6a6a7a;
+            letter-spacing: 0.5px;
+        }
+
+        .status-card .value {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .status-card .value .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-card .value .status-dot.online {
+            background: #28c840;
+        }
+        .status-card .value .status-dot.offline {
+            background: #ff5f57;
+        }
+        .status-card .value .status-dot.warning {
+            background: #ffbd2e;
+        }
+
+        /* ─── GPU List ─── */
+        .gpu-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .gpu-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px 20px;
+            transition: all 0.3s;
+        }
+
+        .gpu-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .gpu-card .gpu-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .gpu-card .gpu-details {
+            font-size: 13px;
+            color: #8a8a9a;
+            margin-top: 4px;
+        }
+
+        .gpu-card .gpu-status {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .gpu-card .gpu-status.available {
+            background: rgba(40, 200, 64, 0.2);
+            color: #28c840;
+        }
+
+        .gpu-card .gpu-status.in-use {
+            background: rgba(255, 189, 46, 0.2);
+            color: #ffbd2e;
+        }
+
+        .gpu-card .gpu-status.offline {
+            background: rgba(255, 95, 87, 0.2);
+            color: #ff5f57;
+        }
+
+        /* ─── Model List ─── */
+        .model-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .model-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .model-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .model-card .model-info .model-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .model-card .model-info .model-size {
+            font-size: 12px;
+            color: #6a6a7a;
+        }
+
+        .model-card .model-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .model-card .model-actions button {
+            background: none;
+            border: none;
+            color: #6a6a7a;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .model-card .model-actions button:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .model-card .model-actions button.delete:hover {
+            color: #ff5f57;
+        }
+
+        /* ─── Nodes List ─── */
+        .nodes-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .node-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 14px 16px;
+            transition: all 0.3s;
+        }
+
+        .node-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .node-card .node-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .node-card .node-address {
+            font-size: 12px;
+            color: #6a6a7a;
+        }
+
+        .node-card .node-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .node-card .node-status.online {
+            background: #28c840;
+        }
+
+        .node-card .node-status.offline {
+            background: #6a6a7a;
+        }
+
+        /* ─── Deployment Log ─── */
+        .log-container {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+
+        .log-container .log-line {
+            padding: 2px 0;
+            color: #8a8a9a;
+            line-height: 1.5;
+        }
+
+        .log-container .log-line.success {
+            color: #28c840;
+        }
+
+        .log-container .log-line.error {
+            color: #ff5f57;
+        }
+
+        .log-container .log-line.warning {
+            color: #ffbd2e;
+        }
+
+        .log-container .log-line.info {
+            color: #4a8aff;
+        }
+
+        /* ─── Progress Bar ─── */
+        .progress-container {
+            margin-top: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            overflow: hidden;
+            height: 6px;
+        }
+
+        .progress-container .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4a8aff, #6a5aff);
+            border-radius: 8px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* ─── Tabs ─── */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            margin-bottom: 20px;
+        }
+
+        .tab-bar .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: #6a6a7a;
+            font-size: 13px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-bar .tab:hover {
+            color: #b0b0c0;
+        }
+
+        .tab-bar .tab.active {
+            color: #fff;
+            border-bottom-color: #4a8aff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+            }
+            .sidebar .nav-item span:not(.icon) {
+                display: none;
+            }
+            .sidebar .nav-item .badge {
+                display: none;
+            }
+            .sidebar .nav-section .section-title {
+                display: none;
+            }
+            .content {
+                padding: 16px;
+            }
+            .dashboard-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .status-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .gpu-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ─── Animations ─── */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* ─── Loading Spinner ─── */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #4a8aff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ─── Empty States ─── */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6a6a7a;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            color: #b0b0c0;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        /* ─── Section Headers ─── */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .section-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .section-header .count {
+            font-size: 13px;
+            color: #6a6a7a;
+        }
+
+        /* ─── Toast Notifications ─── */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: 10px;
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e8e8e8;
+            font-size: 13px;
+            max-width: 400px;
+            animation: fadeIn 0.3s ease forwards;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.success {
+            border-color: rgba(40, 200, 64, 0.3);
+        }
+
+        .toast.error {
+            border-color: rgba(255, 95, 87, 0.3);
+        }
+
+        .toast.warning {
+            border-color: rgba(255, 189, 46, 0.3);
+        }
+    </style>
 </head>
 <body>
-
-    <!-- ======================================================================
-    APP CONTAINER
-    ====================================================================== -->
     <div id="app">
-
-        <!-- ======================================================================
-        SIDEBAR
-        ====================================================================== -->
-        <aside id="sidebar">
+        <!-- Title Bar -->
+        <div class="title-bar">
             <div class="logo">
-                <h1>🚀 NetTrades</h1>
+                <img src="build/icon.png" alt="NETTRADES" />
+                <span>NETTRADES</span>
+                <span class="version">v1.0.0</span>
             </div>
+            <div class="window-controls">
+                <button class="btn-minimize" onclick="window.electron.minimize()"></button>
+                <button class="btn-maximize" onclick="window.electron.maximize()"></button>
+                <button class="btn-close" onclick="window.electron.close()"></button>
+            </div>
+        </div>
 
-            <nav>
-                <ul class="nav-menu">
-                    <li class="nav-item active" data-tab="dashboard">
-                        <span class="nav-icon">🏠</span>
-                        <span class="nav-label">Dashboard</span>
-                    </li>
-                    <li class="nav-item" data-tab="installer">
-                        <span class="nav-icon">🚀</span>
-                        <span class="nav-label">Installer</span>
-                    </li>
-                    <li class="nav-item" data-tab="models">
-                        <span class="nav-icon">🧠</span>
-                        <span class="nav-label">Models</span>
-                    </li>
-                    <li class="nav-item" data-tab="backup">
-                        <span class="nav-icon">💾</span>
-                        <span class="nav-label">Backup &amp; Restore</span>
-                    </li>
-                    <li class="nav-item" data-tab="logs">
-                        <span class="nav-icon">📺</span>
-                        <span class="nav-label">Logs</span>
-                    </li>
-                    <li class="nav-item" data-tab="settings">
-                        <span class="nav-icon">⚙️</span>
-                        <span class="nav-label">Settings</span>
-                    </li>
-                    <li class="nav-item" data-tab="vpn">
-                        <span class="nav-icon">🔒</span>
-                        <span class="nav-label">VPN</span>
-                    </li>
-                </ul>
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <nav class="sidebar">
+                <div class="nav-section">
+                    <div class="section-title">Main</div>
+                    <div class="nav-item active" data-tab="dashboard">
+                        <span class="icon">🏠</span>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="nav-item" data-tab="deploy">
+                        <span class="icon">🚀</span>
+                        <span>Deploy</span>
+                        <span class="badge" id="deploy-badge"></span>
+                    </div>
+                    <div class="nav-item" data-tab="gpus">
+                        <span class="icon">🎮</span>
+                        <span>GPUs</span>
+                        <span class="badge" id="gpu-count">0</span>
+                    </div>
+                    <div class="nav-item" data-tab="models">
+                        <span class="icon">🧠</span>
+                        <span>Models</span>
+                        <span class="badge" id="model-count">0</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="section-title">Network</div>
+                    <div class="nav-item" data-tab="nodes">
+                        <span class="icon">🌐</span>
+                        <span>Nodes</span>
+                        <span class="badge" id="node-count">0</span>
+                    </div>
+                    <div class="nav-item" data-tab="wireguard">
+                        <span class="icon">🔒</span>
+                        <span>WireGuard</span>
+                        <span class="badge" id="wg-status"></span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="section-title">Apps</div>
+                    <div class="nav-item" data-app="odoo">
+                        <span class="icon">📊</span>
+                        <span>Odoo</span>
+                    </div>
+                    <div class="nav-item" data-app="ui">
+                        <span class="icon">💬</span>
+                        <span>AI Chat</span>
+                    </div>
+                    <div class="nav-item" data-app="grafana">
+                        <span class="icon">📈</span>
+                        <span>Grafana</span>
+                    </div>
+                    <div class="nav-item" data-app="llama">
+                        <span class="icon">🦙</span>
+                        <span>llama.cpp</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="section-title">Settings</div>
+                    <div class="nav-item" data-tab="settings">
+                        <span class="icon">⚙️</span>
+                        <span>Settings</span>
+                    </div>
+                    <div class="nav-item" data-tab="about">
+                        <span class="icon">ℹ️</span>
+                        <span>About</span>
+                    </div>
+                </div>
             </nav>
 
-            <div class="nav-footer">
-                <span id="version">v1.0.0</span>
-                <span id="platform-info">linux (x64)</span>
-            </div>
-        </aside>
-
-        <!-- ======================================================================
-        MAIN CONTENT
-        ====================================================================== -->
-        <main id="main-content">
-
-            <!-- ──────────────────────────────────────────────────────────────
-            TAB: Dashboard
-            ────────────────────────────────────────────────────────────── -->
-            <section id="tab-dashboard" class="tab-content active">
-                <div class="tab-header">
-                    <h2>📊 Dashboard</h2>
-                    <span id="status-badge" class="status-badge status-unknown">⏳ Checking...</span>
-                </div>
-
-                <div class="dashboard-grid">
-                    <!-- Platform Status Card -->
-                    <div class="dashboard-card">
-                        <h3>🖥️ Platform Status</h3>
-                        <div class="status-row">
-                            <span>Status:</span>
-                            <span id="status-text">Checking...</span>
+            <!-- Content -->
+            <div class="content">
+                <!-- Dashboard Tab -->
+                <div id="tab-dashboard" class="tab-content active">
+                    <div class="dashboard-header fade-in">
+                        <div>
+                            <h1>NETTRADES Platform</h1>
+                            <div class="subtitle">Your Sovereign AI Control Centre</div>
                         </div>
-                        <div class="status-row">
-                            <span>Uptime:</span>
-                            <span id="uptime-text">--</span>
-                        </div>
-                        <div class="status-row">
-                            <span>Version:</span>
-                            <span id="version-text">--</span>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn btn-success" id="btn-start-platform">▶ Start</button>
-                            <button class="btn btn-danger" id="btn-stop-platform">⏹ Stop</button>
-                            <button class="btn btn-secondary" id="btn-restart-platform">🔄 Restart</button>
+                        <div class="actions">
+                            <button class="btn btn-secondary" onclick="refreshAll()">🔄 Refresh</button>
+                            <button class="btn btn-primary" onclick="openApp('odoo')">Open Odoo</button>
                         </div>
                     </div>
 
-                    <!-- Quick Stats Card -->
-                    <div class="dashboard-card">
-                        <h3>📊 Quick Stats</h3>
-                        <div class="stat-row">
-                            <span>💾 Backups:</span>
-                            <span id="stat-backups">0</span>
+                    <div class="status-grid">
+                        <div class="status-card">
+                            <div class="label">Platform Status</div>
+                            <div class="value">
+                                <span class="status-dot online" id="platform-status-dot"></span>
+                                <span id="platform-status-text">Checking...</span>
+                            </div>
                         </div>
-                        <div class="stat-row">
-                            <span>🧠 Models:</span>
-                            <span id="stat-models">0</span>
+                        <div class="status-card">
+                            <div class="label">GPUs Detected</div>
+                            <div class="value" id="dashboard-gpu-count">0</div>
                         </div>
-                        <div class="stat-row">
-                            <span>🖥️ GPUs:</span>
-                            <span id="stat-gpus">0</span>
+                        <div class="status-card">
+                            <div class="label">Models Available</div>
+                            <div class="value" id="dashboard-model-count">0</div>
                         </div>
-                        <div id="gpu-status" class="status-badge status-unknown" style="margin-top:0.5rem;">Detecting...</div>
+                        <div class="status-card">
+                            <div class="label">Network Nodes</div>
+                            <div class="value" id="dashboard-node-count">0</div>
+                        </div>
                     </div>
 
-                    <!-- Quick Actions Card -->
-                    <div class="dashboard-card">
-                        <h3>⚡ Quick Actions</h3>
-                        <div class="card-actions">
-                            <button class="btn btn-secondary" id="btn-quick-backup">💾 Backup Now</button>
-                            <button class="btn btn-secondary" id="btn-quick-restore">🔄 Restore</button>
-                            <button class="btn btn-secondary" id="btn-open-odoo">🏢 Open Odoo</button>
-                            <button class="btn btn-secondary" id="btn-open-grafana">📊 Open Grafana</button>
-                            <button class="btn btn-secondary" id="btn-open-llama">🦙 LLama.cpp UI</button>
-                            <button class="btn btn-secondary" id="btn-open-ui">🖥️ NETTRADES UI</button>
-                        </div>
+                    <div class="section-header">
+                        <h2>Quick Actions</h2>
+                    </div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
+                        <button class="btn btn-primary" onclick="switchTab('deploy')">🚀 Deploy Platform</button>
+                        <button class="btn btn-success" onclick="switchTab('models')">📥 Download Model</button>
+                        <button class="btn btn-secondary" onclick="switchTab('gpus')">🎮 View GPUs</button>
+                        <button class="btn btn-secondary" onclick="switchTab('nodes')">🌐 Discover Nodes</button>
+                    </div>
+
+                    <div class="section-header">
+                        <h2>Recent Activity</h2>
+                    </div>
+                    <div id="activity-log" class="log-container">
+                        <div class="log-line info">🟢 Launcher started</div>
+                        <div class="log-line info">🔍 Discovering network nodes...</div>
                     </div>
                 </div>
 
-                <!-- Recent Activity -->
-                <div class="recent-activity">
-                    <h3>📋 Recent Activity</h3>
-                    <div id="activity-log">
-                        <p class="activity-empty">No recent activity</p>
+                <!-- Deploy Tab -->
+                <div id="tab-deploy" class="tab-content">
+                    <div class="dashboard-header">
+                        <div>
+                            <h2>🚀 Deploy Platform</h2>
+                            <div class="subtitle">One-click deployment of the full NETTRADES stack</div>
+                        </div>
                     </div>
-                </div>
-            </section>
 
-            <!-- ──────────────────────────────────────────────────────────────
-            TAB: Installer
-            ────────────────────────────────────────────────────────────── -->
-            <section id="tab-installer" class="tab-content">
-                <div class="tab-header">
-                    <h2>🚀 Installer</h2>
-                    <span id="install-status-badge" class="status-badge status-unknown">⏳ Ready</span>
-                </div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" id="deploy-btn" onclick="startDeployment()">
+                            ⚡ Deploy All
+                        </button>
+                        <button class="btn btn-secondary" onclick="startDeployment('deploy')">
+                            📦 Deploy (Phase 0-2)
+                        </button>
+                        <button class="btn btn-secondary" onclick="startDeployment('modules')">
+                            📦 Install Modules
+                        </button>
+                        <button class="btn btn-secondary" onclick="startDeployment('monitoring')">
+                            📊 Monitoring
+                        </button>
+                    </div>
 
-                <!-- Step 1: Choose Deployment -->
-                <div id="install-step-1" class="install-step active">
-                    <p class="step-description">
-                        Select the type of deployment you want.
-                    </p>
-                    <div id="deployment-cards" class="deployment-grid">
-                        <!-- Rendered by JavaScript -->
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <label style="display: flex; align-items: center; gap: 8px; color: #8a8a9a; font-size: 13px;">
+                            <input type="checkbox" id="deploy-force" /> Force Re-run
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #8a8a9a; font-size: 13px;">
+                            <input type="checkbox" id="deploy-auto" checked /> Auto Mode
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #8a8a9a; font-size: 13px;">
+                            <input type="checkbox" id="deploy-production" /> Production Mode
+                        </label>
                     </div>
-                    <div class="install-actions">
-                        <button class="btn btn-primary" id="btn-install-next" disabled>Next →</button>
-                    </div>
-                </div>
 
-                <!-- Step 2: Configuration Summary -->
-                <div id="install-step-2" class="install-step">
-                    <p class="step-description">
-                        Review and confirm your settings.
-                    </p>
-                    <div id="config-summary" class="config-summary">
-                        <!-- Rendered by JavaScript -->
+                    <div id="deploy-status" style="margin-bottom: 12px;">
+                        <span style="color: #6a6a7a;">Ready to deploy</span>
                     </div>
-                    <div class="install-actions">
-                        <button class="btn btn-secondary" id="btn-install-back">← Back</button>
-                        <button class="btn btn-success" id="btn-install-start">🚀 Install</button>
-                    </div>
-                </div>
 
-                <!-- Step 3: Installation Progress -->
-                <div id="install-step-3" class="install-step">
-                    <p class="step-description">
-                        Installing... This may take several minutes.
-                    </p>
                     <div class="progress-container">
-                        <div class="progress-bar">
-                            <div id="install-progress-fill" class="progress-fill" style="width:0%"></div>
+                        <div class="progress-bar" id="deploy-progress" style="width: 0%;"></div>
+                    </div>
+
+                    <div id="deploy-log" class="log-container" style="max-height: 400px; margin-top: 12px;">
+                        <div class="log-line info">⏳ Waiting for deployment to start...</div>
+                    </div>
+                </div>
+
+                <!-- GPUs Tab -->
+                <div id="tab-gpus" class="tab-content">
+                    <div class="section-header">
+                        <h2>🎮 GPU Management</h2>
+                        <div>
+                            <button class="btn btn-secondary" onclick="detectGPUs()">🔍 Scan</button>
+                            <button class="btn btn-secondary" onclick="installNvidiaDrivers()">📥 Install Drivers</button>
                         </div>
-                        <div id="install-progress-label" class="progress-label">Starting installation...</div>
                     </div>
-                    <div id="install-log-output" class="log-output log-full">
-                        <div class="log-placeholder">Waiting for output...</div>
-                    </div>
-                    <div class="install-actions">
-                        <button class="btn btn-danger" id="btn-install-cancel" style="display:none;">Cancel</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ──────────────────────────────────────────────────────────────
-            TAB: Models
-            ────────────────────────────────────────────────────────────── -->
-            <section id="tab-models" class="tab-content">
-                <div class="tab-header">
-                    <h2>🧠 Model Manager</h2>
-                    <div class="model-actions">
-                        <button class="btn btn-primary" id="btn-browse-models">📥 Browse Models</button>
-                        <button class="btn btn-secondary" id="btn-import-model">📂 Import Model</button>
+                    <div id="gpu-list" class="gpu-list">
+                        <div class="empty-state">
+                            <div class="icon">🔍</div>
+                            <h3>No GPUs Detected</h3>
+                            <p>Click "Scan" to detect GPUs on this system, or install NVIDIA drivers.</p>
+                        </div>
                     </div>
                 </div>
 
-                <div id="download-progress" style="display:none; margin-bottom:1rem;">
-                    <div class="progress-bar">
-                        <div id="download-progress-bar" class="progress-fill" style="width:0%"></div>
+                <!-- Models Tab -->
+                <div id="tab-models" class="tab-content">
+                    <div class="section-header">
+                        <h2>🧠 Model Management</h2>
+                        <div>
+                            <button class="btn btn-primary" onclick="downloadModel()">📥 Download Model</button>
+                            <button class="btn btn-secondary" onclick="refreshModels()">🔄 Refresh</button>
+                        </div>
                     </div>
-                    <div id="download-progress-label" class="progress-label">Starting download...</div>
-                </div>
-
-                <div id="model-grid" class="model-grid">
-                    <!-- Rendered by JavaScript -->
-                </div>
-            </section>
-
-            <!-- ──────────────────────────────────────────────────────────────
-            TAB: Backup & Restore
-            ────────────────────────────────────────────────────────────── -->
-            <section id="tab-backup" class="tab-content">
-                <div class="tab-header">
-                    <h2>💾 Backup &amp; Restore</h2>
-                    <span id="backup-status-badge" class="status-badge status-unknown">⏳ Ready</span>
-                </div>
-
-                <div class="backup-grid">
-                    <!-- Create Backup -->
-                    <div class="backup-card">
-                        <h3>📤 Create Backup</h3>
-                        <p>Backup all platform data including databases, volumes, and configuration.</p>
-                        <button class="btn btn-primary" id="btn-create-backup">💾 Backup Now</button>
-                    </div>
-
-                    <!-- Restore from Backup -->
-                    <div class="backup-card">
-                        <h3>📥 Restore from Backup</h3>
-                        <p>Restore the platform from a previous backup.</p>
-                        <select id="backup-select" class="backup-select">
-                            <option value="">Select a backup...</option>
-                        </select>
-                        <button class="btn btn-warning" id="btn-restore-backup">🔄 Restore Selected</button>
+                    <div id="model-list" class="model-list">
+                        <div class="empty-state">
+                            <div class="icon">📦</div>
+                            <h3>No Models Installed</h3>
+                            <p>Download a model to get started with AI inference.</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Backup List -->
-                <div class="backup-list">
-                    <h3>📋 Available Backups</h3>
-                    <div id="backup-list-container">
-                        <p class="backup-empty">No backups found.</p>
+                <!-- Nodes Tab -->
+                <div id="tab-nodes" class="tab-content">
+                    <div class="section-header">
+                        <h2>🌐 Network Nodes</h2>
+                        <div>
+                            <span class="count" id="node-count-display">0 nodes discovered</span>
+                            <button class="btn btn-secondary" onclick="discoverNodes()">🔍 Discover</button>
+                        </div>
+                    </div>
+                    <div id="nodes-list" class="nodes-list">
+                        <div class="empty-state">
+                            <div class="icon">🌐</div>
+                            <h3>No Nodes Discovered</h3>
+                            <p>mDNS discovery is running. Other NETTRADES nodes on your network will appear here.</p>
+                        </div>
                     </div>
                 </div>
 
-                <div id="backup-log-output" class="log-output" style="display:none; margin-top:1rem;">
-                    <div class="log-placeholder">Waiting for output...</div>
-                </div>
-            </section>
-
-            <!-- ──────────────────────────────────────────────────────────────
-            TAB: Logs
-            ────────────────────────────────────────────────────────────── -->
-            <section id="tab-logs" class="tab-content">
-                <div class="tab-header">
-                    <h2>📺 Logs</h2>
-                    <div class="log-controls">
-                        <button class="btn btn-secondary" id="btn-copy-logs">📋 Copy</button>
-                        <button class="btn btn-secondary" id="btn-save-logs">💾 Save</button>
-                        <button class="btn btn-danger" id="btn-clear-logs">🗑️ Clear</button>
+                <!-- WireGuard Tab -->
+                <div id="tab-wireguard" class="tab-content">
+                    <div class="section-header">
+                        <h2>🔒 WireGuard VPN</h2>
+                        <div>
+                            <button class="btn btn-primary" onclick="addWireGuardPeer()">➕ Add Peer</button>
+                            <button class="btn btn-secondary" onclick="refreshWireGuard()">🔄 Refresh</button>
+                        </div>
+                    </div>
+                    <div id="wireguard-status" style="margin-bottom: 16px;">
+                        <span style="color: #6a6a7a;">Loading WireGuard status...</span>
+                    </div>
+                    <div id="wireguard-peers" style="margin-top: 12px;">
+                        <div class="empty-state">
+                            <div class="icon">🔒</div>
+                            <h3>No WireGuard Peers</h3>
+                            <p>Add peers to establish secure VPN connections.</p>
+                        </div>
                     </div>
                 </div>
-                <div id="logs-output" class="log-output log-full">
-                    <div class="log-placeholder">No logs yet. Run installation, backup, or restore to see output.</div>
-                </div>
-            </section>
 
-            <!-- ──────────────────────────────────────────────────────────────
-            TAB: Settings
-            ────────────────────────────────────────────────────────────── -->
-            <section id="tab-settings" class="tab-content">
-                <div class="tab-header">
+                <!-- Settings Tab -->
+                <div id="tab-settings" class="tab-content">
                     <h2>⚙️ Settings</h2>
-                </div>
-
-                <!-- Server Configuration -->
-                <div class="settings-group">
-                    <h3>🌐 Server Configuration</h3>
-                    <div class="setting-row">
-                        <label for="server-url">Server URL</label>
-                        <input type="text" id="server-url" placeholder="https://your-domain.com or http://192.168.1.100" />
-                        <button class="btn btn-primary" id="btn-save-server-url">Save</button>
-                    </div>
-                    <p class="setting-help">
-                        Enter the IP address or domain name of your NETTRADES server.
-                        Leave empty to use localhost.
-                    </p>
-                </div>
-
-                <!-- Backup Settings -->
-                <div class="settings-group">
-                    <h3>💾 Backup Settings</h3>
-                    <div class="setting-row">
-                        <label for="backup-dir">Backup Directory</label>
-                        <input type="text" id="backup-dir" placeholder="~/.nettrades/backups" />
-                    </div>
-                    <div class="setting-row">
-                        <label>
-                            <input type="checkbox" id="auto-backup" /> Enable automatic daily backups
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <label for="retention-days">Retention Days</label>
-                        <input type="number" id="retention-days" value="30" min="1" max="365" />
+                    <div style="margin-top: 16px; max-width: 600px;">
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; color: #8a8a9a; font-size: 13px; margin-bottom: 4px;">Server URL</label>
+                            <input type="text" id="server-url" style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #e8e8e8; font-size: 14px;" />
+                            <button class="btn btn-secondary" onclick="saveServerUrl()" style="margin-top: 8px;">Save</button>
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; color: #8a8a9a; font-size: 13px; margin-bottom: 4px;">Auto-Update</label>
+                            <label style="display: flex; align-items: center; gap: 8px; color: #b0b0c0; font-size: 13px;">
+                                <input type="checkbox" id="auto-update" checked /> Check for updates automatically
+                            </label>
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; color: #8a8a9a; font-size: 13px; margin-bottom: 4px;">Node Discovery</label>
+                            <label style="display: flex; align-items: center; gap: 8px; color: #b0b0c0; font-size: 13px;">
+                                <input type="checkbox" id="node-discovery" checked /> Enable mDNS discovery
+                            </label>
+                        </div>
+                        <div style="margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 24px;">
+                            <button class="btn btn-danger" onclick="resetPlatform()">🗑️ Reset Platform</button>
+                            <button class="btn btn-secondary" onclick="viewLogs()">📄 View Logs</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Update Settings -->
-                <div class="settings-group">
-                    <h3>🔄 Update Settings</h3>
-                    <div class="setting-row">
-                        <label>
-                            <input type="checkbox" id="auto-check-updates" checked /> Check for updates automatically
-                        </label>
-                    </div>
-                    <div class="setting-row">
-                        <label>
-                            <input type="checkbox" id="auto-download-updates" /> Download updates in the background
-                        </label>
-                    </div>
-                </div>
-
-                <!-- About -->
-                <div class="settings-group">
-                    <h3>ℹ️ About</h3>
-                    <p><strong>NetTrades Launcher</strong> v1.0.0</p>
-                    <p>Built with Electron and ❤️</p>
-                    <p>
-                        <a href="#" id="settings-github-link">GitHub Repository</a>
-                    </p>
-                </div>
-            </section>
-
-            <!-- ──────────────────────────────────────────────────────────────
-            TAB: VPN
-            ────────────────────────────────────────────────────────────── -->
-            <section id="tab-vpn" class="tab-content">
-                <div class="tab-header">
-                    <h2>🔒 VPN Management</h2>
-                    <span id="vpn-status-badge" class="status-badge status-unknown">⏳ Checking...</span>
-                </div>
-
-                <!-- Add Admin -->
-                <div class="vpn-card">
-                    <h3>➕ Add Admin</h3>
-                    <p>Create a new VPN user for secure SSH access.</p>
-                    <div class="vpn-form">
-                        <input type="text" id="vpn-new-name" placeholder="Name (e.g. john-doe)" />
-                        <input type="number" id="vpn-new-partner" placeholder="Partner ID (Odoo res.partner id)" />
-                        <button class="btn btn-primary" id="btn-vpn-create">➕ Add Admin</button>
-                    </div>
-                    <div id="vpn-create-result" style="display:none; margin-top:1rem; padding:1rem; background:var(--bg-card); border-radius:var(--radius); border:1px solid var(--border);">
-                        <p>✅ Peer created!</p>
-                        <p><strong>IP:</strong> <span id="vpn-new-ip"></span></p>
-                        <p><strong>Config:</strong> <a href="#" id="vpn-new-config-link" class="btn btn-secondary">📄 Download .conf</a></p>
-                        <div id="vpn-new-qr"></div>
+                <!-- About Tab -->
+                <div id="tab-about" class="tab-content">
+                    <div style="text-align: center; padding: 40px 0;">
+                        <img src="build/icon.png" alt="NETTRADES" style="width: 80px; height: 80px; margin-bottom: 16px;" />
+                        <h1 style="font-size: 32px; font-weight: 700; background: linear-gradient(135deg, #fff 0%, #4a8aff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NETTRADES</h1>
+                        <div style="font-size: 16px; color: #6a6a7a; margin-top: 4px;">Sovereign AI Platform</div>
+                        <div style="font-size: 14px; color: #4a4a5a; margin-top: 4px;">Version <span id="about-version">1.0.0</span></div>
+                        <div style="margin-top: 24px; max-width: 400px; margin-left: auto; margin-right: auto; color: #8a8a9a; font-size: 14px; line-height: 1.6;">
+                            <p>Build your Sovereign AI Infrastructure using your spare GPU capacity.</p>
+                            <p style="margin-top: 8px;">🔒 Your data never leaves your network.</p>
+                            <p>🚀 Deploy in minutes, not months.</p>
+                            <p>🌐 Fully open-source, no vendor lock-in.</p>
+                        </div>
+                        <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
+                            <button class="btn btn-secondary" onclick="window.electron.openExternal('https://github.com/nettrades/nettrades-platform')">GitHub</button>
+                            <button class="btn btn-secondary" onclick="window.electron.openExternal('https://nettrades.ai')">Website</button>
+                            <button class="btn btn-secondary" onclick="window.electron.openExternal('https://docs.nettrades.ai')">Documentation</button>
+                        </div>
+                        <div style="margin-top: 32px; font-size: 12px; color: #3a3a4a;">
+                            © 2026 NETTRADES. All rights reserved.
+                        </div>
                     </div>
                 </div>
-
-                <!-- Connected Admins -->
-                <div class="vpn-list">
-                    <h3>🔗 Connected Admins</h3>
-                    <div id="vpn-list-container">
-                        <p class="vpn-empty">Loading users...</p>
-                    </div>
-                </div>
-            </section>
-
-        </main>
+            </div>
+        </div>
     </div>
 
-    <!-- ======================================================================
-    SCRIPTS
-    ====================================================================== -->
-    <script src="renderer.js"></script>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // =========================================================================
+        // NETTRADES Launcher – Renderer Logic
+        // =========================================================================
+
+        const { ipcRenderer, shell } = require('electron');
+
+        // ─── State ───
+        let currentTab = 'dashboard';
+        let isDeploying = false;
+        let gpus = [];
+        let models = [];
+        let nodes = [];
+        let wireguardPeers = [];
+
+        // ─── DOM References ───
+        const tabs = document.querySelectorAll('.tab-content');
+        const navItems = document.querySelectorAll('.nav-item[data-tab]');
+        const appItems = document.querySelectorAll('.nav-item[data-app]');
+
+        // ─── Tab Switching ───
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update nav items
+            navItems.forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === tabName);
+            });
+
+            // Update content
+            tabs.forEach(tab => {
+                tab.classList.toggle('active', tab.id === `tab-${tabName}`);
+            });
+
+            // Refresh data for the tab
+            switch(tabName) {
+                case 'dashboard': refreshDashboard(); break;
+                case 'gpus': detectGPUs(); break;
+                case 'models': refreshModels(); break;
+                case 'nodes': discoverNodes(); break;
+                case 'wireguard': refreshWireGuard(); break;
+            }
+        }
+
+        // ─── App Launching ───
+        function openApp(appName) {
+            const serverUrl = document.getElementById('server-url')?.value || 'http://localhost';
+            const ports = {
+                odoo: 8069,
+                ui: 3002,
+                grafana: 3001,
+                llama: 8080,
+            };
+            const url = `${serverUrl}:${ports[appName]}`;
+            shell.openExternal(url);
+        }
+
+        // ─── Toast Notifications ───
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100px)';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // ─── Logging ───
+        function addLog(message, type = 'info', containerId = 'activity-log') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const line = document.createElement('div');
+            line.className = `log-line ${type}`;
+            line.textContent = message;
+            container.appendChild(line);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // ─── Dashboard ───
+        function refreshDashboard() {
+            // Get counts
+            const gpuCount = gpus.length;
+            const modelCount = models.length;
+            const nodeCount = nodes.length;
+
+            document.getElementById('dashboard-gpu-count').textContent = gpuCount;
+            document.getElementById('dashboard-model-count').textContent = modelCount;
+            document.getElementById('dashboard-node-count').textContent = nodeCount;
+
+            // Update status
+            const statusDot = document.getElementById('platform-status-dot');
+            const statusText = document.getElementById('platform-status-text');
+            
+            // Check if Docker is running
+            ipcRenderer.invoke('check-docker').then((result) => {
+                if (result) {
+                    statusDot.className = 'status-dot online';
+                    statusText.textContent = 'Online';
+                } else {
+                    statusDot.className = 'status-dot offline';
+                    statusText.textContent = 'Offline (Docker not running)';
+                }
+            }).catch(() => {
+                statusDot.className = 'status-dot offline';
+                statusText.textContent = 'Unknown';
+            });
+        }
+
+        // ─── GPU Detection ───
+        async function detectGPUs() {
+            const container = document.getElementById('gpu-list');
+            container.innerHTML = '<div class="empty-state"><div class="spinner"></div><h3>Scanning for GPUs...</h3></div>';
+
+            try {
+                gpus = await ipcRenderer.invoke('detect-gpus');
+                document.getElementById('gpu-count').textContent = gpus.length;
+                
+                if (gpus.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">🔍</div>
+                            <h3>No GPUs Detected</h3>
+                            <p>No compatible GPUs found. Click "Install Drivers" to install NVIDIA drivers, or check your GPU connection.</p>
+                            <button class="btn btn-primary" onclick="installNvidiaDrivers()" style="margin-top: 12px;">Install NVIDIA Drivers</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = gpus.map(gpu => `
+                    <div class="gpu-card fade-in">
+                        <div class="gpu-name">${gpu.name}</div>
+                        <div class="gpu-details">
+                            ${gpu.vendor.toUpperCase()} • ${gpu.memory} • Compute ${gpu.computeCapability}
+                        </div>
+                        <div class="gpu-status available">✓ Available</div>
+                        <div style="font-size: 12px; color: #6a6a7a; margin-top: 4px;">Driver: ${gpu.driverVersion || 'Unknown'}</div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <h3>GPU Detection Failed</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function installNvidiaDrivers() {
+            const result = await ipcRenderer.invoke('install-nvidia-drivers');
+            if (result) {
+                showToast('NVIDIA drivers installed successfully. Please restart the system.', 'success');
+                setTimeout(detectGPUs, 3000);
+            } else {
+                showToast('Driver installation cancelled or failed.', 'error');
+            }
+        }
+
+        // ─── Model Management ───
+        async function refreshModels() {
+            const container = document.getElementById('model-list');
+            container.innerHTML = '<div class="empty-state"><div class="spinner"></div><h3>Loading models...</h3></div>';
+
+            try {
+                models = await ipcRenderer.invoke('get-models');
+                document.getElementById('model-count').textContent = models.length;
+
+                if (models.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📦</div>
+                            <h3>No Models Installed</h3>
+                            <p>Download a model to get started with AI inference.</p>
+                            <button class="btn btn-primary" onclick="downloadModel()" style="margin-top: 12px;">📥 Download Model</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = models.map(model => `
+                    <div class="model-card fade-in">
+                        <div class="model-info">
+                            <div class="model-name">${model.name}</div>
+                            <div class="model-size">${formatSize(model.size)} • ${model.format}</div>
+                        </div>
+                        <div class="model-actions">
+                            <button onclick="useModel('${model.name}')" title="Use this model">▶️</button>
+                            <button class="delete" onclick="deleteModel('${model.path}')" title="Delete model">🗑️</button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <h3>Failed to Load Models</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function downloadModel() {
+            const modelName = prompt('Enter model name (e.g., deepseek-1.5b):', 'deepseek-1.5b');
+            if (!modelName) return;
+
+            const format = confirm('Download GGUF format (OK) or Hugging Face format (Cancel)?') ? 'gguf' : 'hf';
+
+            showToast(`Downloading ${modelName} (${format})...`, 'info', 0);
+            
+            try {
+                await ipcRenderer.invoke('download-model', modelName, format);
+                showToast(`Model ${modelName} downloaded successfully!`, 'success');
+                refreshModels();
+            } catch (error) {
+                showToast(`Download failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteModel(path) {
+            const result = confirm('Delete this model? This action cannot be undone.');
+            if (!result) return;
+
+            try {
+                await ipcRenderer.invoke('delete-model', path);
+                showToast('Model deleted successfully.', 'success');
+                refreshModels();
+            } catch (error) {
+                showToast(`Delete failed: ${error.message}`, 'error');
+            }
+        }
+
+        function useModel(name) {
+            showToast(`Switching to model: ${name}`, 'success');
+            // TODO: Update inference engine to use this model
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+            if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
+            return `${(bytes / 1073741824).toFixed(2)} GB`;
+        }
+
+        // ─── Node Discovery ───
+        function discoverNodes() {
+            const container = document.getElementById('nodes-list');
+            container.innerHTML = '<div class="empty-state"><div class="spinner"></div><h3>Discovering nodes...</h3></div>';
+
+            ipcRenderer.invoke('get-discovered-nodes').then((discovered) => {
+                nodes = discovered;
+                document.getElementById('node-count').textContent = nodes.length;
+                document.getElementById('node-count-display').textContent = `${nodes.length} nodes discovered`;
+
+                if (nodes.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">🌐</div>
+                            <h3>No Nodes Discovered</h3>
+                            <p>mDNS discovery is running. Other NETTRADES nodes on your network will appear here.</p>
+                            <p style="font-size: 12px; color: #4a4a5a; margin-top: 8px;">Make sure other nodes have mDNS enabled.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = nodes.map(node => `
+                    <div class="node-card fade-in">
+                        <div class="node-name">
+                            <span class="node-status online"></span> ${node.name}
+                        </div>
+                        <div class="node-address">${node.host}:${node.port}</div>
+                        <div style="font-size: 12px; color: #6a6a7a; margin-top: 4px;">
+                            ${node.addresses ? node.addresses.join(', ') : ''}
+                        </div>
+                        <button class="btn btn-secondary" onclick="connectToNode('${node.host}', ${node.port})" style="margin-top: 8px; padding: 4px 12px; font-size: 11px;">Connect</button>
+                    </div>
+                `).join('');
+            }).catch((error) => {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <h3>Discovery Failed</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function connectToNode(host, port) {
+            const url = `http://${host}:${port}`;
+            document.getElementById('server-url').value = url;
+            showToast(`Connected to ${host}:${port}`, 'success');
+            shell.openExternal(url);
+        }
+
+        // ─── WireGuard ───
+        async function refreshWireGuard() {
+            const statusContainer = document.getElementById('wireguard-status');
+            const peersContainer = document.getElementById('wireguard-peers');
+
+            try {
+                const status = await ipcRenderer.invoke('get-wireguard-status');
+                const peers = await ipcRenderer.invoke('get-wireguard-peers');
+                wireguardPeers = peers;
+
+                if (status) {
+                    statusContainer.innerHTML = `
+                        <span style="color: #28c840;">🟢 WireGuard is running</span>
+                        <span style="color: #6a6a7a; margin-left: 16px;">${peers.length} peers connected</span>
+                    `;
+                    document.getElementById('wg-status').textContent = '🟢';
+                    document.getElementById('wg-status').className = 'badge active-badge';
+                } else {
+                    statusContainer.innerHTML = `
+                        <span style="color: #ff5f57;">🔴 WireGuard is not running</span>
+                        <button class="btn btn-secondary" onclick="startWireGuard()" style="margin-left: 12px;">Start</button>
+                    `;
+                    document.getElementById('wg-status').textContent = '🔴';
+                    document.getElementById('wg-status').className = 'badge';
+                }
+
+                if (peers.length === 0) {
+                    peersContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">🔒</div>
+                            <h3>No WireGuard Peers</h3>
+                            <p>Add peers to establish secure VPN connections.</p>
+                            <button class="btn btn-primary" onclick="addWireGuardPeer()" style="margin-top: 12px;">➕ Add Peer</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                peersContainer.innerHTML = peers.map(peer => `
+                    <div class="node-card fade-in">
+                        <div class="node-name">
+                            <span class="node-status online"></span> Peer
+                        </div>
+                        <div style="font-size: 12px; color: #6a6a7a; font-family: monospace;">
+                            ${peer.publicKey.substring(0, 16)}...
+                        </div>
+                        <div style="font-size: 12px; color: #6a6a7a;">
+                            Endpoint: ${peer.endpoint || 'unknown'}
+                        </div>
+                        <div style="font-size: 12px; color: #6a6a7a;">
+                            Allowed IPs: ${peer.allowedIPs || 'N/A'}
+                        </div>
+                        <button class="btn btn-danger" onclick="removeWireGuardPeer('${peer.publicKey}')" style="margin-top: 8px; padding: 4px 12px; font-size: 11px;">Remove</button>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                statusContainer.innerHTML = `<span style="color: #ff5f57;">❌ ${error.message}</span>`;
+            }
+        }
+
+        async function addWireGuardPeer() {
+            const name = prompt('Enter peer name:', 'laptop');
+            if (!name) return;
+            const ip = prompt('Enter IP address (optional, press Enter for auto):', '');
+            
+            try {
+                const result = await ipcRenderer.invoke('add-wireguard-peer', name, ip || null);
+                showToast(`Peer ${name} added successfully!`, 'success');
+                refreshWireGuard();
+            } catch (error) {
+                showToast(`Failed to add peer: ${error.message}`, 'error');
+            }
+        }
+
+        async function removeWireGuardPeer(publicKey) {
+            const result = confirm('Remove this WireGuard peer?');
+            if (!result) return;
+            
+            try {
+                await ipcRenderer.invoke('remove-wireguard-peer', publicKey);
+                showToast('Peer removed.', 'success');
+                refreshWireGuard();
+            } catch (error) {
+                showToast(`Failed to remove peer: ${error.message}`, 'error');
+            }
+        }
+
+        async function startWireGuard() {
+            // TODO: Implement WireGuard start
+            showToast('WireGuard start not yet implemented in launcher.', 'warning');
+        }
+
+        // ─── Deployment ───
+        async function startDeployment(profile = 'all') {
+            if (isDeploying) {
+                showToast('Deployment already in progress.', 'warning');
+                return;
+            }
+
+            const force = document.getElementById('deploy-force')?.checked || false;
+            const auto = document.getElementById('deploy-auto')?.checked || true;
+            const production = document.getElementById('deploy-production')?.checked || false;
+
+            const deployBtn = document.getElementById('deploy-btn');
+            const logContainer = document.getElementById('deploy-log');
+            const progressBar = document.getElementById('deploy-progress');
+            const statusDisplay = document.getElementById('deploy-status');
+
+            isDeploying = true;
+            deployBtn.disabled = true;
+            deployBtn.textContent = '⏳ Deploying...';
+            statusDisplay.innerHTML = '<span style="color: #ffbd2e;">⏳ Deployment in progress...</span>';
+            logContainer.innerHTML = '';
+
+            try {
+                // Set up progress listeners
+                const progressHandler = (event, data) => {
+                    progressBar.style.width = `${data.progress}%`;
+                    addLog(data.message, 'info', 'deploy-log');
+                };
+
+                const phaseHandler = (event, data) => {
+                    addLog(`✅ ${data}`, 'success', 'deploy-log');
+                };
+
+                const completeHandler = (event, data) => {
+                    if (data.success) {
+                        statusDisplay.innerHTML = '<span style="color: #28c840;">✅ Deployment completed successfully!</span>';
+                        showToast('Deployment completed successfully!', 'success');
+                    } else {
+                        statusDisplay.innerHTML = `<span style="color: #ff5f57;">❌ Deployment failed: ${data.error}</span>`;
+                        showToast('Deployment failed. Check logs.', 'error');
+                    }
+                    isDeploying = false;
+                    deployBtn.disabled = false;
+                    deployBtn.textContent = '⚡ Deploy All';
+                    progressBar.style.width = '100%';
+                    ipcRenderer.removeListener('deployment-progress', progressHandler);
+                    ipcRenderer.removeListener('deployment-phase', phaseHandler);
+                    ipcRenderer.removeListener('deployment-complete', completeHandler);
+                };
+
+                ipcRenderer.on('deployment-progress', progressHandler);
+                ipcRenderer.on('deployment-phase', phaseHandler);
+                ipcRenderer.on('deployment-complete', completeHandler);
+
+                // Start deployment
+                await ipcRenderer.invoke('deploy', profile, { force, auto, production });
+
+            } catch (error) {
+                statusDisplay.innerHTML = `<span style="color: #ff5f57;">❌ ${error.message}</span>`;
+                showToast(`Deployment error: ${error.message}`, 'error');
+                isDeploying = false;
+                deployBtn.disabled = false;
+                deployBtn.textContent = '⚡ Deploy All';
+            }
+        }
+
+        // ─── Settings ───
+        function saveServerUrl() {
+            const url = document.getElementById('server-url').value;
+            ipcRenderer.invoke('set-server-url', url);
+            showToast('Server URL saved.', 'success');
+        }
+
+        // ─── Reset ───
+        async function resetPlatform() {
+            const result = confirm('⚠️ This will reset the entire platform and delete all data. This action cannot be undone. Continue?');
+            if (!result) return;
+            
+            const confirm2 = prompt('Type "RESET" to confirm:');
+            if (confirm2 !== 'RESET') return;
+
+            showToast('Resetting platform...', 'warning', 0);
+            // TODO: Implement reset
+            showToast('Reset not yet implemented in launcher.', 'error');
+        }
+
+        function viewLogs() {
+            shell.openPath('/var/log/nettrades');
+        }
+
+        // ─── Refresh All ───
+        function refreshAll() {
+            refreshDashboard();
+            detectGPUs();
+            refreshModels();
+            discoverNodes();
+            refreshWireGuard();
+            showToast('Refreshed all data.', 'success');
+        }
+
+        // ─── Event Listeners ───
+        document.addEventListener('DOMContentLoaded', () => {
+            // Tab navigation
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    switchTab(item.dataset.tab);
+                });
+            });
+
+            // App launching
+            appItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    openApp(item.dataset.app);
+                });
+            });
+
+            // Get server URL
+            ipcRenderer.invoke('get-server-url').then((url) => {
+                document.getElementById('server-url').value = url || 'http://localhost';
+            });
+
+            // Load initial data
+            refreshAll();
+
+            // Set up IPC listeners for real-time updates
+            ipcRenderer.on('node-discovered', (event, node) => {
+                showToast(`Node discovered: ${node.name} at ${node.host}:${node.port}`, 'info');
+                discoverNodes();
+            });
+
+            ipcRenderer.on('node-lost', (event, data) => {
+                discoverNodes();
+            });
+
+            ipcRenderer.on('gpu-detected', (event, detectedGpus) => {
+                gpus = detectedGpus;
+                document.getElementById('gpu-count').textContent = gpus.length;
+                detectGPUs();
+            });
+
+            ipcRenderer.on('update-status', (event, data) => {
+                if (data.status === 'available') {
+                    showToast(`New version ${data.version} available!`, 'success', 0);
+                    addLog(`⬆️ Update available: v${data.version}`, 'info');
+                }
+            });
+
+            // Version display
+            document.getElementById('about-version').textContent = '1.0.0';
+        });
+
+        // ─── Expose to window ───
+        window.switchTab = switchTab;
+        window.openApp = openApp;
+        window.refreshAll = refreshAll;
+        window.detectGPUs = detectGPUs;
+        window.installNvidiaDrivers = installNvidiaDrivers;
+        window.refreshModels = refreshModels;
+        window.downloadModel = downloadModel;
+        window.deleteModel = deleteModel;
+        window.useModel = useModel;
+        window.discoverNodes = discoverNodes;
+        window.connectToNode = connectToNode;
+        window.refreshWireGuard = refreshWireGuard;
+        window.addWireGuardPeer = addWireGuardPeer;
+        window.removeWireGuardPeer = removeWireGuardPeer;
+        window.startWireGuard = startWireGuard;
+        window.startDeployment = startDeployment;
+        window.saveServerUrl = saveServerUrl;
+        window.resetPlatform = resetPlatform;
+        window.viewLogs = viewLogs;
+        window.showToast = showToast;
+        window.addLog = addLog;
+        window.formatSize = formatSize;
+    </script>
 </body>
 </html>

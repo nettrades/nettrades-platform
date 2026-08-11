@@ -1,180 +1,376 @@
+# =============================================================================
+# FILE: deploy/docker/nettrades-ui/app/main.py
+# =============================================================================
+# PURPOSE:
+#   NETTRADES-UI – FastAPI Chat Interface
+#   Provides a clean, modern chat interface for interacting with LLMs.
+#
+#   Features:
+#     - Chat with multiple models
+#     - Model switching
+#     - Conversation history
+#     - GPU resource display
+#     - Distributed inference support
+# =============================================================================
+
 import os
-import secrets
 import json
+import logging
+from typing import Optional, List, Dict, Any
+from datetime import datetime
 import httpx
-from urllib.parse import urlencode
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
+import uuid
+
+from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import uvicorn
 
-app = FastAPI(title="NETTRADES API")
-
+# -----------------------------------------------------------------------------
 # Configuration
-DOMAIN = os.getenv("DOMAIN", "nettrades.ai")
-API_BASE_URL = os.getenv("API_BASE_URL", "https://nettrades.ai")
+# -----------------------------------------------------------------------------
+
+APP_NAME = "NETTRADES-UI"
+VERSION = "1.0.0"
+
+# Environment variables
+DOMAIN = os.getenv("DOMAIN", "localhost")
 ODOO_URL = os.getenv("ODOO_URL", "http://odoo:8069")
 ODOO_PROXY_URL = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:8080")
 LANGGRAPH_URL = os.getenv("LANGGRAPH_URL", "http://langgraph-server:8000")
-LANGGRAPH_API_KEY = os.getenv("LANGGRAPH_API_KEY", "changeit")
-ODOO_API_KEY = os.getenv("ODOO_API_KEY", "changeit")
+LANGGRAPH_API_KEY = os.getenv("LANGGRAPH_API_KEY", "")
+ODOO_API_KEY = os.getenv("ODOO_API_KEY", "")
 AUTH_ENABLED = os.getenv("AUTH_ENABLED", "false").lower() == "true"
-SESSION_SECRET = os.getenv("SESSION_SECRET", secrets.token_urlsafe(32))
+SESSION_SECRET = os.getenv("SESSION_SECRET", "changeit")
+UI_API_KEY = os.getenv("UI_API_KEY", "")
 
-# Odoo OAuth 2.0
-ODOO_OAUTH_CLIENT_ID = os.getenv("ODOO_OAUTH_CLIENT_ID", "")
-ODOO_OAUTH_CLIENT_SECRET = os.getenv("ODOO_OAUTH_CLIENT_SECRET", "")
-ODOO_OAUTH_AUTHORIZE_URL = os.getenv("ODOO_OAUTH_AUTHORIZE_URL", f"{ODOO_URL}/restapi/1.0/common/oauth2/authorize")
-ODOO_OAUTH_TOKEN_URL = os.getenv("ODOO_OAUTH_TOKEN_URL", f"{ODOO_URL}/restapi/1.0/common/oauth2/access_token")
-ODOO_OAUTH_USERINFO_URL = os.getenv("ODOO_OAUTH_USERINFO_URL", f"{ODOO_URL}/restapi/1.0/common/oauth2/userinfo")
-ODOO_OAUTH_REDIRECT_URI = os.getenv("ODOO_OAUTH_REDIRECT_URI", f"https://{DOMAIN}/api/auth/callback/odoo")
+# Inference endpoints
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://dynamo:8000/v1")
+DYNAMO_API_KEY = os.getenv("DYNAMO_API_KEY", "dummy")
 
-client = httpx.AsyncClient(timeout=60.0)
+# Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Session middleware
-app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
+# -----------------------------------------------------------------------------
+# FastAPI App
+# -----------------------------------------------------------------------------
 
-# Templates (only for login page)
-templates = Jinja2Templates(directory="templates")
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title=APP_NAME,
+    version=VERSION,
+    description="NETTRADES Sovereign AI Chat Interface",
 )
 
-# ============================================================================
-# ROOT ROUTE – serves the static UI with API base URL injection
-# ============================================================================
-@app.get("/")
-async def index():
-    try:
-        with open("static/index.html", "r") as f:
-            html = f.read()
-        html = html.replace("{{API_BASE_URL}}", API_BASE_URL)
-        return HTMLResponse(content=html)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="index.html not found")
+# Static files and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-# ============================================================================
-# HEALTH CHECK
-# ============================================================================
+# -----------------------------------------------------------------------------
+# Models
+# -----------------------------------------------------------------------------
+
+class ChatMessage(BaseModel):
+    role: str  # user, assistant, system
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+    model: Optional[str] = None
+    stream: Optional[bool] = False
+    temperature: Optional[float] = 0.7
+    max_tokens: Optional[int] = 2048
+
+class ChatResponse(BaseModel):
+    id: str
+    model: str
+    choices: List[Dict[str, Any]]
+    usage: Optional[Dict[str, int]] = None
+    created: int
+
+class ModelInfo(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    capabilities: List[str] = []
+
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+
+def get_http_client():
+    """Get an HTTP client for making requests to the inference backend"""
+    return httpx.Client(
+        timeout=60.0,
+        headers={
+            "Authorization": f"Bearer {DYNAMO_API_KEY}",
+            "Content-Type": "application/json",
+        }
+    )
+
+async def get_langgraph_client():
+    """Get an HTTP client for LangGraph"""
+    return httpx.AsyncClient(
+        timeout=120.0,
+        headers={
+            "Authorization": f"Bearer {LANGGRAPH_API_KEY}",
+            "Content-Type": "application/json",
+        }
+    )
+
+async def get_odoo_proxy_client():
+    """Get an HTTP client for Odoo Proxy"""
+    return httpx.AsyncClient(
+        timeout=30.0,
+        headers={
+            "X-API-Key": ODOO_API_KEY,
+            "Content-Type": "application/json",
+        }
+    )
+
+# -----------------------------------------------------------------------------
+# Routes
+# -----------------------------------------------------------------------------
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    """Serve the main chat interface"""
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "app_name": APP_NAME,
+            "version": VERSION,
+            "domain": DOMAIN,
+            "auth_enabled": AUTH_ENABLED,
+        }
+    )
+
+# -----------------------------------------------------------------------------
+# API Routes
+# -----------------------------------------------------------------------------
+
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "nettrades-api"}
+    """Health check endpoint"""
+    return {"status": "ok", "service": APP_NAME, "version": VERSION}
 
-# ============================================================================
-# AUTHENTICATION ROUTES
-# ============================================================================
-@app.get("/api/auth/login")
-async def login(request: Request):
-    if not AUTH_ENABLED:
-        return RedirectResponse(url="/")
-    state = secrets.token_urlsafe(32)
-    request.session["oauth_state"] = state
-    params = {
-        "client_id": ODOO_OAUTH_CLIENT_ID,
-        "redirect_uri": ODOO_OAUTH_REDIRECT_URI,
-        "response_type": "code",
-        "state": state,
-        "scope": "openid profile email"
-    }
-    auth_url = f"{ODOO_OAUTH_AUTHORIZE_URL}?{urlencode(params)}"
-    return RedirectResponse(url=auth_url)
+@app.get("/api/models")
+async def list_models():
+    """
+    List available models from the inference backend.
+    This queries Dynamo or llama.cpp for available models.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{LLM_BASE_URL}/models",
+                headers={"Authorization": f"Bearer {DYNAMO_API_KEY}"},
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                models = []
+                for model in data.get("data", []):
+                    models.append(ModelInfo(
+                        id=model.get("id", "unknown"),
+                        name=model.get("id", "unknown"),
+                        description=f"Available on {LLM_BASE_URL}",
+                        capabilities=["chat", "completion"],
+                    ))
+                return models
+            else:
+                # Fallback: return default models
+                return [
+                    ModelInfo(id="deepseek-1.5b", name="DeepSeek 1.5B", capabilities=["chat"]),
+                    ModelInfo(id="qwen-1.5b", name="Qwen 1.5B", capabilities=["chat"]),
+                    ModelInfo(id="llama-3.2", name="Llama 3.2", capabilities=["chat"]),
+                ]
+    except Exception as e:
+        logger.error(f"Error listing models: {e}")
+        # Return fallback models
+        return [
+            ModelInfo(id="deepseek-1.5b", name="DeepSeek 1.5B", capabilities=["chat"]),
+            ModelInfo(id="qwen-1.5b", name="Qwen 1.5B", capabilities=["chat"]),
+        ]
 
-@app.get("/api/auth/callback/odoo")
-async def oauth_callback(request: Request, code: str = None, state: str = None):
-    if not AUTH_ENABLED:
-        return RedirectResponse(url="/")
-    session_state = request.session.get("oauth_state")
-    if not session_state or session_state != state:
-        raise HTTPException(status_code=400, detail="Invalid state parameter")
-    token_data = {
-        "client_id": ODOO_OAUTH_CLIENT_ID,
-        "client_secret": ODOO_OAUTH_CLIENT_SECRET,
-        "redirect_uri": ODOO_OAUTH_REDIRECT_URI,
-        "code": code,
-        "grant_type": "authorization_code"
-    }
-    resp = await client.post(ODOO_OAUTH_TOKEN_URL, data=token_data)
-    if resp.status_code != 200:
-        raise HTTPException(status_code=400, detail="Token exchange failed")
-    token_response = resp.json()
-    access_token = token_response.get("access_token")
-    refresh_token = token_response.get("refresh_token")
-    user_resp = await client.get(
-        ODOO_OAUTH_USERINFO_URL,
-        headers={"Authorization": f"Bearer {access_token}"}
-    )
-    user_info = user_resp.json()
-    request.session["access_token"] = access_token
-    request.session["refresh_token"] = refresh_token
-    request.session["user"] = {
-        "id": user_info.get("id"),
-        "email": user_info.get("email"),
-        "name": user_info.get("name", user_info.get("email")),
-    }
-    return RedirectResponse(url="/")
-
-@app.get("/api/auth/logout")
-async def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse(url="/")
-
-@app.get("/api/auth/session")
-async def get_session(request: Request):
-    user = request.session.get("user")
-    authenticated = bool(user) if AUTH_ENABLED else False
-    return {
-        "user": user,
-        "authenticated": authenticated,
-        "auth_enabled": AUTH_ENABLED,
-    }
-
-# ============================================================================
-# CHAT API – Proxies to LangGraph
-# ============================================================================
 @app.post("/api/chat")
-async def chat(request: Request):
-    try:
-        data = await request.json()
-        message = data.get("message", "")
-        thread_id = data.get("thread_id")
-        payload = {"message": message}
-        if thread_id:
-            payload["thread_id"] = thread_id
-        resp = await client.post(
-            f"{LANGGRAPH_URL}/invoke",
-            json=payload,
-            headers={"Authorization": f"Bearer {LANGGRAPH_API_KEY}"}
-        )
-        return resp.json()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def chat(request: ChatRequest):
+    """
+    Send a chat request to the inference backend.
+    Supports both streaming and non-streaming responses.
+    """
+    # Check if we should use LangGraph or direct inference
+    use_langgraph = request.model and request.model.startswith("agent-")
+    
+    if use_langgraph:
+        return await chat_with_langgraph(request)
+    else:
+        return await chat_with_dynamo(request)
 
-# ============================================================================
-# GPU STATUS
-# ============================================================================
+async def chat_with_dynamo(request: ChatRequest):
+    """Chat with Dynamo/vLLM directly"""
+    # Prepare the request
+    messages = [{"role": m.role, "content": m.content} for m in request.messages]
+    
+    payload = {
+        "model": request.model or "deepseek-1.5b",
+        "messages": messages,
+        "temperature": request.temperature,
+        "max_tokens": request.max_tokens,
+        "stream": request.stream,
+    }
+
+    if request.stream:
+        # Streaming response
+        async def stream_generator():
+            async with httpx.AsyncClient() as client:
+                async with client.stream(
+                    "POST",
+                    f"{LLM_BASE_URL}/chat/completions",
+                    headers={"Authorization": f"Bearer {DYNAMO_API_KEY}"},
+                    json=payload,
+                    timeout=120.0,
+                ) as response:
+                    async for chunk in response.aiter_bytes():
+                        yield chunk
+        
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+    else:
+        # Non-streaming response
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{LLM_BASE_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {DYNAMO_API_KEY}"},
+                json=payload,
+                timeout=60.0,
+            )
+            if response.status_code == 200:
+                return response.json()
+            else:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Inference backend error: {response.text}"
+                )
+
+async def chat_with_langgraph(request: ChatRequest):
+    """Chat with LangGraph agent"""
+    # Extract the agent name from the model ID
+    agent_name = request.model.replace("agent-", "") if request.model else "default"
+    
+    # Prepare the request for LangGraph
+    payload = {
+        "input": {
+            "messages": [{"role": m.role, "content": m.content} for m in request.messages],
+            "agent_name": agent_name,
+        },
+        "config": {
+            "configurable": {
+                "thread_id": str(uuid.uuid4()),
+            }
+        }
+    }
+
+    if request.stream:
+        # Streaming response from LangGraph
+        async def stream_generator():
+            async with httpx.AsyncClient() as client:
+                async with client.stream(
+                    "POST",
+                    f"{LANGGRAPH_URL}/runs/stream",
+                    headers={"Authorization": f"Bearer {LANGGRAPH_API_KEY}"},
+                    json=payload,
+                    timeout=120.0,
+                ) as response:
+                    async for chunk in response.aiter_bytes():
+                        yield chunk
+        
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+    else:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{LANGGRAPH_URL}/runs/stream",
+                headers={"Authorization": f"Bearer {LANGGRAPH_API_KEY}"},
+                json=payload,
+                timeout=60.0,
+            )
+            if response.status_code == 200:
+                return response.json()
+            else:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"LangGraph error: {response.text}"
+                )
+
 @app.get("/api/gpu/status")
-async def gpu_status():
+async def get_gpu_status():
+    """
+    Get GPU status from the GPU admin module.
+    This queries Odoo for GPU node status.
+    """
     try:
-        resp = await client.get(
-            f"{ODOO_PROXY_URL}/models/nettrades.gpu.node",
-            headers={"X-API-Key": ODOO_API_KEY}
-        )
-        return resp.json()
+        async with httpx.AsyncClient() as client:
+            # Query Odoo via the proxy
+            response = await client.get(
+                f"{ODOO_PROXY_URL}/api/gpu/nodes",
+                headers={"X-API-Key": ODOO_API_KEY},
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {"error": "Failed to fetch GPU status"}
     except Exception as e:
-        return {"error": str(e), "nodes": []}
+        logger.error(f"Error fetching GPU status: {e}")
+        return {"error": str(e)}
 
-# ============================================================================
-# LOGIN PAGE (served as template)
-# ============================================================================
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    if not AUTH_ENABLED:
-        return RedirectResponse(url="/")
-    return templates.TemplateResponse("login.html", {"request": request})
+@app.get("/api/discovery/peers")
+async def get_discovered_peers():
+    """
+    Get discovered peers from the bridge discovery service.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{ODOO_PROXY_URL}/api/bridge/discovery/peers",
+                headers={"X-API-Key": ODOO_API_KEY},
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {"peers": []}
+    except Exception as e:
+        logger.error(f"Error fetching peers: {e}")
+        return {"peers": []}
+
+# =============================================================================
+# Main Entry Point
+# =============================================================================
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+        log_level="info",
+    )
