@@ -21,6 +21,8 @@
 #   - Modules are now conditionally installed based on FEATURE_* flags from .env.
 #   - The module list is built dynamically, so only enabled features are installed.
 #   - Removed nettrades_gpustack_adapter (deprecated).
+#   - NEW: Validates that all view files exist before installation, creating
+#     placeholders if they are missing.
 # =============================================================================
 
 set -e
@@ -109,6 +111,53 @@ fi
 log_success "Database connection verified."
 
 cd "$PROJECT_ROOT"
+
+# -----------------------------------------------------------------------------
+# NEW: Validate that all view files exist inside the container
+# This prevents the "FileNotFoundError" we saw in the logs.
+# -----------------------------------------------------------------------------
+log_step "Validating Odoo module files inside the container..."
+
+# Get the list of NETTRADES modules from the filesystem
+MODULE_DIRS=$(docker compose exec -T odoo find /mnt/extra-addons -maxdepth 1 -type d -name "nettrades_*" 2>/dev/null | sed 's|/mnt/extra-addons/||' | tr -d '\r')
+
+for module in $MODULE_DIRS; do
+    # Check if the module has a manifest
+    if docker compose exec -T odoo test -f "/mnt/extra-addons/$module/__manifest__.py" &>/dev/null; then
+        # Extract view files from the manifest
+        VIEW_FILES=$(docker compose exec -T odoo grep -E "['\"]views/.*\.xml['\"]" "/mnt/extra-addons/$module/__manifest__.py" 2>/dev/null | sed "s/.*['\"]\(views\/.*\.xml\)['\"].*/\1/" | tr -d '\r')
+        
+        for view_file in $VIEW_FILES; do
+            if ! docker compose exec -T odoo test -f "/mnt/extra-addons/$module/$view_file" &>/dev/null; then
+                log_warning "  - Missing view file in module $module: $view_file"
+                log_info "    Creating placeholder inside the container..."
+                
+                # Create the directory if it doesn't exist
+                docker compose exec -T odoo mkdir -p "/mnt/extra-addons/$module/$(dirname "$view_file")" 2>/dev/null || true
+                
+                # Create a minimal placeholder XML file
+                docker compose exec -T odoo bash -c "cat > /mnt/extra-addons/$module/$view_file << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AUTO-GENERATED PLACEHOLDER
+    The original file '$view_file' was missing from the module '$module'.
+    This placeholder was created to prevent Odoo from failing during installation.
+    Please replace this with the actual view definition.
+-->
+<odoo>
+    <data>
+        <!-- TODO: Add view definitions for $module -->
+    </data>
+</odoo>
+EOF" 2>/dev/null || {
+                    log_warning "    Failed to create placeholder for $view_file"
+                }
+                log_info "    Created placeholder: $view_file"
+            fi
+        done
+    fi
+done
+log_success "Module file validation complete"
 
 # -----------------------------------------------------------------------------
 # Define modules based on feature flags

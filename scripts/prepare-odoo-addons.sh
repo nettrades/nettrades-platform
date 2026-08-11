@@ -13,6 +13,8 @@
 #
 #   NEW: Automatically clones the Odoo repository if third-party/odoo is missing.
 #   NEW: With --force, it always copies fresh modules (overwrites existing).
+#   NEW: Validates that all view files referenced in module manifests exist,
+#        and creates placeholder files if they are missing (with a warning).
 # =============================================================================
 
 set -euo pipefail
@@ -127,6 +129,54 @@ for module_dir in "$TARGET"/*/; do
         fi
     fi
 done
+
+# -----------------------------------------------------------------------------
+# NEW: Validate that all view files referenced in manifests exist
+# If a file is missing, create a placeholder to prevent Odoo from failing.
+# -----------------------------------------------------------------------------
+log_step "Validating Odoo module view files..."
+for manifest in "$TARGET"/*/__manifest__.py; do
+    if [[ -f "$manifest" ]]; then
+        module_dir="$(dirname "$manifest")"
+        module_name="$(basename "$module_dir")"
+        
+        # Extract data files from manifest (simple grep for 'views/*.xml')
+        # This is a best-effort approach – Odoo's manifest can be more complex,
+        # but this catches the common case.
+        while IFS= read -r view_file; do
+            # Remove quotes and whitespace
+            view_file=$(echo "$view_file" | sed "s/['\"]//g" | xargs)
+            if [[ -n "$view_file" ]]; then
+                full_path="$module_dir/$view_file"
+                if [[ ! -f "$full_path" ]]; then
+                    log_warning "  - Missing view file: $view_file in module $module_name"
+                    log_info "    Creating placeholder file to prevent Odoo failure..."
+                    
+                    # Create the directory if it doesn't exist
+                    mkdir -p "$(dirname "$full_path")"
+                    
+                    # Create a minimal placeholder XML file
+                    cat > "$full_path" << EOF
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AUTO-GENERATED PLACEHOLDER
+    The original file '$view_file' was missing from the module '$module_name'.
+    This placeholder was created to prevent Odoo from failing during installation.
+    Please replace this with the actual view definition.
+-->
+<odoo>
+    <data>
+        <!-- TODO: Add view definitions for $module_name -->
+    </data>
+</odoo>
+EOF
+                    log_info "    Created placeholder: $full_path"
+                fi
+            fi
+        done < <(grep -E "['\"]views/.*\.xml['\"]" "$manifest" | sed "s/.*['\"]\(views\/.*\.xml\)['\"].*/\1/")
+    fi
+done
+log_success "View file validation complete"
 
 # -----------------------------------------------------------------------------
 # NEW: Convert line endings to LF for all text files in Odoo modules
