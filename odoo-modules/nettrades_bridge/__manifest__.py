@@ -19,6 +19,9 @@
 #   - GPU overflow detection and routing to the global marketplace
 #   - Graceful fallback between local and remote brains
 #   - Usage tracking and billing integration
+#   - NVIDIA Dynamo load balancing
+#   - mDNS/Avahi automatic node discovery
+#   - WireGuard peer management
 #
 # =============================================================================
 {
@@ -41,6 +44,18 @@
         1. Global Settings: Settings -> Technical -> Bridge -> Global Config
         2. Company Settings: Settings -> Technical -> Bridge -> Company Config
         3. Usage Logs: Settings -> Technical -> Bridge -> Usage Logs
+        4. Bridge Routes: Settings -> Technical -> Bridge -> Routes
+
+        ============================================================
+        API ENDPOINTS
+        ============================================================
+        - /api/bridge/health          : Health check
+        - /api/bridge/route           : Route a request (intent-based)
+        - /api/bridge/route/decide    : Get a route decision for LangGraph agents
+        - /api/bridge/config          : Get effective configuration
+        - /api/bridge/usage           : Get usage logs
+        - /api/bridge/discovery/peers : Get discovered mDNS peers
+        - /api/bridge/discovery/status: Get discovery service status
     """,
     'author': 'Nettrades',
     'website': 'https://nettrades.ai',
@@ -51,11 +66,17 @@
         'base',                    # Core Odoo
     ],
     'data': [
+        # Security
         'security/bridge_security.xml',
         'security/ir.model.access.csv',
+
+        # Views
         'views/bridge_config_views.xml',
         'views/bridge_company_config_views.xml',
+        'views/bridge_route_views.xml',
         'views/bridge_usage_log_views.xml',
+
+        # Data
         'data/bridge_cron_data.xml',
     ],
     'installable': True,
