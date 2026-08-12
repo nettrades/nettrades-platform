@@ -34,23 +34,11 @@ PURPOSE:
   Follows the pattern used by Kubernetes, Argo CD, and Odoo.
   ============================================================================
   -->
-  <a href="https://github.com/nettrades/nettrades-platform/blob/main/LICENSE.txt">
-    <img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0">
-  </a>
   <a href="https://github.com/nettrades/nettrades-platform/releases">
     <img src="https://img.shields.io/github/v/release/nettrades/nettrades-platform?sort=semver" alt="GitHub release (latest SemVer)">
   </a>
   <a href="https://github.com/nettrades/nettrades-platform/actions">
     <img src="https://github.com/nettrades/nettrades-platform/actions/workflows/ci-cd.yml/badge.svg" alt="CI/CD">
-  </a>
-  <a href="https://codecov.io/gh/nettrades/nettrades-platform">
-    <img src="https://codecov.io/gh/nettrades/nettrades-platform/branch/main/graph/badge.svg" alt="codecov">
-  </a>
-  <a href="https://github.com/nettrades/nettrades-platform/issues">
-    <img src="https://goreportcard.com/badge/github.com/nettrades/nettrades-platform" alt="Go Report Card">
-  </a>
-  <a href="https://github.com/nettrades/nettrades-platform/stargazers">
-    <img src="https://img.shields.io/github/stars/nettrades/nettrades-platform?style=social" alt="GitHub Stars">
   </a>
   <a href="https://github.com/nettrades/nettrades-platform/issues">
     <img src="https://img.shields.io/github/issues/nettrades/nettrades-platform" alt="GitHub Issues">
@@ -63,8 +51,8 @@ PURPOSE:
 <p align="center">
   <a href="#-key-features">Features</a> •
   <a href="#-Architecture">Architecture</a> •
-  <a href="#-technology-stack">Tech Stack</a> •
-  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-technology--stack">Tech Stack</a> •
+  <a href="#-quick--start">Quick Start</a> •
   <a href="#-documentation">Docs</a> •
   <a href="#-community--support">Community</a> •
   <a href="#-contributing">Contributing</a>
@@ -72,11 +60,11 @@ PURPOSE:
 
 ---
 
+[![Commercial License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](COMMERCIAL-LICENSE.md)
+[![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE.txt)
 [![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
-[![Documentation](https://img.shields.io/badge/docs-MkDocs-brightgreen.svg)](https://nettrades.github.io/nettrades-platform/)
-[![GitHub Stars](https://img.shields.io/github/stars/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/stargazers)
-[![GitHub Issues](https://img.shields.io/github/issues/nettrades/nettrades-platform)](https://github.com/nettrades/nettrades-platform/issues)
-
+[![Contributor License Agreement](https://img.shields.io/badge/Contributor-License-Agreement.svg)](Contributor-License-Agreement.md)
+[![Ethical Statement](https://img.shields.io/badge/Ethical-Statement.svg)](ETHICAL-STATEMENT.md)
 
 ## The NETTRADES Sovereign AI Platform
 
@@ -92,10 +80,11 @@ PURPOSE:
 
 **And use their spare GPUs to talk to their organisations data.** 
 
-### Deploy in minutes not months
+### Deploy in minutes, not months
 
 ```bash
 apt update && apt upgrade -y
+
 # Clone the repository
 cd /root
 git clone -b main https://github.com/nettrades/nettrades-platform.git
@@ -114,11 +103,14 @@ See the **Accessing Your Platform** section below to login.
 For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
 
 So you may need to run:
+
 ssh-keygen -R ServerIPaddress
 
 to remove an old key if you have issues and then run:
-
+```bash
 ssh -p 2222 root@ServerIPaddress
+```
+
 to get a new key and reconnect
 
 ### The Problem
@@ -159,14 +151,17 @@ to get a new key and reconnect
 
 | Feature | Description |
 |---------|-------------|
+| **🎮 Steam-like Launcher** | One-click deployment, GPU detection, model management, node discovery, and WireGuard VPN management. |
 | **🔐 Secure & Sovereign** | WireGuard VPN, gVisor isolation and full on-premise deployment options. |
 | **🔄 Private model serving** | Use your spare GPUs to serve models and provide API Keys |
+| **🎮 NVIDIA Dynamo** | Production-grade distributed inference with vLLM and llama.cpp fallback. |
+| **🌐 mDNS/Avahi Discovery** | Automatic discovery of other GPUs on your network. |
 | **📊 AI dashboards** | AI routing and montoring |
-| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system. |
-| **🔐 ERP, CRM, HR, business logic** | Companies could enable built in ERP, CRM, HR and business logic if required |
-| **🏗 Confidential Computing** - coming soon| Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
+| **📊 ERP, CRM, HR, business logic** | Companies could enable built in ERP, CRM, HR and business logic if required |
 | **🔌 [Configurable Hub-and-Spoke Routing - coming soon](docs/developer/bridge-architecture.md)** | The **nettrades_bridge** module routes requests between local and remote brains based on intent, company policy and GPU capacity if configured to do so. |
-| **🔄️ Model fine tuning** | Fine tune models on your data |
+| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system for autonomous enterprise operations. |
+| **🔐 Confidential Computing** - coming soon| Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
+| **🧠️ Model fine tuning** - coming soon | Fine-tune models on your data using Unsloth or Axolotl. |
 | **🖥️ [GPU Marketplace - coming soon](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. |
 
 ## Enterprise Support
@@ -181,8 +176,6 @@ to get a new key and reconnect
 
 
 ## License
-
-## Licensing
 
 The NETTRADES Platform is **dual-licensed**:
 
@@ -222,6 +215,8 @@ Contact us at **legal@nettrades.ai** for pricing and terms.
 ## Ethical Commitment
 
 NETTRADES is committed to technology that serves humanity. The commercial license includes restrictions on military, surveillance, human rights violations and environmental harm.
+
+[Click here to view the ethical statement](ETHICAL-STATEMENT.md)
 
 ## Contributing
 
@@ -273,9 +268,10 @@ Step 3: Enable WSL Integration
 
 * In the Settings window, go to General and tick "Start Docker Desktp when you sign in to your computer" 
 (unless you remember to start Docker Desktop every time you use the nettrades-platform for development) 
-Choose container terminal - Integrated
-Choose how to run Docker container - WSL2
-then click Apply
+
+* Choose container terminal - Integrated
+
+* Choose how to run Docker container - WSL2 then click Apply
 
 * In the Settings window, go to Resources → WSL Integration
 
@@ -285,7 +281,7 @@ then click Apply
 
 ** "Ubuntu" (or whatever your WSL distro is called)
 
-** Click "Apply & Restart" at the bottom
+* Click "Apply & Restart" at the bottom
 
 Step 4: Verify Docker is Working in WSL
 
@@ -344,20 +340,22 @@ sudo ./scripts/nettrades-setup.sh all --force
 
 See the Accessing Your Platform section below to login.
 
-For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
+For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222. So you may need to run:
 
-So you may need to run:
+```bash
 ssh-keygen -R ServerIPaddress
+```
 
 to remove an old key if you have issues and then run:
 
+```bash
 ssh -p 2222 root@ServerIPaddress
+```
+
 to get a new key and reconnect
 
 
-On a windows machine in WSL install dos2unix if not already installed
-This can convert all the files in the repository to have Linux line endings (\n)
-
+On a windows machine with WSL, the deployment scripts will install dos2unix and run the commands below to convert all the files in the repository to have Linux line endings (\n)
 
 ```bash
 sudo apt install dos2unix -y
@@ -368,7 +366,8 @@ This will take about 10 minutes to run.
 
 Work on the dev-deployment1 branch not on the main branch
 
-Since the code has extensive comments and documentation you could use any AI including Deepseek or GitHub codepilot to explain how the code work. First ask it to do an extensive code review, so that it loads the code into its context window and then it will be able to assist you with any further questions.
+Since the code has extensive comments and documentation you could use any AI model including Deepseek or GitHub codepilot to explain how the code work. 
+First ask it to do an extensive code review, so that it loads the whole codebase into its context window and then it will be able to assist you with any further questions.
 
 #### 2. Choose Your Setup Path
 
@@ -384,13 +383,16 @@ sudo ./scripts/nettrades-setup.sh
 
 ```
 The script launches an interactive wizard that lets you choose the profile and the options.
-For a fully automated deployment (recommended for first-time development users):
+
+##### Fully automated deployment (recommended for first-time development users):
 
 ```bash
 sudo ./scripts/nettrades-setup.sh all --force
 
 ```
-This will run all phases (system preparation, environment setup, deployment and module installation) with default settings. (Warning do not use --force on existing systems or production systems)
+This will run all phases (system preparation, environment setup, deployment and module installation) with default settings.
+
+⚠️ Warning: Do not use --force on existing systems or production systems - it will wipe all the data
 
 
 #### What Happens During Setup?
@@ -399,14 +401,19 @@ The installer executes phases in this order:
 
 | Phase | Description |
 |---------|-------------|
-| `0` | System Preparation – installs Docker, Docker Compose, NVIDIA drivers (if GPU), configures firewall, installs fail2ban, sets system limits, and checks for gVisor. |
-| `1` | Environment & Secrets – generates secure passwords, API keys, WireGuard keys, and creates .env. |
-| `2` | Single-VM Deployment – builds custom images (Odoo, LangGraph), prepares Odoo addons, initialises the database, starts all Docker Compose services, sets up cron backups, and performs health checks. |
+| `0` | System Preparation & Hardening – installs Docker, Docker Compose, NVIDIA drivers (if GPU), configures firewall, installs fail2ban, sets system limits, and checks for gVisor. |
+| `1` | Development Environment – With Python virtual environment, generates secure passwords, API keys, WireGuard keys, and creates .env. |
+| `2` | Single-VM Deployment – with NVIDIA Dynamo + llama.cpp fallback, builds custom images (Odoo, LangGraph), prepares Odoo addons, initialises the database, starts all Docker Compose services and performs health checks. |
 | `3` | Kubernetes Scaling – provisions Talos VMs on Proxmox, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, NVIDIA Dynamo, and WireGuard. |
 | `4` | Module Installation – installs all NETTRADES custom Odoo modules in the correct dependency order. |
 | `5` | Monitoring – deploys Prometheus and Grafana with pre-configured dashboards (if not already present). |
 
 All phases are idempotent – you can safely re-run the script to fix or upgrade your deployment.
+
+#### INFERENCE ARCHITECTURE:
+* Primary: NVIDIA Dynamo (GPU-accelerated, distributed, includes vLLM)
+* Fallback: llama.cpp (CPU, zero-dependency)
+* Odoo provides governance and GPU resource management
 
 ### Accessing Your Platform
 
@@ -414,22 +421,29 @@ All the administration passwords are in the file:
 nettrades-platform\deploy\docker\.env 
 (The platform uses the .env and the docker-compose.xml file not the odoo.config file)
 
-Once the installation is complete, open your browser and go to:
+Once the installation is complete find the passwords in the nettrades-platform\deploy\dockernettrades-platform\deploy\docker\.env file, open your browser and go to:
 
 | Service | URL | Username | Password |
 |---------|-------------|---------|-------------|
 | Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
-| NVIDIA Dynamo | http://YourDomainOrIP:8080 or http://localhost:8080 | admin | NVIDIA Dynamo_ADMIN_PASSWORD in the .env file |
+| NVIDIA Dynamo API | http://YourDomainOrIP:8001/v1 or http://localhost:8001/v1 | (API Key) | DYNAMO_API_KEY in the .env file |
 | Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
 | Prometheus | http://YourDomainOrIP:9090 or http://YourDomainOrIP:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
+| NETTRADES-UI Chat | http://YourDomainOrIP:3002 or http://YourDomainOrIP:3002 | No login required yet | N/A  |
+| llama.cpp UI | http://YourDomainOrIP:8080 or http://YourDomainOrIP:8080 | No login required | PROMETHEUS_PASSWORD in the .env file  |
 | Forgejo | http://YourDomainOrIP:3000 or http://localhost:3000 | Set in after installation | Set in after installation  |
 
 For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
 
-Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestration, model serving, admin console), you don't need to use Forgejo. It is provided for customers who want to self-host Git capabilities or want to use it for Git Actions to deloy Kubernetes cluster with Argo CD.
+Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestration, model serving, admin console), you don't need to use Forgejo. It is provided for customers who want to self-host Git capabilities or want to use it for Git Actions to deloy Kubernetes cluster with Argo CD. They could uncomment it in the nettrades-platform\deploy\dockernettrades-platform\deploy\docker\docker-compose.yaml file if they need Forgejo
 
 
 #### 📦 Other Installation Options
+
+USAGE:
+   ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
+   ./nettrades-setup.sh                       (Interactive wizard)
+   ./nettrades-setup.sh --help                Show help.
 
 
 | Profile | Description |  Phase  |
@@ -445,11 +459,17 @@ Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestrati
 
 | Option | Effect |
 |---------|-------------|
-| `--force` | Re-run phases even if they were already completed |
+| `--force` | Re-run phases even if they were already completed ⚠️ WARNING: OVER WRITES EVERYTHING |
 | `--upgrade` | Upgrade Odoo modules instead of fresh install |
+| `--with-finetune` | Install fine-tuning packages (torch, unsloth, axolotl) |
+| `--production` | Set environment to production (applies hardening) |
+| `--development` | Set environment to development (no hardening) [default] |
 | `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
+| `--regenerate-secrets` | Regenerate all secrets in .env (⚠️ WARNING: use with caution, you will be locked out) |
+| `--reset-data` | Wipe all containers and volumes (⚠️ WARNING: destroys data!) |
 
-WARNING DO NOT RUN --force ON PRTODUCTION ENVIRONMENTS
+
+⚠️ WARNING: DO NOT RUN --force ON PRODUCTION ENVIRONMENTS
 
 #### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
 
@@ -461,16 +481,10 @@ sudo ./scripts/nettrades-setup.sh all
 # Deployment without GPU
 sudo ./scripts/nettrades-setup.sh deploy
 
-# Deployment with GPU support
-sudo ./scripts/nettrades-setup.sh gpu
-
 # Development environment only
 sudo ./scripts/nettrades-setup.sh dev
 
-# First-time Development environment
-sudo ./scripts/nettrades-setup.sh dev
-
-# Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website osoo module
+# Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website Odoo module
 sudo ./scripts/nettrades-setup.sh modules
 or
 sudo ./scripts/nettrades-setup.sh modules --upgrade
@@ -487,19 +501,16 @@ sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4
 
 #### 🔑 Database Password Management
 
-During Phase 1, the script generates a random password for PostgreSQL.
+During Phase 1, the script generates a random password for PostgreSQL. The password generator already removes special characters (+, /, =) to ensure compatibility with Odoo’s command-line tools.
 
-However, for compatibility with Odoo’s command-line tools, the password must not contain special characters (like +, /, =).
-
-If you encounter authentication errors, you can simplify the password by editing .env and updating the PostgreSQL user:
+In the past when people encountered authentication errors, they simplified the password by editing .env and updating the PostgreSQL user:
 
 ```bash
 
 docker exec -it docker-postgres-1 psql -U odoo -c "ALTER USER odoo WITH PASSWORD 'odoo123';"
 
 ```
-Make sure you update the password in .env and odoo.conf and restart Odoo.
-
+Make sure you update the password in .env and restart Odoo if you do this.
 
 
 
@@ -545,6 +556,9 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 
 * llama.cpp is configured for CPU inference; for GPU, replace the image with ghcr.io/ggml-org/llama.cpp:server-cuda and set -ngl 999 in the command.
 
+* gVisor is used for container isolation on CPU services (Odoo, LangGraph). GPU services (NVIDIA Dynamo) use the default runtime.
+
+
 #### 🛠️ Next Steps
 
 * Configure fairness – Settings → Technical → Fairness → Global Configuration
@@ -555,46 +569,68 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 
 * Import sample data (optional) – see docs/operations/import-demo-data.md
 
+
 #### ❓ Troubleshooting
 
 
 ##### Odoo fails to start with “password authentication failed”
 
-* Ensure db_password in odoo.conf matches POSTGRES_PASSWORD in .env.
+* The POSTGRES_PASSWORD is in nettrades-platform\deploy\docker\.env
 
 * Use a simple password (e.g., odoo123) without special characters.
 
 * Update the PostgreSQL user password with ALTER USER odoo WITH PASSWORD 'your_password';.   or in wsl run Run: docker exec -it docker-postgres-1 psql -U odoo -c "ALTER USER odoo WITH PASSWORD 'odoo123';"
 
+* Change the POSTGRES_PASSWORD in nettrades-platform\deploy\docker\.env
+
+
+
 ##### Modules show "Activate" not "Upgrade"
 
 * Modules are not installed. Run ./scripts/install-modules.sh --force or install via Odoo UI: Apps → Update Apps List → Install nettrades_* modules.
 
+
+
 ##### postgres host not found
 
-##### You are running Odoo outside Docker. In WSL terminal window run `cd /mnt/c/nettrades-platform/deploy/docker` then run `docker compose up -d` instead.
+
+* You are running Odoo outside Docker. In WSL terminal window run:
+
+```bash
+cd /mnt/c/nettrades-platform/deploy/docker
+
+docker compose up -d
+```
+
+
 
 ##### Odoo returns 502 / Connection refused
 
-Wait 30 seconds for PostgreSQL to start. Check docker compose logs postgres.
 
-##### “No such container: odoo” during module installation
+* Wait 30 seconds for PostgreSQL to start. Check `docker compose logs postgres`.
 
-* Add container_name: odoo to the Odoo service in docker-compose.yaml and recreate the container.
 
-Port 8069 already in use
+##### `No such container: odoo` during module installation
 
-* Change the host port in docker-compose.yaml (e.g., "8069:8069" → "8069:8069" is fixed; if you need a different port, change the left side).
+* Add `container_name: odoo` to the Odoo service in `docker-compose.yaml` and recreate the container.
+
+
+##### Port 8069 already in use
+
+* Change the host port in `docker-compose.yaml` (e.g., "8069:8069" → "8069:8069" is fixed; if you need a different port, change the left side).
+
 
 ##### LangGraph returns 500
 
-* Check docker compose logs langgraph. Verify LANGGRAPH_API_KEY in .env.
+* Check `docker compose logs langgraph`. Verify `LANGGRAPH_API_KEY` in `.env`.
+
 
 ##### LangGraph agent fails to start
 
 * Check logs: docker compose logs langgraph.
 
 * Ensure DATABASE_URL in docker-compose.yaml points to postgres with the correct password.
+
 
 ##### Other issues
 
@@ -609,16 +645,22 @@ For more detailed information, see the docs/ folder.
 
 # All services
 
-To read the logs on all servers in WSL terminal window run `cd /mnt/c/nettrades-platform/deploy/docker` then run:
-`docker compose logs -f`
+To read the logs on all servers in WSL terminal window run 
+
+```bash
+cd /mnt/c/nettrades-platform/deploy/docker
+docker compose logs -f
+```
 
 # Specific service
 
-To read the logs on specific servers in WSL terminal window run `cd /mnt/c/nettrades-platform/deploy/docker` then run:
-`docker compose logs -f odoo`
-`docker compose logs -f postgres`
-`docker compose logs -f langgraph`
-
+To read the logs on specific servers in WSL terminal window run: 
+```bash
+cd /mnt/c/nettrades-platform/deploy/docker
+docker compose logs -f odoo
+docker compose logs -f postgres
+docker compose logs -f langgraph
+```
 
 
 #### 🧪 Advanced: Kubernetes / Distributed Deployment
@@ -628,8 +670,7 @@ If you’re ready to scale to multiple nodes with Kubernetes, use:
 
 ./scripts/nettrades-setup.sh k8s --auto
 ```
-This requires a Proxmox host and pre-configured Talos images. For details, see docs/operations/kubernetes-deployment.md.
-
+This requires a Proxmox host or open stack and pre-configured Talos images. For details, see `docs/operations/kubernetes-deployment.md`.
 
 
 ### Troubleshooting a server
@@ -644,7 +685,7 @@ LangGraph returns 500 – Check docker compose logs langgraph and verify PROXY_A
 
 Proxy not responding – Run docker compose logs odoo-proxy and verify Odoo is reachable.
 
-For more detailed help, see the Full Documentation.
+For more detailed help, see the [Full Documentation](docs/index.md).
 
 ### Next Steps
 
@@ -665,18 +706,18 @@ For more detailed help, see the Full Documentation.
 | `Business Logic` | ERP / CRM / HR | Odoo | 19 CE | LGPL-3 | Core business logic |
 | `Job Queue` | Async processing | OCA queue_job | 19.0 | LGPL-3 | Background jobs |
 | `Payments` | Payment processing | OCA payment_stripe | 19.0 | LGPL-3 | Stripe integration |
-| `Database` | Primary database | PostgreSQL + pgvector | 18 | PostgreSQL | Vector embeddings |
+| `Database` | Primary database | PostgreSQL + pgvector | 17 | PostgreSQL | Vector embeddings |
 | `Cache` | Session / Rate limiting | Valkey | 8 | BSD-3 | High-performance cache |
 | `Object Storage` | Files / Models | MinIO / S3 | Latest | AGPL-3 | Model artifacts |
 | `Agent Orchestration` | Multi-agent framework | LangGraph | Latest | MIT | Stateful agents |
 | `Agent State` | Checkpointing | LangGraph Checkpoint Postgres | Latest | MIT | Durable workflows |
-| `GPU Management` | Cluster management | NVIDIA Dynamo | Latest	Apache-2.0 | GPU orchestration |
-| `Fine-Tuning` | Model training | Unsloth / Axolotl | Latest	Apache-2.0 | LLM fine-tuning |
-| `Inference` | LLM serving | vLLM, llama.cpp, SGLang | Latest	MIT | High-performance inference |
+| `GPU Management` | Cluster management | NVIDIA Dynamo | Latest | Apache-2.0 | GPU orchestration |
+| `Fine-Tuning` | Model training | Unsloth / Axolotl | Latest | Apache-2.0 | LLM fine-tuning |
+| `Inference` | LLM serving | vLLM, llama.cpp, SGLang | Latest | MIT | High-performance inference |
 | `Ingress` | Reverse proxy | Traefik | Latest | MIT | Dynamic routing |
-| `Git / CI` | Source control / CI | Forgejo | Latest	MIT | Self-hosted Git |
-| `GitOps` | Continuous delivery | Argo CD | Latest	Apache-2.0 | Declarative deployments |
-| `OS` | Kubernetes OS | Talos Linux	Latest	MPL-2.0	Immutable, secure |
+| `Git / CI` | Source control / CI | Forgejo | Latest | MIT | Self-hosted Git |
+| `GitOps` | Continuous delivery | Argo CD | Latest | Apache-2.0 | Declarative deployments |
+| `OS` | Kubernetes OS | Talos Linux | Latest | MPL-2.0 | Immutable, secure |
 | `Orchestration` | Container orchestration | Kubernetes | Latest | Apache-2.0 | Container management |
 | `CNI` | Networking | Cilium | Latest | Apache-2.0 | eBPF networking |
 | `Storage` | Persistent volumes | Longhorn | Latest | Apache-2.0 | Distributed block storage |
@@ -686,7 +727,7 @@ For more detailed help, see the Full Documentation.
 | `GPU Operator` | NVIDIA GPU management | NVIDIA GPU Operator | Latest | Apache-2.0 | GPU provisioning |
 | `Distributed Computing` | Ray on K8s | KubeRay | Latest | Apache-2.0 | Distributed training |
 | `VPN` | Secure networking | WireGuard | Latest | GPL-2.0 | Secure tunnels |
-| `Sandboxing` | Container isolation | gVisor | Latest | pache-2.0 | Secure containers |
+| `Sandboxing` | Container isolation | gVisor | Latest | pache-2.0 | Secure containers (CPU services) |
 | `Metrics` | Monitoring | Prometheus | Latest | Apache-2.0 | Metrics collection |
 | `Dashboards` | Visualisation | Grafana | Latest | AGPL-3.0 | Monitoring dashboards |
 
@@ -698,23 +739,23 @@ For more detailed help, see the Full Documentation.
 
 Full documentation is available at: [Full Documentation](docs/index.md).
 
-| Section | Description | Link |
-|---------|-------------|-----------|
-| `User Guide`	| For end-users – companies, freelancers, job-seekers	| `docs/user/index.md |
-| `Developer Guide`	| For developers extending the platform	| `docs/developer/index.md |
-| `Operations Guide`	| For system administrators and DevOps	| `docs/operations/index.md |
-| `API Reference`	| Complete API documentation	| `docs/developer/api-reference.md |
-| `Architecture Overview`	| System architecture diagrams and explanations	| `docs/developer/architecture.md |
-| `Core Models`	| Reference for all custom Odoo models	| `docs/developer/core-models.md |
-| `Database Schema`	| Complete database schema	| `docs/appendix/database-schema.md |
-| `Glossary`	| Key terms and definitions	| `docs/appendix/glossary.md |
-| `Contributing Guide`	| How to contribute to the project	| `docs/governance/contributing.md |
-| `Roadmap`	| Project roadmap and milestones	| `docs/governance/roadmap |
+| Section | Description |
+|---------|-------------|
+| `[User Guide](docs/user/index.md)`	| For end-users – companies, freelancers, job-seekers |
+| `[Developer Guide](docs/developer/index.md)`	| For developers extending the platform | 
+| `[Operations Guide](docs/operations/index.md)`	| For system administrators and DevOps |
+| `[API Reference](docs/developer/api-reference.md)`	| Complete API documentation |
+| `[Architecture Overview](docs/developer/architecture.md)`	| System architecture diagrams and explanations	|
+| `[Core Models](docs/developer/core-models.md)`	| Reference for all custom Odoo models |
+| `[Database Schema](docs/appendix/database-schema.md)`	| Complete database schema |
+| `[Glossary](docs/appendix/glossary.md)`	| Key terms and definitions |
+| `[Contributing Guide](docs/governance/contributing.md)`	| How to contribute to the project |
+| `[Roadmap](docs/governance/roadmap)`	| Project roadmap and milestones |
 
 ## 🤝 Community & Support
 
 NETTRADES has a growing community of developers, enterprises, and researchers. We welcome you to join us!
-💬 Get Help
+
 
 | Channel | Purpose | Link |
 |---------|-------------|-----------|
@@ -732,11 +773,11 @@ NETTRADES has a growing community of developers, enterprises, and researchers. W
 
 ## 🌟 Community Highlights
 
-* Contributors: We welcome contributions from developers of all skill levels. See our [Contributing Guide](contributing.md).
+* `Contributors`: We welcome contributions from developers of all skill levels. See our [Contributing Guide](contributing.md).
 
-* Adopters: Companies using NETTRADES in production – [add your logo!](https://github.com/nettrades/nettrades-platform/discussions)
+* `Adopters`: Companies using NETTRADES in production – [add your logo!](https://github.com/nettrades/nettrades-platform/discussions)
 
-* Events: Join our monthly community calls (details in Discussions).
+* `Events`: Join our monthly community calls.
 
 ## 🤝 Contributing
 
@@ -783,7 +824,7 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 
 * [LangGraph](https://github.com/langchain-ai/langgraph) – Stateful agent orchestration
 
-* NVIDIA Dynamo – GPU cluster management
+* [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo) – GPU cluster management
 
 * [Kubernetes](https://kubernetes.io/) – Container orchestration
 
@@ -814,7 +855,7 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 
 ### Architecture Overview And Future Enhancements
 
-### 1. High-Level System Architecture
+### System Architecture
 
 ```mermaid
 
@@ -824,81 +865,65 @@ graph TB
         PWA["Mobile PWA"]
         ChatWidget["AI Chatbot Widget"]
         VSCode["VS Code Extension"]
+        Launcher["NETTRADES Launcher (Electron)"]
     end
 
-    subgraph Ingress["Ingress / Reverse Proxy"]
-        Traefik["Traefik"]
-    end
-
-    subgraph Integration["Orchestration Layer (LangGraph)"]
-        Supervisor["Supervisor Agent"]
-        Agents["Sub-Agents"]
+    subgraph Integration["Integration & Orchestration Layer"]
+        Supervisor["LangGraph Supervisor Agent"]
+        Agents["Specialised Sub-Agents"]
         MCP["MCP-Odoo Bridge"]
         Bridge["nettrades_bridge"]
     end
 
-    subgraph SelfImproving["Self-Improving System Layer"]
-        DataCollection["nettrades_data_collection\nMonitor Phase"]
-        Trigger["nettrades_trigger\nAnalyze Phase"]
-        Loop["nettrades_loop\nPlan + Execute Phases"]
-        Config["nettrades_self_improving_config\nAdministration UI"]
+    subgraph AI["AI Inference & Training Layer"]
+        Router["Provider Router Logic"]
+        Dynamo["NVIDIA Dynamo Server(s)"]
+        vLLM["vLLM Workers (GPU)"]
+        llama_cpp["llama.cpp (CPU Fallback)"]
+        FineTune["Fine-Tuning Jobs (Unsloth/Axolotl)"]
+        External["External LLM APIs (OpenAI, Anthropic)"]
     end
 
-    subgraph Training["AI Inference & Training Layer"]
-        NVIDIA Dynamo["NVIDIA Dynamo"]
-        Workers["GPU Workers\n(vLLM, llama.cpp)"]
-        FineTune["Fine-Tuning Jobs\n(Unsloth / Axolotl)"]
-        External["External LLM APIs"]
-    end
-
-    subgraph Core["Core Layer (Odoo 19 CE)"]
-        Odoo["Odoo 19 CE"]
-        Modules["Custom Odoo Modules"]
-        Queue["OCA queue_job"]
-        Payments["OCA payment_stripe"]
+    subgraph Core["Core Odoo 19 CE Layer"]
+        Odoo["Odoo 19 CE Instance"]
+        Modules["Custom NETTRADES Modules"]
+        Fairness["nettrades_fairness"]
+        SelfImproving["Self-Improving Modules"]
     end
 
     subgraph Data["Data Layer"]
-        PG["PostgreSQL + pgvector"]
+        PG["PostgreSQL 17 + pgvector"]
         Valkey["Valkey 8"]
-        S3["MinIO / S3"]
+        S3["MinIO / S3 (Models & Backups)"]
     end
 
-    subgraph K8s["Kubernetes Cluster (Talos Linux)"]
-        Cilium["Cilium CNI"]
-        Longhorn["Longhorn Storage"]
-        MetalLB["MetalLB"]
-        certmgr["cert-manager"]
-        CloudNativePG["CloudNativePG"]
-        GPUOp["NVIDIA GPU Operator"]
+    subgraph Security["Security & Network Layer"]
+        WG["WireGuard Mesh/Hub-Spoke"]
+        gVisor["gVisor Container Runtime (CPU Services)"]
+        TEE["TEE / Confidential Computing"]
     end
 
-    subgraph GitOps["GitOps"]
-        Forgejo["Forgejo"]
-        ArgoCD["Argo CD"]
-    end
-
-    subgraph Monitoring["Monitoring"]
-        Prometheus["Prometheus"]
-        Grafana["Grafana"]
-    end
-
-    Frontend --> Traefik --> Core
-    Integration --> SelfImproving --> Training
-    Training --> NVIDIA Dynamo --> Workers
-    Training --> FineTune
+    Frontend --> Core
+    Frontend -->|Direct API Call| Integration
+    Integration --> MCP --> Core
+    Integration --> Router --> AI
+    AI --> Dynamo --> vLLM
+    AI --> llama_cpp
+    AI --> FineTune
+    AI --> External
     Core --> Data
-    K8s --> Core
-    K8s --> Data
-    GitOps --> K8s
-    Monitoring --> K8s
+    Core -. Orchestrates .-> Security
+    Security -. Secures .-> AI
+    Fairness --> Data
+    SelfImproving --> Data
 
 ```
 
 
+
 Detailed architecture diagrams are available in the [docs/developer/](docs/developer/index.md) folder.
 
-### 2. The Hub-and-Spoke Model
+### Bridge Architecture (Hub-and-Spoke)
 
 NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data sovereignty, and enable seamless scaling. Each spoke (company) runs its own client instance of the software for internal operations, while the hub (NETTRADES.AI) provides global services like GPU overflow and external help.
 
@@ -906,56 +931,261 @@ NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data so
 ```mermaid
 
 graph TB
-    subgraph Hub["🌐 NETTRADES.AI (The Hub)"]
-        GlobalTalent["Global Talent Pool"]
+    subgraph External["External"]
+        User["End User"]
+    end
+
+    subgraph Client["Client Company (nettrades.com)"]
+        subgraph Presentation["Presentation Layer"]
+            WebUI["Odoo Web UI"]
+            Launcher["NETTRADES Launcher"]
+            API["API Gateway"]
+        end
+
+        subgraph Bridge["Bridge Layer (nettrades_bridge)"]
+            Config["Bridge Config (Global & Company)"]
+            Router["Routing Engine (5 Modes)"]
+            Logger["Usage Logger"]
+            Discovery["mDNS Discovery"]
+        end
+
+        subgraph Local["Local AI"]
+            LangGraph["LangGraph Supervisor"]
+            Dynamo["NVIDIA Dynamo"]
+            vLLM["vLLM (GPU)"]
+            llama_cpp["llama.cpp (CPU)"]
+            Agents["Sub-Agents"]
+        end
+    end
+
+    subgraph Cloud["NETTRADES.AI (The Hub)"]
+        GlobalAPI["Global API"]
+        GlobalAgents["Global LangGraph Agents"]
         GlobalGPU["Global GPU Marketplace"]
-        GlobalModels["Global Self-Improving Models"]
-        CentralBridge["Central Bridge Router"]
+        TalentPool["Global Talent Pool"]
+        SelfImproving["Self-Improving Loop"]
     end
 
-    subgraph Spoke1["🏢 Company A (Spoke)"]
-        LocalOdoo1["Local Odoo 19 CE"]
-        LocalLangGraph1["Local LangGraph Agents"]
-        LocalGPU1["Local NVIDIA Dynamo"]
-        LocalBridge1["nettrades_bridge (Local Router)"]
-        LocalData1["Local PostgreSQL + pgvector"]
-        LocalValkey1["Local Valkey"]
-    end
+    User --> WebUI
+    User --> Launcher
+    User --> API
+    WebUI --> Bridge
+    Launcher --> Bridge
+    API --> Bridge
 
-    subgraph Spoke2["🏢 Company B (Spoke)"]
-        LocalOdoo2["Local Odoo 19 CE"]
-        LocalLangGraph2["Local LangGraph Agents"]
-        LocalGPU2["Local NVIDIA Dynamo"]
-        LocalBridge2["nettrades_bridge (Local Router)"]
-        LocalData2["Local PostgreSQL + pgvector"]
-        LocalValkey2["Local Valkey"]
-    end
+    Bridge -->|"Local (default)"| LangGraph
+    Bridge -->|"Remote (when needed)"| GlobalAPI
+    Bridge -->|"GPU Overflow"| GlobalGPU
+    Bridge -->|"Discovery"| Discovery
 
-    subgraph SpokeN["🏢 Company N (Spoke)"]
-        LocalOdooN["Local Odoo 19 CE"]
-        LocalLangGraphN["Local LangGraph Agents"]
-        LocalGPUN["Local NVIDIA Dynamo"]
-        LocalBridgeN["nettrades_bridge (Local Router)"]
-        LocalDataN["Local PostgreSQL + pgvector"]
-        LocalValkeyN["Local Valkey"]
-    end
+    LangGraph --> Dynamo
+    Dynamo --> vLLM
+    Dynamo --> llama_cpp
+    LangGraph --> Agents
 
-    LocalBridge1 -->|"Internal Ops"| LocalLangGraph1
-    LocalBridge1 -->|"External Talent / GPU"| CentralBridge
-    LocalBridge2 -->|"Internal Ops"| LocalLangGraph2
-    LocalBridge2 -->|"External Talent / GPU"| CentralBridge
-    LocalBridgeN -->|"Internal Ops"| LocalLangGraphN
-    LocalBridgeN -->|"External Talent / GPU"| CentralBridge
+    GlobalAPI --> GlobalAgents
+    GlobalAgents --> TalentPool
+    GlobalAgents --> GlobalGPU
+    GlobalAPI --> SelfImproving
+    SelfImproving -->|"Model Updates"| GlobalAgents
 
-    CentralBridge --> GlobalTalent
-    CentralBridge --> GlobalGPU
-    CentralBridge --> GlobalModels
-
-    GlobalModels -->|"Pushes model updates"| LocalBridge1
-    GlobalModels -->|"Pushes model updates"| LocalBridge2
-    GlobalModels -->|"Pushes model updates"| LocalBridgeN
+    Logger --> Config
+    Config --> Router
 
 ```
+
+
+### Future Scaling Architecture
+
+```mermaid
+
+graph TB
+    subgraph External["External Access"]
+        Users["Users"]
+        DNS["GeoDNS"]
+    end
+
+    subgraph Hub["NETTRADES Hub (nettrades.ai)"]
+        subgraph Edge["Edge Layer"]
+            Traefik["Traefik Cluster"]
+            MetalLB["MetalLB"]
+        end
+
+        subgraph Control["Control Plane"]
+            K8s["Kubernetes API"]
+            KAI["KAI Scheduler (GPU-aware)"]
+            Argo["Argo CD"]
+        end
+
+        subgraph App["Application Layer"]
+            Odoo["Odoo 19 CE (3+ replicas)"]
+            LangGraph["LangGraph (3+ replicas)"]
+            Proxy["Odoo Proxy"]
+        end
+
+        subgraph GPU["GPU Worker Pool"]
+            Dynamo["NVIDIA Dynamo Controller"]
+            Prefill["Prefill Workers"]
+            Decode["Decode Workers"]
+            Llama["llama.cpp Workers"]
+            gVisor["gVisor Runtime (CPU services)"]
+        end
+
+        subgraph Data["Data Layer"]
+            PG["PostgreSQL + pgvector<br/>(CloudNativePG)"]
+            Valkey["Valkey Cluster"]
+            MinIO["MinIO / S3"]
+            Longhorn["Longhorn Storage"]
+        end
+
+        subgraph Observability["Observability Layer"]
+            Prom["Prometheus"]
+            Loki["Loki"]
+            Tempo["Tempo"]
+            Grove["Grove (Unified Observability)"]
+        end
+    end
+
+    subgraph Spoke["Client Company (Spoke)"]
+        SpokeApp["Local Odoo/LangGraph"]
+        SpokeGPU["Local GPU Pool"]
+        SpokeVPN["WireGuard Tunnel"]
+    end
+
+    Users --> DNS --> Traefik
+    Traefik --> Odoo
+    Traefik --> LangGraph
+    LangGraph --> Dynamo
+    Dynamo --> Prefill
+    Dynamo --> Decode
+    Dynamo --> Llama
+    KAI --> Prefill
+    KAI --> Decode
+    KAI --> Llama
+    Prom --> Grove
+    Loki --> Grove
+    Tempo --> Grove
+    SpokeVPN -->|"Encrypted Tunnel"| Hub
+    SpokeGPU -->|"Distributed Inference"| Dynamo
+
+```
+
+
+
+```mermaid
+
+graph TB
+    subgraph Global["Global Edge & DNS"]
+        DNS["Global DNS
+        ━━━━━━━━━━━━━━━━
+        • GeoDNS / Route53
+        • Latency-based Routing
+        • Health Checks"]
+        WAF["Global WAF & DDoS
+        ━━━━━━━━━━━━━━━━
+        • Rate Limiting
+        • Bot Mitigation"]
+        CDN["CDN Edge
+        ━━━━━━━━━━━━━━━━
+        • Static Asset Caching
+        • Image Optimization"]
+    end
+
+    subgraph Region1["Region 1: Primary"]
+        subgraph R1_Edge["Edge Layer"]
+            R1_Traefik["Traefik Fleet
+            ━━━━━━━━━━━━━━━━
+            • 3+ Replicas
+            • HPA: CPU > 70%"]
+        end
+        subgraph R1_App["Application Layer"]
+            R1_Odoo["Odoo Fleet
+            ━━━━━━━━━━━━━━━━
+            • 5+ Replicas
+            • HPA: CPU > 65%"]
+            R1_LangGraph["LangGraph Fleet
+            ━━━━━━━━━━━━━━━━
+            • 5+ Replicas
+            • HPA: CPU > 60%"]
+            R1_Dynamo["NVIDIA Dynamo Fleet
+            ━━━━━━━━━━━━━━━━
+            • 3+ Replicas
+            • GPU: 4x A100 each
+            • Model Sharding"]
+        end
+        subgraph R1_Data["Data Layer"]
+            R1_Postgres["PostgreSQL Cluster
+            ━━━━━━━━━━━━━━━━
+            • Primary + 2 Standbys
+            • CloudNativePG"]
+            R1_Valkey["Valkey Cluster
+            ━━━━━━━━━━━━━━━━
+            • 6 Nodes (3+3)
+            • Sharded Cache"]
+            R1_Longhorn["Longhorn Storage
+            ━━━━━━━━━━━━━━━━
+            • 5+ Replicas
+            • Distributed Block"]
+            R1_S3["S3-Compatible Storage
+            ━━━━━━━━━━━━━━━━
+            • MinIO / AWS S3
+            • Multi-region Replication"]
+        end
+        subgraph R1_ML["ML Pipeline"]
+            R1_DataJuicer["Data-Juicer Workers
+            ━━━━━━━━━━━━━━━━
+            • 3+ Replicas
+            • Queue-based"]
+            R1_Trainer["Training Cluster
+            ━━━━━━━━━━━━━━━━
+            • 4x GPU Nodes
+            • Multi-GPU Training"]
+        end
+    end
+
+    subgraph Region2["Region 2: Active-Active"]
+        R2_Edge["Edge Layer
+        ━━━━━━━━━━━━━━━━
+        • Traefik Fleet"]
+        R2_App["Application Layer
+        ━━━━━━━━━━━━━━━━
+        • Odoo: 5+ Replicas
+        • LangGraph: 5+ Replicas
+        • NVIDIA Dynamo: 3+ Replicas"]
+        R2_Data["Data Layer
+        ━━━━━━━━━━━━━━━━
+        • PostgreSQL (Replica)
+        • Valkey Cluster
+        • S3 Replication"]
+    end
+
+    CDN --> R1_Traefik
+    CDN --> R2_Edge
+    R1_Traefik --> R1_Odoo
+    R1_Traefik --> R1_LangGraph
+    R1_Traefik --> R1_Dynamo
+    R1_Odoo --> R1_Postgres
+    R1_Odoo --> R1_Valkey
+    R1_LangGraph --> R1_Postgres
+    R1_LangGraph --> R1_Dynamo
+    R1_Dynamo --> R1_Longhorn
+
+```
+
+### Scaling Dimensions
+
+
+| Dimension | Single VM | Small K8s (3-5) | Medium K8s (10-20) | Large K8s (50+) | Global |
+|---------|-------------|---------|-------------|---------|-------------|
+| Nodes | 1 | 3-5 | 10-20 | 50+ | 150+ |
+| GPUs | 1-4 | 4-16 | 16-64 | 64-256 | 256-1000+ |
+| Users | 100 | 100-500 | 500-5,000 | 5,000-50,000 | 50,000+ |
+| Odoo Replicas | 1 | 3 | 5 | 10 | 15+ |
+| LangGraph Replicas | 1 | 3 | 5 | 10 | 15+ |
+| GPU Scheduling | None | KAI Scheduler | KAI Scheduler | KAI Scheduler | KAI Scheduler |
+| Observability | Prometheus/Grafana | +Grove | +Grove | +Grove | +Grove |
+| Availability | 99.0% | 99.5% | 99.9% | 99.95% | 99.99% |
+
 
 ### Routing Logic:
 
@@ -1646,162 +1876,7 @@ graph TB
 | `Agent Routing` | `nettrades_bridge, LangGraph Agents` | Hub-and-spoke, local/remote routing, overflow |
 
 
-## 10. Top-Level System Architecture
 
-```mermaid
-graph TB
-    subgraph Frontend["Frontend Layer"]
-        User["User / Browser"]
-        Portal["Odoo Website / Portal"]
-        PWA["Mobile PWA"]
-        Chat["AI Chatbot Widget"]
-        VSCode["VS Code Extension"]
-        API["REST / GraphQL"]
-    end
-
-    subgraph Ingress["Ingress Layer"]
-        Traefik["Traefik Reverse Proxy"]
-    end
-
-    subgraph Orchestration["Orchestration Layer (LangGraph)"]
-        MCP["MCP-Odoo Bridge"]
-        Supervisor["Supervisor Agent"]
-        SubAgents["Sub-Agents"]
-        Bridge["nettrades_bridge"]
-        LocalBrain["Local Brain"]
-        RemoteBrain["Remote Brain"]
-    end
-
-    subgraph SelfImproving["Self-Improving System"]
-        DataCollect["nettrades_data_collection"]
-        Trigger["nettrades_trigger"]
-        Loop["nettrades_loop"]
-        Config["nettrades_self_improving_config"]
-    end
-
-    subgraph Training["AI Inference & Training"]
-        NVIDIA Dynamo["NVIDIA Dynamo"]
-        Workers["GPU Workers (vLLM)"]
-        FineTune["Unsloth / Axolotl"]
-        External["External LLM APIs"]
-        LLMTraining["llm_training"]
-    end
-
-    subgraph Core["Core Layer (Odoo 19 CE)"]
-        Odoo["Odoo 19 CE"]
-        Modules["Custom Odoo Modules"]
-        Queue["OCA queue_job"]
-        Payments["OCA payment_stripe"]
-    end
-
-    subgraph Data["Data Layer"]
-        PG["PostgreSQL + pgvector"]
-        Valkey["Valkey 8"]
-        MinIO["MinIO / S3"]
-    end
-
-    subgraph K8s["Kubernetes Infrastructure"]
-        K8sCluster["Kubernetes (Talos Linux)"]
-        Cilium["Cilium CNI"]
-        Longhorn["Longhorn Storage"]
-        MetalLB["MetalLB"]
-        CertMgr["cert-manager"]
-        CloudNativePG["CloudNativePG"]
-        GPUOp["NVIDIA GPU Operator"]
-        KubeRay["KubeRay"]
-    end
-
-    subgraph GitOps["GitOps Layer"]
-        Forgejo["Forgejo"]
-        ArgoCD["Argo CD"]
-    end
-
-    subgraph Monitoring["Monitoring Layer"]
-        Prometheus["Prometheus"]
-        Grafana["Grafana"]
-    end
-
-    subgraph Security["Security Layer"]
-        WireGuard["WireGuard VPN"]
-        gVisor["gVisor Sandbox"]
-    end
-
-    User --> Traefik
-    Portal --> Traefik
-    PWA --> Traefik
-    Chat --> Traefik
-    VSCode --> Traefik
-    API --> Traefik
-
-    Traefik --> Odoo
-
-    Odoo --> Modules
-    Odoo --> Queue
-    Odoo --> Payments
-    Odoo --> MCP
-
-    MCP --> Supervisor
-    Supervisor --> SubAgents
-    SubAgents --> Bridge
-    Bridge -->|Local| LocalBrain
-    Bridge -->|Remote| RemoteBrain
-    Bridge -->|GPU Overflow| NVIDIA Dynamo
-
-    Odoo --> DataCollect
-    DataCollect --> Trigger
-    Trigger --> Loop
-    Loop --> Config
-    Loop --> LLMTraining
-
-    LLMTraining --> NVIDIA Dynamo
-    NVIDIA Dynamo --> Workers
-    NVIDIA Dynamo --> FineTune
-    NVIDIA Dynamo --> External
-
-    Odoo --> PG
-    Odoo --> Valkey
-    Odoo --> MinIO
-
-    NVIDIA Dynamo --> PG
-
-    K8sCluster --> Odoo
-    K8sCluster --> MCP
-    K8sCluster --> NVIDIA Dynamo
-    K8sCluster --> PG
-    K8sCluster --> Valkey
-    K8sCluster --> MinIO
-
-    Cilium --> K8sCluster
-    Longhorn --> PG
-    MetalLB --> Traefik
-    CertMgr --> Traefik
-    CloudNativePG --> PG
-    GPUOp --> NVIDIA Dynamo
-    KubeRay --> NVIDIA Dynamo
-
-    Forgejo --> ArgoCD
-    ArgoCD --> K8sCluster
-
-    Prometheus --> Odoo
-    Prometheus --> NVIDIA Dynamo
-    Prometheus --> PG
-    Grafana --> Prometheus
-
-    WireGuard --> K8sCluster
-    gVisor --> K8sCluster
-
-    style Frontend fill:#e3f2fd,stroke:#1565c0
-    style Ingress fill:#fff3e0,stroke:#e65100
-    style Orchestration fill:#f3e5f5,stroke:#6a1b9a
-    style SelfImproving fill:#e8eaf6,stroke:#283593
-    style Training fill:#e8f5e9,stroke:#2e7d32
-    style Core fill:#fce4ec,stroke:#c62828
-    style Data fill:#ede7f6,stroke:#4527a0
-    style K8s fill:#f5f5f5,stroke:#424242
-    style GitOps fill:#fff8e1,stroke:#f57f17
-    style Monitoring fill:#f1f8e9,stroke:#33691e
-    style Security fill:#ffebee,stroke:#b71c1c
-```
 
 
 #### Step-by-Step flow
