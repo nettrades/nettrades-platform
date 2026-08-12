@@ -202,4 +202,15 @@ contextBridge.exposeInMainWorld('api', {
     onUpdateStatus: (callback) => {
         ipcRenderer.on('update-status', (event, data) => callback(data));
     },
+
+    // ──────────────────────────────────────────────────────────────────────────
+	// Grove & KAI Scheduler Management (NEW)
+	// ──────────────────────────────────────────────────────────────────────────
+
+	getGroveStatus: () => ipcRenderer.invoke('get-grove-status'),
+	getKAIStatus: () => ipcRenderer.invoke('get-kai-status'),
+	startGrove: () => ipcRenderer.invoke('start-grove'),
+	stopGrove: () => ipcRenderer.invoke('stop-grove'),
+	startKAI: () => ipcRenderer.invoke('start-kai'),
+    stopKAI: () => ipcRenderer.invoke('stop-kai'),
 });

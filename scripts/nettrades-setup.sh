@@ -36,6 +36,8 @@
 #   - VIRTUAL ENVIRONMENT IS NOW MANDATORY – Phase 1 must create it.
 #   - All Python scripts now run inside the venv.
 #   - Added checks to ensure venv exists before any Python operations.
+#   - Added --with-grove and --with-kai options for optional components.
+#
 # =============================================================================
 
 set -euo pipefail
@@ -89,6 +91,8 @@ UPGRADE=false
 SKIP_INSTALLED=true
 AUTO=false
 WITH_FINETUNE=false
+WITH_GROVE=false
+WITH_KAI=false
 PHASES_LIST=""
 PROFILE=""
 INTERACTIVE=false
@@ -135,6 +139,8 @@ ${YELLOW}OPTIONS (CLI):${NC}
     --reset-data          Wipe ALL containers and volumes (destroys all data!).
     --phases=LIST         Comma-separated list of phases (overrides profile).
     --with-finetune       Install large fine-tuning packages (torch, unsloth, axolotl).
+    --with-grove          Deploy Grove observability platform (future scaling).
+    --with-kai            Deploy KAI Scheduler for GPU scheduling (K8s).
     --platform            Override platform detection (linux, macos, wsl).
 
 ${YELLOW}EXAMPLES:${NC}
@@ -143,6 +149,8 @@ ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh deploy --production    # Deploy with production hardening
     ./nettrades-setup.sh all --force            # Full re-deployment (keeps data)
     ./nettrades-setup.sh all --with-finetune    # Include fine-tuning packages
+    ./nettrades-setup.sh k8s --with-kai         # Kubernetes with KAI Scheduler
+    ./nettrades-setup.sh deploy --with-grove    # Deploy with Grove observability
 EOF
 }
 
@@ -201,6 +209,22 @@ run_interactive() {
     read -rp "Auto mode (non-interactive, no prompts)? (y/N): " auto_yn
     [[ "$auto_yn" =~ ^[Yy]$ ]] && AUTO=true || AUTO=false
 
+    # --- Optional components ---
+    echo ""
+    read -rp "Fine Tuning packages take too long to install... Do you want to install fine-tuning packages (torch, unsloth, axolotl)? (y/N): " finetune_yn
+    [[ "$finetune_yn" =~ ^[Yy]$ ]] && WITH_FINETUNE=true || WITH_FINETUNE=false
+
+    echo ""
+    read -rp "Deploy Grove observability platform (future scaling)? (y/N): " grove_yn   # NEW
+    [[ "$grove_yn" =~ ^[Yy]$ ]] && WITH_GROVE=true || WITH_GROVE=false                 # NEW
+
+    echo ""
+    read -rp "Deploy KAI Scheduler for GPU scheduling (Kubernetes only)? (y/N): " kai_yn   # NEW
+    [[ "$kai_yn" =~ ^[Yy]$ ]] && WITH_KAI=true || WITH_KAI=false                         # NEW
+
+    read -rp "Auto mode (non-interactive, no prompts)? (y/N): " auto_yn
+    [[ "$auto_yn" =~ ^[Yy]$ ]] && AUTO=true || AUTO=false
+
     # --- Determine phases ---
     case "$PROFILE" in
         dev) PHASES=(1) ;;
@@ -220,12 +244,14 @@ run_interactive() {
     echo "  Upgrade: $UPGRADE"
     echo "  Auto: $AUTO"
     echo "  With Fine-tuning: $WITH_FINETUNE"
+    echo "  With Grove: $WITH_GROVE"
+    echo "  With KAI Scheduler: $WITH_KAI"
     echo "  Phases: ${PHASES[*]}"
     echo ""
     read -rp "Proceed with these settings? (y/N): " confirm
     [[ ! "$confirm" =~ ^[Yy]$ ]] && { log_info "Aborted."; exit 0; }
 
-    export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE
+    export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE WITH_GROVE WITH_KAI
 }
 
 # =============================================================================
@@ -437,6 +463,8 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --phases=*) PHASES_LIST="${1#--phases=}"; shift ;;
+        --with-grove) WITH_GROVE=true; shift ;;
+        --with-kai) WITH_KAI=true; shift ;;
         --help) show_help; exit 0 ;;
         -*)
             log_error "Unknown option: $1"
@@ -456,7 +484,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE VENV_DIR
+export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI VENV_DIR
 
 # Set PLATFORM for phase scripts
 if [[ -n "$PLATFORM_OVERRIDE" ]]; then
@@ -719,6 +747,8 @@ for phase in "${PHASES[@]}"; do
             log_header "Phase 2 — Single-VM Deployment"
             # Ensure VENV_DIR is available for phase-deploy.sh
             export VENV_DIR
+            # Pass optional component flags to phase-deploy.sh
+            export WITH_GROVE WITH_KAI WITH_FINETUNE
             bash "$SCRIPT_DIR/phase-deploy.sh"
             ;;
         3)

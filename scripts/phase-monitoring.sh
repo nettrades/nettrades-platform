@@ -15,6 +15,11 @@
 #   - Removed GPUStack scrape targets (replaced by Dynamo, no native metrics yet).
 #   - Added a placeholder job for Dynamo (commented out) for future use.
 #
+# UPDATES (2026-08):
+#   - Removed GPUStack scrape targets (replaced by Dynamo).
+#   - Added placeholder job for Dynamo metrics.
+#   - Added conditional integration with Grove if enabled.
+#
 # USAGE:
 #   ./phase-monitoring.sh [--auto] [--force]
 # =============================================================================
@@ -101,6 +106,16 @@ if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
         docker compose up -d alertmanager
     else
         log_info "alertmanager not defined in compose – skipping"
+    fi
+
+    # If Grove is enabled, ensure it's running and configured
+    if [[ "${WITH_GROVE:-false}" == "true" ]]; then
+        log_info "Grove is enabled – ensuring Grove stack is running..."
+        if compose_service_exists "grove"; then
+            docker compose up -d grove
+        else
+            log_warning "Grove service not found in compose. Please ensure docker-compose.grove.yaml is applied."
+        fi
     fi
 
     log_step "Configuring Grafana datasource..."

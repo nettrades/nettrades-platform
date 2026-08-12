@@ -32,6 +32,8 @@ import hmac
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from .auth import router as auth_router, init_auth
+from .mode import router as mode_router, init_mode
 
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException, status
@@ -297,6 +299,21 @@ async def jsonrpc_proxy(request: Request):
     except Exception as e:
         logger.exception("Unexpected error in proxy")
         raise HTTPException(status_code=500, detail=f"Internal proxy error: {str(e)}")
+
+
+# =============================================================================
+# Initialize authentication and mode modules
+# =============================================================================
+
+init_auth(ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD)
+init_mode(ODOO_URL, ODOO_API_KEY, "valkey", 6379)
+
+# =============================================================================
+# Register routers
+# =============================================================================
+
+app.include_router(auth_router)
+app.include_router(mode_router)
 
 
 # =============================================================================

@@ -1271,6 +1271,69 @@
         .queue-item .task-actions button.cancel:hover {
             color: #ff5f57;
         }
+
+
+        /* ─── Settings Toggle Switch ─── */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .toggle-container .info {
+            display: flex;
+            flex-direction: column;
+        }
+        .toggle-container .info .label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #e8e8e8;
+        }
+        .toggle-container .info .description {
+            font-size: 12px;
+            color: #6a6a7a;
+        }
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: #2a2a3a;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+        .toggle.active {
+            background: #4a8aff;
+        }
+        .toggle .slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle.active .slider {
+            transform: translateX(22px);
+        }
+        .toggle .status-text {
+            position: absolute;
+            font-size: 10px;
+            font-weight: 600;
+            color: #8a8a9a;
+            top: 50%;
+            transform: translateY(-50%);
+            right: 8px;
+        }
+        .toggle.active .status-text {
+            color: #fff;
+            right: auto;
+            left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -2076,7 +2139,46 @@ You can:
                                 </div>
                             </div>
                         </div>
+                        <!-- Optional Components -->
+			            <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.05);padding-top:24px;">
+			                <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Optional Components</h3>
 
+			                <!-- Grove Toggle -->
+			                <div class="toggle-container">
+			                    <div class="info">
+			                        <span class="label">Grove Observability</span>
+			                        <span class="description">Unified observability platform (Prometheus + Loki + Tempo)</span>
+			                    </div>
+			                    <div class="toggle" id="grove-toggle" onclick="toggleGrove()">
+			                        <span class="status-text" id="grove-status-text">OFF</span>
+			                        <div class="slider"></div>
+			                    </div>
+			                </div>
+
+			                <!-- KAI Scheduler Toggle -->
+			                <div class="toggle-container">
+			                    <div class="info">
+			                        <span class="label">KAI Scheduler</span>
+			                        <span class="description">GPU-aware scheduling for Kubernetes</span>
+			                    </div>
+			                    <div class="toggle" id="kai-toggle" onclick="toggleKAI()">
+			                        <span class="status-text" id="kai-status-text">OFF</span>
+			                        <div class="slider"></div>
+			                    </div>
+			                </div>
+
+			                <!-- Fine-Tuning Toggle -->
+			                <div class="toggle-container">
+			                    <div class="info">
+			                        <span class="label">Fine-Tuning Workers</span>
+			                        <span class="description">Unsloth/Axolotl training workers</span>
+			                    </div>
+			                    <div class="toggle" id="finetune-toggle" onclick="toggleFinetune()">
+			                        <span class="status-text" id="finetune-status-text">OFF</span>
+			                        <div class="slider"></div>
+			                    </div>
+			                </div>
+                        </div>
                         <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.05);padding-top:24px;">
                             <button class="btn btn-danger" onclick="resetPlatform()">🗑️ Reset Platform</button>
                             <button class="btn btn-secondary" onclick="viewLogsDirectory()">📄 Open Logs Directory</button>
@@ -3287,6 +3389,100 @@ You can:
         window.showToast = showToast;
         window.formatSize = formatSize;
         window.escapeHtml = escapeHtml;
+
+
+        // ─── Optional Components Toggles ───
+        async function toggleGrove() {
+            const toggle = document.getElementById('grove-toggle');
+            const statusText = document.getElementById('grove-status-text');
+
+            if (toggle.classList.contains('active')) {
+                // Stop Grove
+                const result = await window.api.stopGrove();
+                if (result.success) {
+                    toggle.classList.remove('active');
+                    statusText.textContent = 'OFF';
+                    showToast('Grove stopped', 'info');
+                } else {
+                    showToast(`Failed to stop Grove: ${result.error}`, 'error');
+                }
+            } else {
+                // Start Grove
+                const result = await window.api.startGrove();
+                if (result.success) {
+                    toggle.classList.add('active');
+                    statusText.textContent = 'ON';
+                    showToast('Grove started', 'success');
+                } else {
+                    showToast(`Failed to start Grove: ${result.error}`, 'error');
+                }
+            }
+        }
+
+        async function toggleKAI() {
+            const toggle = document.getElementById('kai-toggle');
+            const statusText = document.getElementById('kai-status-text');
+
+            if (toggle.classList.contains('active')) {
+                const result = await window.api.stopKAI();
+                if (result.success) {
+                    toggle.classList.remove('active');
+                    statusText.textContent = 'OFF';
+                    showToast('KAI Scheduler stopped', 'info');
+                } else {
+                    showToast(`Failed to stop KAI: ${result.error}`, 'error');
+                }
+            } else {
+                const result = await window.api.startKAI();
+                if (result.success) {
+                    toggle.classList.add('active');
+                    statusText.textContent = 'ON';
+                    showToast('KAI Scheduler started', 'success');
+                } else {
+                    showToast(`Failed to start KAI: ${result.error}`, 'error');
+                }
+            }
+        }
+
+        async function toggleFinetune() {
+            // Similar logic for fine-tuning workers
+            // This would call start/stop APIs for the training-worker service
+            showToast('Fine-tuning toggle coming soon', 'warning');
+        }
+
+        // ─── Load Optional Component Status ───
+        async function loadOptionalComponentStatus() {
+            try {
+                const groveStatus = await window.api.getGroveStatus();
+                const groveToggle = document.getElementById('grove-toggle');
+                const groveText = document.getElementById('grove-status-text');
+                if (groveStatus && groveStatus.running) {
+                    groveToggle.classList.add('active');
+                    groveText.textContent = 'ON';
+                }
+
+                const kaiStatus = await window.api.getKAIStatus();
+                const kaiToggle = document.getElementById('kai-toggle');
+                const kaiText = document.getElementById('kai-status-text');
+                if (kaiStatus && kaiStatus.running) {
+                    kaiToggle.classList.add('active');
+                    kaiText.textContent = 'ON';
+                }
+            } catch (error) {
+                console.error('Error loading optional component status:', error);
+            }
+        }
+
+        // Call this on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // ... (existing DOMContentLoaded code) ...
+            loadOptionalComponentStatus();
+        });
+
+        // ─── Expose new functions to window ───
+        window.toggleGrove = toggleGrove;
+        window.toggleKAI = toggleKAI;
+        window.toggleFinetune = toggleFinetune;
     </script>
 </body>
 </html>

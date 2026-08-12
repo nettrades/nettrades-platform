@@ -270,7 +270,7 @@ function startNodeDiscovery() {
     // Use bonjour for mDNS discovery
     try {
         const bonjour = require('bonjour')();
-        
+
         // Discover NETTRADES nodes
         bonjour.find({ type: 'nettrades' }, (service) => {
             const nodeId = `${service.name}-${service.host}`;
@@ -360,6 +360,99 @@ ipcMain.handle('get-platform', () => {
         isPackaged: isPackaged,
     };
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grove & KAI Scheduler Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-grove-status', async () => {
+    try {
+        const result = await getDockerServiceStatus('grove');
+        return { running: result.running, error: result.error };
+    } catch (error) {
+        return { running: false, error: error.message };
+    }
+});
+
+ipcMain.handle('get-kai-status', async () => {
+    try {
+        const result = await getDockerServiceStatus('kai-scheduler');
+        return { running: result.running, error: result.error };
+    } catch (error) {
+        return { running: false, error: error.message };
+    }
+});
+
+ipcMain.handle('start-grove', async () => {
+    return runDockerComposeWithFile('docker-compose.grove.yaml', 'up -d grove loki tempo');
+});
+
+ipcMain.handle('stop-grove', async () => {
+    return runDockerComposeWithFile('docker-compose.grove.yaml', 'down');
+});
+
+ipcMain.handle('start-kai', async () => {
+    return runDockerComposeWithFile('docker-compose.kai.yaml', 'up -d kai-scheduler');
+});
+
+ipcMain.handle('stop-kai', async () => {
+    return runDockerComposeWithFile('docker-compose.kai.yaml', 'down');
+});
+
+// Helper function to check if a Docker service is running
+async function getDockerServiceStatus(serviceName) {
+    return new Promise((resolve) => {
+        const cmd = `docker compose -f ${COMPOSE_FILE} ps --format json ${serviceName}`;
+        exec(cmd, { cwd: path.dirname(COMPOSE_FILE) }, (error, stdout) => {
+            if (error) {
+                resolve({ running: false, error: error.message });
+                return;
+            }
+            try {
+                const services = JSON.parse(stdout);
+                const isRunning = services.some(s => s.State === 'running');
+                resolve({ running: isRunning });
+            } catch (e) {
+                resolve({ running: false, error: 'Failed to parse docker compose output' });
+            }
+        });
+    });
+}
+
+// Helper function to run docker compose with an additional file
+function runDockerComposeWithFile(composeFile, command) {
+    return new Promise((resolve) => {
+        const cmd = `docker compose -f ${COMPOSE_FILE} -f ${path.join(path.dirname(COMPOSE_FILE), composeFile)} ${command}`;
+        logInfo(`Running: ${cmd}`);
+
+        const proc = spawn('bash', ['-c', cmd], {
+            cwd: path.dirname(COMPOSE_FILE),
+        });
+
+        let output = '';
+        proc.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('platform-output', { type: 'stdout', data: text });
+        });
+
+        proc.stderr.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('platform-output', { type: 'stderr', data: text });
+        });
+
+        proc.on('close', (code) => {
+            if (code === 0) {
+                logSuccess(`Docker compose ${command} completed`);
+                resolve({ success: true, output });
+            } else {
+                logError(`Docker compose ${command} failed with code ${code}`);
+                resolve({ success: false, error: output || `Process exited with code ${code}` });
+            }
+        });
+    });
+}
 
 ipcMain.handle('get-project-root', () => PROJECT_ROOT);
 ipcMain.handle('get-models-dir', () => MODELS_DIR);
@@ -482,7 +575,7 @@ ipcMain.handle('run-install', async (event, options) => {
             const text = data.toString();
             output += text;
             mainWindow?.webContents.send('install-output', { type: 'stdout', data: text });
-            
+
             // Parse progress
             const progressMatch = text.match(/\[([0-9]+)%\]/);
             if (progressMatch) {
@@ -501,7 +594,7 @@ ipcMain.handle('run-install', async (event, options) => {
             installProcess = null;
             isDeploying = false;
             deploymentProgress = 100;
-            
+
             if (code === 0) {
                 logSuccess('Deployment completed successfully');
                 resolve({ success: true, output });
@@ -562,7 +655,7 @@ function runDockerCompose(command) {
     return new Promise((resolve) => {
         const cmd = `docker compose -f ${COMPOSE_FILE} ${command}`;
         logInfo(`Running: ${cmd}`);
-        
+
         const proc = spawn('bash', ['-c', cmd], {
             cwd: path.dirname(COMPOSE_FILE),
         });
@@ -642,7 +735,7 @@ ipcMain.handle('download-model', async (event, options) => {
     return new Promise((resolve) => {
         const cmd = `bash ${scriptPath} --model ${model} --format ${format} --dir ${MODELS_DIR}`;
         logInfo(`Downloading model: ${model} (${format})`);
-        
+
         downloadProcess = spawn('bash', ['-c', cmd], {
             cwd: PROJECT_ROOT,
         });
@@ -725,7 +818,7 @@ function listModels() {
         for (const file of files) {
             const fullPath = path.join(MODELS_DIR, file);
             const stats = fs.statSync(fullPath);
-            
+
             if (stats.isDirectory()) {
                 // Check for config.json (HF model)
                 if (fs.existsSync(path.join(fullPath, 'config.json'))) {
@@ -863,7 +956,7 @@ ipcMain.handle('create-backup', async (event, options) => {
         if (options?.auto) cmd += ' --auto';
 
         logInfo(`Starting backup: ${cmd}`);
-        
+
         const proc = spawn('bash', ['-c', cmd], {
             cwd: PROJECT_ROOT,
         });
@@ -896,7 +989,7 @@ ipcMain.handle('create-backup', async (event, options) => {
 ipcMain.handle('list-backups', () => {
     const backupDir = path.join(os.homedir(), '.nettrades', 'backups');
     const backups = [];
-    
+
     try {
         if (fs.existsSync(backupDir)) {
             const files = fs.readdirSync(backupDir);
@@ -916,7 +1009,7 @@ ipcMain.handle('list-backups', () => {
     } catch (error) {
         logError(`Error listing backups: ${error.message}`);
     }
-    
+
     return backups.sort((a, b) => b.created - a.created);
 });
 
@@ -933,7 +1026,7 @@ ipcMain.handle('restore-backup', async (event, backupPath) => {
     return new Promise((resolve) => {
         const cmd = `bash ${scriptPath} ${backupPath} --auto`;
         logInfo(`Starting restore: ${cmd}`);
-        
+
         const proc = spawn('bash', ['-c', cmd], {
             cwd: PROJECT_ROOT,
         });
@@ -976,7 +1069,7 @@ ipcMain.handle('vpn-add-peer', async (event, username) => {
     return new Promise((resolve) => {
         const cmd = `bash ${scriptPath} ${username}`;
         logInfo(`Adding WireGuard peer: ${username}`);
-        
+
         exec(cmd, { cwd: PROJECT_ROOT }, (error, stdout, stderr) => {
             if (error) {
                 logError(`WireGuard peer add failed: ${stderr}`);
@@ -1020,7 +1113,7 @@ ipcMain.handle('vpn-status', () => {
 ipcMain.handle('ask-someone', async (event, data) => {
     const { question, category, urgency, expertId } = data || {};
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     // Call the LangGraph Ask Someone agent
     try {
         const response = await fetch(`${serverUrl}:8000/runs/stream`, {
@@ -1063,7 +1156,7 @@ ipcMain.handle('ask-someone', async (event, data) => {
 ipcMain.handle('good-answer', async (event, data) => {
     const { question, answer, rating, userId } = data || {};
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     // Call the LangGraph Good Answer agent
     try {
         const response = await fetch(`${serverUrl}:8000/runs/stream`, {
@@ -1106,7 +1199,7 @@ ipcMain.handle('good-answer', async (event, data) => {
 ipcMain.handle('start-training', async (event, data) => {
     const { dataset, model, method, params } = data || {};
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/runs/stream`, {
             method: 'POST',
@@ -1143,7 +1236,7 @@ ipcMain.handle('start-training', async (event, data) => {
 
 ipcMain.handle('training-status', async () => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/training/status`);
         if (response.ok) {
@@ -1163,7 +1256,7 @@ ipcMain.handle('training-status', async () => {
 
 ipcMain.handle('list-agents', async () => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/agents/list`);
         if (response.ok) {
@@ -1179,7 +1272,7 @@ ipcMain.handle('list-agents', async () => {
 
 ipcMain.handle('agent-status', async (event, agentId) => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/agents/${agentId}/status`);
         if (response.ok) {
@@ -1199,7 +1292,7 @@ ipcMain.handle('agent-status', async (event, agentId) => {
 
 ipcMain.handle('list-queue', async () => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/queue/list`);
         if (response.ok) {
@@ -1215,7 +1308,7 @@ ipcMain.handle('list-queue', async () => {
 
 ipcMain.handle('cancel-task', async (event, taskId) => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/queue/${taskId}/cancel`, {
             method: 'POST',
@@ -1233,7 +1326,7 @@ ipcMain.handle('cancel-task', async (event, taskId) => {
 
 ipcMain.handle('retry-task', async (event, taskId) => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/queue/${taskId}/retry`, {
             method: 'POST',
@@ -1255,7 +1348,7 @@ ipcMain.handle('retry-task', async (event, taskId) => {
 
 ipcMain.handle('marketplace-listings', async () => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/listings`);
         if (response.ok) {
@@ -1271,7 +1364,7 @@ ipcMain.handle('marketplace-listings', async () => {
 
 ipcMain.handle('marketplace-list-gpu', async (event, data) => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/list`, {
             method: 'POST',
@@ -1293,7 +1386,7 @@ ipcMain.handle('marketplace-list-gpu', async (event, data) => {
 
 ipcMain.handle('marketplace-book-gpu', async (event, data) => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/book`, {
             method: 'POST',
@@ -1374,7 +1467,7 @@ ipcMain.handle('system-health', async () => {
 ipcMain.handle('get-logs', async (event, options) => {
     const { service, lines = 100 } = options || {};
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/logs/${service}?lines=${lines}`);
         if (response.ok) {
@@ -1394,7 +1487,7 @@ ipcMain.handle('get-logs', async (event, options) => {
 
 ipcMain.handle('get-alerts', async () => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/alerts`);
         if (response.ok) {
@@ -1414,7 +1507,7 @@ ipcMain.handle('get-alerts', async () => {
 
 ipcMain.handle('get-notifications', async () => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/notifications`);
         if (response.ok) {
@@ -1430,7 +1523,7 @@ ipcMain.handle('get-notifications', async () => {
 
 ipcMain.handle('mark-notification-read', async (event, notificationId) => {
     const serverUrl = await ipcMain.handle('get-server-url');
-    
+
     try {
         const response = await fetch(`${serverUrl}:8000/notifications/${notificationId}/read`, {
             method: 'POST',
