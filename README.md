@@ -410,10 +410,10 @@ The installer executes phases in this order:
 
 | Phase | Description |
 |---------|-------------|
-| `0` | System Preparation & Hardening – installs Docker, Docker Compose, NVIDIA drivers (if GPU), configures firewall, installs fail2ban, sets system limits, and checks for gVisor. |
-| `1` | Development Environment – With Python virtual environment, generates secure passwords, API keys, WireGuard keys, and creates .env. |
+| `0` | System Preparation & Hardening – installs system-level dependencies - Docker, Docker Compose, NVIDIA drivers (if GPU), configures firewall, SSH hardening, installs fail2ban, sets system limits, and checks for gVisor. |
+| `1` | Development Environment – All Python scripts are run inside the venv virtual environment. Phase 1 creates the venv virtual environment and installs dependencies, generates secure passwords, API keys, WireGuard keys, and creates .env. |
 | `2` | Single-VM Deployment – with NVIDIA Dynamo + llama.cpp fallback, builds custom images (Odoo, LangGraph), prepares Odoo addons, initialises the database, starts all Docker Compose services and performs health checks. |
-| `3` | Kubernetes Scaling – provisions Talos VMs on Proxmox, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, NVIDIA Dynamo, and WireGuard. |
+| `3` | Kubernetes Scaling – provisions Talos VMs, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, NVIDIA Dynamo, and WireGuard. |
 | `4` | Module Installation – installs all NETTRADES custom Odoo modules in the correct dependency order. |
 | `5` | Monitoring – deploys Prometheus and Grafana with pre-configured dashboards (if not already present). |
 
@@ -470,15 +470,24 @@ USAGE:
 |---------|-------------|
 | `--force` | Re-run phases even if they were already completed ⚠️ WARNING: OVER WRITES EVERYTHING |
 | `--upgrade` | Upgrade Odoo modules instead of fresh install |
-| `--with-finetune` | Install fine-tuning packages (torch, unsloth, axolotl) |
 | `--production` | Set environment to production (applies hardening) |
 | `--development` | Set environment to development (no hardening) [default] |
+| `--with-finetune` | Install fine-tuning packages (torch, unsloth, axolotl) |
+| `--with-grove` | Deploy Grove observability platform (future scaling) |
+| `--with-kai` | Deploy KAI Scheduler for GPU scheduling (K8s) |
+| `--platform` | Override platform detection (linux, macos, wsl) |
 | `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
 | `--regenerate-secrets` | Regenerate all secrets in .env (⚠️ WARNING: use with caution, you will be locked out) |
 | `--reset-data` | Wipe all containers and volumes (⚠️ WARNING: destroys data!) |
 
-
 ⚠️ WARNING: DO NOT RUN --force ON PRODUCTION ENVIRONMENTS
+
+All Python scripts are run inside the venv virtual environment.
+Phase 1 creates the venv virtual environment and installs dependencies.
+If you use the format 
+--phases=0,1,2
+Make sure Phase 1 is always ran
+
 
 #### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
 
@@ -506,7 +515,15 @@ sudo ./scripts/nettrades-setup.sh dev --force
 sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4
 
 ```
+After each phase it creates the files
+nettrades-platform\.phase-0-complete
+nettrades-platform\.phase-1-complete
+nettrades-platform\.phase-2-complete
+nettrades-platform\.phase-3-complete
+nettrades-platform\.phase-4-complete
+nettrades-platform\.phase-5-complete
 
+So that if you rerun it without --force it does not override the previous phase.
 
 #### 🔑 Database Password Management
 

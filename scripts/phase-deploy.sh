@@ -41,6 +41,7 @@
 #   - Added fallback creation of nginx.conf.template for redirector.
 #   - Added self-improving environment variables and container startup.
 #   - FIXED: Virtual environment is now MANDATORY – script fails if not found.
+#   - Added conditional Docker Compose file loading for Grove, KAI, fine-tuning.
 # =============================================================================
 
 set -euo pipefail
@@ -1096,21 +1097,40 @@ enable_pgcrypto || true
 # -----------------------------------------------------------------------------
 log_step "Building and starting Docker Compose stack (with retries)..."
 
-max_attempts=3
-attempt=1
-while [ $attempt -le $max_attempts ]; do
-    if docker compose up -d --build; then
-        log_success "Docker Compose stack started successfully"
-        break
-    fi
-    log_warning "Docker Compose up failed (attempt $attempt/$max_attempts). Retrying in 10s..."
-    sleep 10
-    attempt=$((attempt + 1))
-done
+# Start with the main compose file
+docker compose up -d --build
 
-if [ $attempt -gt $max_attempts ]; then
-    log_error "Failed to start Docker Compose stack after $max_attempts attempts."
-    exit 1
+# If Grove is enabled, start it
+if [[ "${WITH_GROVE:-false}" == "true" ]]; then
+    log_info "Starting Grove observability stack..."
+    if [[ -f "$DEPLOY_DIR/docker-compose.grove.yaml" ]]; then
+        docker compose -f docker-compose.yaml -f docker-compose.grove.yaml up -d grove loki tempo
+        log_success "Grove stack started"
+    else
+        log_warning "docker-compose.grove.yaml not found – skipping Grove"
+    fi
+fi
+
+# If KAI Scheduler is enabled, start it
+if [[ "${WITH_KAI:-false}" == "true" ]]; then
+    log_info "Starting KAI Scheduler..."
+    if [[ -f "$DEPLOY_DIR/docker-compose.kai.yaml" ]]; then
+        docker compose -f docker-compose.yaml -f docker-compose.kai.yaml up -d kai-scheduler
+        log_success "KAI Scheduler started"
+    else
+        log_warning "docker-compose.kai.yaml not found – skipping KAI Scheduler"
+    fi
+fi
+
+# If fine-tuning is enabled, start training workers
+if [[ "${WITH_FINETUNE:-false}" == "true" ]]; then
+    log_info "Starting fine-tuning workers..."
+    if [[ -f "$DEPLOY_DIR/docker-compose.finetune.yaml" ]]; then
+        docker compose -f docker-compose.yaml -f docker-compose.finetune.yaml up -d training-worker
+        log_success "Fine-tuning workers started"
+    else
+        log_warning "docker-compose.finetune.yaml not found – skipping fine-tuning"
+    fi
 fi
 
 log_success "Docker Compose stack started"
@@ -1185,6 +1205,30 @@ validate_deployment() {
         log_warning "NETTRADES UI did not become ready within 2 minutes. Check logs."
     else
         log_success "NETTRADES UI is healthy"
+    fi
+
+    # If Grove was started, check it
+    if [[ "${WITH_GROVE:-false}" == "true" ]]; then
+        log_info "Checking Grove health..."
+        for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/health 2>/dev/null | grep -q "200"; then
+                log_success "Grove is healthy"
+                break
+            fi
+            sleep 2
+        done
+    fi
+
+    # If KAI Scheduler was started, check it
+    if [[ "${WITH_KAI:-false}" == "true" ]]; then
+        log_info "Checking KAI Scheduler health..."
+        for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:9091/health 2>/dev/null | grep -q "200"; then
+                log_success "KAI Scheduler is healthy"
+                break
+            fi
+            sleep 2
+        done
     fi
 
     log_success "All services are healthy"
@@ -1546,11 +1590,21 @@ echo ""
 echo "Access the services:"
 echo "  Frontend (UI): http://localhost:3002 (or http://nettrades.ai:3002)"
 echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
-echo "  Forgejo:   http://localhost:3000"
+if [[ "${WITH_GROVE:-false}" == "true" ]]; then
+    echo "  Grove:     http://localhost:8081  (observability dashboard)"
+    echo "  Loki:      http://localhost:3100  (logs)"
+    echo "  Tempo:     http://localhost:3200  (traces)"
+fi
+if [[ "${WITH_KAI:-false}" == "true" ]]; then
+    echo "  KAI Scheduler: http://localhost:9091  (GPU scheduling)"
+fi
 echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"
 echo "  Prometheus: http://localhost:9090 (admin / password in .env PROMETHEUS_PASSWORD)"
 echo "  Dynamo:    http://localhost:8001  (primary inference, API key in .env DYNAMO_API_KEY)"
 echo "  llama.cpp: http://localhost:8080  (fallback inference, includes built-in UI)"
+if [[ "${WITH_FINETUNE:-false}" == "true" ]]; then
+    echo "  Training Worker: http://localhost:8002  (fine-tuning API)"
+fi
 echo ""
 echo "Emergency Odoo user: emergency (password in /root/emergency_password.txt)"
 echo "Use this if you get locked out of admin."
