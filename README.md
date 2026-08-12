@@ -72,13 +72,13 @@ PURPOSE:
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
-**Organisations could decide to keep everything local or they could decides which types of requests are processed locally and which types of requests to routed to remote providers or a GPU market place, at peak time, based on the administrative settings set by the organisations administrator**
+**Organisations could decide to keep everything local or they could decides which types of requests are processed locally and which types of requests are routed to remote providers or to a GPU market place, at peak time, based on the administrative settings set by the organisations administrator.**
 
 **In the past, enterprises faced a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 
-**Now they just install Ubuntu Linux on a computer and run the commands below to deploy the entire NETTRADES Sovereign AI Infrastructure in a few minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
+**Now they just install Ubuntu Linux on a computer and run the commands below and deploy the entire NETTRADES Sovereign AI Infrastructure in a few minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
-**And use their spare GPUs to talk to their organisations data.** 
+**Then use their spare GPUs to talk to their organisations data.** 
 
 ### Deploy in minutes, not months
 
@@ -103,28 +103,36 @@ See the **Accessing Your Platform** section below to login.
 For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
 
 So you may need to run:
-
+```bash
 ssh-keygen -R ServerIPaddress
+```
 
 to remove an old key if you have issues and then run:
+
 ```bash
 ssh -p 2222 root@ServerIPaddress
 ```
 
-to get a new key and reconnect
+to get a new keys and reconnect
 
 ### The Problem
 
 **Data sovereignty is the number 1 barrier to enterprise AI adoption.**
 
 - **Decision-makers** are concerned about data laws **(US CLOUD Act, FISA 702 and the China's National Intelligence Law that give them powers over data held by cloud providers)**
+
 - **52.6% of AI decision-makers** cite data sovereignty and security as a top adoption barrier
-- **50% of enterprises** view sovereign AI infrastructure as a major competitive differentiator
+
+- **50% of enterprises** now view sovereign AI infrastructure as a major competitive differentiator
+
+**Don't wait, try it now.**
+
+
 
 | Challenge| Reality |
 |---------|-------------|
 | **Data Privacy** | Sending internal data to external AI companies exposes company secrets, customer data, and intellectual property. |
-| **US CLOUD Act jurisdiction** | US CLOUD Act, FISA 702 and the China's National Intelligence Law that give them powers over your data |
+| **US CLOUD Act jurisdiction** | US CLOUD Act, FISA 702 and the China's National Intelligence Law gives them powers over your data |
 | **GPU Waste** | Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
 | **Vendor Lock-in** | Public AI APIs change pricing, terms, and availability without notice. |
 | **Compliance Risk** | GDPR, HIPAA, and sovereign cloud mandates require data residency. |
@@ -132,7 +140,7 @@ to get a new key and reconnect
 
 ## The Solution
 
-**NETTRADES Sovereign AI in a Box: deploy a complete, enterprise-grade AI platform behind your firewall in minutes, not months—free from cloud dependency, vendor lock-in, per-token costs and the legal exposure to the US CLOUD Act and China's National Intelligence Law.**
+**The NETTRADES Sovereign Platform deploys a complete, enterprise-grade AI platform behind your firewall in minutes, not months — free from cloud dependency, vendor lock-in, per-token costs and the legal exposure to the US CLOUD Act and China's National Intelligence Law.**
 
 
 ## Why Enterprises Choose NETTRADES
@@ -145,6 +153,7 @@ to get a new key and reconnect
 | **Cost Predictability** | Flat licensing fee. No per-token charges. No cloud egress fees. |
 | **Enterprise Security** | WireGuard VPN, RBAC, audit logging, SSH hardening, fail2ban. |
 | **14-Year Track Record** | Founded 2012. Enterprise clients include Salesforce, AXA, Standard Bank, NHS, Capita etc. |
+
 
 ## 🚀 Key Features
 
@@ -162,7 +171,7 @@ to get a new key and reconnect
 | **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system for autonomous enterprise operations. |
 | **🔐 Confidential Computing** - coming soon| Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
 | **🧠️ Model fine tuning** - coming soon | Fine-tune models on your data using Unsloth or Axolotl. |
-| **🖥️ [GPU Marketplace - coming soon](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. |
+| **🖥️ [GPU Marketplace - coming soon](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. Based on company policy and set in the configuration screens|
 
 ## Enterprise Support
 
@@ -189,13 +198,14 @@ The NETTRADES Platform is **dual-licensed**:
 
 ### 2. Commercial License (Paid)
 
-- **No obligation to release source code** — keep your modifications proprietary
-- **Includes use restrictions** — prohibits military, surveillance and harmful use
+- **No obligation to release source code** — keep your modifications proprietary.
+- **Includes use restrictions** — prohibits military, surveillance and harmful use.
 - **Includes KYC, audit rights and enterprise support**
 
 For enterprises that cannot or do not wish to comply with the AGPL-3.0 copyleft obligations, a commercial license is available.
 
 📄 [View the commercial license terms](COMMERCIAL-LICENSE.md)
+
 
 ### Which License Do I Need?
 
@@ -214,7 +224,7 @@ Contact us at **legal@nettrades.ai** for pricing and terms.
 
 ## Ethical Commitment
 
-NETTRADES is committed to technology that serves humanity. The commercial license includes restrictions on military, surveillance, human rights violations and environmental harm.
+NETTRADES is committed to technology that serves humanity. The license includes restrictions on military, surveillance, human and animal rights violations and environmental harm.
 
 [Click here to view the ethical statement](ETHICAL-STATEMENT.md)
 
@@ -224,8 +234,7 @@ We welcome contributions! All contributors must sign our [Contributor License Ag
 
 When you open your first pull request, the CLA Assistant bot will automatically guide you through the signing process.
 
-📄 [View the contribution guide](CONTRIBUTING.md)
-
+Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing.
 
 ## Quick Start For Developers and Contributors
 
@@ -802,20 +811,6 @@ We welcome contributions! Please read our [Contributing Guide](contributing.md) 
 If you find [NETTRADES.AI](https://nettrades.ai/) useful, please consider giving us a ⭐ on GitHub – it helps others discover the project and supports our work.
 
 
-## 📄 License
-
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) – see the [LICENSE.txt](LICENSE.txt) file for details.
-
-| Component | License |
-|---------|-------------|
-| src/ (core orchestrator, agent, training scripts) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
-| odoo-modules/ (custom Odoo plugins) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html) |
-| third-party/ | Original licenses (LGPL, MIT, Apache-2.0) |
-| deploy/ | AGPL-3.0 |
-| scripts/ | AGPL-3.0 |
-
-Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing.
-
 ## Acknowledgements
 
 NETTRADES builds on the shoulders of many amazing open-source projects:
@@ -863,7 +858,8 @@ graph TB
     subgraph Frontend["Frontend Layer"]
         Web["Odoo Website / Portal"]
         PWA["Mobile PWA"]
-        ChatWidget["AI Chatbot Widget"]
+        NettradesUI["Nettrades-UI / AI Chat"]
+        Llamacpp["Llama.CPP-UI / AI Chat"]
         VSCode["VS Code Extension"]
         Launcher["NETTRADES Launcher (Electron)"]
     end
@@ -871,7 +867,7 @@ graph TB
     subgraph Integration["Integration & Orchestration Layer"]
         Supervisor["LangGraph Supervisor Agent"]
         Agents["Specialised Sub-Agents"]
-        MCP["MCP-Odoo Bridge"]
+        MCP["Odoo-Proxy Bridge"]
         Bridge["nettrades_bridge"]
     end
 
@@ -879,7 +875,8 @@ graph TB
         Router["Provider Router Logic"]
         Dynamo["NVIDIA Dynamo Server(s)"]
         vLLM["vLLM Workers (GPU)"]
-        llama_cpp["llama.cpp (CPU Fallback)"]
+        llama_cpp["llama.cpp (CPU)"]
+        llama_cppfallback["llama.cpp (CPU Fallback)"]
         FineTune["Fine-Tuning Jobs (Unsloth/Axolotl)"]
         External["External LLM APIs (OpenAI, Anthropic)"]
     end
@@ -908,7 +905,8 @@ graph TB
     Integration --> MCP --> Core
     Integration --> Router --> AI
     AI --> Dynamo --> vLLM
-    AI --> llama_cpp
+    AI --> Dynamo --> llama_cpp
+    AI --> llama_cppfallback
     AI --> FineTune
     AI --> External
     Core --> Data
@@ -935,7 +933,7 @@ graph TB
         User["End User"]
     end
 
-    subgraph Client["Client Company (nettrades.com)"]
+    subgraph Client["Client Company"]
         subgraph Presentation["Presentation Layer"]
             WebUI["Odoo Web UI"]
             Launcher["NETTRADES Launcher"]
@@ -995,7 +993,7 @@ graph TB
 ```
 
 
-### Future Scaling Architecture
+### NETTRADES AI Hub Architecture
 
 ```mermaid
 
@@ -1070,7 +1068,7 @@ graph TB
 
 ```
 
-
+### Scaling Architecture
 
 ```mermaid
 
@@ -1187,7 +1185,7 @@ graph TB
 | Availability | 99.0% | 99.5% | 99.9% | 99.95% | 99.99% |
 
 
-### Routing Logic:
+### Routing Logic
 
 ```mermaid
 
@@ -1211,7 +1209,7 @@ flowchart TD
 
 ```
 
-### 3. Self-Improving AI Loop
+### Self-Improving AI Loop
 
 The platform continuously learns from user interactions and improves its models. This closed-loop system is the engine of NETTRADES’ self-improvement capability.
 
@@ -1252,9 +1250,9 @@ graph TD
 
 ```
 
-### 4. LangGraph Agent State Machine (Simplified)
+### LangGraph Agent State Machine (Simplified)
 
-For Agentic AI, NETTRADES uses LangGraph. For regulated fields like Medical or Legal the Agents take extra care. The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks. In the future companies could also write their own agents.
+For Agentic AI, NETTRADES uses LangGraph. For regulated fields like Medical or Legal the Agents take extra care. The LangGraph supervisor orchestrates all sub-agents, incorporating bridge routing and self-improvement hooks. 
 
 ```mermaid
 
@@ -1270,7 +1268,7 @@ graph TD
 
 ```
 
-### 5. CI/CD Pipeline
+### CI/CD Pipeline
 
 The platform uses Forgejo Actions for CI and Argo CD for GitOps deployment on Kubernetes.
 

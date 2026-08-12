@@ -1,0 +1,54 @@
+# =============================================================================
+# Grove Observability – Optional (future scaling)
+# Unifies Prometheus, Loki, and Tempo into a single observability platform
+# =============================================================================
+services:
+  grove:
+    image: grove/grove:latest
+    container_name: grove
+    restart: unless-stopped
+    networks:
+      - internal
+    ports:
+      - "8081:8080"
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - LOKI_URL=http://loki:3100
+      - TEMPO_URL=http://tempo:3200
+    depends_on:
+      - prometheus
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - ./loki-data:/loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - ./tempo-data:/tempo
+    command: -config.file=/etc/tempo/tempo-config.yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3

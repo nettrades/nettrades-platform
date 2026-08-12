@@ -1,0 +1,35 @@
+# =============================================================================
+# Fine-Tuning Services – Optional (Unsloth/Axolotl)
+# Only installed when --with-finetune is specified
+# =============================================================================
+services:
+  # Already exists in main compose – this file adds training-specific services
+  training-worker:
+    image: nettrades-training:latest
+    container_name: training-worker
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - ./dynamo-data/models:/models
+      - ./training-data:/training-data
+      - ./training-output:/output
+    environment:
+      - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
+      - ODOO_URL=${ODOO_URL:-http://odoo:8069}
+      - ODOO_API_KEY=${ODOO_API_KEY}
+      - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-1.5b}
+      - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4'
+    depends_on:
+      - postgres
+      - odoo
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3

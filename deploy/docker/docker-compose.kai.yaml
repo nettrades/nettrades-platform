@@ -1,0 +1,26 @@
+# =============================================================================
+# KAI Scheduler – Optional (Kubernetes GPU scheduling)
+# Only used when scaling to Kubernetes (Phase 3)
+# =============================================================================
+services:
+  kai-scheduler:
+    image: kai-scheduler/kai-scheduler:latest
+    container_name: kai-scheduler
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      - KUBERNETES_SERVICE_HOST=${KUBERNETES_SERVICE_HOST}
+      - KUBERNETES_SERVICE_PORT=${KUBERNETES_SERVICE_PORT}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
