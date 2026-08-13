@@ -419,16 +419,30 @@ This will run all phases (system preparation, environment setup, deployment and 
 
 The installer executes phases in this order:
 
-| Phase | Description |
-|---------|-------------|
-| `0` | System Preparation & Hardening – installs system-level dependencies - Docker, Docker Compose, NVIDIA drivers (if GPU), configures firewall, SSH hardening, installs fail2ban, sets system limits, and checks for gVisor. |
-| `1` | Development Environment – All Python scripts are run inside the venv virtual environment. Phase 1 creates the venv virtual environment and installs dependencies, generates secure passwords, API keys, WireGuard keys, and creates .env. |
-| `2` | Single-VM Deployment – with NVIDIA Dynamo + llama.cpp fallback, builds custom images (Odoo, LangGraph), prepares Odoo addons, initialises the database, starts all Docker Compose services and performs health checks. |
-| `3` | Kubernetes Scaling – provisions Talos VMs, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, NVIDIA Dynamo, and WireGuard. |
-| `4` | Module Installation – installs all NETTRADES custom Odoo modules in the correct dependency order. |
-| `5` | Monitoring – deploys Prometheus and Grafana with pre-configured dashboards (if not already present). |
+| Phase | Description | Purpose | Current Profiles Using It |
+|---------|-------------|-------------|-------------|
+| `0` | System Preparation & Hardening | Installs system-level dependencies - Docker, Docker Compose, UFW, NVIDIA drivers (if GPU), configures firewall, SSH hardening, installs fail2ban, sets system limits and checks for gVisor. | deploy, k8s, all |
+| `1` | Development Environment | All Python scripts are run inside the venv virtual environment. Phase 1 creates the venv virtual environment and installs dependencies, generates secure passwords, API keys, WireGuard keys, and creates .env. | dev, deploy, k8s, all |
+| `2` | Single-VM Deployment | Installs NVIDIA Dynamo + llama.cpp fallback, builds custom images (Odoo, LangGraph), prepares Odoo addons, initialises the database, starts all Docker Compose services and performs health checks. | deploy, all |
+| `3` | Kubernetes Scaling | Provisions Talos VMs, applies Kubernetes manifests, installs Argo CD, Prometheus, Grafana, NVIDIA Dynamo and WireGuard. | k8s |
+| `4` | Module Installation | Installs all NETTRADES custom Odoo modules in the correct dependency order. | all, modules |
+| `5` | Monitoring Setup | Deploys Prometheus and Grafana | all, monitoring |
 
 All phases are idempotent – you can safely re-run the script to fix or upgrade your deployment.
+
+Phase 2 (Single-VM) and Phase 3 (Kubernetes) are mutually exclusive deployment models.
+
+You cannot run both on the same deployment. They represent different infrastructure choices.
+
+| Aspect | Phase 2 (Single-VM) | Phase 3 (Kubernetes) |
+|---------|-------------|-------------|
+| Infrastructure | One server (Docker Compose) | Multi-node cluster (Talos/K8s) |
+| Inference | NVIDIA Dynamo (single instance) | NVIDIA Dynamo (distributed) |
+| GPU Scheduling | Docker Compose scaling | KAI Scheduler |
+| Storage | Local volumes | Longhorn (distributed) |
+| Networking | Simple bridge | Cilium + MetalLB |
+
+
 
 #### INFERENCE ARCHITECTURE:
 * Primary: NVIDIA Dynamo (GPU-accelerated, distributed, includes vLLM)
@@ -466,14 +480,15 @@ USAGE:
    ./nettrades-setup.sh --help                Show help.
 
 
-| Profile | Description |  Phase  |
-|---------|-------------|-------------|
-| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only|
-| `deploy` | Full single-VM deployment (Docker Compose) without GPU |  Phases 0, 1, 2 |
-| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 3  |
-| `monitoring` | Deploys Prometheus + Grafana (on existing stack) | Phase 5  |
-| `modules` | Installs or upgrades all NETTRADES Odoo modules |  Phase 4 |
-| `all` | Full production deployment + modules (best for production) | Phases 0, 1, 2, 4, 5  |
+| Profile | Description |  Phase  | Environment |
+|---------|-------------|-------------|----------|
+| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only | Development |
+| `deploy` | Sovereign AI in a Box |  Phases 0, 1, 2 | Single Computer or VM |
+| `router` | Sovereign AI Router (adds bridge config) |  Phases 0, 1, 2 | Single Computer or VM |
+| `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 3  | Kubernetes |
+| `modules` | Installs or upgrades all NETTRADES Odoo modules |  Phase 4 | Any |
+| `monitoring` | Deploys Prometheus + Grafana (on existing stack) | Phase 5  | Any |
+| `all` | Full production deployment + modules (e.g. for production website) | Phases 0, 1, 2, 4, 5  | Any |
 
 #### ⚙️ Useful Options (CLI)
 
@@ -485,11 +500,13 @@ USAGE:
 | `--development` | Set environment to development (no hardening) [default] |
 | `--with-finetune` | Install fine-tuning packages (torch, unsloth, axolotl) |
 | `--with-grove` | Deploy Grove observability platform (future scaling) |
-| `--with-kai` | Deploy KAI Scheduler for GPU scheduling (K8s) |
+| `--with-kai` | Deploy KAI Scheduler for GPU scheduling (K8s) requires Phase 3 (Kubernetes)|
 | `--platform` | Override platform detection (linux, macos, wsl) |
 | `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
 | `--regenerate-secrets` | Regenerate all secrets in .env (⚠️ WARNING: use with caution, you will be locked out) |
 | `--reset-data` | Wipe all containers and volumes (⚠️ WARNING: destroys data!) |
+
+Key Point: KAI Scheduler CANNOT run on a single VM. It requires Kubernetes (Phase 3).
 
 ⚠️ WARNING: DO NOT RUN --force ON PRODUCTION ENVIRONMENTS
 
@@ -504,37 +521,63 @@ Make sure Phase 1 is always ran
 
 You can specify a profile and options directly:
 ```bash
-# Full deployment with modules
+# Full deployment with modules of a single server
 sudo ./scripts/nettrades-setup.sh all
 
-# Deployment without GPU
+# The all profile is idempotent - you can re-run it safely
+# Hardens single-VM deployment
+# During Phase 1 the .env file is generated in deploy/docker/  from the .env.example file 
+# All Odoo modules installed
+# Monitoring stack deployed
+
+# Deploy Sovereign AI in a Box on a single computer
 sudo ./scripts/nettrades-setup.sh deploy
 
-# Development environment only
+# Development environment only on an existing development machine
 sudo ./scripts/nettrades-setup.sh dev
 
-# Install the Odoo modules only after the development environment is set up and you have gone into odoo and installed the website Odoo module
+# Install the Odoo modules only after the development environment is set up and you have gone into Odoo and installed the website Odoo module
 sudo ./scripts/nettrades-setup.sh modules
 or
 sudo ./scripts/nettrades-setup.sh modules --upgrade
 
-# Reinstall everything from scratch (only for developers as it over writes everything)
+# Reinstall everything from scratch (only for developers setting up a totally new environment as it over writes everything)
 sudo ./scripts/nettrades-setup.sh dev --force
 
-# If you wants to minimise resource usage and skip monitoring then you could still use the --phases option
+# Or use
+sudo ./scripts/nettrades-setup.sh all --force
+# if you want to over write everything for a totally new environment
 
+# If you wants to minimise resource usage and skip monitoring then you could still use the --phases option
 sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4
 
+
+# Enterprise Production with kubernetes + grove + kai 
+sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4 --grove --kai
+# KAI requires Phase 3 (Kubernetes)
+
+# AI Startup (Full) single server with finetune
+sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
+
 ```
+
 After each phase it creates the files
+
 nettrades-platform\.phase-0-complete
+
 nettrades-platform\.phase-1-complete
+
 nettrades-platform\.phase-2-complete
+
 nettrades-platform\.phase-3-complete
+
 nettrades-platform\.phase-4-complete
+
 nettrades-platform\.phase-5-complete
 
 So that if you rerun it without --force it does not override the previous phase.
+
+Use --force flag to re-run even if already completed
 
 #### 🔑 Database Password Management
 
