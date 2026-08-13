@@ -140,13 +140,186 @@ graph TB
 
 ```
 
-Inference Backend Priority
+## Inference Backend Priority
 
 The system automatically selects the first available backend:
-Priority	Backend	Description
-1	NVIDIA Dynamo with vLLM	Production-grade distributed inference, GPU-accelerated
-2	NVIDIA Dynamo (CPU mode)	Runs on CPU when GPU unavailable
-3	llama.cpp	Zero-dependency CPU fallback, runs on port 8080
 
 
-NVIDIA Dynamo could also use llama.cpp
+| Priority | Backend | Description |
+|---------|--------------|-----------|
+| 1 | **NVIDIA Dynamo with vLLM** | Production-grade distributed inference, GPU-accelerated |
+| 2 | **NVIDIA Dynamo (CPU mode)** | Runs on CPU when GPU unavailable |
+| 3 | **llama.cpp** | Runs on CPU when GPU unavailable |
+| 4 | **llama.cpp** | Zero-dependency CPU fallback, runs on port 8080 |		
+		
+		
+## Configuration
+
+### Environment Variables
+
+| Variable | Purpose | Default | Required |
+|---------|--------------|-----------|----------|
+| `DYNAMO_API_KEY` | API key for authentication | None |  ✅ Critical  |
+| `LLM_BASE_URL` | Dynamo API URL | `http://dynamo:8000/v1` |  ⚠️ Optional  |
+| `MODEL_NAME` | Default model | `Qwen2.5-1.5B-Instruct` |  ⚠️ Optional  |
+| `INFERENCE_ENGINE` | Engine selection | `auto` |  ⚠️ Optional  |
+| `VLLM_TARGET_DEVICE` | Target device (cuda or cpu) | `cuda` |  ⚠️ Optional  |
+
+
+
+## Model Loading
+
+Models are loaded from `deploy/docker/dynamo-data/models/`
+
+Supported formats:
+
+    **GGUF** – For llama.cpp (e.g., `*.gguf`)
+
+    **HF** – For vLLM (Hugging Face format with `config.json`)			
+			
+			
+## Downloading Models
+
+```bash
+
+# Download GGUF model
+./scripts/download-model.sh --model deepseek-1.5b --format gguf
+
+# Download HF model
+./scripts/download-model.sh --model deepseek-1.5b --format h			
+			
+```
+
+
+## API Reference
+
+### Chat Completions
+
+**Endpoint:** `POST /v1/chat/completions`
+
+**Authentication:** `Authorization: Bearer <DYNAMO_API_KEY>`
+
+```json
+
+{
+    "model": "deepseek-1.5b",
+    "messages": [
+        {"role": "user", "content": "Hello"}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 1024,
+    "stream": false
+}
+```
+
+## List Models
+
+**Endpoint:** `GET /v1/models`
+
+**Authentication:** `Authorization: Bearer <DYNAMO_API_KEY>`
+
+```json
+
+{
+    "object": "list",
+    "data": [
+        {"id": "deepseek-1.5b", "object": "model"},
+        {"id": "qwen-1.5b", "object": "model"}
+    ]
+}
+```
+
+## Health Check
+
+**Endpoint:** `GET /health`
+
+```bash
+
+curl http://localhost:8001/health
+
+```
+
+
+## Fallback Mechanism
+
+If NVIDIA Dynamo is unavailable, the system automatically falls back to llama.cpp:
+
+**Health Check Fails** – The system periodically checks http://dynamo:8000/health
+
+**Mark Unhealthy** – Dynamo is marked as unhealthy after multiple failures
+
+**Route to Fallback** – LangGraph agents detect unavailability and route to llama.cpp
+
+**Serve Request** – llama.cpp serves requests using GGUF models on port 8080
+
+
+## Health Check Configuration
+
+| Setting | Default | Description |
+|---------|------------|----------|
+| `health_check_enabled` | True | Enable/disable health checking |
+| `health_check_endpoint` | /health | Health check endpoint URL |
+| `health_check_interval` | 30s | How often to check |
+| `health_check_timeout` | 5s | Timeout for each check |
+		
+		
+
+## Monitoring
+
+NVIDIA Dynamo exposes metrics at:
+
+| Endpoint | Description |
+|---------|------------|
+| `/metrics` | Prometheus metrics |
+| `/health` | Health check |
+| `/v1/models` | List available models |
+
+
+## Troubleshooting
+
+
+| Issue | Solution |
+|---------|------------|
+| **Dynamo not starting** | Check logs: `docker compose logs dynamo` |
+| **Model not found** | Ensure model exists in `dynamo-data/models/` |
+| **GPU not detected** | Run `nvidia-smi` and install drivers |
+| **API key invalid** | Check `DYNAMO_API_KEY` in `.env` |
+| **Out of memory** | Increase GPU memory limit or use smaller model |
+| **Slow inference** | Check GPU utilisation and model size |
+
+
+## Integration with LangGraph
+
+LangGraph agents use the inference backend through inference_tools.py:
+
+```python
+
+from src.core.tools.inference_tools import get_inference_backend
+
+backend = get_inference_backend()  # Returns 'dynamo', 'vllm', or 'llama_cpp'
+response = await backend.invoke(messages)
+```
+
+## Integration with Bridge Routing
+
+The bridge routing engine (nettrades_bridge) can route requests to Dynamo:
+
+```python
+
+# The bridge returns a route decision
+decision = bridge.get_route_for_request('inference', request_data)
+
+# The target URL is either Dynamo or llama.cpp
+target_url = decision['target_url']  # http://dynamo:8000/v1 or http://llama-cpp:8080/v1
+```
+
+## Next Steps
+
+[Bridge Architecture](bridge-architecture.md) – Understanding routing
+
+[Building Agents](building-agents.md) – Using Dynamo in agents
+
+[API Reference](api-reference.md) – Complete API documentation
+
+[Troubleshooting](troubleshooting.md) – Common issues and solutions
+
