@@ -1,9 +1,3 @@
-
----
-
-### File: `docs/developer/kai-scheduler-integration.md`
-
-```markdown
 # KAI Scheduler Integration (Future)
 
 **Status:** Planned
