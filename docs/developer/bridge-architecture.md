@@ -1,11 +1,4 @@
-## Bridge Architecture
 
-
----
-
-## File: `docs/developer/bridge-architecture.md`
-
-```markdown
 ## Bridge Architecture
 
 The `nettrades_bridge` module is the core of the NETTRADES Sovereign AI Router. It provides configurable routing between local and remote AI infrastructure.

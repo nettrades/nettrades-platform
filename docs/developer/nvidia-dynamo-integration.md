@@ -83,9 +83,9 @@ The dynamo-frontend container is lightweight and does not require CUDA or backen
 
 ( Capability-Based Scheduling: Nodes self-declare capabilities (e.g., tier_1_gpu, tier_3_cpu, supports_tool_calling, etc.). Dynamo routes:
 
-** Real-time trading logic → Tier-1 GPU nodes.
+* Real-time trading logic → Tier-1 GPU nodes.
 
-** Batch summarization, logging, Odoo background tasks → CPU/llama.cpp nodes.
+* Batch summarization, logging, Odoo background tasks → CPU/llama.cpp nodes.
 
 * Health Checks: Each node sends periodic heartbeats; Dynamo automatically removes unresponsive nodes.
 
@@ -95,6 +95,7 @@ The dynamo-frontend container is lightweight and does not require CUDA or backen
 ## Additional Documentation
 
 [Dynamo GitHub](https://github.com/ai-dynamo/dynamo)
+
 [Official Documentation](https://docs.nvidia.com/dynamo/)
 
 ## Architecture
@@ -173,9 +174,9 @@ Models are loaded from `deploy/docker/dynamo-data/models/`
 
 Supported formats:
 
-    **GGUF** – For llama.cpp (e.g., `*.gguf`)
+GGUF – For llama.cpp (e.g., `*.gguf`)
 
-    **HF** – For vLLM (Hugging Face format with `config.json`)			
+HF – For vLLM (Hugging Face format with `config.json`)			
 			
 			
 ## Downloading Models
