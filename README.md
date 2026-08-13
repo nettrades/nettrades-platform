@@ -414,8 +414,14 @@ This will run all phases (system preparation, environment setup, deployment and 
 
 ⚠️ Warning: Do not use --force on existing systems or production systems - it will wipe all the data
 
+#### Usage
 
-#### What Happens During Setup?
+    ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
+    ./nettrades-setup.sh                       (Interactive wizard)
+    ./nettrades-setup.sh --help                Shows  help.
+
+
+#### Phases
 
 The installer executes phases in this order:
 
@@ -443,12 +449,6 @@ You cannot run both on the same deployment. They represent different infrastruct
 | Networking | Simple bridge | Cilium + MetalLB |
 
 
-
-#### INFERENCE ARCHITECTURE:
-* Primary: NVIDIA Dynamo (GPU-accelerated, distributed, includes vLLM)
-* Fallback: llama.cpp (CPU, zero-dependency)
-* Odoo provides governance and GPU resource management
-
 ### Accessing Your Platform
 
 All the administration passwords are in the file:
@@ -474,15 +474,16 @@ Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestrati
 
 #### 📦 Other Installation Options
 
-USAGE:
-   ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
-   ./nettrades-setup.sh                       (Interactive wizard)
-   ./nettrades-setup.sh --help                Show help.
 
+#### ENVIRONMENTS
+    --development   Development mode (no SSH hardening, firewall relaxed) [default]
+    --production    Production mode (SSH hardening, UFW, WireGuard, fail2ban)
+    
+#### PROFILES (CLI)    
 
 | Profile | Description |  Phase  | Environment |
 |---------|-------------|-------------|----------|
-| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only | Development |
+| `dev` | Sets up a development environment (Python dependencies, .env, Odoo deps)   | Phase 1 only | Development Environment |
 | `deploy` | Sovereign AI in a Box |  Phases 0, 1, 2 | Single Computer or VM |
 | `router` | Sovereign AI Router (adds bridge config) |  Phases 0, 1, 2 | Single Computer or VM |
 | `k8s` | Kubernetes deployment (Talos, Argo CD, manifests) – advanced | Phases 0, 1, 3  | Kubernetes |
@@ -496,6 +497,8 @@ USAGE:
 |---------|-------------|
 | `--force` | Re-run phases even if they were already completed ⚠️ WARNING: OVER WRITES EVERYTHING |
 | `--upgrade` | Upgrade Odoo modules instead of fresh install |
+| `--skip-installed` | Skip already installed Odoo modules. |
+| `--auto` | Run in non-interactive mode (use defaults, no prompts). For CI/CD testing (⚠️ WARNING: use with caution)|
 | `--production` | Set environment to production (applies hardening) |
 | `--development` | Set environment to development (no hardening) [default] |
 | `--with-finetune` | Install fine-tuning packages (torch, unsloth, axolotl) |
@@ -520,48 +523,52 @@ Make sure Phase 1 is always ran
 #### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
 
 You can specify a profile and options directly:
-```bash
-# Full deployment with modules of a single server
-sudo ./scripts/nettrades-setup.sh all
 
-# The all profile is idempotent - you can re-run it safely
+| Command | Effect |
+|---------|-------------|
+| sudo ./nettrades-setup.sh                        |  Interactive wizard |
+| sudo ./nettrades-setup.sh deploy --auto          |  Automated single computer deployment (development/internal) |
+| sudo ./nettrades-setup.sh deploy --production    |  Deploy single computer with production hardening |
+| sudo ./nettrades-setup.sh all --force            |  Full re-deployment |
+| sudo ./nettrades-setup.sh all --with-finetune    |  Include fine-tuning packages |
+| sudo ./nettrades-setup.sh k8s --with-kai         |  Kubernetes with KAI Scheduler |
+| sudo ./nettrades-setup.sh deploy --with-grove    |  Deploy with Grove observability |
+| sudo ./scripts/nettrades-setup.sh dev 	   |  Development environment only on an existing development machine |
+| sudo ./scripts/nettrades-setup.sh modules   |  Install the Odoo modules (only do this after the development environment is set up   |
+| sudo ./scripts/nettrades-setup.sh modules --upgrade  |  Upgrade the Odoo modules   |
+
+```bash
+--all installs  Phase 0 → Phase 1 → Phase 2 → Phase 4 → Phase 5
+```
+
+# The all profile are idempotent - you can re-run it safely
 # Hardens single-VM deployment
 # During Phase 1 the .env file is generated in deploy/docker/  from the .env.example file 
 # All Odoo modules installed
 # Monitoring stack deployed
 
-# Deploy Sovereign AI in a Box on a single computer
-sudo ./scripts/nettrades-setup.sh deploy
+If you wants to minimise resource usage and skip monitoring then you could still use the --phases option
 
-# Development environment only on an existing development machine
-sudo ./scripts/nettrades-setup.sh dev
-
-# Install the Odoo modules only after the development environment is set up and you have gone into Odoo and installed the website Odoo module
-sudo ./scripts/nettrades-setup.sh modules
-or
-sudo ./scripts/nettrades-setup.sh modules --upgrade
-
-# Reinstall everything from scratch (only for developers setting up a totally new environment as it over writes everything)
-sudo ./scripts/nettrades-setup.sh dev --force
-
-# Or use
-sudo ./scripts/nettrades-setup.sh all --force
-# if you want to over write everything for a totally new environment
-
-# If you wants to minimise resource usage and skip monitoring then you could still use the --phases option
+```bash
 sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4
-
-
-# Enterprise Production with kubernetes + grove + kai 
-sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4 --grove --kai
-# KAI requires Phase 3 (Kubernetes)
-
-# AI Startup (Full) single server with finetune
-sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
-
 ```
 
-After each phase it creates the files
+Enterprise Production with kubernetes + grove + kai 
+
+```bash
+sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4 --grove --kai
+```
+
+KAI requires Phase 3 (Kubernetes)
+
+AI Startup (Full) single server with finetune
+
+```bash
+sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
+```
+
+
+After each phase is completed the following files are created:
 
 nettrades-platform\.phase-0-complete
 
@@ -918,6 +925,40 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 
 
 ## 🏗️ Architecture
+
+#### INFERENCE ARCHITECTURE:
+* Primary: NVIDIA Dynamo (GPU-accelerated, distributed, includes vLLM)
+* Fallback: llama.cpp (CPU, zero-dependency)
+* Odoo provides governance and GPU resource management
+
+```
++-------------------------------------------------------+
+|              NetTrades Core (LangGraph Agents)          |
+|                  Odoo ERP & Business Logic              |
++---------------------------+---------------------------+
+                            | (HTTP/REST, localhost:8000)
+                            ▼
++-------------------------------------------------------+
+|           NVIDIA Dynamo Global Coordinator              |
+|  - OpenAI-compatible API gateway                        |
+|  - KV-cache aware smart router                         |
+|  - Global request queue & load balancing               |
+|  - Node health monitoring & failover                   |
++---------------------------+---------------------------+
+                            |
+       (WireGuard VPN Mesh – encrypted overlay)
+                            |
+    +-----------+-----------+-----------+
+    |           |           |           |
+    ▼           ▼           ▼           ▼
++--------+  +--------+  +--------+  +--------+
+| NVIDIA |  |  AMD   |  | Intel  |  |  CPU   |
+|  Node  |  |  Node  |  |  Node  |  |  Mesh  |
+|(vLLM)  |  |(vLLM)  |  |(vLLM)  |  |(llama) |
++--------+  +--------+  +--------+  +--------+
+
+
+```
 
 ### Architecture Overview And Future Enhancements
 
