@@ -1,9 +1,3 @@
-
----
-
-### File: `docs/developer/grove-integration.md`
-
-```markdown
 # Grove Integration (Future)
 
 **Status:** Planned

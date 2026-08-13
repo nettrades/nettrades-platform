@@ -38,8 +38,12 @@ https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/develop
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/faq.md
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/getting-started.md
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/good-answer-fine-tuning-loop.md
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/docs/developer/index.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/grove-integration.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/index.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/kia-scheduler-integration.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/launcher-architecture.md
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/langgraph-supervisor-state-machine.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/nvidia-dynamo-integration.md
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/self-improving-loop.md
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/self-improving.md
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/solution-architecture-logical.md
