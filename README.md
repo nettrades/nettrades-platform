@@ -539,13 +539,14 @@ You can specify a profile and options directly:
 
 ```bash
 --all installs  Phase 0 → Phase 1 → Phase 2 → Phase 4 → Phase 5
+
 ```
 
-# The all profile are idempotent - you can re-run it safely
-# Hardens single-VM deployment
-# During Phase 1 the .env file is generated in deploy/docker/  from the .env.example file 
-# All Odoo modules installed
-# Monitoring stack deployed
+The --all profile is idempotent - you can re-run it safely
+Hardens single-VM deployment
+During Phase 1 the .env file is generated in deploy/docker/  from the .env.example file 
+All Odoo modules installed
+Monitoring stack deployed
 
 If you wants to minimise resource usage and skip monitoring then you could still use the --phases option
 
@@ -553,19 +554,22 @@ If you wants to minimise resource usage and skip monitoring then you could still
 sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4
 ```
 
+
 Enterprise Production with kubernetes + grove + kai 
 
 ```bash
 sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4 --grove --kai
 ```
-
 KAI requires Phase 3 (Kubernetes)
+
+
 
 AI Startup (Full) single server with finetune
 
 ```bash
 sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
 ```
+
 
 
 After each phase is completed the following files are created:
@@ -975,7 +979,7 @@ graph TB
     subgraph Frontend["Frontend Layer"]
         Web["Odoo Website / Portal"]
         PWA["Mobile PWA"]
-        NettradesUI["Nettrades-UI / AI Chat"]
+        NettradesUI["Nettrades-UI (Talk to Odoo for Authentication via Odoo-Proxy) / AI Chat"]
         Llamacpp["Llama.CPP-UI / AI Chat"]
         VSCode["VS Code Extension"]
         Launcher["NETTRADES Launcher (Electron)"]
@@ -1044,7 +1048,6 @@ NETTRADES uses a hub-and-spoke architecture to distribute load, preserve data so
 
 
 ```mermaid
-
 graph TB
     subgraph External["External"]
         User["End User"]
@@ -1055,6 +1058,7 @@ graph TB
             WebUI["Odoo Web UI"]
             Launcher["NETTRADES Launcher"]
             API["API Gateway"]
+            NETTRADESUI["NETTRADES UI (Talk to Odoo for Authentication via Odoo-Proxy)"]
         end
 
         subgraph Bridge["Bridge Layer (nettrades_bridge)"]
@@ -1084,9 +1088,11 @@ graph TB
     User --> WebUI
     User --> Launcher
     User --> API
+    User --> NETTRADESUI
     WebUI --> Bridge
     Launcher --> Bridge
     API --> Bridge
+    NETTRADESUI --> Bridge
 
     Bridge -->|"Local (default)"| LangGraph
     Bridge -->|"Remote (when needed)"| GlobalAPI

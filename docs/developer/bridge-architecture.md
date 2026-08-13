@@ -16,7 +16,7 @@ graph TB
             WebUI["Odoo Web UI"]
             Launcher["NETTRADES Launcher"]
             API["API Gateway"]
-            NETTRADESUI["NETTRADES UI"]
+            NETTRADESUI["NETTRADES UI (Talk to Odoo for Authentication via Odoo-Proxy)"]
         end
 
         subgraph Bridge["Bridge Layer (nettrades_bridge)"]
@@ -74,9 +74,10 @@ graph TB
 ```
 
 
-Routing Modes
+### Routing Modes
 
 The bridge supports five routing modes, configurable per company:
+
 Mode	Description	Use Case
 Local Only	All requests stay on local infrastructure	Sovereign AI – full data sovereignty
 Remote Only	All requests go to external providers	Testing, no local GPUs available
@@ -86,32 +87,36 @@ Auto	AI agent decides based on context	Dynamic routing based on workload
 Load Balancing Strategies
 
 The bridge provides load balancing for NVIDIA Dynamo nodes:
+
 Strategy	Description	Use Case
 Round Robin	Distributes requests evenly across healthy nodes	Simple, even distribution
 Weighted	Distributes based on node weight	Prioritise faster nodes
 Random	Random distribution	Simple, no state tracking
 Priority	Highest priority node first	Primary/backup configuration
-Health Checking
+
+### Health Checking
 
 The bridge continuously monitors the health of all routes:
 
-    Health check endpoint: /health (configurable)
+* Health check endpoint: /health (configurable)
 
-    Interval: 30s (configurable)
+* Interval: 30s (configurable)
 
-    Timeout: 5s (configurable)
+* Timeout: 5s (configurable)
 
-    Status: healthy, unhealthy, unknown
+* Status: healthy, unhealthy, unknown
 
-mDNS Discovery
+### mDNS Discovery
 
 The bridge uses mDNS/Avahi for automatic node discovery:
+
 Field	Description
 version	Platform version
 gpus	Number of available GPUs
 models	Number of available models
 capabilities	JSON of capabilities
-External API Integration
+
+### External API Integration
 
 The bridge can route requests to external APIs:
 Provider	API URL	Model Format
