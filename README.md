@@ -931,6 +931,11 @@ NETTRADES builds on the shoulders of many amazing open-source projects:
 * Fallback: llama.cpp (CPU, zero-dependency)
 * Odoo provides governance and GPU resource management
 
+##### [Universal Enterprise AI Fabric (UEAF)](docs/developer/nvidia-dynamo-integration.md)
+
+NetTrades leverages NVIDIA Dynamo as the central orchestrator, vLLM for homogeneous GPU clusters (NVIDIA/AMD), and llama.cpp for CPU/mixed environments. 
+
+
 ```
 +-------------------------------------------------------+
 |              NetTrades Core (LangGraph Agents)          |
@@ -1298,6 +1303,8 @@ graph TB
 
 
 ### Routing Logic
+
+The routing logic is based on the configuration set for the company or the organisation on the administration screens. 
 
 ```mermaid
 
