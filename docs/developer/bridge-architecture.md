@@ -11,11 +11,12 @@ graph TB
         User["End User"]
     end
 
-    subgraph Client["Client Company (nettrades.com)"]
+    subgraph Client["Client Company"]
         subgraph Presentation["Presentation Layer"]
             WebUI["Odoo Web UI"]
             Launcher["NETTRADES Launcher"]
             API["API Gateway"]
+            NETTRADESUI["NETTRADES UI"]
         end
 
         subgraph Bridge["Bridge Layer (nettrades_bridge)"]
@@ -45,9 +46,11 @@ graph TB
     User --> WebUI
     User --> Launcher
     User --> API
+    User --> NETTRADESUI
     WebUI --> Bridge
     Launcher --> Bridge
     API --> Bridge
+    NETTRADESUI --> Bridge
 
     Bridge -->|"Local (default)"| LangGraph
     Bridge -->|"Remote (when needed)"| GlobalAPI
