@@ -27,6 +27,19 @@ From job matching to lead generation, AI powers the platform. And it gets better
 ### ⚖️ Fairness & Bias Detection
 The platform automatically evaluates AI responses for rationality and bias. This ensures that all users receive fair, logical, and unbiased responses.
 
+
+## 🎯 Operational Modes
+
+The NETTRADES Launcher provides three one-click operational modes to control how AI requests are routed:
+
+| Mode | Button | Behavior |
+|------|--------|----------|
+| **100% Sovereign AI** | 🔴 | All requests to local GPUs. External APIs disabled. |
+| **Hybrid Mode** | 🟡 | Local first. Use GPU marketplace when local capacity exceeded. |
+| **Cloud** | 🟢 | Local GPUs → GPU Marketplace → External APIs (user-selectable) |
+
+Admins can switch modes instantly from the Launcher dashboard. Changes take effect in real-time via Valkey cache.
+
 ---
 
 ## Getting Started

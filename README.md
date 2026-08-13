@@ -154,6 +154,17 @@ to get a new keys and reconnect
 | **Enterprise Security** | WireGuard VPN, RBAC, audit logging, SSH hardening, fail2ban. |
 | **14-Year Track Record** | Founded 2012. Enterprise clients include Salesforce, AXA, Standard Bank, NHS, Capita etc. |
 
+## 🎯 Operational Modes
+
+The NETTRADES Launcher provides three one-click operational modes to control how AI requests are routed:
+
+| Mode | Button | Behavior |
+|------|--------|----------|
+| **100% Sovereign AI** | 🔴 | All requests to local GPUs. External APIs disabled. |
+| **Hybrid Mode** | 🟡 | Local first. Use GPU marketplace when local capacity exceeded. |
+| **Cloud** | 🟢 | Local GPUs → GPU Marketplace → External APIs (user-selectable) |
+
+Admins can switch modes instantly from the Launcher dashboard. Changes take effect in real-time via Valkey cache.
 
 ## 🚀 Key Features
 

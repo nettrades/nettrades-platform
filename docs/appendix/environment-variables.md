@@ -53,8 +53,6 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 
 | Variable | Purpose | Default | Required | Used By |
 |----------|---------|---------|----------|---------|
-| `GPUSTACK_SERVER_URL` | URL of the GPUStack server (highest priority) | None | ⚠️ Optional | Inference tools |
-| `GPUSTACK_API_KEY` | API key for GPUStack | `dummy` | ⚠️ Optional | Inference tools |
 | `VLLM_BASE_URL` | URL of the vLLM server (second priority) | None | ⚠️ Optional | Inference tools |
 | `VLLM_API_KEY` | API key for vLLM | `dummy` | ⚠️ Optional | Inference tools |
 | `LLM_BASE_URL` | URL of the llama.cpp server (lowest priority) | `http://llama-cpp:8080/v1` | ⚠️ Optional | Inference tools |
@@ -109,8 +107,6 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 | `WIREGUARD_PUBLIC_KEY` | Public key for the WireGuard controller | None | ✅ Yes | WireGuard setup |
 | `WIREGUARD_LISTEN_PORT` | UDP port for WireGuard | `51820` | ⚠️ Optional | WireGuard setup |
 | `WIREGUARD_MESH_SUBNET` | WireGuard subnet in CIDR notation | `10.100.0.0/24` | ⚠️ Optional | WireGuard setup |
-| `GPUSTACK_JWT_SECRET` | JWT secret for GPUStack authentication | None | ✅ Yes | GPUStack |
-| `GPUSTACK_SERVER_URL` | (Already listed above – used for both inference and GPU management) |
 
 ---
 
@@ -177,8 +173,12 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 
 ---
 
+
+
+
 ## Next Steps
 
 - [Glossary →](glossary.md)
 - [Database Schema →](database-schema.md)
 - [Back to Appendix →](index.md)
+

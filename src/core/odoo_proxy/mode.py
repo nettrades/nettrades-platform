@@ -91,7 +91,7 @@ def write_to_valkey(key: str, value: str) -> bool:
     if not VALKEY_HOST:
         _logger.warning("Valkey not configured - skipping cache write")
         return False
-    
+
     try:
         import redis
         r = redis.Redis(host=VALKEY_HOST, port=VALKEY_PORT, decode_responses=True)
@@ -99,11 +99,38 @@ def write_to_valkey(key: str, value: str) -> bool:
         _logger.info(f"Wrote to Valkey: {key}={value}")
         return True
     except ImportError:
+        # Gracefully handle missing redis package
         _logger.warning("Redis package not installed - skipping cache write")
+        _logger.warning("Install redis: pip install redis")
         return False
     except Exception as e:
         _logger.error(f"Error writing to Valkey: {e}")
         return False
+
+# -----------------------------------------------------------------------------
+# Helper: Read from Valkey
+# -----------------------------------------------------------------------------
+
+def read_from_valkey(key: str) -> dict:
+    """Read a value from Valkey cache."""
+    if not VALKEY_HOST:
+        return None
+
+    try:
+        import redis
+        r = redis.Redis(host=VALKEY_HOST, port=VALKEY_PORT, decode_responses=True)
+        value = r.get(key)
+        if value:
+            return json.loads(value)
+        return None
+    except ImportError:
+        # Gracefully handle missing redis package
+        _logger.warning("Redis package not installed - skipping cache read")
+        _logger.warning("Install redis: pip install redis")
+        return None
+    except Exception as e:
+        _logger.warning(f"Error reading from Valkey: {e}")
+        return None
 
 # -----------------------------------------------------------------------------
 # Endpoints
@@ -116,7 +143,7 @@ async def update_mode(request: ModeUpdateRequest):
     Writes the mode to Valkey for real-time routing.
     """
     mode = request.mode.lower()
-    
+
     if mode not in MODES:
         raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}. Valid modes: red, yellow, green")
 
@@ -150,24 +177,19 @@ async def get_mode_status():
     Get the current operational mode status.
     """
     # Try to read from Valkey first
-    if VALKEY_HOST:
-        try:
-            import redis
-            r = redis.Redis(host=VALKEY_HOST, port=VALKEY_PORT, decode_responses=True)
-            value = r.get("nettrades:operational_mode")
-            if value:
-                data = json.loads(value)
-                mode = data.get("mode", "red")
-                return ModeStatusResponse(
-                    mode=mode,
-                    description=MODES[mode]["description"],
-                    local_gpus=MODES[mode]["local_gpus"],
-                    marketplace=MODES[mode]["marketplace"],
-                    external_apis=MODES[mode]["external_apis"],
-                    external_providers=MODES[mode]["external_providers"]
-                )
-        except Exception as e:
-            _logger.warning(f"Error reading from Valkey: {e}")
+    cache_key = "nettrades:operational_mode"
+    cached_data = read_from_valkey(cache_key)
+
+    if cached_data:
+        mode = cached_data.get("mode", "red")
+        return ModeStatusResponse(
+            mode=mode,
+            description=MODES[mode]["description"],
+            local_gpus=MODES[mode]["local_gpus"],
+            marketplace=MODES[mode]["marketplace"],
+            external_apis=MODES[mode]["external_apis"],
+            external_providers=MODES[mode]["external_providers"]
+        )
 
     # Fallback: return default mode
     return ModeStatusResponse(

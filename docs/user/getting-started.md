@@ -2,9 +2,30 @@
 
 This guide walks you through creating your account, setting up your profile, and taking your first actions on NETTRADES.AI.
 
+### Launcher Login
+
+To access the full Launcher functionality, log in with your Odoo credentials:
+
+1. Open the NETTRADES Launcher
+2. Click **Login** in the top-right corner
+3. Enter your Odoo username and password
+4. Your session is stored securely for subsequent API calls
+
+### Switching Operational Modes
+
+After logging in, you can switch operational modes from the Launcher dashboard:
+
+1. Click the **Operational Mode** section in the Launcher
+2. Select one of the three modes:
+   - **🔴 100% Sovereign AI** – All inference stays on local GPUs
+   - **🟡 Hybrid Mode** – Local first, fallback to marketplace
+   - **🟢 Cloud First** – Local → Marketplace → External APIs
+
+The mode change takes effect immediately.
+
 ---
 
-## 1. Creating Your Account
+## 1. Creating Your Account in the NETTTRADES.AI Hub 
 
 1. Go to [NETTRADES.AI](https://nettrades.ai) and click **Sign Up**.
 2. Choose your account type:

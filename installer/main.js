@@ -23,6 +23,7 @@
 //   - Queue monitoring and task management
 //   - GPU marketplace integration
 //   - Node discovery and WireGuard VPN management
+//   - Grove and KAI Scheduler management
 //
 // USAGE:
 //   npm start
@@ -420,9 +421,19 @@ async function getDockerServiceStatus(serviceName) {
 }
 
 // Helper function to run docker compose with an additional file
+// UPDATED: Added file existence check before running
 function runDockerComposeWithFile(composeFile, command) {
     return new Promise((resolve) => {
-        const cmd = `docker compose -f ${COMPOSE_FILE} -f ${path.join(path.dirname(COMPOSE_FILE), composeFile)} ${command}`;
+        const composePath = path.join(path.dirname(COMPOSE_FILE), composeFile);
+        
+        // Check if the compose file exists before running
+        if (!fs.existsSync(composePath)) {
+            logError(`Compose file not found: ${composePath}`);
+            resolve({ success: false, error: `Compose file not found: ${composeFile}` });
+            return;
+        }
+        
+        const cmd = `docker compose -f ${COMPOSE_FILE} -f ${composePath} ${command}`;
         logInfo(`Running: ${cmd}`);
 
         const proc = spawn('bash', ['-c', cmd], {
