@@ -60,7 +60,7 @@ PURPOSE:
 
 ---
 
-[![Commercial License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](COMMERCIAL-LICENSE.md)
+[![Commercial License](https://img.shields.io/badge/Commercial-License.svg)](COMMERCIAL-LICENSE.md)
 [![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE.txt)
 [![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
 [![Contributor License Agreement](https://img.shields.io/badge/Contributor-License-Agreement.svg)](Contributor-License-Agreement.md)
@@ -302,6 +302,20 @@ Step 3: Enable WSL Integration
 ** "Ubuntu" (or whatever your WSL distro is called)
 
 * Click "Apply & Restart" at the bottom
+
+Or ppen PowerShell as Administrator and run these command:
+
+```powershell
+
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
+
+# Restart when prompted
+Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+
+# Restart again
+wsl --set-default-version 2
+
+```
 
 Step 4: Verify Docker is Working in WSL
 
