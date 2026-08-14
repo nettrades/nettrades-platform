@@ -149,7 +149,6 @@ The hub and spoke architecture expands this further. Growing out like a tree, wi
 | **Observability** | Grove |
 
 
-
 # 2. Component-Specific Scaling
 
 ## A. Odoo Web Fleet (Stateless Web Workers)
@@ -172,10 +171,12 @@ Filestore: Shared via S3-compatible storage (Longhorn - MinIO)
 Database: Connection pooling via PgBouncer
 
 ## B. LangGraph Orchestrator (Stateless API)
-Scaling Trigger	Action	Target
-Request Rate > 100 req/s	Add replicas	Up to 15 pods
-P99 Latency > 500ms	Add replicas	Up to 15 pods
-Checkpoint queue depth	Add replicas	Up to 15 pods
+
+| Scaling Trigger | Action | Target |
+|---------|-------------|-----------|
+| Request Rate > 100 req/s | Add replicas | Up to 15 pods |
+| P99 Latency > 500ms | Add replicas | Up to 15 pods |
+| Checkpoint queue depth | Add replicas | Up to 15 pods |
 
 ### State Management:
 
@@ -184,10 +185,12 @@ Checkpoints: Stored in PostgreSQL (shared across replicas)
 No in-memory state: Fully stateless
 
 ## C. NVIDIA Dynamo Inference Fleet (Stateful GPU Workers)
-Scaling Trigger	Action	Target
-GPU Utilization > 80%	Add GPU node	Up to 20 nodes
-Queue Length > 50	Add GPU node	Up to 20 nodes
-Model load time > 10s	Scale up	Add replicas
+
+| Scaling Trigger | Action | Target |
+|---------|-------------|-----------|
+| GPU Utilization > 80% | Add GPU node | Up to 20 nodes |
+| Queue Length > 50 | Add GPU node | Up to 20 nodes |
+| Model load time > 10s | Scale up | Add replicas |
 
 ### Challenges & Solutions:
 
@@ -198,11 +201,14 @@ Cold Start: Pre-warm models on standby nodes
 GPU Diversity: Heterogeneous GPU pools (A100, H100, L40S)
 
 ## D. PostgreSQL Database (Stateful)
-Scaling Strategy	Implementation
-Read Scaling	Read replicas for reporting, analytics
-Write Scaling	Vertical scaling (more CPU/RAM)
-Sharding	Citus extension for horizontal sharding
-Connection Pooling	PgBouncer (1000+ connections)
+
+| Region | Role |
+|---------|-------------|
+| Scaling Strategy | Implementation |
+| Read Scaling | Read replicas for reporting, analytics |
+| Write Scaling | Vertical scaling (more CPU/RAM) |
+| Sharding | Citus extension for horizontal sharding |
+| Connection Pooling | PgBouncer (1000+ connections) |
 
 #### High Availability:
 
@@ -213,18 +219,22 @@ Standbys: 2+ nodes (synchronous replication)
 Failover: Automatic via CloudNativePG operator
 
 ## E. Valkey Cache (Stateful)
-Scaling Strategy	Implementation
-Sharding	Redis Cluster (6+ nodes)
-Replication	1 primary + 2 replicas per shard
-Eviction	LRU eviction policy
+
+| Scaling Strategy | Implementation |
+|---------|-----------|
+| Sharding | Redis Cluster (6+ nodes) |
+| Replication | 1 primary + 2 replicas per shard |
+| Eviction | LRU eviction policy |
 
 # 3. Geographic Scaling (Multi-Region)
 
 The platform supports Active-Active deployment across multiple regions:
-Region	Role	Traffic Split
-US-East	Primary	60%
-EU-West	Active	30%
-APAC	DR/Standby	10%
+
+| Region | Role | Traffic Split |
+|---------|-------------|-----------|
+| US-East | Primary | 60% |
+| EU-West | Active | 30% |
+| APAC | DR/Standby | 10% |
 
 # Cross-Region Data Flow:
 
@@ -248,7 +258,7 @@ Replication direction reversed
 
 KEDA (Kubernetes Event-Driven Autoscaling) provides custom scaling triggers:
 
-yaml
+```yaml
 
 # Example: Scale LangGraph based on RabbitMQ queue depth
 triggers:
@@ -257,6 +267,7 @@ triggers:
       queueName: langgraph-jobs
       queueLength: '50'
       host: rabbitmq.nettrades.svc
+```
 
 | Trigger Type | Source | Scaling Metric |
 |---------|-------------|-----------|
