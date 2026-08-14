@@ -89,6 +89,61 @@ class KAIJob(models.Model):
 ```
 
 
+```mermaid
+
+graph TB
+    subgraph KAI["KAI Scheduler Architecture"]
+        subgraph Core["Core Entities"]
+            PodGroup["PodGroup (Gang Scheduling)"]
+            Queue["Queue (Hierarchical Fairness)"]
+            Priority["Priority Class"]
+        end
+
+        subgraph Features["Key Features"]
+            Gang["Gang Scheduling"]
+            GPU_Share["Fractional GPU (Sharing)"]
+            Topology["Topology-Aware Placement"]
+            Elastic["Elastic Workloads"]
+            Preemption["Preemption"]
+        end
+
+        subgraph Integration["Integration with NETTRADES"]
+            Odoo_Jobs["Odoo Jobs (Training/Inference)"]
+            LangGraph_Jobs["LangGraph Agent Workloads"]
+            Dynamo_Workers["Dynamo Worker Groups"]
+        end
+
+        PodGroup --> Gang
+        Queue --> GPU_Share
+        Queue --> Topology
+        Queue --> Elastic
+        Priority --> Preemption
+
+        Odoo_Jobs --> PodGroup
+        LangGraph_Jobs --> PodGroup
+        Dynamo_Workers --> PodGroup
+
+        Gang --> Dynamo_Workers
+        GPU_Share --> Odoo_Jobs
+        Topology --> Dynamo_Workers
+        Elastic --> LangGraph_Jobs
+    end
+
+```
+
+
+## KAI Scheduler Benefits for NETTRADES:
+
+
+| Feature | Description | NETTRADES Use Case |
+|---------|--------|---------|
+| **Gang Scheduling** | All pods in a group start together | Distributed training jobs |
+| **Hierarchical Queues** | GPU quotas by team/department | Multi-tenant enterprise |
+| **Fractional GPU** | GPU sharing with hard isolation | Inference workloads, cost optimisation |
+| **Topology-Aware** | NVLink-aware placement | Multi-GPU inference/training |
+| **Elastic Workloads** | Scale between min/max pods | Dynamic inference demand |
+
+
 ## Next Steps
 
 * [NVIDIA Dynamo Integration](nvidia-dynamo-integration.md) – Current inference engine

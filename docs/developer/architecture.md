@@ -7,11 +7,13 @@ This document provides a comprehensive overview of the NETTRADES.AI platform arc
 ## System Architecture Diagram
 
 ```mermaid
+
 graph TB
     subgraph Frontend["Frontend Layer"]
         Web["Odoo Website / Portal"]
         PWA["Mobile PWA"]
-        ChatWidget["AI Chatbot Widget"]
+        NettradesUI["Nettrades-UI (Talks to Odoo for Authentication via Odoo-Proxy) / AI Chat"]
+        Llamacpp["Llama.CPP-UI / AI Chat"]
         VSCode["VS Code Extension"]
         Launcher["NETTRADES Launcher (Electron)"]
     end
@@ -19,7 +21,7 @@ graph TB
     subgraph Integration["Integration & Orchestration Layer"]
         Supervisor["LangGraph Supervisor Agent"]
         Agents["Specialised Sub-Agents"]
-        MCP["MCP-Odoo Bridge"]
+        MCP["Odoo-Proxy Bridge"]
         Bridge["nettrades_bridge"]
     end
 
@@ -27,7 +29,8 @@ graph TB
         Router["Provider Router Logic"]
         Dynamo["NVIDIA Dynamo Server(s)"]
         vLLM["vLLM Workers (GPU)"]
-        llama_cpp["llama.cpp (CPU Fallback)"]
+        llama_cpp["llama.cpp (CPU)"]
+        llama_cppfallback["llama.cpp (CPU Fallback)"]
         FineTune["Fine-Tuning Jobs (Unsloth/Axolotl)"]
         External["External LLM APIs (OpenAI, Anthropic)"]
     end
@@ -56,7 +59,8 @@ graph TB
     Integration --> MCP --> Core
     Integration --> Router --> AI
     AI --> Dynamo --> vLLM
-    AI --> llama_cpp
+    AI --> Dynamo --> llama_cpp
+    AI --> llama_cppfallback
     AI --> FineTune
     AI --> External
     Core --> Data
@@ -64,7 +68,7 @@ graph TB
     Security -. Secures .-> AI
     Fairness --> Data
     SelfImproving --> Data
-    
+
 ```
 
 ## Bridge Architecture (Hub-and-Spoke)

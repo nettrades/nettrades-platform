@@ -314,6 +314,80 @@ decision = bridge.get_route_for_request('inference', request_data)
 target_url = decision['target_url']  # http://dynamo:8000/v1 or http://llama-cpp:8080/v1
 ```
 
+
+
+## NVIDIA Dynamo Scaling Architecture
+
+
+NVIDIA Dynamo is the foundation for all scaled deployments, providing:
+
+* **Disaggregated prefill and decode** – Each scales independently
+
+* **KV-aware routing** – Eliminates unnecessary KV cache recomputation
+
+* **Dynamic worker scaling** – Responds to real-time signals
+
+* **Control plane (Planner)** – Computes scaling targets from live metrics
+
+* **Grove/KAI Scheduler path** – Topology-aware placement
+
+
+```mermaid
+
+graph TB
+    subgraph Dynamo_Arch["NVIDIA Dynamo Architecture"]
+        subgraph Request_Plane["Request Plane (Critical Data Path)"]
+            Client["Client Request"]
+            Frontend["Frontend (Accept/Normalize)"]
+            Router["Router (KV-aware + Load-based)"]
+            Prefill["Prefill Workers (Compute KV)"]
+            Decode["Decode Workers (Generate Tokens)"]
+        end
+
+        subgraph Control_Plane["Control Plane (Adaptation)"]
+            Planner["Planner (Scaling Targets)"]
+            Operator["Dynamo Operator (K8s CRDs)"]
+            Discovery["Discovery + Endpoints"]
+            Grove["Grove/KAI Scheduler"]
+            ModelExpress["Model Express"]
+        end
+
+        subgraph Storage_Plane["Storage & Events Plane"]
+            KVBM["KVBM (Block Reuse/Eviction)"]
+            NIXL["NIXL (High-speed KV Transfer)"]
+            Storage["Local SSD / NFS / Remote Storage"]
+        end
+
+        Client --> Frontend
+        Frontend --> Router
+        Router --> Prefill
+        Router --> Decode
+        Prefill --> Decode
+        Planner --> Operator
+        Operator --> Discovery
+        Discovery --> Router
+        Grove --> Planner
+        KVBM --> Storage
+        NIXL --> Storage
+        NIXL --> Prefill
+        NIXL --> Decode
+    end
+    
+```
+
+
+### Key Scaling Features:
+
+| Feature | Description | Benefit |
+|---------|------------|----------|
+| **Disaggregated Serving** | Separate prefill (compute-intensive) and decode (latency-sensitive) | Maximises GPU utilisation |
+| **KV-aware Routing** | Routes requests to workers with cached KV states | Eliminates redundant recomputation |
+| **Dynamic Scaling** | Planner computes scaling targets from live metrics | Responds to real-time demand |
+| **KAI Scheduler** | Topology-aware placement and grouped scaling | Multi-node Kubernetes deployments |
+| **KVBM + NIXL** | Multi-tier cache management and high-speed transfer | Efficient KV reuse across workers |
+
+
+
 ## Next Steps
 
 [Bridge Architecture](bridge-architecture.md) – Understanding routing

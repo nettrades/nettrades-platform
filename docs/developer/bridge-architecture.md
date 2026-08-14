@@ -16,7 +16,7 @@ graph TB
             WebUI["Odoo Web UI"]
             Launcher["NETTRADES Launcher"]
             API["API Gateway"]
-            NETTRADESUI["NETTRADES UI (Talk to Odoo for Authentication via Odoo-Proxy)"]
+            NETTRADESUI["NETTRADES UI (Talks to Odoo for Authentication via Odoo-Proxy)"]
         end
 
         subgraph Bridge["Bridge Layer (nettrades_bridge)"]
