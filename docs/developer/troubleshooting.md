@@ -220,9 +220,9 @@ find /root -name "*.log" -mtime -1 | xargs ls -la
 
 #### 1. llm_pgvector Fails to Install
 
-Error: llm_pgvector installation fails with missing dependencies.
+**Error:** llm_pgvector installation fails with missing dependencies.
 
-Solution:
+**Solution:**
 
 ```bash
 
@@ -236,9 +236,9 @@ pip install llm_pgvector
 
 #### 2. Virtual Environment Not Found
 
-Error: VIRTUAL_ENV: unbound variable or "Virtual environment not found".
+**Error:** VIRTUAL_ENV: unbound variable or "Virtual environment not found".
 
-Solution:
+**Solution:**
 
 ```bash
 
@@ -252,9 +252,9 @@ source .venv/bin/activate
 
 #### 3. PostgreSQL Connection Failed
 
-Error: Odoo cannot connect to PostgreSQL.
+**Error:** Odoo cannot connect to PostgreSQL.
 
-Solution:
+**Solution:**
 
 ```bash
 
@@ -275,9 +275,9 @@ docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1"
 
 #### 4. LangGraph Health Check Fails
 
-Error: curl http://localhost:8000/health returns non-200.
+**Error:** curl http://localhost:8000/health returns non-200.
 
-Solution:
+**Solution:**
 
 ```bash
 
@@ -294,9 +294,9 @@ docker compose restart langgraph-server
 
 #### 5. Traefik Routing Issues
 
-Error: Requests to /api/health return 404 or 503.
+**Error:** Requests to /api/health return 404 or 503.
 
-Solution:
+**Solution:**
 
 ```bash
 
@@ -317,9 +317,9 @@ docker compose logs traefik -f
 
 #### 6. NVIDIA Dynamo Not Starting
 
-Error: Dynamo container exits or fails to start.
+**Error:** Dynamo container exits or fails to start.
 
-Solution:
+**Solution:**
 
 ```bash
 
@@ -339,9 +339,9 @@ docker compose restart dynamo
 
 #### 7. Odoo Module Installation Fails
 
-Error: Odoo module installation fails with FileNotFoundError for view files.
+**Error:** Odoo module installation fails with FileNotFoundError for view files.
 
-Solution:
+**Solution:**
 
 ```bash
 
