@@ -1,6 +1,5 @@
 ## Future Infrastructure Scaling Architecture
 
-## Future Infrastructure Scaling Architecture
 
 ```mermaid
 flowchart TB
@@ -105,11 +104,14 @@ Based on the platform's existing modular architecture (Odoo + LangGraph + NVIDIA
 
 The platform is designed to grow organically from a single VM to a global, multi-region deployment without requiring significant architectural changes.
 
+
 # Detailed Scaling Strategy Explanation
+
 
 # 1. Scaling Strategies
 
 The NETTRADES platform is designed with a "scale-out first" philosophy, leveraging Kubernetes' native capabilities for horizontal scaling. The architecture supports three distinct scaling dimensions, plus edge devices:
+
 
 ## Scaling Strategy
 
@@ -151,6 +153,7 @@ The hub and spoke architecture expands this further. Growing out like a tree, wi
 
 # 2. Component-Specific Scaling
 
+
 ## A. Odoo Web Fleet (Stateless Web Workers)
 
  Trigger		
@@ -162,6 +165,7 @@ The hub and spoke architecture expands this further. Growing out like a tree, wi
 | Queue Length > 1000 | Add replicas | Up to 20 pods |
 | Low traffic (2am-6am) | Scale down | Minimum 2 pods |
 
+
 ### State Management:
 
 Sessions: Stored in Valkey (externalized)
@@ -169,6 +173,7 @@ Sessions: Stored in Valkey (externalized)
 Filestore: Shared via S3-compatible storage (Longhorn - MinIO)
 
 Database: Connection pooling via PgBouncer
+
 
 ## B. LangGraph Orchestrator (Stateless API)
 
@@ -178,11 +183,13 @@ Database: Connection pooling via PgBouncer
 | P99 Latency > 500ms | Add replicas | Up to 15 pods |
 | Checkpoint queue depth | Add replicas | Up to 15 pods |
 
+
 ### State Management:
 
 Checkpoints: Stored in PostgreSQL (shared across replicas)
 
 No in-memory state: Fully stateless
+
 
 ## C. NVIDIA Dynamo Inference Fleet (Stateful GPU Workers)
 
@@ -192,6 +199,7 @@ No in-memory state: Fully stateless
 | Queue Length > 50 | Add GPU node | Up to 20 nodes |
 | Model load time > 10s | Scale up | Add replicas |
 
+
 ### Challenges & Solutions:
 
 Model Sharding: Large models (>70B) sharded across multiple GPUs
@@ -199,6 +207,7 @@ Model Sharding: Large models (>70B) sharded across multiple GPUs
 Cold Start: Pre-warm models on standby nodes
 
 GPU Diversity: Heterogeneous GPU pools (A100, H100, L40S)
+
 
 ## D. PostgreSQL Database (Stateful)
 
@@ -210,6 +219,7 @@ GPU Diversity: Heterogeneous GPU pools (A100, H100, L40S)
 | Sharding | Citus extension for horizontal sharding |
 | Connection Pooling | PgBouncer (1000+ connections) |
 
+
 #### High Availability:
 
 Primary: 1 node (writes)
@@ -218,6 +228,7 @@ Standbys: 2+ nodes (synchronous replication)
 
 Failover: Automatic via CloudNativePG operator
 
+
 ## E. Valkey Cache (Stateful)
 
 | Scaling Strategy | Implementation |
@@ -225,6 +236,7 @@ Failover: Automatic via CloudNativePG operator
 | Sharding | Redis Cluster (6+ nodes) |
 | Replication | 1 primary + 2 replicas per shard |
 | Eviction | LRU eviction policy |
+
 
 # 3. Geographic Scaling (Multi-Region)
 
@@ -235,6 +247,7 @@ The platform supports Active-Active deployment across multiple regions:
 | US-East | Primary | 60% |
 | EU-West | Active | 30% |
 | APAC | DR/Standby | 10% |
+
 
 # Cross-Region Data Flow:
 
@@ -254,6 +267,7 @@ PostgreSQL replica promoted to primary (within 30 seconds)
 
 Replication direction reversed
 
+
 # 4. Cost Optimization Strategy
 
 | Component | Optimization | Savings |
@@ -262,6 +276,7 @@ ML Training | Spot instances + checkpointing | 60-70% |
 Dev/Test | Auto-stop at night | 50-60% |
 Reserved Instances | 3-year commitment for control plane | 40-50% |
 GPU Selection | Mixed GPU types (A100 for training, L4 for inference) | 30-40% |
+
 
 # 5. Observability & Chaos Engineering
 
@@ -283,6 +298,7 @@ Game Days: Quarterly resilience testing
 
 SLIs: Latency, Error Rate, Saturation
 
+
 # 6. Scaling Limits & Bottlenecks
 
 | Component | Scaling Limit | Mitigation |
@@ -291,6 +307,7 @@ SLIs: Latency, Error Rate, Saturation
 | GPU Memory | 80GB per A100 | Model quantization, sharding |
 | Network Bandwidth | 10Gbps per node | Multi-homing, RDMA |
 | Odoo Monolith | ~500 concurrent users | Microservices migration (future) |
+
 
 # 7. Future Evolution Path
 
@@ -305,7 +322,8 @@ SLIs: Latency, Error Rate, Saturation
 | Manual Scaling | KEDA Auto-scaling | Predictive Scaling (ML) |
 | Basic Monitoring | Prometheus + Grafana | Global Dashboards |
 
-# Scaling Configuration Examples
+
+## Scaling Configuration Examples
 Horizontal Pod Autoscaler (LangGraph)
 
 ```yaml
@@ -336,7 +354,8 @@ spec:
         averageUtilization: 75
 ```
 
-# Cluster Autoscaler (GPU Node Pool)
+
+## Cluster Autoscaler (GPU Node Pool)
 
 ```yaml
 
@@ -354,5 +373,5 @@ spec:
 
 ```
 
-NVIDIA Dynamo also handles scaling
+##] NVIDIA Dynamo also handles scaling
 
