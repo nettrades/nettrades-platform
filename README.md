@@ -1022,7 +1022,7 @@ graph TB
     subgraph Frontend["Frontend Layer"]
         Web["Odoo Website / Portal"]
         PWA["Mobile PWA"]
-        NettradesUI["Nettrades-UI (Talk to Odoo for Authentication via Odoo-Proxy) / AI Chat"]
+        NettradesUI["Nettrades-UI (Talks to Odoo for Authentication via Odoo-Proxy) / AI Chat"]
         Llamacpp["Llama.CPP-UI / AI Chat"]
         VSCode["VS Code Extension"]
         Launcher["NETTRADES Launcher (Electron)"]
