@@ -150,9 +150,9 @@ The hub and spoke architecture expands this further. Growing out like a tree, wi
 
 
 
-## 2. Component-Specific Scaling
+# 2. Component-Specific Scaling
 
-### A. Odoo Web Fleet (Stateless Web Workers)
+## A. Odoo Web Fleet (Stateless Web Workers)
 
  Trigger		
 
@@ -163,7 +163,7 @@ The hub and spoke architecture expands this further. Growing out like a tree, wi
 | Queue Length > 1000 | Add replicas | Up to 20 pods |
 | Low traffic (2am-6am) | Scale down | Minimum 2 pods |
 
-#### State Management:
+### State Management:
 
 Sessions: Stored in Valkey (externalized)
 
@@ -171,25 +171,25 @@ Filestore: Shared via S3-compatible storage (Longhorn - MinIO)
 
 Database: Connection pooling via PgBouncer
 
-### B. LangGraph Orchestrator (Stateless API)
+## B. LangGraph Orchestrator (Stateless API)
 Scaling Trigger	Action	Target
 Request Rate > 100 req/s	Add replicas	Up to 15 pods
 P99 Latency > 500ms	Add replicas	Up to 15 pods
 Checkpoint queue depth	Add replicas	Up to 15 pods
 
-#### State Management:
+### State Management:
 
 Checkpoints: Stored in PostgreSQL (shared across replicas)
 
 No in-memory state: Fully stateless
 
-### C. NVIDIA Dynamo Inference Fleet (Stateful GPU Workers)
+## C. NVIDIA Dynamo Inference Fleet (Stateful GPU Workers)
 Scaling Trigger	Action	Target
 GPU Utilization > 80%	Add GPU node	Up to 20 nodes
 Queue Length > 50	Add GPU node	Up to 20 nodes
 Model load time > 10s	Scale up	Add replicas
 
-#### Challenges & Solutions:
+### Challenges & Solutions:
 
 Model Sharding: Large models (>70B) sharded across multiple GPUs
 
@@ -197,7 +197,7 @@ Cold Start: Pre-warm models on standby nodes
 
 GPU Diversity: Heterogeneous GPU pools (A100, H100, L40S)
 
-### D. PostgreSQL Database (Stateful)
+## D. PostgreSQL Database (Stateful)
 Scaling Strategy	Implementation
 Read Scaling	Read replicas for reporting, analytics
 Write Scaling	Vertical scaling (more CPU/RAM)
@@ -212,13 +212,13 @@ Standbys: 2+ nodes (synchronous replication)
 
 Failover: Automatic via CloudNativePG operator
 
-### E. Valkey Cache (Stateful)
+## E. Valkey Cache (Stateful)
 Scaling Strategy	Implementation
 Sharding	Redis Cluster (6+ nodes)
 Replication	1 primary + 2 replicas per shard
 Eviction	LRU eviction policy
 
-## 3. Geographic Scaling (Multi-Region)
+# 3. Geographic Scaling (Multi-Region)
 
 The platform supports Active-Active deployment across multiple regions:
 Region	Role	Traffic Split
@@ -244,7 +244,7 @@ PostgreSQL replica promoted to primary (within 30 seconds)
 
 Replication direction reversed
 
-## 4. Auto-Scaling with KEDA
+# 4. Auto-Scaling with KEDA
 
 KEDA (Kubernetes Event-Driven Autoscaling) provides custom scaling triggers:
 
@@ -258,24 +258,27 @@ triggers:
       queueLength: '50'
       host: rabbitmq.nettrades.svc
 
-Trigger Type	Source	Scaling Metric
-Prometheus	Custom metrics	Request rate, latency
-RabbitMQ	Queue depth	Pending jobs
-Cron	Time-based	Peak hours
-External	Webhook	Custom events
+| Trigger Type | Source | Scaling Metric |
+|---------|-------------|-----------|
+| Prometheus | Custom metrics | Request rate, latency |
+| RabbitMQ | Queue depth | Pending jobs |
+| Cron | Time-based | Peak hours |
+| External | Webhook | Custom events |
 
-## 5. Cost Optimization Strategy
-Component	Optimization	Savings
-ML Training	Spot instances + checkpointing	60-70%
-Dev/Test	Auto-stop at night	50-60%
-Reserved Instances	3-year commitment for control plane	40-50%
-GPU Selection	Mixed GPU types (A100 for training, L4 for inference)	30-40%
+# 5. Cost Optimization Strategy
 
-## 6. Observability & Chaos Engineering
+| Component | Optimization | Savings |
+|---------|-------------|-----------|
+ML Training | Spot instances + checkpointing | 60-70% |
+Dev/Test | Auto-stop at night | 50-60% |
+Reserved Instances | 3-year commitment for control plane | 40-50% |
+GPU Selection | Mixed GPU types (A100 for training, L4 for inference) | 30-40% |
+
+# 6. Observability & Chaos Engineering
 
 # Observability Stack:
 
-Metrics: Prometheus + Thanos (multi-region aggregation)
+Metrics: Prometheus
 
 Logs: Loki (centralized logging)
 
@@ -291,31 +294,33 @@ Game Days: Quarterly resilience testing
 
 SLIs: Latency, Error Rate, Saturation
 
-## 7. Scaling Limits & Bottlenecks
+# 7. Scaling Limits & Bottlenecks
 
-Component	Scaling Limit	Mitigation
-PostgreSQL Writes	~10k TPS	Sharding with Citus
-GPU Memory	80GB per A100	Model quantization, sharding
-Network Bandwidth	10Gbps per node	Multi-homing, RDMA
-Odoo Monolith	~500 concurrent users	Microservices migration (future)
+| Component | Scaling Limit | Mitigation |
+|---------|-------------|-----------|
+| PostgreSQL Writes | ~10k TPS | Sharding with Citus |
+| GPU Memory | 80GB per A100 | Model quantization, sharding |
+| Network Bandwidth | 10Gbps per node | Multi-homing, RDMA |
+| Odoo Monolith | ~500 concurrent users | Microservices migration (future) |
 
-## 8. Future Evolution Path
+# 8. Future Evolution Path
 
 text
 
-Phase 1 (Current)          Phase 2 (6-12 months)       Phase 3 (12-24 months)
-━━━━━━━━━━━━━━━━           ━━━━━━━━━━━━━━━━            ━━━━━━━━━━━━━━━━
-Single VM                  Multi-AZ (3 zones)          Multi-Region (Active-Active)
-3 Pods                     15+ Pods                    50+ Pods
-1 GPU Node                 5 GPU Nodes                 20+ GPU Nodes
-PostgreSQL Standalone      PostgreSQL HA Cluster       PostgreSQL + Citus Sharding
-Local Storage              Longhorn                    S3 + Multi-region Replication
-Manual Scaling             KEDA Auto-scaling           Predictive Scaling (ML)
-Basic Monitoring           Prometheus + Grafana        Thanos + Global Dashboards
+| Phase 1 (Current) | Phase 2 (6-12 months) | Phase 3 (12-24 months) |
+|---------|-------------|-----------|
+| Single VM | Multi-AZ (3 zones) | Multi-Region (Active-Active) |
+| 3 Pods | 15+ Pods | 50+ Pods |
+| 1 GPU Node | 5 GPU Nodes | 20+ GPU Nodes |
+| PostgreSQL Standalone | PostgreSQL HA Cluster | PostgreSQL + Citus Sharding |
+| Local Storage | Longhorn | S3 + Multi-region Replication |
+| Manual Scaling | KEDA Auto-scaling | Predictive Scaling (ML) |
+| Basic Monitoring | Prometheus + Grafana | Global Dashboards |
 
 # Scaling Configuration Examples
 Horizontal Pod Autoscaler (LangGraph)
-yaml
+
+```yaml
 
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -341,9 +346,11 @@ spec:
       target:
         type: Utilization
         averageUtilization: 75
+```
 
 # Cluster Autoscaler (GPU Node Pool)
-yaml
+
+```yaml
 
 apiVersion: cluster-autoscaler.kubernetes.io/v1
 kind: AutoscalingGroup
@@ -357,8 +364,11 @@ spec:
     type: nvidia
     count: 1
 
+```
+
 # KEDA ScaledObject (Queue-Based Scaling)
-yaml
+
+```yaml
 
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -375,7 +385,7 @@ spec:
       threshold: '50'
       query: sum(langgraph_queue_depth)
 
-
+```
 ---
 
 
