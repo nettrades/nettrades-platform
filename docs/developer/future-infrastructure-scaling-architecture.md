@@ -254,29 +254,7 @@ PostgreSQL replica promoted to primary (within 30 seconds)
 
 Replication direction reversed
 
-# 4. Auto-Scaling with KEDA
-
-KEDA (Kubernetes Event-Driven Autoscaling) provides custom scaling triggers:
-
-```yaml
-
-# Example: Scale LangGraph based on RabbitMQ queue depth
-triggers:
-  - type: rabbitmq
-    metadata:
-      queueName: langgraph-jobs
-      queueLength: '50'
-      host: rabbitmq.nettrades.svc
-```
-
-| Trigger Type | Source | Scaling Metric |
-|---------|-------------|-----------|
-| Prometheus | Custom metrics | Request rate, latency |
-| RabbitMQ | Queue depth | Pending jobs |
-| Cron | Time-based | Peak hours |
-| External | Webhook | Custom events |
-
-# 5. Cost Optimization Strategy
+# 4. Cost Optimization Strategy
 
 | Component | Optimization | Savings |
 |---------|-------------|-----------|
@@ -285,7 +263,7 @@ Dev/Test | Auto-stop at night | 50-60% |
 Reserved Instances | 3-year commitment for control plane | 40-50% |
 GPU Selection | Mixed GPU types (A100 for training, L4 for inference) | 30-40% |
 
-# 6. Observability & Chaos Engineering
+# 5. Observability & Chaos Engineering
 
 # Observability Stack:
 
@@ -305,7 +283,7 @@ Game Days: Quarterly resilience testing
 
 SLIs: Latency, Error Rate, Saturation
 
-# 7. Scaling Limits & Bottlenecks
+# 6. Scaling Limits & Bottlenecks
 
 | Component | Scaling Limit | Mitigation |
 |---------|-------------|-----------|
@@ -314,9 +292,8 @@ SLIs: Latency, Error Rate, Saturation
 | Network Bandwidth | 10Gbps per node | Multi-homing, RDMA |
 | Odoo Monolith | ~500 concurrent users | Microservices migration (future) |
 
-# 8. Future Evolution Path
+# 7. Future Evolution Path
 
-text
 
 | Phase 1 (Current) | Phase 2 (6-12 months) | Phase 3 (12-24 months) |
 |---------|-------------|-----------|
@@ -377,26 +354,5 @@ spec:
 
 ```
 
-# KEDA ScaledObject (Queue-Based Scaling)
-
-```yaml
-
-apiVersion: keda.sh/v1alpha1
-kind: ScaledObject
-metadata:
-  name: langgraph-scaledobject
-spec:
-  scaleTargetRef:
-    name: langgraph
-  triggers:
-  - type: prometheus
-    metadata:
-      serverAddress: http://prometheus:9090
-      metricName: langgraph_queue_depth
-      threshold: '50'
-      query: sum(langgraph_queue_depth)
-
-```
----
-
+NVIDIA Dynamo also handles scaling
 
