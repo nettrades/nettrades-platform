@@ -84,7 +84,7 @@ free -h
 
 ```
 
-B. Docker Compose Stack Status
+### B. Docker Compose Stack Status
 
 ```bash
 
@@ -104,7 +104,7 @@ docker compose config --services
 
 ```
 
-C. PostgreSQL & Database
+### C. PostgreSQL & Database
 
 ```bash
 
@@ -121,7 +121,7 @@ docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>&1 | head -20
 
 ```
 
-D. LangGraph Server
+### D. LangGraph Server
 
 ```bash
 
@@ -138,7 +138,7 @@ docker compose exec langgraph-server curl -s http://localhost:8000/health 2>&1 |
 docker compose exec langgraph-server curl -s http://dynamo:8000/v1/models 2>&1 | head -10
 ```
 
-E. Traefik & Routing
+### E. Traefik & Routing
 
 ```bash
 
@@ -158,7 +158,7 @@ curl -s http://localhost:8069 || echo "Odoo not reachable on port 8069"
 
 ```
 
-F. Environment Variables & Configuration
+### F. Environment Variables & Configuration
 
 ```bash
 
@@ -170,7 +170,7 @@ grep -E "DOMAIN|ADMIN_EMAIL|POSTGRES_PASSWORD|LANGGRAPH_API_KEY|DYNAMO_API_KEY|A
 
 ```
 
-G. NVIDIA Dynamo & Inference
+### G. NVIDIA Dynamo & Inference
 
 ```bash
 
@@ -184,7 +184,7 @@ docker compose logs dynamo --tail=50
 curl -s http://localhost:8001/v1/models 2>&1 | head -20
 ```
 
-H. Network & Domain
+### H. Network & Domain
 
 ```bash
 
@@ -201,7 +201,7 @@ nmap -p 80,443,8069,8000,3002 localhost 2>&1 || echo "nmap not installed"
 ufw status 2>&1 || echo "UFW not installed or not active"
 ```
 
-I. Deployment Script Logs
+### I. Deployment Script Logs
 
 ```bash
 
@@ -216,8 +216,9 @@ find /root -name "*.log" -mtime -1 | xargs ls -la
 
 ```
 
-Common Errors
-1. llm_pgvector Fails to Install
+### Common Errors
+
+#### 1. llm_pgvector Fails to Install
 
 Error: llm_pgvector installation fails with missing dependencies.
 
@@ -233,7 +234,7 @@ sudo apt install -y postgresql-server-dev-all
 pip install llm_pgvector
 ```
 
-2. Virtual Environment Not Found
+#### 2. Virtual Environment Not Found
 
 Error: VIRTUAL_ENV: unbound variable or "Virtual environment not found".
 
@@ -249,7 +250,7 @@ cd /root/nettrades-platform
 source .venv/bin/activate
 ```
 
-3. PostgreSQL Connection Failed
+#### 3. PostgreSQL Connection Failed
 
 Error: Odoo cannot connect to PostgreSQL.
 
@@ -272,7 +273,7 @@ docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1"
 
 ```
 
-4. LangGraph Health Check Fails
+#### 4. LangGraph Health Check Fails
 
 Error: curl http://localhost:8000/health returns non-200.
 
@@ -291,7 +292,7 @@ docker compose restart langgraph-server
 
 ```
 
-5. Traefik Routing Issues
+#### 5. Traefik Routing Issues
 
 Error: Requests to /api/health return 404 or 503.
 
@@ -314,7 +315,7 @@ docker compose logs traefik -f
 
 ```
 
-6. NVIDIA Dynamo Not Starting
+#### 6. NVIDIA Dynamo Not Starting
 
 Error: Dynamo container exits or fails to start.
 
@@ -336,7 +337,7 @@ docker compose restart dynamo
 
 ```
 
-7. Odoo Module Installation Fails
+#### 7. Odoo Module Installation Fails
 
 Error: Odoo module installation fails with FileNotFoundError for view files.
 
@@ -387,12 +388,12 @@ docker compose exec -T postgres pg_isready -U odoo
 
 
 
-### 1. Import "odoo" could not be resolved Pylance (reportMissingImports)
+### Import "odoo" could not be resolved Pylance (reportMissingImports)
 
 **Symptom:** VS Code shows `Import "odoo" could not be resolved` for Odoo module imports.
 
 **Solution:**
-1. Open `.vscode/settings.json` and add:
+Open `.vscode/settings.json` and add:
 
 ```json
    {
