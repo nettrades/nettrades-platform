@@ -24,8 +24,8 @@ graph TB
 
     subgraph AI["AI Inference & Training Layer"]
         Router["Provider Router Logic"]
-        GPUStack["GPUStack Server(s)"]
-        Workers["GPUStack Workers (vLLM, llama.cpp)"]
+        NVIDIADynamo["NVIDIA Dynamo Server(s)"]
+        Workers["NVIDIA Dynamo Workers (vLLM, llama.cpp)"]
         FineTune["Fine-Tuning Jobs (Axolotl/Unsloth)"]
         External["External LLM APIs"]
     end
@@ -53,7 +53,7 @@ graph TB
     Frontend -->|Direct API Call| Integration
     Integration --> MCP --> Core
     Integration --> Router --> AI
-    AI --> GPUStack --> Workers
+    AI --> NVIDIADynamo --> Workers
     AI --> FineTune
     AI --> External
     Core --> Data
@@ -128,7 +128,7 @@ graph TB
     end
 
     subgraph Execute["Execute Phase"]
-        Model --> Deploy["GPUStack Deployment"]
+        Model --> Deploy["NVIDIA Dynamo Deployment"]
         Deploy --> A["LangGraph Agents"]
         Deploy --> B["Odoo Assistants"]
         Deploy --> C["ROS 2 / Robotics"]
@@ -231,11 +231,11 @@ The GPU agent runs on every GPU node in the cluster.
 
 * Bring up WireGuard
 
-* Start GPUStack worker
+* Start NVIDIA Dynamo worker
 
 * Start DNS watchdog
 
-* Periodically refresh GPUStack token
+* Periodically refresh NVIDIA Dynamo token
 
 ### 5. Fairness Module (odoo-modules/nettrades_fairness/)
 
@@ -273,7 +273,7 @@ The fairness module provides comprehensive bias detection and rationality evalua
 | `Valkey` | 	8-alpine | BSD-3-Clause | Session storage, ORM cache, bus notifications |
 | `LangGraph` | ?1.2.0 | MIT | 	Multi-agent orchestration, durable execution |
 | `LangGraph Checkpoint Postgres` | ?3.0.3 | MIT | Durable checkpoint storage in PostgreSQL |
-| `GPUStack` | v2.1.2 | Apache-2.0 | GPU cluster manager, inference engine, token metering |
+| `NVIDIA Dynamo` | 1.3.1 | Apache-2.0 | GPU manager, inference engine |
 | `llama.cpp` | server-cpu/server-cuda | MIT | 	CPU inference fallback |
 | `Unsloth (core)` | 2026.5.2 | Apache-2.0 | Single-GPU fine-tuning |
 | `Axolotl` | 0.16.1+ | Apache-2.0 | Multi-GPU fine-tuning with FSDP2 |

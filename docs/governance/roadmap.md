@@ -33,7 +33,7 @@ The initial phase focused on establishing the core architecture, essential model
 | **LangGraph Supervisor** | Core orchestrator with intent classification, medical/legal screening, and routing to sub-agents |
 | **Sub-Agents** | Recruitment, Freelance, Lead Gen, GPU Management agents (moved to correct location) |
 | **FastAPI Application** | `/invoke`, `/health`, `/metrics` endpoints with PostgresSaver checkpointing |
-| **Distributed GPU Agent** | WireGuard setup, GPU detection, GPUStack integration, DNS watchdog |
+| **Distributed GPU Agent** | WireGuard setup, GPU detection, NVIDIA dynamo integration, DNS watchdog |
 | **Odoo Core Models** | `nettrades.field`, `nettrades.experience`, `nettrades.review` models with full fields |
 | **GPU Models** | `gpu.cluster`, `gpu.node`, `gpu.cluster.subnet`, `gpu.sharing.schedule`, `gpu.token.economics`, `multimodal.config` |
 | **GPU Security** | Record rules for all GPU models (Administrator and Operator groups) |
@@ -44,7 +44,7 @@ The initial phase focused on establishing the core architecture, essential model
 | **AI Chatbot** | Floating chat widget with Ask Someone integration |
 | **Notifications** | In-app notifications, reviews, and disputes |
 | **Mobile PWA** | Progressive Web App manifest and service worker |
-| **Single VM Deployment** | Docker Compose with Traefik, PostgreSQL, Valkey, LangGraph, llama.cpp, GPUStack, Forgejo, Prometheus, Grafana |
+| **Single VM Deployment** | Docker Compose with Traefik, PostgreSQL, Valkey, LangGraph, llama.cpp, NVIDIA dynamo, Forgejo, Prometheus, Grafana |
 | **Kubernetes Deployment** | Talos Linux, Cilium, Longhorn, CNPG, MetalLB, Argo CD |
 | **GPU Node Agent** | Full implementation with hardware-bound node ID, TEE detection, edge device detection |
 | **Documentation** | Comprehensive MkDocs site with user, developer, operations, governance, and appendix sections |
@@ -87,7 +87,7 @@ These features are planned for the next release cycle.
 | **Action Agent** | 🟡 High | ROS 2 / VLA (Vision-Language-Action) integration | Q3 2026 |
 | **Data-Juicer Integration** | 🟡 High | Full quality filtering pipeline for fine-tuning | Q3 2026 |
 | **DEITA Scoring** | 🟡 High | LLM-as-Judge scoring for dataset quality | Q3 2026 |
-| **GPUStack Adapter** | 🟡 High | Full worker and token usage synchronisation | Q3 2026 |
+| **NVIDIA dynamo Adapter** | 🟡 High | Full worker and token usage synchronisation | Q3 2026 |
 | **OpenAPI Documentation** | 🟡 Medium | Auto-generated OpenAPI/Swagger docs for all APIs | Q3 2026 |
 | **Unit Tests** | 🟡 High | Achieve >80% test coverage for core modules | Q3 2026 |
 | **Integration Tests** | 🟡 Medium | End-to-end tests for critical workflows | Q3 2026 |

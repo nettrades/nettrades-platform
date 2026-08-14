@@ -13,7 +13,7 @@ GPU nodes are machines with one or more NVIDIA GPUs that participate in the dist
 2. Generates a hardware-bound node ID
 3. Registers with the Odoo server
 4. Sets up WireGuard encryption
-5. Starts the GPUStack worker
+5. Starts the NVIDIA Dynamo worker
 6. Maintains a heartbeat and DNS watchdog
 
 ---
@@ -25,22 +25,22 @@ graph TB
     subgraph GPUNode["GPU Node"]
         Agent["NETTRADES GPU Agent"]
         WireGuard["WireGuard Tunnel"]
-        GPUStack["GPUStack Worker"]
+        NVIDIAdynamo["NVIDIA Dynamo Worker"]
         GPU["NVIDIA GPU(s)"]
     end
 
     subgraph Central["NETTRADES Central"]
         Odoo["Odoo Server"]
         Controller["WireGuard Controller"]
-        GPUStackServer["GPUStack Server"]
+        NVIDIAdynamoServer["NVIDIA Dynamo Server"]
     end
 
     Agent --> Odoo
     Agent --> WireGuard
     WireGuard --> Controller
-    Agent --> GPUStack
-    GPUStack --> GPUStackServer
-    GPUStack --> GPU
+    Agent --> NVIDIAdynamo
+    NVIDIAdynamo --> NVIDIAdynamoServer
+    NVIDIAdynamo --> GPU
 ```
 
 To enable the distributed GPU peer setup for Phase 4, you need to create the wireguard-config.yaml file. This file defines a ConfigMap that Kubernetes uses to configure WireGuard on your GPU worker nodes, establishing a secure, encrypted overlay network for inter-node communication.
@@ -49,7 +49,7 @@ Here is a comprehensive guide and a complete, functional example you can use.
 
 ### 1. The Purpose of wireguard-config.yaml
 
-In a Kubernetes environment, this YAML file creates a ConfigMap containing the wg0.conf file. This configuration is then mounted into a WireGuard DaemonSet or pod, which applies it to set up the VPN tunnel on each node. For a GPU cluster, this ensures that all worker nodes can communicate securely, which is critical for distributed GPU workloads orchestrated by tools like GPUStack.
+In a Kubernetes environment, this YAML file creates a ConfigMap containing the wg0.conf file. This configuration is then mounted into a WireGuard DaemonSet or pod, which applies it to set up the VPN tunnel on each node. For a GPU cluster, this ensures that all worker nodes can communicate securely, which is critical for distributed GPU workloads orchestrated by tools like NVIDIA Dynamo.
 
 #### 2. Prerequisites: Generate WireGuard Keys
 
@@ -93,7 +93,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: wireguard-config
-  namespace: gpustack  # Or your desired namespace
+  namespace: NVIDIAdynamo  # Or your desired namespace
   labels:
     app: wireguard
     component: vpn
@@ -192,7 +192,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: wireguard-secrets
-  namespace: gpustack
+  namespace: NVIDIAdynamo
 type: Opaque
 data:
   # Base64-encoded values
@@ -233,7 +233,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: wireguard
-  namespace: gpustack
+  namespace: NVIDIAdynamo
 spec:
   selector:
     matchLabels:
@@ -282,4 +282,4 @@ spec:
 
 * Run Phase 3 (./scripts/nettrades-setup.sh k8s --auto) to apply the ConfigMap and complete the setup.
 
-Once applied, all your GPU worker nodes will have a secure, encrypted tunnel for inter-node communication, which is essential for distributed GPU workloads managed by GPUStack
+Once applied, all your GPU worker nodes will have a secure, encrypted tunnel for inter-node communication, which is essential for distributed GPU workloads managed by NVIDIA Dynamo

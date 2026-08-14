@@ -46,7 +46,7 @@ flowchart TB
     end
 
     subgraph Infrastructure["?? Infrastructure Layer"]
-        GPUStack["GPUStack Manager<br>????????????????<br>• Inference Engine<br>• Token Metering<br>• Worker Pool"]
+        NVIDIAdynamo["NVIDIA Dynamo Manager<br>????????????????<br>• Inference Engine<br>• Token Metering<br>• Worker Pool"]
         GPUNode["GPU Node Agent<br>????????????????<br>• WireGuard<br>• Node Registration<br>• Worker Management"]
     end
 
@@ -62,7 +62,7 @@ flowchart TB
     Supervisor -->|"Dispatches to"| Agents
     
     Agents -->|"Reads/Writes"| Business
-    Agents -->|"Calls"| GPUStack
+    Agents -->|"Calls"| NVIDIAdynamo
     Chatbot -->|"Async HTTP"| FastAPI
     
     Business -->|"SQL"| PostgreSQL
@@ -71,7 +71,7 @@ flowchart TB
     
     FastAPI -->|"Checkpoints"| PostgreSQL
     
-    GPUStack -->|"Manages"| GPUNode
+    NVIDIAdynamo -->|"Manages"| GPUNode
     GPUNode -->|"Registers via"| RESTAPI
     
     AskSomeone -->|"Payments"| Stripe

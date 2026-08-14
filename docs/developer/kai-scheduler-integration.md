@@ -93,6 +93,6 @@ class KAIJob(models.Model):
 
 * [NVIDIA Dynamo Integration](nvidia-dynamo-integration.md) – Current inference engine
 
-* [GPU Node Deployment](../operations/gpu-node-deployment.md) – GPU node setup
+* [GPU Node Deployment](gpu-node-deployment.md) – GPU node setup
 
-* [Performance Tuning](../operations/performance-tuning.md) – Optimisation
+* [Performance Tuning](performance-tuning.md) – Optimisation

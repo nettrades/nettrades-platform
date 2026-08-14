@@ -23,7 +23,7 @@ A one-page cheat sheet for the most common issues.
 | Node not registering | `sudo journalctl -u nettrades-agent -f` | Check API key, Odoo endpoint |
 | GPU not detected | `nvidia-smi` | Install NVIDIA drivers |
 | WireGuard tunnel down | `sudo wg show` | `sudo wg-quick up wg0` |
-| GPUStack worker not starting | `journalctl -u gpustack-worker -f` | Check server URL, token |
+| NVIDIA dynamo worker not starting | `journalctl -u NVIDIAdynamo-worker -f` | Check server URL, token |
 
 ---
 
@@ -53,7 +53,7 @@ A one-page cheat sheet for the most common issues.
 | **Odoo** | `/var/log/odoo/odoo.log` or `docker compose logs odoo` |
 | **LangGraph** | `docker compose logs langgraph` |
 | **GPU Node Agent** | `sudo journalctl -u nettrades-agent -f` |
-| **GPUStack Worker** | `journalctl -u gpustack-worker -f` |
+| **NVIDIA dynamo Worker** | `journalctl -u NVIDIAdynamo-worker -f` |
 | **PostgreSQL** | `/var/log/postgresql/postgresql-*.log` |
 
 ---

@@ -102,9 +102,6 @@ A self-hosted Git service (fork of Gitea). NETTRADES uses it for project collabo
 ### gVisor
 A userspace kernel that provides syscall-level container isolation. It is used in NETTRADES for untrusted public GPU worker pools to prevent container escape attacks.
 
-### GPUStack
-An open-source GPU cluster manager that provides an OpenAI-compatible inference API, token metering, and support for multiple GPU vendors (NVIDIA, AMD, Apple Metal). It orchestrates GPU workers and models in NETTRADES.
-
 ### Grafana
 An open-source observability platform for dashboards and visualization. It is used with Prometheus to monitor the NETTRADES platform.
 
@@ -150,6 +147,12 @@ A bare-metal load balancer for Kubernetes. It assigns external IPs to services, 
 A static site generator for project documentation written in Markdown. It is used to build the NETTRADES documentation site.
 
 ---
+##  N
+
+### NVIDIA dynamo
+An open-source GPU cluster manager that provides an OpenAI-compatible inference API, token metering, and support for multiple GPU vendors (NVIDIA, AMD, Apple Metal). It orchestrates GPU workers and models in NETTRADES.
+
+---
 
 ## O
 
@@ -160,7 +163,7 @@ A static site generator for project documentation written in Markdown. It is use
 **Odoo Community Edition version 19** – The open-source ERP and business application platform that serves as the foundation of the NETTRADES business logic layer. It provides CRM, HR, Projects, Accounting, eCommerce, and more.
 
 ### OpenAI-Compatible API
-A REST API that follows the same request/response format as OpenAI's API, making it easy to swap inference backends. GPUStack and vLLM both provide such endpoints, enabling seamless switching.
+A REST API that follows the same request/response format as OpenAI's API, making it easy to swap inference backends. NVIDIA Dynamo and vLLM both provide such endpoints, enabling seamless switching.
 
 ---
 
@@ -206,7 +209,7 @@ The process of automatically evaluating AI responses for logical coherence, reas
 ## S
 
 ### Self-Improving System
-A closed-loop learning architecture that continuously improves the platform's AI models. It collects data from interactions, detects triggers, runs fine-tuning jobs on GPUStack, and deploys improved models back to LangGraph agents.
+A closed-loop learning architecture that continuously improves the platform's AI models. It collects data from interactions, detects triggers, runs fine-tuning jobs on NVIDIA Dynamo, and deploys improved models back to LangGraph agents.
 
 ### Stripe
 A payment processing platform used in NETTRADES for escrow payments in the "Ask Someone" expert marketplace.
@@ -222,7 +225,7 @@ An immutable, API-driven Linux distribution designed specifically for Kubernetes
 **Trusted Execution Environment** – Hardware-based confidential computing (e.g., NVIDIA Confidential Computing, Intel SGX, AMD SEV-SNP). NETTRADES detects and reports TEE capabilities in GPU nodes for enhanced security.
 
 ### Traefik
-A modern reverse proxy and load balancer with built-in Let's Encrypt support. It serves as the ingress controller for the NETTRADES platform, routing traffic to Odoo, Grafana, GPUStack, Forgejo, and other services.
+A modern reverse proxy and load balancer with built-in Let's Encrypt support. It serves as the ingress controller for the NETTRADES platform, routing traffic to Odoo, Grafana, NVIDIA Dynamo, Forgejo, and other services.
 
 ### Trigger Module (`nettrades_trigger`)
 The Analyze phase of the self-improving MAPE loop. It detects conditions that should trigger a self-improvement cycle, such as quality drops, success rate declines, or accumulated data volume.

@@ -13,9 +13,9 @@ SSL: Traefik automatically obtains Let's Encrypt certificates via HTTP?01 challe
 ```mermaid
 graph TB
     subgraph VM["Ubuntu 24.04 VM (Docker Compose)"]
-        Traefik["Traefik v3.6 (reverse proxy + Let's Encrypt)"] --> Odoo & Forgejo & Grafana & LangGraph & GPUStack
+        Traefik["Traefik v3.6 (reverse proxy + Let's Encrypt)"] --> Odoo & Forgejo & Grafana & LangGraph & NVIDIAdynamo
         Odoo["Odoo 19 CE"] --> PG["(PostgreSQL 18 + pgvector)"] & Valkey["(Valkey 8)"]
-        LangGraph["LangGraph Agent"] --> GPUStack["GPUStack Server"] & llama-cpp["llama.cpp (CPU)"] & MCP["MCP?Odoo Bridge"]
+        LangGraph["LangGraph Agent"] --> NVIDIAdynamo["NVIDIA dynamo Server"] & llama-cpp["llama.cpp (CPU)"] & MCP["MCP?Odoo Bridge"]
         MCP --> Odoo
     end
 

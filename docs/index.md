@@ -12,7 +12,6 @@ Welcome to the NETTRADES.AI documentation!
 | **Get started (any role)** | [Getting Started →](getting-started.md) |
 | **Use the platform** (as a company, freelancer, or job-seeker) | [User Guide →](user/index.md) |
 | **Develop or extend the platform** | [Developer Guide →](developer/index.md) |
-| **Deploy and run the platform** | [Operations Guide →](operations/index.md) |
 | **Contribute to the project** | [Governance →](governance/index.md) |
 | **Understand key terms** | [Glossary →](appendix/glossary.md) |
 
@@ -68,7 +67,7 @@ It combines:
 | **PostgreSQL + pgvector** | 18.1 | Business data, vector embeddings, LangGraph checkpoints |
 | **Valkey** | 8 | Session storage, ORM cache, bus notifications |
 | **LangGraph** | ≥1.2.0 | Multi-agent orchestration, durable execution |
-| **GPUStack** | v2.1.2 | GPU cluster manager, inference engine, token metering |
+| **NVIDIA Dynamo** | 1.3.1 | GPU manager, inference engine |
 | **WireGuard** | kernel module | Kernel-level network isolation |
 | **gVisor** | release-20260420.0 | Syscall-level container isolation |
 

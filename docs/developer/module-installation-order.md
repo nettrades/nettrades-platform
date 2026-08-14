@@ -80,7 +80,7 @@ These modules depend on nettrades_core and provide the core business functionali
 | Module | Purpose | Dependencies |
 |--------|---------|--------------|
 | `nettrades_gpu_admin` | GPU cluster administration | `nettrades_core` |
-| `nettrades_gpustack_adapter` | GPUStack integration | `nettrades_core`, `nettrades_gpu_admin` |
+| `nettrades_NVIDIAdynamo_adapter` | NVIDIA dynamo integration | `nettrades_core`, `nettrades_gpu_admin` |
 | `nettrades_good_answer` | "Good Answer" voting system | `nettrades_core` |
 | `nettrades_ask_someone` | Expert help marketplace | `nettrades_core` |
 | `nettrades_queue` | Queue management | `nettrades_core` |
@@ -94,10 +94,10 @@ These modules depend on nettrades_core and provide the core business functionali
 bash
 ```
 # Windows PowerShell
-python .\third-party\odoo\odoo-bin -c .\deploy\docker\config\odoo.conf --addons-path=... -i nettrades_gpu_admin,nettrades_gpustack_adapter,nettrades_good_answer,nettrades_ask_someone,nettrades_queue,nettrades_notifications,nettrades_job_matching,nettrades_lead_scoring,nettrades_chatbot --stop-after-init
+python .\third-party\odoo\odoo-bin -c .\deploy\docker\config\odoo.conf --addons-path=... -i nettrades_gpu_admin,nettrades_good_answer,nettrades_ask_someone,nettrades_queue,nettrades_notifications,nettrades_job_matching,nettrades_lead_scoring,nettrades_chatbot --stop-after-init
 
 # Linux / WSL
-python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf --addons-path=... -i nettrades_gpu_admin,nettrades_gpustack_adapter,nettrades_good_answer,nettrades_ask_someone,nettrades_queue,nettrades_notifications,nettrades_job_matching,nettrades_lead_scoring,nettrades_chatbot --stop-after-init
+python third-party/odoo/odoo-bin -c deploy/docker/config/odoo.conf --addons-path=... -i nettrades_gpu_admin,nettrades_good_answer,nettrades_ask_someone,nettrades_queue,nettrades_notifications,nettrades_job_matching,nettrades_lead_scoring,nettrades_chatbot --stop-after-init
 ```
 
 ### Batch 4: Self-Improving System Modules
@@ -108,7 +108,7 @@ These modules form the closed-loop self-improving system and must be installed i
 | `nettrades_bridge` | Hub-and-spoke routing engine | `nettrades_core, nettrades_gpu_admin` |
 | `nettrades_data_collection` | Monitor phase data collection | `nettrades_core, nettrades_good_answer, nettrades_ask_someone` |
 | `nettrades_trigger` | Analyze phase trigger detection | `nettrades_data_collection` |
-| `nettrades_loop` | Plan + Execute phase orchestration | `nettrades_data_collection, nettrades_trigger, llm_training, gpu_gpustack_adapter` |
+| `nettrades_loop` | Plan + Execute phase orchestration | `nettrades_data_collection, nettrades_trigger, llm_training` |
 | `nettrades_self_improving_config` | Administration interface | `nettrades_loop, nettrades_trigger, nettrades_data_collection` |
 
 Installation Order (Critical!):

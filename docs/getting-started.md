@@ -50,7 +50,7 @@ If you want to:
 - Add GPU nodes
 - Manage and monitor the system
 
-→ Read the [Operations Quick Start Guide](operations/index.md)
+→ Read the [Operations Quick Start Guide](developer/index.md)
 
 ---
 
@@ -82,6 +82,5 @@ If you want to:
 | Try the platform | [Try It Now](try-it-now.md) |
 | Use the platform | [User Guide](user/index.md) |
 | Develop the platform | [Developer Guide](developer/index.md) |
-| Deploy the platform | [Operations Guide](operations/index.md) |
 | Contribute | [Governance](/governance/index.md) |
 | Understand terms | [Glossary](appendix/glossary.md) |

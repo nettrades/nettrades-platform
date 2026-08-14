@@ -45,11 +45,11 @@ For more detailed help, see the Full Documentation.
 
 ## Next Steps
 
-[Single VM Deployment](operations/single-vm-deployment.md)
+[Single VM Deployment](developer/single-vm-deployment.md)
 
-[Kubernetes Deployment](operations/kubernetes-deployment.md)
+[Kubernetes Deployment](developer/kubernetes-deployment.md)
 
-[GPU Node Deployment](operations/gpu-node-deployment.md)
+[GPU Node Deployment](developer/gpu-node-deployment.md)
 
 [Developer Guide](developer/index.md)
 

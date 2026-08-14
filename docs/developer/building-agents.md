@@ -181,7 +181,7 @@ async def process_data(state: CustomState) -> CustomState:
     Process the data using an LLM.
 
     This node:
-    1. Gets the inference backend (GPUStack/vLLM/llama.cpp)
+    1. Gets the inference backend (NVIDIA Dynamo/vLLM/llama.cpp)
     2. Constructs a prompt with the data
     3. Sends it to the LLM
     4. Parses and stores the result

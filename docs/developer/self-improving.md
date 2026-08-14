@@ -31,7 +31,7 @@ graph TB
     end
 
     subgraph Execute["4. Execute (Deployment)"]
-        D1["GPUStack Deployment"]
+        D1["NVIDIA dynamo Deployment"]
         D2["LangGraph Agent Update"]
         D3["Odoo Assistant Update"]
         D4["Performance Monitoring"]
@@ -161,9 +161,9 @@ Expert answers are automatically collected and marked as `is_qualified=True` for
 
 Each interaction is collected as a `data.episode` record, providing the primary data source for the self-improving loop.
 
-### GPUStack
+### NVIDIA dynamo
 
-Training jobs are submitted to GPUStack via the `gpu_gpustack_adapter` module.
+Training jobs are submitted to NVIDIA dynamo.
 
 ## Monitoring
 
@@ -182,7 +182,7 @@ Navigate to Settings ? Technical ? Self-Improving AI ? Dashboard to view:
 | Issue | Solution |
 |-------|----------|
 | `No triggers firing` | Check trigger configuration and thresholds |
-| `Training job fails` | Verify GPUStack is running and has capacity |
+| `Training job fails` | Verify NVIDIA dynamo is running and has capacity |
 | `Dataset empty` | Check that data collection is working |
 | `Loop disabled` | Enable loop_enabled in configuration |
 

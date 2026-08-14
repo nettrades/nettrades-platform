@@ -92,7 +92,7 @@ graph TD
 | Field | Description |
 |-----------|----------|
 | `Input` | Entire state (includes intent, messages, output) |
-| `Logic` | Skips if route_source == 'remote'. Calculates a quality_score (from confidence or analysis length). Extracts input_text and output_text, then calls SelfImprovingService.record_episode() to create a data.episode record in Odoo. If trigger conditions are met (e.g., quality drop, data volume threshold), it initiates a fine-tuning job via llm_training and GPUStack. |
+| `Logic` | Skips if route_source == 'remote'. Calculates a quality_score (from confidence or analysis length). Extracts input_text and output_text, then calls SelfImprovingService.record_episode() to create a data.episode record in Odoo. If trigger conditions are met (e.g., quality drop, data volume threshold), it initiates a fine-tuning job via llm_training and NVIDIA Dynamo. |
 | `Output` | None (episode recorded asynchronously) |
 | `File` | src/core/self_improving_integration.py |
 
@@ -301,7 +301,7 @@ sequenceDiagram
     participant Supervisor
     participant SelfImproving
     participant Odoo
-    participant GPUStack
+    participant NVIDIAdynamo
 
     User->>Supervisor: Request
     Supervisor->>Supervisor: process()
@@ -312,8 +312,8 @@ sequenceDiagram
     alt Trigger Fired
         SelfImproving->>Odoo: Create llm_training.job
         Odoo-->>SelfImproving: Job ID
-        SelfImproving->>GPUStack: Submit Training
-        GPUStack-->>SelfImproving: Job Submitted
+        SelfImproving->>NVIDIAdynamo: Submit Training
+        NVIDIAdynamo-->>SelfImproving: Job Submitted
     end
 ```
 
@@ -338,7 +338,7 @@ text
 | `FastAPI Application (src/core/app.py)` | Exposes /invoke, /health, /metrics endpoints. |
 | `PostgresSaver` | Provides durable checkpointing for every node state. |
 | `Prometheus Metrics` | Tracks langgraph_requests_total (by intent) and langgraph_request_duration_seconds. |
-| `Inference Backend Auto-Detection` | get_inference_backend() in src/core/tools/inference_tools.py auto-selects GPUStack, vLLM, or llama.cpp. |
+| `Inference Backend Auto-Detection` | get_inference_backend() in src/core/tools/inference_tools.py auto-selects NVIDIA Dynamo, vLLM, or llama.cpp. |
 
 ## 11. File Locations
 

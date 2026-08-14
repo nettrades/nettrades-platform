@@ -32,12 +32,12 @@ flowchart TD
                 Checkpointer["PostgresSaver Checkpointer<br>━━━━━━━━━━━━━━━━<br>• Durable state snapshots"]
             end
 
-            subgraph GPUStackContainer["Container: gpustack-manager (Port 8080 internal)"]
-                GPUStack["GPUStack Manager<br>━━━━━━━━━━━━━━━━<br>• Inference Engine (OpenAI-compatible)<br>• Token Metering<br>• Worker Pool Manager<br>  - gVisor (public pools)<br>  - Docker (internal pools)"]
+            subgraph DynamoContainer["Container: Dynamo-manager (Port 8080 internal)"]
+                Dynamo["Dynamo Manager<br>━━━━━━━━━━━━━━━━<br>• Inference Engine (OpenAI-compatible)<br>• Token Metering<br>• Worker Pool Manager<br>  - gVisor (public pools)<br>  - Docker (internal pools)"]
             end
 
             subgraph GPUNodeAgent["Container: gpu-node-agent (Privileged)"]
-                GNA["GPU Node Agent<br>━━━━━━━━━━━━━━━━<br>• ensure_wireguard()<br>• get_or_create_node_id()<br>• get_gpu_info() (nvidia-smi)<br>• get_tee_summary()<br>• register_with_odoo()<br>• apply_wireguard_config()<br>• start_gpustack_worker()<br>• start_dns_watchdog()<br>• Token Refresh Loop (every 600s)"]
+                GNA["GPU Node Agent<br>━━━━━━━━━━━━━━━━<br>• ensure_wireguard()<br>• get_or_create_node_id()<br>• get_gpu_info() (nvidia-smi)<br>• get_tee_summary()<br>• register_with_odoo()<br>• apply_wireguard_config()<br>• start_Dynamo_worker()<br>• start_dns_watchdog()<br>• Token Refresh Loop (every 600s)"]
             end
         end
 
@@ -111,12 +111,12 @@ flowchart TD
     FastAPI -->|"Executes"| Supervisor
     Supervisor -->|"Dispatches to"| SubAgents
     SubAgents -->|"Reads/Updates Odoo Models"| Odoo
-    SubAgents -->|"OpenAI-compatible API"| GPUStack
+    SubAgents -->|"OpenAI-compatible API"| Dynamo
     FastAPI -->|"Checkpoint (asyncpg)"| Checkpointer
     Checkpointer -->|"Read/Write blobs"| PostgreSQL
 
-    %% GPUStack & GPU Node Agent
-    GPUStack -->|"Manages Worker Pool"| GNA
+    %% Dynamo & GPU Node Agent
+    Dynamo -->|"Manages Worker Pool"| GNA
     GNA -->|"Registers via /api/v1/gpu/register"| Odoo
     GNA -->|"Reads GPU Info"| GPU
 
@@ -126,17 +126,17 @@ flowchart TD
     DEITA -->|"Scored Data"| Unsloth
     Unsloth -->|"Produces Adapter Weights"| ModelRegistry
     ModelRegistry -->|"Stores Models"| Longhorn
-    ModelRegistry -->|"Registers New Model Version"| GPUStack
+    ModelRegistry -->|"Registers New Model Version"| Dynamo
 
     %% Security Fabric Dependencies
     GNA -->|"Uses"| WireGuard
-    GPUStack -->|"Uses"| gVisor
+    Dynamo -->|"Uses"| gVisor
     Traefik -->|"Protected by"| Firewall
 
     %% Hardware Dependencies
     Odoo -->|"Runs on"| CPU & RAM
     FastAPI -->|"Runs on"| CPU & RAM
-    GPUStack -->|"Accelerated by"| GPU
+    Dynamo -->|"Accelerated by"| GPU
     PostgreSQL -->|"Stored on"| Storage
     Longhorn -->|"Stored on"| Storage
 
@@ -153,7 +153,7 @@ flowchart TD
 
     class External external;
     class Edge,Traefik edge;
-    class AppLayer,OdooContainer,LangGraphContainer,GPUStackContainer,GPUNodeAgent app;
+    class AppLayer,OdooContainer,LangGraphContainer,DynamoContainer,GPUNodeAgent app;
     class DataLayer,PostgresContainer,ValkeyContainer,StorageContainer data;
     class MLPipeline,DataJuicer,DEITA,Unsloth,ModelRegistry ml;
     class SecurityFabric,WireGuard,gVisor,Firewall security;
@@ -225,7 +225,7 @@ All application logic is packaged into Docker containers and orchestrated via do
 
 * PostgresSaver Checkpointer: Ensures durable state snapshots are written to PostgreSQL, allowing workflows to resume after container restarts.
 
-## C. GPUStack Manager (gpustack-manager)
+## C. Dynamo Manager (Dynamo-manager)
 
 #### This container provides the inference fabric for the platform:
 
@@ -251,11 +251,11 @@ All application logic is packaged into Docker containers and orchestrated via do
 
 * apply_wireguard_config(): Writes wg0.conf and brings up the WireGuard interface.
 
-* start_gpustack_worker(): Launches the GPUStack worker with gVisor (public) or Docker (internal) isolation.
+* start_Dynamo_worker(): Launches the Dynamo worker with gVisor (public) or Docker (internal) isolation.
 
 * start_dns_watchdog(): Starts a daemon thread to keep the WireGuard tunnel alive when the ISP changes the IP.
 
-* Token Refresh Loop: Every 600 seconds, refreshes the GPUStack worker token and restarts the worker.
+* Token Refresh Loop: Every 600 seconds, refreshes the Dynamo worker token and restarts the worker.
 
 # 4. Data & Persistence Layer
 
@@ -277,7 +277,7 @@ All application logic is packaged into Docker containers and orchestrated via do
 
 * Unsloth/Axolotl Trainer: Runs LoRA/QLoRA fine-tuning on the curated dataset.
 
-* Model Registry: The new adapter weights are saved to Longhorn and registered with the GPUStack inference engine, making the improved model available for future inference.
+* Model Registry: The new adapter weights are saved to Longhorn and registered with the Dynamo inference engine, making the improved model available for future inference.
 
 # 6. Network & Security Fabric (Host-Level)
 
@@ -313,9 +313,9 @@ Odoo Processing: If the request is to the chatbot endpoint (/api/v1/chatbot/invo
 
 LangGraph Orchestration: The FastAPI app executes the Supervisor Graph, which classifies the intent, performs medical/legal screening if needed, and dispatches to the appropriate sub-agent.
 
-Sub-Agent Execution: The sub-agent processes the request, optionally calling the GPUStack inference engine (internal port 8080) for LLM inference, and reads/writes data to PostgreSQL, Valkey, or Longhorn as needed.
+Sub-Agent Execution: The sub-agent processes the request, optionally calling the Dynamo inference engine (internal port 8080) for LLM inference, and reads/writes data to PostgreSQL, Valkey, or Longhorn as needed.
 
-GPUStack Inference: The GPUStack manager routes the inference request to the GPU node agent, which executes the model on the host's NVIDIA GPU(s).
+Dynamo Inference: The Dynamo manager routes the inference request to the GPU node agent, which executes the model on the host's NVIDIA GPU(s).
 
 Response: The response flows back through the chain: sub-agent ? FastAPI ? Odoo ? Traefik ? User.
 

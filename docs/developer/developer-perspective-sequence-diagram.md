@@ -15,7 +15,7 @@ sequenceDiagram
     participant FastAPI as ? FastAPI (LangGraph)
     participant Supervisor as ?? Supervisor Graph
     participant SubAgent as ?? Sub-Agent
-    participant GPUStack as ??? GPUStack
+    participant Dynamo as ??? Dynamo
     participant PostgreSQL as ??? PostgreSQL
     participant Valkey as ?? Valkey
     participant Stripe as ?? Stripe (External)
@@ -48,8 +48,8 @@ sequenceDiagram
         Odoo->>PostgreSQL: 20. Query Data
         PostgreSQL-->>Odoo: 21. Return Data
         Odoo-->>SubAgent: 22. Return Data
-        SubAgent->>GPUStack: 23. LLM Inference (Match Scoring)
-        GPUStack-->>SubAgent: 24. Match Results
+        SubAgent->>Dynamo: 23. LLM Inference (Match Scoring)
+        Dynamo-->>SubAgent: 24. Match Results
         SubAgent->>Odoo: 25. Save Match Results
         Odoo->>PostgreSQL: 26. Persist Results
     else Freelance Intent
@@ -58,18 +58,18 @@ sequenceDiagram
         Odoo->>PostgreSQL: 20. Query Data
         PostgreSQL-->>Odoo: 21. Return Data
         Odoo-->>SubAgent: 22. Return Data
-        SubAgent->>GPUStack: 23. LLM Inference (Match Scoring)
-        GPUStack-->>SubAgent: 24. Match Results
+        SubAgent->>Dynamo: 23. LLM Inference (Match Scoring)
+        Dynamo-->>SubAgent: 24. Match Results
         SubAgent->>Odoo: 25. Save Match Results
         Odoo->>PostgreSQL: 26. Persist Results
     else Vision Intent (Image)
         Supervisor->>SubAgent: 18. Vision Agent
-        SubAgent->>GPUStack: 19. VLM Inference (Image + Text)
-        GPUStack-->>SubAgent: 20. Image Analysis
+        SubAgent->>Dynamo: 19. VLM Inference (Image + Text)
+        Dynamo-->>SubAgent: 20. Image Analysis
     else Action Intent (Robotic)
         Supervisor->>SubAgent: 18. Action Agent
-        SubAgent->>GPUStack: 19. VLA Inference (Action Planning)
-        GPUStack-->>SubAgent: 20. Action Plan (JSON)
+        SubAgent->>Dynamo: 19. VLA Inference (Action Planning)
+        Dynamo-->>SubAgent: 20. Action Plan (JSON)
         SubAgent->>SubAgent: 21. dispatch() ? ROS 2 / MCP
     else Ask Someone (Consultation)
         Supervisor->>SubAgent: 18. Ask Someone Agent
@@ -83,8 +83,8 @@ sequenceDiagram
         Odoo->>PostgreSQL: 26. Persist Consultation
     else General Intent
         Supervisor->>SubAgent: 18. General LLM
-        SubAgent->>GPUStack: 19. LLM Inference
-        GPUStack-->>SubAgent: 20. Response
+        SubAgent->>Dynamo: 19. LLM Inference
+        Dynamo-->>SubAgent: 20. Response
     end
 
     SubAgent-->>Supervisor: 27. Return Result

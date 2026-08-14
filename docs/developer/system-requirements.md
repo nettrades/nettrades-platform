@@ -58,7 +58,7 @@ NETTRADES.AI can be deployed in two configurations:
 | 5432 | TCP | PostgreSQL | ❌ No (internal only) |
 | 8069 | TCP | Odoo | ❌ No (internal only) |
 | 8000 | TCP | LangGraph API | ❌ No (internal only) |
-| 8080 | TCP | GPUStack | ❌ No (internal only) |
+
 
 ---
 
@@ -124,7 +124,7 @@ NETTRADES.AI can be deployed in two configurations:
 
 | Vendor | Driver Version | CUDA Version | Notes |
 |--------|----------------|--------------|-------|
-| **NVIDIA** | 550+ | 12.4+ | Required for GPUStack |
+| **NVIDIA** | 550+ | 12.4+ | Required for NVIDIA dynamo |
 | **NVIDIA** | 535+ | 12.2 | Minimum for vLLM |
 
 ### VRAM Requirements
@@ -191,8 +191,7 @@ A full list of environment variables is available in the [Appendix](/appendix/en
 | `ADMIN_EMAIL` | Admin email for Let's Encrypt | ✅ Yes |
 | `POSTGRES_PASSWORD` | PostgreSQL password | ✅ Yes |
 | `LANGGRAPH_API_KEY` | API key for LangGraph | ✅ Yes |
-| `JWT_SECRET` | JWT signing secret | ✅ Yes |
-| `GPUSTACK_JWT_SECRET` | GPUStack JWT secret | ✅ Yes |
+
 
 ---
 

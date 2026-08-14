@@ -16,7 +16,7 @@ There are two WireGuard VPNs used in the NETTRADES platform:
 | VPN | Port | Subnet |Purpose |Who Uses It |
 |--------|---------|--------------|--------------|--------------|
 | `Admin VPN` | 51821 | 10.10.10.0/24 | Secure SSH access for administrators| Secure SSH access for administrators|
-| `Internal WireGuard` | 51820 | 10.0.0.0/16 | Service-to-service encryption | Microservices (LangGraph, GPUStack, etc.) |
+| `Internal WireGuard` | 51820 | 10.0.0.0/16 | Service-to-service encryption | Microservices (LangGraph, NVIDIA dynamo, etc.) |
 
 The two VPNs are isolated – the admin VPN cannot reach the internal WireGuard subnet (10.0.0.0/16) thanks to iptables rules applied during deployment.
 
@@ -111,7 +111,7 @@ You can use your password (allowed from the VPN subnet) or an SSH key if you hav
 
 #### Purpose
 
-* Ensures `encrypted communication` between platform components (LangGraph, GPUStack, PostgreSQL, etc.).
+* Ensures `encrypted communication` between platform components (LangGraph, NVIDIA dynamo, PostgreSQL, etc.).
 
 * Used in the `hub and spoke` architecture (central hub ? client company spokes).
 
@@ -129,7 +129,7 @@ You can use your password (allowed from the VPN subnet) or an SSH key if you hav
 
 #### Configuration File (Kubernetes / GPU Marketplace)
 
-When deploying the GPU marketplace on Kubernetes, the ConfigMap wireguard-peers (in namespace gpustack) defines the WireGuard configuration. Example:
+When deploying the GPU marketplace on Kubernetes, the ConfigMap wireguard-peers (in namespace NVIDIAdynamo) defines the WireGuard configuration. Example:
 
 ```yaml
 
@@ -137,7 +137,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: wireguard-peers
-  namespace: gpustack
+  namespace: NVIDIAdynamo
 data:
   wg0.conf: |
     [Interface]
@@ -170,7 +170,7 @@ The admin VPN is isolated from the internal WireGuard network. The iptables rule
 iptables -I FORWARD -i wg0 -d 10.0.0.0/16 -j DROP
 ```
 
-This ensures that administrators cannot accidentally (or maliciously) reach internal services like LangGraph or GPUStack over the VPN.
+This ensures that administrators cannot accidentally (or maliciously) reach internal services like LangGraph or NVIDIA dynamo over the VPN.
 
 #### Ports and Firewall
 Port	Protocol	Purpose

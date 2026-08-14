@@ -11,13 +11,13 @@ graph TB
     subgraph Central[NETTRADES Central]
         OdooCentral[Odoo + GPU Admin]
         LangGraphCentral[LangGraph Supervisor]
-        GPUStackCentral[GPUStack Server]
+        NVIDIAdynamoCentral[NVIDIA Dynamo Server]
         WGCtrl[WireGuard Peer Manager]
     end
 
     subgraph CompanyA[Company A Trusted]
         WGMeshA[WireGuard Mesh]
-        GPUStackCompanyA[GPUStack Server company]
+        NVIDIAdynamoCompanyA[NVIDIA Dynamo Server company]
         NodeA1[GPU Node] & NodeA2[GPU Node]
     end
 
@@ -26,8 +26,8 @@ graph TB
         NodeF1[GPU Node gVisor] & NodeF2[GPU Node gVisor]
     end
 
-    OdooCentral --> GPUStackCentral
-    LangGraphCentral --> GPUStackCentral
-    GPUStackCentral --> NodeF1 & NodeF2 & GPUStackCompanyA
+    OdooCentral --> NVIDIAdynamoCentral
+    LangGraphCentral --> NVIDIAdynamoCentral
+    NVIDIAdynamoCentral --> NodeF1 & NodeF2 & NVIDIAdynamoCompanyA
     NodeF1 & NodeF2 --> WGCtrl
-    NodeA1 & NodeA2 --> GPUStackCompanyA
+    NodeA1 & NodeA2 --> NVIDIAdynamoCompanyA

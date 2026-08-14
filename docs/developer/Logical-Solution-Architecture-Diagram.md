@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The NETTRADES platform is a self-improving, agentic AI system built on Odoo 19 CE, LangGraph, and GPUStack. It connects companies, freelancers, job-seekers, researchers, partners, and customers through a hub-and-spoke architecture with a unique GPU marketplace and closed-loop self-improvement.
+The NETTRADES platform is a self-improving, agentic AI system built on Odoo 19 CE, LangGraph, and NVIDIA dynamo. It connects companies, freelancers, job-seekers, researchers, partners, and customers through a hub-and-spoke architecture with a unique GPU marketplace and closed-loop self-improvement.
 
 The platform is designed for **autonomous enterprise operations** where AI agents handle recruitment, freelancing, GPU management, and business operations, continuously learning and improving from user interactions.
 
@@ -250,7 +250,7 @@ flowchart TD
             TrainingOrchestrator["Training Orchestrator
             ━━━━━━━━━━━━━━━
             • Creates llm_training jobs
-            • Submits to GPUStack
+            • Submits to NVIDIA dynamo
             • Monitors training progress"]
             DeploymentManager["Deployment Manager
             ━━━━━━━━━━━━━━━
@@ -276,7 +276,7 @@ flowchart TD
     %% 5. AI INFERENCE & TRAINING LAYER
     %% ========================================================================
     subgraph TrainingLayer["🧠 AI Inference & Training Layer"]
-        GPUStack["GPUStack Server
+        NVIDIAdynamo["NVIDIA dynamo Server
         ━━━━━━━━━━━━━━━
         • Cluster management
         • Resource scheduling
@@ -414,7 +414,7 @@ flowchart TD
 | `API Gateway & Edge Security` | TLS Termination, Authentication/Authorization, Rate Limiting & Routing, Web Application Firewall |
 | `Application Services` | Odoo 19 CE (Web Controllers, API Controllers, Odoo ORM Models), LangGraph Agent Orchestration (Supervisor, Sub-Agents, MCP-Odoo Bridge) |
 | `Self-Improving System` | Monitor Phase (Episode Collector, Feedback Aggregator), Analyze Phase (Trigger Evaluator), Plan + Execute Phases (Training Orchestrator, Deployment Manager), Configuration Layer (Administration Settings) |
-| `AI Inference & Training` | GPUStack Server, GPU Workers, Fine-Tuning Jobs, External LLM APIs, llm_training |
+| `AI Inference & Training` | NVIDIA dynamo Server, GPU Workers, Fine-Tuning Jobs, External LLM APIs, llm_training |
 | `Data Layer` | PostgreSQL 18 + pgvector, PostgreSQL Read Replicas, Valkey 8, MinIO / S3 |
 | `Security Layer` | WireGuard VPN, gVisor Sandbox, TEE / Confidential Computing, RBAC / Access Control |
 
@@ -457,7 +457,7 @@ graph TB
     end
 
     subgraph Training["AI Inference & Training Layer"]
-        GPUStack["GPUStack\n━━━━━━━━━━━━━━━━\n• Cluster management\n• Resource scheduling\n• Health monitoring"]
+        NVIDIAdynamo["NVIDIAdynamo\n━━━━━━━━━━━━━━━━\n• Cluster management\n• Resource scheduling\n• Health monitoring"]
         Workers["GPU Workers\n━━━━━━━━━━━━━━━━\n• vLLM\n• llama.cpp\n• SGLang"]
         FineTune["Fine-Tuning Jobs\n━━━━━━━━━━━━━━━━\n• Unsloth\n• Axolotl"]
         External["External LLM APIs\n━━━━━━━━━━━━━━━━\n• OpenAI\n• Anthropic\n• Ollama (Local)"]
@@ -510,7 +510,7 @@ graph TB
     Frontend --> Traefik --> Core
     Integration --> LangGraphCheckpoint --> PG
     SelfImproving --> Training
-    Training --> GPUStack --> Workers
+    Training --> NVIDIAdynamo --> Workers
     Training --> FineTune
     Core --> Data
     Core --> Security
@@ -563,7 +563,7 @@ graph LR
         GPUNode["gpu.node\n━━━━━━━━━━━━━━━━\n• name\n• partner_id\n• cluster_id\n• gpu_count\n• gpu_model\n• vram_gb\n• status\n• gpu_utilisation"]
         GPUCluster["gpu.cluster\n━━━━━━━━━━━━━━━━\n• name\n• partner_id\n• available_vram_gb\n• total_vram_gb"]
         GPUTest["gpu.test\n━━━━━━━━━━━━━━━━\n• node_id\n• status\n• results"]
-        GPStackSync["gpustack.sync\n━━━━━━━━━━━━━━━━\n• last_sync\n• status\n• sync_log"]
+        NVIDIAdynamoSync["NVIDIAdynamo.sync\n━━━━━━━━━━━━━━━━\n• last_sync\n• status\n• sync_log"]
     end
 ```
 
@@ -630,7 +630,7 @@ graph TD
     subgraph Plan["3. PLAN (nettrades_loop)"]
         C1["Create Training Job"] --> C2["llm_training.dataset"]
         C2 --> C3["llm_training.job"]
-        C3 --> C4["GPUStack Training"]
+        C3 --> C4["NVIDIA dynamo Training"]
     end
 
     subgraph Execute["4. EXECUTE (nettrades_loop)"]
@@ -665,7 +665,6 @@ graph TB
         subgraph GPUServices["GPU Services"]
             GPUAgent["gpu_management_agent\n━━━━━━━━━━━━━━━━\n• fetch_cluster()\n• check_health()\n• generate_recommendations()"]
             GPUAdmin["nettrades_gpu_admin\n━━━━━━━━━━━━━━━━\n• Node management\n• Utilisation monitoring\n• Overflow detection"]
-            GPStackAdapter["nettrades_gpustack_adapter\n━━━━━━━━━━━━━━━━\n• GPUStack sync\n• Inference scheduling\n• Training orchestration"]
         end
 
         subgraph SelfImprovingServices["Self-Improving Services"]
@@ -694,7 +693,7 @@ graph TB
 | `Vector Storage` | pgvector | Latest | Embedding storage |
 | `Cache` | Valkey | 8 | Session management |
 | `Object Storage` | MinIO / S3 | Latest | File and model storage |
-| `GPU Management` | GPUStack | Latest | GPU cluster management |
+| `GPU Management` | NVIDIA dynamo | Latest | GPU cluster management |
 | `Fine-Tuning` | Unsloth / Axolotl | Latest | Model fine-tuning |
 | `Inference` | vLLM / llama.cpp | Latest | LLM inference |
 | `Container` | Docker / Kubernetes | Latest | Container orchestration |
@@ -722,7 +721,7 @@ graph LR
     subgraph PlanPhase["Plan Phase"]
         G --> H[Create llm_training.job]
         H --> I[Prepare Dataset]
-        I --> J[Submit to GPUStack]
+        I --> J[Submit to NVIDIA dynamo]
     end
 
     subgraph ExecutePhase["Execute Phase"]
@@ -766,7 +765,7 @@ graph TB
         Checkpoint["LangGraph Checkpoint\n(PostgresSaver)"]
     end
 
-    subgraph GPUCluster["GPU Cluster (GPUStack)"]
+    subgraph GPUCluster["GPU Cluster (NVIDIAdynamo)"]
         GPU1["GPU Worker 1\n(NVIDIA RTX)"]
         GPU2["GPU Worker 2\n(NVIDIA RTX)"]
         GPUN["GPU Worker N\n(NVIDIA RTX)"]
@@ -838,8 +837,8 @@ graph TB
 | Integration | Source | Target | Purpose |
 |-----------|----------|-------------|-------------|
 | `LangGraph ↔ Odoo` | LangGraph Agents | Odoo ORM | Data access via MCP-Odoo Bridge |
-| `LangGraph ↔ GPUStack` | LangGraph Agents | GPUStack API | LLM inference and training |
-| `Odoo ↔ GPUStack` | Odoo Modules | GPUStack API | GPU resource management |
+| `LangGraph ↔ NVIDIA dynamo` | LangGraph Agents | NVIDIA dynamo API | LLM inference and training |
+| `Odoo ↔ NVIDIA dynamo` | Odoo Modules | NVIDIA dynamo API | GPU resource management |
 | `Odoo ↔ PostgreSQL` | Odoo ORM | PostgreSQL | Data persistence |
 | `Odoo ↔ pgvector` | Odoo ORM | pgvector | Vector embeddings |
 | `LangGraph ↔ PostgreSQL` | LangGraph Checkpointer | PostgreSQL | State persistence |
@@ -888,7 +887,7 @@ graph TB
 |-----------|----------|-------------|
 | `Odoo` | Odoo Logging, Prometheus | Request rate, error rate, response time |
 | `LangGraph` | LangSmith, OpenTelemetry | Agent traces, step duration, success rate |
-| `GPUStack` | Grafana, Prometheus | GPU utilisation, inference latency, throughput |
+| `NVIDIA dynamo` | Grafana, Prometheus | GPU utilisation, inference latency, throughput |
 | `PostgreSQL` | pg_stat_statements, Prometheus | Query performance, connection count, replication lag |
 | `Kubernetes` | Prometheus, Grafana | Pod status, CPU/Memory usage, network I/O |
 
@@ -898,6 +897,6 @@ graph TB
 |-----------|----------|-------------|
 | `Odoo Workers` | Horizontal (multi-worker) | 8-12 workers |
 | `LangGraph Agents` | Horizontal (Kubernetes HPA) | 5-10 pods |
-| `GPUStack Workers` | Horizontal (add nodes) | 10-20 nodes |
+| `NVIDIA dynamo Workers` | Horizontal (add nodes) | 10-20 nodes |
 | `PostgreSQL` | Read replicas | 2-3 replicas |
 | `Valkey` | Cluster mode | 3-6 nodes |

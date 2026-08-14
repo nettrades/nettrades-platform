@@ -31,7 +31,7 @@ flowchart TB
             
             GPUManagementAgent["GPU Management Agent<br>━━━━━━━━━━━━━━━━<br>• GPU Cluster Health Monitoring<br>• Node Lifecycle Management<br>• Pool Assignment<br>• Token Economics"]
             
-            VisionAgent["Vision Agent<br>━━━━━━━━━━━━━━━━<br>• Multi-modal VLM Analysis<br>• Image + Text Processing<br>• GPUStack VLM Integration<br>• Image Description"]
+            VisionAgent["Vision Agent<br>━━━━━━━━━━━━━━━━<br>• Multi-modal VLM Analysis<br>• Image + Text Processing<br>• Dynamo VLM Integration<br>• Image Description"]
             
             ActionAgent["Action Agent<br>━━━━━━━━━━━━━━━━<br>• Robotic Action Planning<br>• ROS 2 / MCP Dispatch<br>• VLA Model Integration<br>• Action Execution"]
             
@@ -51,7 +51,7 @@ flowchart TB
             
             nettrades_gpu_admin["nettrades_gpu_admin<br>━━━━━━━━━━━━━━━━<br>• GPU Cluster Dashboard<br>• Node Registry<br>• Pool Assignment<br>• Token Economics<br>• WireGuard Management"]
             
-            nettrades_gpustack_adapter["nettrades_gpustack_adapter<br>━━━━━━━━━━━━━━━━<br>• GPUStack API Bridge<br>• Worker Synchronization<br>• Token Usage Sync<br>• Model Deployment"]
+            nettrades_Dynamo_adapter["nettrades_Dynamo_adapter<br>━━━━━━━━━━━━━━━━<br>• Dynamo API Bridge<br>• Worker Synchronization<br>• Token Usage Sync<br>• Model Deployment"]
             
             nettrades_ask_someone["nettrades_ask_someone<br>━━━━━━━━━━━━━━━━<br>• Expert Marketplace<br>• Stripe Escrow<br>• Live Sessions<br>• Expert Matching"]
             
@@ -105,9 +105,9 @@ flowchart TB
         end
         
         subgraph GPUOrchestration["GPU Orchestration"]
-            GPUStackServer["GPUStack Manager<br>━━━━━━━━━━━━━━━━<br>• Inference Engine (OpenAI-compatible)<br>• Token Metering<br>• Worker Pool Management<br>• Model Deployment<br>• Multi-vendor Support"]
+            DynamoServer["Dynamo Manager<br>━━━━━━━━━━━━━━━━<br>• Inference Engine (OpenAI-compatible)<br>• Token Metering<br>• Worker Pool Management<br>• Model Deployment<br>• Multi-vendor Support"]
             
-            GPUNodeAgent["GPU Node Agent<br>━━━━━━━━━━━━━━━━<br>• GPU Detection (nvidia-smi)<br>• Hardware-bound Node ID<br>• WireGuard Setup<br>• GPUStack Worker Startup<br>• DNS Watchdog<br>• Auto-Registration"]
+            GPUNodeAgent["GPU Node Agent<br>━━━━━━━━━━━━━━━━<br>• GPU Detection (nvidia-smi)<br>• Hardware-bound Node ID<br>• WireGuard Setup<br>• Dynamo Worker Startup<br>• DNS Watchdog<br>• Auto-Registration"]
         end
         
         subgraph Observability["Monitoring & Observability"]
@@ -120,7 +120,7 @@ flowchart TB
     subgraph External["🔗 External Integrations"]
         Stripe["Stripe API<br>━━━━━━━━━━━━━━━━<br>• Payment Processing<br>• Escrow for Consultations<br>• Webhook Callbacks"]
         
-        LLMProviders["External LLM Providers<br>━━━━━━━━━━━━━━━━<br>• OpenAI (Fallback)<br>• Anthropic (Fallback)<br>• Used when GPUStack Unavailable"]
+        LLMProviders["External LLM Providers<br>━━━━━━━━━━━━━━━━<br>• OpenAI (Fallback)<br>• Anthropic (Fallback)<br>• Used when Dynamo Unavailable"]
         
         Forgejo["Forgejo Git<br>━━━━━━━━━━━━━━━━<br>• Self-hosted Git Repositories<br>• CI/CD Pipelines<br>• Project Collaboration<br>• Code Review"]
         
@@ -133,7 +133,7 @@ flowchart TB
         Export --> DataJuicer["Data-Juicer<br>━━━━━━━━━━━━━━━━<br>• Quality Filtering<br>• Deduplication<br>• PII Removal<br>• LLM Quality Scoring"]
         DataJuicer --> DEITA["DEITA Scorer<br>━━━━━━━━━━━━━━━━<br>• LLM-as-Judge<br>• Complexity Scoring<br>• Quality Ranking<br>• Diversity Assessment"]
         DEITA --> Training["Unsloth/Axolotl Training<br>━━━━━━━━━━━━━━━━<br>• LoRA/QLoRA Fine-Tuning<br>• GRPO / DPO Preference<br>• 4-bit Quantization<br>• FSDP2 Multi-GPU"]
-        Training --> ModelRegistry["Model Registry<br>━━━━━━━━━━━━━━━━<br>• Versioned Storage<br>• Metadata Tags (Domain, Score)<br>• GPUStack Registration<br>• A/B Testing"]
+        Training --> ModelRegistry["Model Registry<br>━━━━━━━━━━━━━━━━<br>• Versioned Storage<br>• Metadata Tags (Domain, Score)<br>• Dynamo Registration<br>• A/B Testing"]
         ModelRegistry --> LangGraph["LangGraph Agent<br>Uses Improved Model"]
     end
 
@@ -166,9 +166,9 @@ flowchart TB
     FreelanceAgent -->|"Reads/Writes"| nettrades_proposals
     LeadGenAgent -->|"Creates"| nettrades_lead_scoring
     GPUManagementAgent -->|"Reads/Writes"| nettrades_gpu_admin
-    VisionAgent -->|"Calls"| GPUStackServer
+    VisionAgent -->|"Calls"| DynamoServer
     ActionAgent -->|"Calls"| Infrastructure
-    GeneralLLM -->|"Calls"| GPUStackServer
+    GeneralLLM -->|"Calls"| DynamoServer
     GeneralLLM -->|"Fallback"| LLMProviders
 
     %% MCP Bridge to Odoo (Function Calling)
@@ -209,13 +209,13 @@ flowchart TB
     Checkpointer -->|"PostgresSaver"| PostgreSQL
 
     %% GPU Infrastructure
-    GPUStackServer -->|"Orchestrates"| GPUNodeAgent
-    GPUManagementAgent -->|"Manages"| GPUStackServer
+    DynamoServer -->|"Orchestrates"| GPUNodeAgent
+    GPUManagementAgent -->|"Manages"| DynamoServer
     GPUNodeAgent -->|"Registers"| API
 
     %% Self-Improving AI Pipeline
     nettrades_good_answer -->|"Votes"| Vote
-    ModelRegistry -->|"Registers Model"| GPUStackServer
+    ModelRegistry -->|"Registers Model"| DynamoServer
     ModelRegistry -->|"Stores"| Longhorn
 
     %% External Integrations
@@ -331,7 +331,7 @@ nettrades_good_answer:	    Good Answer voting, reputation management, fine-tunin
 
 nettrades_gpu_admin:	    GPU cluster dashboard, node registry, pool assignment, token economics
 
-nettrades_gpustack_adapter:	GPUStack API bridge for worker and token usage synchronization
+nettrades_Dynamo_adapter:	Dynamo API bridge for worker and token usage synchronization
 
 nettrades_ask_someone:	    Expert marketplace with Stripe escrow and live sessions
 
@@ -381,9 +381,9 @@ RBAC & Policy Engine: Odoo security groups, Cilium network policies, OAuth authe
 
 ## GPU Orchestration:
 
-GPUStack Manager: Provides an OpenAI-compatible inference engine, token metering, worker pool management, multi-vendor GPU support (NVIDIA, AMD, Apple Metal).
+Dynamo Manager: Provides an OpenAI-compatible inference engine, token metering, worker pool management, multi-vendor GPU support (NVIDIA, AMD, Apple Metal).
 
-GPU Node Agent: Runs on each GPU node, handles GPU detection, hardware-bound node ID generation, WireGuard setup, and GPUStack worker startup.
+GPU Node Agent: Runs on each GPU node, handles GPU detection, hardware-bound node ID generation, WireGuard setup, and Dynamo worker startup.
 
 ## Observability:
 
@@ -398,7 +398,7 @@ Integration	Purpose
 Purpose: Payment processing and escrow for Ask Someone consultations
 
 ### Integration: External LLM Providers	
-Purpose: OpenAI / Anthropic fallback when GPUStack is unavailable
+Purpose: OpenAI / Anthropic fallback when Dynamo is unavailable
 
 ### Integration: Forgejo Git	
 Purpose: Self-hosted Git for project collaboration and CI/CD
@@ -420,7 +420,7 @@ DEITA Scorer: LLM-as-Judge scores complexity and quality
 
 Unsloth/Axolotl Training: LoRA/QLoRA fine-tuning with 4-bit quantization
 
-Model Registry: Versioned storage and registration with GPUStack
+Model Registry: Versioned storage and registration with Dynamo
 
 LangGraph Agent: Uses the improved model for future inference
 
@@ -434,9 +434,9 @@ Description: User makes a request, intent is classified, routed to the appropria
 
 ### Flow: AI Inference	
 
-Path: Sub-Agent → GPUStack Server → GPU Node Agent → GPU	
+Path: Sub-Agent → Dynamo Server → GPU Node Agent → GPU	
 
-Description: AI inference requests are routed to GPUStack, which distributes them to available GPU workers
+Description: AI inference requests are routed to Dynamo, which distributes them to available GPU workers
 
 ### Flow: GPU Registration	
 
@@ -452,7 +452,7 @@ Description: Users vote on answers, storing feedback for reputation and training
 
 ### Flow: Fine-Tuning	
 
-Path: nettrades_good_answer → Data-Juicer → DEITA → Unsloth/Axolotl → Model Registry → GPUStack	
+Path: nettrades_good_answer → Data-Juicer → DEITA → Unsloth/Axolotl → Model Registry → Dynamo	
 
 Description: Feedback data is exported, quality-filtered, scored, and used to fine-tune models, which are then registered for inference
 

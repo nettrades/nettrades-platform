@@ -19,7 +19,7 @@ flowchart TB
         subgraph R1_App["Application Layer"]
             R1_Odoo["Odoo Web Fleet<br>━━━━━━━━━━━━━━━━<br>• 5+ Replicas<br>• HPA: CPU > 65%<br>• Shared Filestore"]
             R1_LangGraph["LangGraph Fleet<br>━━━━━━━━━━━━━━━━<br>• 5+ Replicas<br>• HPA: CPU > 60%<br>• Stateless"]
-            R1_GPUStack["GPUStack Fleet<br>━━━━━━━━━━━━━━━━<br>• 3+ Replicas<br>• GPU: 4x A100 each<br>• Model Sharding"]
+            NVIDIAdynamo["NVIDIA Dynamo Fleet<br>━━━━━━━━━━━━━━━━<br>• 3+ Replicas<br>• GPU: 4x A100 each<br>• Model Sharding"]
         end
         
         subgraph R1_Data["Data Layer"]
@@ -39,7 +39,7 @@ flowchart TB
         direction TB
         
         R2_Edge["Edge Layer<br>━━━━━━━━━━━━━━━━<br>• Traefik Fleet<br>• 3+ Replicas"]
-        R2_App["Application Layer<br>━━━━━━━━━━━━━━━━<br>• Odoo: 5+ Replicas<br>• LangGraph: 5+ Replicas<br>• GPUStack: 3+ Replicas"]
+        R2_App["Application Layer<br>━━━━━━━━━━━━━━━━<br>• Odoo: 5+ Replicas<br>• LangGraph: 5+ Replicas<br>• NVIDIAdynamo: 3+ Replicas"]
         R2_Data["Data Layer<br>━━━━━━━━━━━━━━━━<br>• PostgreSQL (Replica)<br>• Valkey Cluster<br>• S3 Replication"]
     end
 
@@ -83,8 +83,8 @@ flowchart TB
     R1_Odoo --> R1_Valkey
     R1_Odoo --> R1_S3
     R1_LangGraph --> R1_Postgres
-    R1_LangGraph --> R1_GPUStack
-    R1_GPUStack --> R1_Postgres
+    R1_LangGraph --> R1_NVIDIAdynamo
+    R1_NVIDIAdynamo --> R1_Postgres
 
     %% Cross-Region Replication
     R1_Postgres -->|"Logical Replication"| R2_Data
@@ -130,7 +130,7 @@ flowchart TB
 
 ```
 
-Based on the platform's existing modular architecture (Odoo + LangGraph + GPUStack on Kubernetes), here is a comprehensive Future Infrastructure Scaling Diagram showing how the NETTRADES.AI platform can scale from a single VM to a global, multi-region, highly available system.
+Based on the platform's existing modular architecture (Odoo + LangGraph + NVIDIA Dynamo on Kubernetes), here is a comprehensive Future Infrastructure Scaling Diagram showing how the NETTRADES.AI platform can scale from a single VM to a global, multi-region, highly available system.
 
 
 # Detailed Scaling Strategy Explanation
@@ -171,7 +171,7 @@ Checkpoints: Stored in PostgreSQL (shared across replicas)
 
 No in-memory state: Fully stateless
 
-# C. GPUStack Inference Fleet (Stateful GPU Workers)
+# C. NVIDIA Dynamo Inference Fleet (Stateful GPU Workers)
 Scaling Trigger	Action	Target
 GPU Utilization > 80%	Add GPU node	Up to 20 nodes
 Queue Length > 50	Add GPU node	Up to 20 nodes

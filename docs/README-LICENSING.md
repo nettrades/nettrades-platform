@@ -34,5 +34,5 @@ license that covers the NETTRADES Core.
 
 ## What about third-party components?
 
-Every third-party component (Odoo, GPUStack, LangGraph, WireGuard, etc.)
+Every third-party component (Odoo, NVIDIA Dynamo, LangGraph, WireGuard, etc.)
 retains its original open-source license.  See OPEN-SOURCE-NOTICES.txt.

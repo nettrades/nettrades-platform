@@ -23,13 +23,13 @@ graph TB
     subgraph Central["NETTRADES Central Infrastructure"]
         OdooCentral["Odoo 19 CE + GPU Admin Panel"]
         LangGraphCentral["LangGraph Supervisor (Provider Router)"]
-        GPUStackCentral["GPUStack Server (v2.1.2)"]
+        DynamoCentral["Dynamo Server (v2.1.2)"]
         WGCtrl["WireGuard Peer Manager (wgctrl-go)"]
     end
 
     subgraph CompanyA["Company A – Trusted Mode"]
         WGMeshA["WireGuard Full Mesh<br>10.100.1.0/24"]
-        GPUStackCompanyA["GPUStack Server (Company)"]
+        DynamoCompanyA["Dynamo Server (Company)"]
         NodeA1["GPU Node 1<br>(Internal Pool)"]
         NodeA2["GPU Node 2<br>(Public Pool)"]
     end
@@ -40,8 +40,8 @@ graph TB
         NodeF2["GPU Node<br>(gVisor Container)"]
     end
 
-    OdooCentral --> GPUStackCentral
-    LangGraphCentral --> GPUStackCentral
-    GPUStackCentral --> NodeF1 & NodeF2 & GPUStackCompanyA
+    OdooCentral --> DynamoCentral
+    LangGraphCentral --> DynamoCentral
+    DynamoCentral --> NodeF1 & NodeF2 & DynamoCompanyA
     NodeF1 & NodeF2 --> WGCtrl
-    NodeA1 & NodeA2 --> GPUStackCompanyA
+    NodeA1 & NodeA2 --> DynamoCompanyA

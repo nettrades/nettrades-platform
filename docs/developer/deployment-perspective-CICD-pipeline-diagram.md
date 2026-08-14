@@ -29,7 +29,7 @@ flowchart LR
     end
 
     subgraph Registry["Container Registry"]
-        Images["Stored Images\n━━━━━━━━━━━━━━━━━\n• odoo:latest\n• langgraph:latest\n• gpustack:latest"]
+        Images["Stored Images\n━━━━━━━━━━━━━━━━━\n• odoo:latest\n• langgraph:latest\n• NVIDIA Dynamo:latest"]
     end
 
     subgraph GitOps["GitOps (Argo CD)"]
@@ -38,7 +38,7 @@ flowchart LR
     end
 
     subgraph K8s["Kubernetes Cluster (Talos Linux)"]
-        Pods["Running Pods\n━━━━━━━━━━━━━━━━━\n• Odoo Pod\n• LangGraph Pod\n• GPUStack Pod\n• PostgreSQL Pod\n• Valkey Pod"]
+        Pods["Running Pods\n━━━━━━━━━━━━━━━━━\n• Odoo Pod\n• LangGraph Pod\n• NVIDIA Dynamo Pod\n• PostgreSQL Pod\n• Valkey Pod"]
         Networking["Cilium CNI"]
         Storage["Longhorn Storage"]
         LB["MetalLB"]

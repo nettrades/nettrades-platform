@@ -66,18 +66,18 @@ nav:
       - FAQ: developer/faq.md
 
   - 🛠️ For Operators:
-      - Overview: operations/index.md
-      - Quick Start: operations/quick-start.md
-      - System Requirements: operations/system-requirements.md
-      - Single VM Deployment: operations/single-vm-deployment.md
-      - Kubernetes Deployment: operations/kubernetes-deployment.md
-      - GPU Node Deployment: operations/gpu-node-deployment.md
-      - Backup & Restore: operations/backup-and-restore.md
-      - Performance Tuning: operations/performance-tuning.md
-      - Troubleshooting: operations/troubleshooting.md
-      - Troubleshooting Guide: operations/troubleshooting-guide.md
-      - Troubleshooting Quick Reference: operations/troubleshooting-quickref.md
-      - FAQ: operations/faq.md
+      - Overview: developer/index.md
+      - Quick Start: developer/quick-start.md
+      - System Requirements: developer/system-requirements.md
+      - Single VM Deployment: developer/single-vm-deployment.md
+      - Kubernetes Deployment: developer/kubernetes-deployment.md
+      - GPU Node Deployment: developer/gpu-node-deployment.md
+      - Backup & Restore: developer/backup-and-restore.md
+      - Performance Tuning: developer/performance-tuning.md
+      - Troubleshooting: developer/troubleshooting.md
+      - Troubleshooting Guide: developer/troubleshooting-guide.md
+      - Troubleshooting Quick Reference: developer/troubleshooting-quickref.md
+      - FAQ: developer/faq.md
 
   - 📋 Governance:
       - Overview: governance/index.md

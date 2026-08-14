@@ -60,4 +60,4 @@ Watch this 3-minute video to see the platform in action:
 - [Getting Started](getting-started.md) – Choose your path
 - [User Guide](user/index.md) – Full user documentation
 - [Developer Guide](developer/index.md) – Build and extend
-- [Operations Guide](operations/index.md) – Deploy and manage
+

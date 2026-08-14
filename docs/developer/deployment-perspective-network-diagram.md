@@ -25,7 +25,7 @@ flowchart TB
         subgraph Subnet1["Subnet: 10.0.1.0/24 (Services)"]
             Odoo["Odoo Service<br>10.0.1.10:8069"]
             FastAPI["FastAPI Service<br>10.0.1.11:8000"]
-            GPUStack["GPUStack Service<br>10.0.1.12:8080"]
+            NVIDIAdynamo["NVIDIA Dynamo Service<br>10.0.1.12:8080"]
             Valkey["Valkey Service<br>10.0.1.13:6379"]
             PostgreSQL["PostgreSQL Service<br>10.0.1.14:5432"]
         end
@@ -66,9 +66,9 @@ flowchart TB
     Odoo -->|"Internal"| Longhorn
     
     FastAPI -->|"Internal"| PostgreSQL
-    FastAPI -->|"Internal"| GPUStack
+    FastAPI -->|"Internal"| NVIDIAdynamo
     
-    GPUStack -->|"WireGuard VPN (10.0.3.x)"| WGHub
+    NVIDIAdynamo -->|"WireGuard VPN (10.0.3.x)"| WGHub
     WGHub -->|"Encrypted Tunnel"| GPUNode1
     WGHub -->|"Encrypted Tunnel"| GPUNode2
     WGHub -->|"Encrypted Tunnel"| GPUNode3

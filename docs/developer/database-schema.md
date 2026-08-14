@@ -237,8 +237,8 @@ erDiagram
         wireguard_controller_public_key TEXT,
         controller_endpoint VARCHAR(255),
         wireguard_listen_port INTEGER,
-        gpustack_server_url VARCHAR(255),
-        gpustack_api_key VARCHAR(255)
+        NVIDIADynamo_server_url VARCHAR(255),
+        NVIDIADynamo VARCHAR(255)
     );
 ```
 
@@ -255,7 +255,7 @@ erDiagram
         gpus JSONB,
         pool VARCHAR(50),
         container_runtime VARCHAR(50),
-        gpustack_worker_id VARCHAR(255),
+        NVIDIADynamo_worker_id VARCHAR(255),
         status VARCHAR(50),
         last_seen TIMESTAMP,
         uptime_hours FLOAT,

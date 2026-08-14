@@ -210,7 +210,7 @@ record_count	Integer	Number of records
 
 ### ft.training.job – Training Job
 
-Purpose: Tracks fine-tuning jobs submitted to GPUStack.
+Purpose: Tracks fine-tuning jobs submitted to NVIDIA Dynamo.
 
 Fields:
 Field	Type	Description

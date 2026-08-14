@@ -22,7 +22,7 @@ flowchart TB
                 
                 LangGraphPod["LangGraph Pod<br>━━━━━━━━━━━━━━━━<br>• Container: langgraph:latest<br>• Port: 8000<br>• Service: ClusterIP<br>• ConfigMap: langgraph-config"]
                 
-                GPUStackPod["GPUStack Pod<br>━━━━━━━━━━━━━━━━<br>• Container: gpustack:2.1<br>• Port: 8080<br>• Service: ClusterIP<br>• GPU: nvidia.com/gpu: 1<br>• PVC: gpustack-models"]
+                NVIDIADynamoPod["NVIDIA Dynamo Pod<br>━━━━━━━━━━━━━━━━<br>• Container: NVIDIAdynamo:2.1<br>• Port: 8080<br>• Service: ClusterIP<br>• GPU: nvidia.com/gpu: 1<br>• PVC: NVIDIAdynamo-models"]
                 
                 MLPipelinePod["ML Pipeline Pod<br>━━━━━━━━━━━━━━━━<br>• Container: ml-pipeline:latest<br>• GPU: nvidia.com/gpu: 1 (optional)<br>• PVC: ml-datasets<br>• Triggered by CronJob"]
             end
@@ -69,11 +69,11 @@ flowchart TB
     OdooPod -->|"Cache"| ValkeyPod
     OdooPod -->|"Files"| LonghornPod
     
-    LangGraphPod -->|"Checkpoints"| PostgresPod
-    LangGraphPod -->|"Inference"| GPUStackPod
+    NVIDIADynamoPod -->|"Checkpoints"| PostgresPod
+    LangGraphPod -->|"Inference"| NVIDIADynamoPod
     
-    GPUStackPod -->|"GPU Acceleration"| Node2
-    GPUStackPod -->|"GPU Acceleration"| Node3
+    NVIDIADynamoPod -->|"GPU Acceleration"| Node2
+    NVIDIADynamoPod -->|"GPU Acceleration"| Node3
     
     MLPipelinePod -->|"Training"| Node2
     MLPipelinePod -->|"Datasets"| LonghornPod
@@ -82,12 +82,12 @@ flowchart TB
     
     PrometheusPod -->|"Scrapes"| OdooPod
     PrometheusPod -->|"Scrapes"| LangGraphPod
-    PrometheusPod -->|"Scrapes"| GPUStackPod
+    PrometheusPod -->|"Scrapes"| NVIDIADynamoPod
     GrafanaPod -->|"Queries"| PrometheusPod
 
     PostgresPod --> PV1
     LonghornPod --> PV2
-    GPUStackPod --> PV3
+    NVIDIADynamoPod --> PV3
 
     classDef external fill:#e3f2fd,stroke:#1565c0;
     classDef edge fill:#fff3e0,stroke:#e65100;

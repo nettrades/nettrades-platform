@@ -27,7 +27,7 @@ flowchart TB
             
             LangGraphC["langgraph:latest<br>━━━━━━━━━━━━━━━━<br>• Port: 8000<br>• Volumes: ./langgraph-data<br>• Depends: postgres"]
             
-            GPUStackC["gpustack:2.1<br>━━━━━━━━━━━━━━━━<br>• Port: 8080<br>• GPUs: all<br>• Volumes: ./models<br>• Depends: gpu-node-agent"]
+            NVIDIAdynamoC["NVIDIAdynamo:2.1<br>━━━━━━━━━━━━━━━━<br>• Port: 8080<br>• GPUs: all<br>• Volumes: ./models<br>• Depends: gpu-node-agent"]
             
             GPUNodeC["gpu-node-agent:latest<br>━━━━━━━━━━━━━━━━<br>• Privileged: true<br>• GPUs: all<br>• Volumes: /dev, /proc<br>• Network: host"]
             
@@ -65,19 +65,19 @@ flowchart TB
     OdooC -->|"Files"| LonghornC
     
     LangGraphC -->|"Checkpoints"| PostgresC
-    LangGraphC -->|"Inference"| GPUStackC
+    LangGraphC -->|"Inference"| NVIDIAdynamoC
     
-    GPUStackC -->|"Manages"| GPUNodeC
-    GPUNodeC -->|"Uses"| GPU
+    NVIDIAdynamoC -->|"Manages"| GPUNodeC
+    NVIDIAdynamoC -->|"Uses"| GPU
     
     PostgresC --> PostgresVol
     OdooC --> OdooVol
-    GPUStackC --> ModelVol
+    NVIDIAdynamoC --> ModelVol
     LonghornC --> LonghornVol
     
     PrometheusC -->|"Scrapes"| OdooC
     PrometheusC -->|"Scrapes"| LangGraphC
-    PrometheusC -->|"Scrapes"| GPUStackC
+    PrometheusC -->|"Scrapes"| NVIDIAdynamoC
     GrafanaC -->|"Queries"| PrometheusC
 
     classDef vm fill:#eceff1,stroke:#37474f;

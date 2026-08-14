@@ -15,7 +15,7 @@ graph LR
     Button --> API[API Endpoints]
 
     API --> FieldInf[Field Inference LLM]
-    FieldInf --> LLM[LangGraph / GPUStack]
+    FieldInf --> LLM[LangGraph / NVIDIA Dynamo]
 
     FieldInf --> Matching[Matching Algorithm]
 

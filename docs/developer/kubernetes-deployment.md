@@ -34,7 +34,7 @@ graph TB
         PG["PostgreSQL HA<br>(CloudNativePG)"]
         Valkey["Valkey Cluster"]
         LangGraph["LangGraph Agent"]
-        GPUStack["GPUStack Server"]
+        NVIDIAdynamo["NVIDIA Dynamo Server"]
         vLLM["vLLM (GPU)"]
         Forgejo["Forgejo Git"]
         Grafana["Grafana"]
@@ -42,10 +42,10 @@ graph TB
     end
 
     Users --> Traefik
-    Traefik --> Odoo & Grafana & LangGraph & GPUStack & Forgejo & ArgoCD
+    Traefik --> Odoo & Grafana & LangGraph & NVIDIA Dynamo & Forgejo & ArgoCD
     Odoo --> PG & Valkey
-    LangGraph --> GPUStack & vLLM
-    GPUStack --> vLLM
+    LangGraph --> NVIDIAdynamo & vLLM
+    NVIDIAdynamo --> vLLM
     CP1 & CP2 & CP3 --> TalosCluster
     W1 & W2 & W3 --> TalosCluster
     Longhorn --> PG & Valkey & Odoo

@@ -12,7 +12,7 @@ The NETTRADES.AI platform exposes several APIs:
 |-----|---------|----------|
 | **LangGraph `/invoke`** | AI inference | HTTP (REST) |
 | **Odoo JSON-RPC** | Business data operations | HTTP (JSON-RPC) |
-| **GPUStack API** | GPU management and inference | HTTP (REST) |
+| **NVIDIA Dynamo API** | GPU management and inference | HTTP (REST) |
 | **WebSocket Bus** | Real-time notifications | WebSocket |
 | **GPU Node Registration** | GPU node onboarding | HTTP (REST) |
 

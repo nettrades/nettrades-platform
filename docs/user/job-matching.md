@@ -26,13 +26,13 @@ sequenceDiagram
     participant User
     participant Forgejo as Forgejo Git
     participant LangGraph as LangGraph Agent
-    participant GPUStack as GPUStack LLM
+    participant NVIDIAdynamo as NVIDIAdynamo LLM
     participant Odoo as Odoo CRM/ERP
     participant PG as PostgreSQL + pgvector
 
-    User->>LangGraph: Submits CV via web form
-    LangGraph->>GPUStack: Sends CV + Job Desc for analysis
-    GPUStack-->>LangGraph: Returns match score + reasoning
+    User->>NVIDIAdynamo: Submits CV via web form
+    LangGraph->>NVIDIAdynamo: Sends CV + Job Desc for analysis
+    NVIDIAdynamo-->>LangGraph: Returns match score + reasoning
     LangGraph->>PG: Stores/Queries embeddings via pgvector
     LangGraph->>Odoo: Creates CRM lead for top matches
     Odoo-->>LangGraph: Confirms update

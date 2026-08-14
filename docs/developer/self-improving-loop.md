@@ -38,7 +38,7 @@ graph TB
     end
 
     subgraph Execute["Execute Phase"]
-        Model --> Deploy["GPUStack Deployment"]
+        Model --> Deploy["NVIDIA dynamo Deployment"]
         Deploy --> A["LangGraph Agents"]
         Deploy --> B["Odoo Assistants"]
         Deploy --> C["ROS 2 / Robotics"]

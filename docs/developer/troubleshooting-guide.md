@@ -43,7 +43,7 @@ graph TD
     F2 --> F3["Check API endpoint"]
     F3 --> F4{"Request succeeds?"}
     F4 -->|Yes| F5["Check tokens balance"]
-    F4 -->|No| F6["Check GPUStack logs"]
+    F4 -->|No| F6["Check NVIDIA dynamo logs"]
 
     G --> G1["Check PostgreSQL running"]
     G1 --> G2["Check pgvector installed"]

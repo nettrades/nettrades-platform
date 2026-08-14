@@ -33,7 +33,7 @@ This page tracks notable changes to the NETTRADES.AI platform. All releases are 
 - **Moved sub-agents** from `src/agent/` to `src/core/agents/` (improved clarity).
 - **Replaced N8N** with direct LangGraph calls.
 - **Replaced Redis** with Valkey.
-- **Replaced Kalavai** with GPUStack.
+- **Replaced Kalavai** with NVIDIA dynamo.
 - **`nettrades_core` module** – Updated dependencies to include `project`
 - **Documentation** – Added core models reference page
 
@@ -45,7 +45,7 @@ This page tracks notable changes to the NETTRADES.AI platform. All releases are 
 
 - **LangGraph Supervisor** – Intent classification and routing.
 - **Sub-Agents** – Recruitment, Freelance, Lead Gen, GPU Management.
-- **Distributed GPU Agent** – WireGuard, GPUStack integration, registration.
+- **Distributed GPU Agent** – WireGuard, NVIDIA dynamo integration, registration.
 - **Odoo 19 CE** – Core ERP and marketplace.
 - **"Ask Someone"** – Expert help marketplace with Stripe escrow.
 - **"Good Answer"** – Voting and reputation system.
