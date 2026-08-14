@@ -661,6 +661,49 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 * Import sample data (optional) – see docs/operations/import-demo-data.md
 
 
+#### Making A Release
+
+Before making a release: Run
+
+```bash
+cd /mnt/c/nettrades-platform
+pip install pip-tools
+pip-compile requirements.in -o requirements-lock.txt
+pip-compile requirements-dev.in -o requirements-dev-lock.txt
+```
+
+and commit the lock file so that it uses specific versions of dependencies and the application is consistent. Or else as new versions of dependencies are released it will try to use those. 
+
+If you want to generate hashes for security (recommended), add --generate-hashes:
+
+```bash
+pip-compile requirements.in -o requirements-lock.txt --generate-hashes
+pip-compile requirements-dev.in -o requirements-dev-lock.txt –generate-hashes
+```
+
+
+#### Building the Installer/Launcher
+
+You could build an installer/launcher for different environments
+
+To build an installer/launcher for Windows in WSL run
+
+```bash
+cd /mnt/c/nettrades-platform
+rm -f .phase-*-complete
+chmod +x scripts/*.sh
+chmod +x scripts/lib/*.sh
+chmod +x installer/*.js
+chmod +x scripts/nettrades-setup.sh
+cd installer
+npm install
+# npm run build:all   # or build:win / build:mac / build:linux
+npm run build:win   # on Windows with WSL
+# npm run build:mac   # on MAC for MAC
+# npm run build:linux # on Linux for Linux
+npm start
+```
+
 #### ❓ Troubleshooting
 
 
