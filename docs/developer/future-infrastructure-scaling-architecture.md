@@ -373,5 +373,5 @@ spec:
 
 ```
 
-##] NVIDIA Dynamo also handles scaling
+## NVIDIA Dynamo also handles scaling
 
