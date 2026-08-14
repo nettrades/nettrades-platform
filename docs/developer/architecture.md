@@ -13,6 +13,7 @@ graph TB
         PWA["Mobile PWA"]
         ChatWidget["AI Chatbot Widget"]
         VSCode["VS Code Extension"]
+        Launcher["NETTRADES Launcher (Electron)"]
     end
 
     subgraph Integration["Integration & Orchestration Layer"]
@@ -24,10 +25,11 @@ graph TB
 
     subgraph AI["AI Inference & Training Layer"]
         Router["Provider Router Logic"]
-        NVIDIADynamo["NVIDIA Dynamo Server(s)"]
-        Workers["NVIDIA Dynamo Workers (vLLM, llama.cpp)"]
-        FineTune["Fine-Tuning Jobs (Axolotl/Unsloth)"]
-        External["External LLM APIs"]
+        Dynamo["NVIDIA Dynamo Server(s)"]
+        vLLM["vLLM Workers (GPU)"]
+        llama_cpp["llama.cpp (CPU Fallback)"]
+        FineTune["Fine-Tuning Jobs (Unsloth/Axolotl)"]
+        External["External LLM APIs (OpenAI, Anthropic)"]
     end
 
     subgraph Core["Core Odoo 19 CE Layer"]
@@ -38,14 +40,14 @@ graph TB
     end
 
     subgraph Data["Data Layer"]
-        PG["PostgreSQL 18 + pgvector"]
+        PG["PostgreSQL 17 + pgvector"]
         Valkey["Valkey 8"]
         S3["MinIO / S3 (Models & Backups)"]
     end
 
     subgraph Security["Security & Network Layer"]
         WG["WireGuard Mesh/Hub-Spoke"]
-        gVisor["gVisor Container Runtime"]
+        gVisor["gVisor Container Runtime (CPU Services)"]
         TEE["TEE / Confidential Computing"]
     end
 
@@ -53,7 +55,8 @@ graph TB
     Frontend -->|Direct API Call| Integration
     Integration --> MCP --> Core
     Integration --> Router --> AI
-    AI --> NVIDIADynamo --> Workers
+    AI --> Dynamo --> vLLM
+    AI --> llama_cpp
     AI --> FineTune
     AI --> External
     Core --> Data
@@ -148,72 +151,135 @@ graph TB
         Response["AI Response"] --> Judge["LLM-as-Judge"]
         Judge --> Rationality["Rationality Score"]
         Judge --> Bias["Bias Score"]
+        Rationality --> Threshold{"Threshold Check"}
+        Bias --> Threshold
     end
 
-    subgraph Thresholds["Threshold Check"]
-        Rationality --> RCheck{"Score >= 7?"}
-        Bias --> BCheck{"Score <= 3?"}
-        RCheck -->|No| Flag["Flag for Review"]
-        BCheck -->|No| Flag
-        RCheck -->|Yes| Pass["Pass"]
-        BCheck -->|Yes| Pass
+    subgraph Action["Action Phase"]
+        Threshold -->|Pass| Approve["Approve Response"]
+        Threshold -->|Fail| Reject["Reject/Fallback Response"]
+        Approve --> Log["Log to Database"]
+        Reject --> Log
+        Log --> Report["Generate Reports"]
     end
 
-    subgraph Actions["Automated Actions"]
-        Pass --> Training["Include in Training"]
-        Flag --> Review["Human Review"]
-        Review -->|Accepted| Training
-        Review -->|Rejected| Discard["Discard"]
+    subgraph Feedback["Feedback Loop"]
+        Log --> Analytics["Analytics"]
+        Analytics --> ModelUpdate["Update Thresholds"]
+        ModelUpdate --> Judge
     end
-
-    Training --> FT["Fine-Tuning Pipeline"]
 
 ```
 
+
+## Inference Architecture
+
+
+The platform uses a layered inference architecture with automatic fallback:
+
+| Priority | Backend | Description |
+|---------|-------------|---------|
+| 1 | 	**NVIDIA Dynamo with vLLM** | Production-grade distributed inference, GPU-accelerated |
+| 2 | 	**NVIDIA Dynamo (CPU mode)** | Runs on CPU when GPU unavailable |
+| 3 | 	**llama.cpp** | Zero-dependency CPU fallback, runs on port 8080 |
+
+
+## Technology Stack
+
+		
+| Component | Version | Purpose |
+|---------|-------------|---------|
+| **Odoo** | 19.0 CE | ERP, marketplace, CRM, HR, Projects, Accounting |
+| **PostgreSQL + pgvector** | 17 | Business data, vector embeddings, LangGraph checkpoints |
+| **Valkey** | 8 | Session storage, ORM cache, bus notifications |
+| **LangGraph** | >=1.2.0 | Multi-agent orchestration, durable execution |
+| **NVIDIA Dynamo** | 1.2.1 | Distributed inference engine with vLLM and llama.cpp |
+| **vLLM** | Latest | GPU-accelerated inference |
+| **llama.cpp** | Latest | CPU inference fallback |
+| **Traefik** | v3.6.13 | Reverse proxy with Let's Encrypt SSL |
+| **WireGuard** | kernel | VPN mesh for secure node-to-node communication |
+| **gVisor** | Latest | Container isolation for CPU services |
+| **Prometheus** | Latest | Metrics collection and monitoring |
+| **Grafana** | Latest | Visualisation and dashboards |
+| **mDNS/Avahi** | Latest | Automatic node discovery on local networks |
+
+
+## Security Architecture
+
+
+| Layer | Technology | Purpose |
+|---------|-------------|---------|
+| **Launcher Security** | contextIsolation, preload.js | Secure IPC, auto-update with verification |
+| **Network Security** | WireGuard, Traefik (Let's Encrypt), mDNS | VPN mesh, SSL, trusted network discovery |
+| **Container Security** | gVisor (CPU services), no-new-privileges, seccomp | Strong isolation, reduced attack surface |
+| **Application Security** | Odoo RBAC, API keys, audit logging | Access control, authentication, compliance |
+
+
 ## Component Descriptions
+
+
 ### 1. LangGraph Supervisor (src/core/supervisor.py)
 
+
 The supervisor is the central orchestrator that classifies user intents and routes them to the correct sub-agent.
+
 
 #### Key Functions:
 
 
-| Function | Purpose | Status |
-|----------|---------|--------|
-| `build_supervisor()` | 	Constructs the complete LangGraph workflow |	? Complete |
-| `classify()` | 	Classifies user intent (recruitment, freelance, lead_gen, gpu_management, medical, legal, action, vision, general) |	? Complete |
-| `medical_screening()` | 	Conducts multi-round screening for medical/legal questions |	?? Needs Fix: No conditional edge to loop back |
-| `route()` | 	Dispatches to the appropriate sub-agent |	? Complete |
+| Function | Purpose |
+|----------|---------|
+| `build_supervisor()` | 	Constructs the complete LangGraph workflow |
+| `classify()` | 	Classifies user intent (recruitment, freelance, lead_gen, gpu_management, medical, legal, action, vision, general) |
+| `medical_screening()` | 	Conducts multi-round screening for medical/legal questions |
+| `route()` | 	Dispatches to the appropriate sub-agent |
+
 
 ### 2. FastAPI Application (src/core/app.py)
 
+
 The FastAPI application is the main entry point for the LangGraph service.
+
 
 #### Endpoints:
 
 
 | Endpoint | Method | Purpose | Authentication |
 |----------|---------|--------|--------|
-| `/health` | 	GET |	Liveness/readiness probe | None |
-| `/metrics` | 	GET |	Prometheus metrics | None |
-| `/invoke` | 	POST |	Main inference endpoint	| API Key (header) |
+| `/health` | 	GET |	liveness probe for container orchestration | None |
+| `/metrics` | 	GET |	Prometheus metrics endpoint | None |
+| `/invoke` | 	POST |	Main inference endpoint	| API Key (header) (authenticated)|
+| `/assistants` |  |		list available assistants (for agent-chat-ui) |	 |
+| `/threads` | 	 |	create a new conversation thread (for agent-chat-ui) |	 |
+| `/threads/{thread_id}/state` |  |		get thread state (for agent-chat-ui) |	 |
+| `/threads/{thread_id}/runs` |  |		run a thread (for agent-chat-ui) |	 |
+| `/runs   ` | 	 |	create a new run and return assistant response |	 |
+
+
 
 ### 3. Sub-Agents (src/core/agents/)
 
 The sub-agents are LangGraph sub-graphs that handle specific business domains.
 
-| Agent | Status | Location |
-|----------|---------|--------|
-| Recruitment Agent | ?? PLACEHOLDER | `src/agent/recruitment_agent.py` (real code) |
-| Freelance Agent | ?? PLACEHOLDER | `src/agent/freelance_agent.py` (real code) |
-| Lead Gen Agent | ?? PLACEHOLDER | `src/agent/lead_gen_agent.py` (real code) |
-| GPU Management Agent | ?? PLACEHOLDER| `src/agent/gpu_management_agent.py` (real code) |
-| Vision Agent | ?? PLACEHOLDER	| Not implemented |
-| Action Agent | ?? PLACEHOLDER	| Not implemented |
+| Agent | Location |
+|----------|--------|
+| Action Agent |  `src/core/agents/action_agent.py` |
+| Ask Someone Agent |  `src/core/agents/ask_someone_agent.py` |
+| Freelance Agent | `src/agent/freelance_agent.py` |
+| Good Answer Agent |  `src/core/agents/good_answer_agent.py` |
+| GPU Management Agent | `src/core/agents/gpu_management_agent.py` |
+| GPU Marketplace Agent | `src/core/agents/gpu_marketplace_agent.py` |
+| Inference Tools Agent |  `src/core/agents/inference_tools.py` |
+| Lead Gen Agent | `src/agent/lead_gen_agent.py` |
+| Recruitment Agent | `src/agent/recruitment_agent.py` |
+| Vision Agent |  `src/core/agents/` |
 
-### 4. Distributed GPU Agent (src/agent/agent.py)
+
+### 4. Distributed GPU Agent (src/agent/gpu_agent.py)
+
 
 The GPU agent runs on every GPU node in the cluster.
+
 
 #### Responsibilities:
 
@@ -237,9 +303,12 @@ The GPU agent runs on every GPU node in the cluster.
 
 * Periodically refresh NVIDIA Dynamo token
 
+
 ### 5. Fairness Module (odoo-modules/nettrades_fairness/)
 
+
 The fairness module provides comprehensive bias detection and rationality evaluation.
+
 
 #### Key Components:
 
@@ -250,6 +319,7 @@ The fairness module provides comprehensive bias detection and rationality evalua
 | `nettrades.fairness.audit` | Audit log for all evaluations |
 | `nettrades.fairness.flag` | Human review workflow for flagged responses |
 | `nettrades.fairness.metrics` | Fairness metrics calculator |
+
 
 ##### Configuration:
 		
@@ -263,6 +333,7 @@ The fairness module provides comprehensive bias detection and rationality evalua
 | `rationality_threshold` | 7.0 | Minimum rationality score |
 | `bias_threshold` | 3.0 | Maximum bias score |
 | `evaluation_model` | gpt-4o-mini | LLM judge model |
+
 
 #### Technology Stack
 			
@@ -280,7 +351,9 @@ The fairness module provides comprehensive bias detection and rationality evalua
 | `WireGuard` | kernel module | GPL-2.0 | Kernel-level network isolation |
 | `gVisor` | release-20260420.0 | Apache-2.0 | 	Syscall-level container isolation |
 
+
 ### Next Steps
+
 
 [Building LangGraph Agents](building-agents.md)
 
@@ -289,3 +362,13 @@ The fairness module provides comprehensive bias detection and rationality evalua
 [API Reference](api-reference.md)
 
 [Roadmap](roadmap.md)
+
+[NVIDIA Dynamo Integration](nvidia-dynamo-integration.md) – Dynamo integration guide
+
+[Bridge Architecture](bridge-architecture.md) – Understanding the bridge
+
+[Building Agents](building-agents.md) – Create custom LangGraph agents
+
+[API Reference](api-reference.md) – API documentation
+
+[Troubleshooting](troubleshooting.md) – Common issues and solutions
