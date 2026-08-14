@@ -379,11 +379,8 @@ The platform includes built-in monitoring:
 5. Update regularly – Run docker compose pull or kubectl apply for updates.
 
 ### Troubleshooting
-[Troubleshooting Quick Reference](troubleshooting-quickref.md) – One-page cheat sheet
+[Troubleshooting](troubleshooting.md)
 
-[Troubleshooting Decision Tree](troubleshooting-guide.md) – Visual step-by-step guide
-
-[Full Troubleshooting Guide](troubleshooting.md) – Detailed error list and solutions
 
 ### FAQ
 [Operations FAQ](faq.md) – Frequently asked questions for operators
