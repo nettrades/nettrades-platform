@@ -100,7 +100,7 @@ Organisations can decide to keep everything local or decide which types of reque
 │ └────────────┘ └──────────┘ └──────────┘ └────────────┘ └─────────┘│
 │                                                                    │
 │ ┌──────────┐ ┌───────────┐ ┌─────────┐ ┌────────────┐ ┌───────────┐│
-│ │ 🎯 TRAIN │ │ 🤖 AGENTS │ │ 📋 QUEUE │ │ 📈 MONITOR │ │ ⚙️ SETUP  ││
+│ │🎯 TRAIN │ │ 🤖 AGENTS │ │ 📋 QUEUE │ │ 📈 MONITOR │ │ ⚙️ SETUP  ││
 │ │Fine-Tune │ │ Manage    │ │ Tasks   │ │ Health     │ │ Deploy    ││
 │ └──────────┘ └───────────┘ └─────────┘ └────────────┘ └───────────┘│
 │                                                                    │
@@ -123,7 +123,7 @@ Organisations can decide to keep everything local or decide which types of reque
 │ └────────┘ └──────────┘ └────────────┘ └────────────┘ └──────────┘ │
 │                                                                    │
 └────────────────────────────────────────────────────────────────────┘
-```v
+```
 
 
 ---
