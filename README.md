@@ -117,42 +117,42 @@ to get a new keys and reconnect
 
 ### The Problem
 
-**Data sovereignty is the number 1 barrier to enterprise AI adoption.**
+**Data sovereignty is the primary barrier to enterprise AI adoption.**
 
-- **Decision-makers** are concerned about data laws **(US CLOUD Act, FISA 702 and the China's National Intelligence Law that give them powers over data held by cloud providers)**
+- **Decision-makers** are increasingly concerned about complex international regulations that grant external authorities expansive powers over sensitive data held by foreign cloud providers.**
 
 - **52.6% of AI decision-makers** cite data sovereignty and security as a top adoption barrier
 
 - **50% of enterprises** now view sovereign AI infrastructure as a major competitive differentiator
 
-**Don't wait, try it now.**
+**Get started immediately with local deployment.**
 
 
 
 | Challenge| Reality |
 |---------|-------------|
-| **Data Privacy** | Sending internal data to external AI companies exposes company secrets, customer data, and intellectual property. |
-| **US CLOUD Act jurisdiction** | US CLOUD Act, FISA 702 and the China's National Intelligence Law gives them powers over your data |
+| **Data Privacy** | Transmitting internal data to public AI endpoints risks exposing corporate secrets, consumer data, and core intellectual property. |
+| **Extraterritorial Jurisdiction** | Reliance on foreign-hosted cloud infrastructure leaves sensitive institutional data subject to external regulatory retrieval. |
 | **GPU Waste** | Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
-| **Vendor Lock-in** | Public AI APIs change pricing, terms, and availability without notice. |
-| **Compliance Risk** | GDPR, HIPAA, and sovereign cloud mandates require data residency. |
+| **Vendor Lock-in** | Third-party AI service providers frequently modify operational pricing, usage limits, and model availability without notice. |
+| **Compliance Risk** | Strict regional regulatory mandates like GDPR, HIPAA require absolute local data residency and verifiable cryptographic boundaries. |
 
 
 ## The Solution
 
-**The NETTRADES Sovereign Platform deploys a complete, enterprise-grade AI platform behind your firewall in minutes, not months — free from cloud dependency, vendor lock-in, per-token costs and the legal exposure to the US CLOUD Act and China's National Intelligence Law.**
+**The NETTRADES Sovereign Platform deploys a complete, enterprise-grade AI engine entirely behind your corporate firewall in minutes, not months. It delivers local computational autonomy free from external cloud dependencies, unpredictable per-token pricing structures and structural legal exposure to foreign data-access legislation.**
 
 
 ## Why Enterprises Choose NETTRADES
 
 | Benefit | What It Means for You |
 |---------|----------------------|
-| **Data Sovereignty** | Your data never leaves your network. No CLOUD Act exposure. |
+| **Data Sovereignty** | Your data never leaves your network. |
 | **Complete Control** | You own the infrastructure, the data, and the AI models. |
 | **No Vendor Lock-in** | Fully open-source. You can take the platform and run it independently. |
 | **Cost Predictability** | Flat licensing fee. No per-token charges. No cloud egress fees. |
 | **Enterprise Security** | WireGuard VPN, RBAC, audit logging, SSH hardening, fail2ban. |
-| **14-Year Track Record** | Founded 2012. Enterprise clients include Salesforce, AXA, Standard Bank, NHS, Capita etc. |
+| **14-Year Track Record** | Founded 2012. Enterprise clients include AXA, Standard Bank, NHS, Capita etc. |
 
 ## 🎯 Operational Modes
 
