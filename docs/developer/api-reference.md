@@ -27,7 +27,7 @@ This document provides comprehensive API reference for the NETTRADES.AI platform
 }
 ```
 
-#### Response
+### Response
 
 ```json
 
@@ -43,7 +43,7 @@ This document provides comprehensive API reference for the NETTRADES.AI platform
 }
 ```
 
-#### Error Response
+### Error Response
 
 ```json
 
@@ -60,23 +60,24 @@ This document provides comprehensive API reference for the NETTRADES.AI platform
 
 ### GPU Management
 
-
-Endpoint	Method	Description
-/api/v1/gpu/nodes	GET	List all GPU nodes
-/api/v1/gpu/register	POST	Register a new GPU node
-/api/v1/gpu/bookings	GET	List GPU bookings
-/api/v1/gpu/book	POST	Book a GPU
+| Endpoint | Method | Description |
+|--------|-------------|-----------|
+| `/api/v1/gpu/nodes` | GET | List all GPU nodes |
+| `/api/v1/gpu/register` | POST | Register a new GPU node |
+| `/api/v1/gpu/bookings` | GET | List GPU bookings |
+| `/api/v1/gpu/book` | POST | Book a GPU |
 
 
 ### Bridge Routing
 
 
-Endpoint	Method	Description
-/api/bridge/route/decide	POST	Get a route decision
-/api/bridge/config	GET	Get effective configuration
-/api/bridge/usage	GET	Get usage logs
-/api/bridge/discovery/peers	GET	Get discovered peers
-/api/bridge/discovery/status	GET	Get discovery service status
+| Endpoint | Method | Description |
+|--------|-------------|-----------|
+| `/api/bridge/route/decide` | POST | Get a route decision |
+| `/api/bridge/config` | GET | Get effective configuration |
+| `/api/bridge/usage` | GET | Get usage logs |
+| `/api/bridge/discovery/peers` | GET | Get discovered peers |
+| `/api/bridge/discovery/status` | GET | Get discovery service status |
 
 ## NVIDIA Dynamo API
 

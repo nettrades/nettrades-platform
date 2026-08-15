@@ -18,17 +18,18 @@ The NETTRADES.AI platform exposes several APIs:
 
 ### Endpoint
 
-```
-
+```text
 POST /invoke
+
 ```
 
 
 ### Authentication
 
+```text
 X-API-Key: <LANGGRAPH_API_KEY>
-text
 
+```
 
 ### Request Body
 
@@ -48,7 +49,7 @@ text
 }
 ```
 
-Example: Recruitment Query
+### Example: Recruitment Query
 
 ```bash
 
@@ -69,7 +70,7 @@ curl -X POST http://localhost:8000/invoke \
 }'
 ```
 
-Example: Medical Screening
+### Example: Medical Screening
 
 ```bash
 
@@ -93,18 +94,19 @@ curl -X POST http://localhost:8000/invoke \
 
 ## 2. NVIDIA Dynamo API (OpenAI-Compatible)
 
-Endpoint
+### Endpoint
 
-text
-
+```text
 http://dynamo:8000/v1/chat/completions
+```
 
-Authentication
-text
+### Authentication
 
+```text
 Authorization: Bearer <DYNAMO_API_KEY>
+```
 
-Example: Chat Completion
+### Example: Chat Completion
 
 ```bash
 
