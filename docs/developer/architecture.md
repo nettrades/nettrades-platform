@@ -95,6 +95,50 @@ graph TB
 
 ```
 
+
+## Routing Decision Engine
+
+The bridge module (`nettrades_bridge`) provides a configurable routing engine:
+
+```mermaid
+
+graph TD
+    Request["Incoming Request"] --> GetRoute["get_route_for_request()"]
+    
+    GetRoute --> CheckMode["Check Routing Mode"]
+    
+    CheckMode -->|local_only| Local["Route to Local"]
+    CheckMode -->|remote_only| Remote["Route to Remote"]
+    CheckMode -->|hybrid| Hybrid["Try Local, Fallback Remote"]
+    CheckMode -->|hybrid_remote_first| HybridRemote["Try Remote, Fallback Local"]
+    CheckMode -->|auto| Auto["AI Agent Decides"]
+    
+    Local --> DynamoCheck["Is Dynamo Healthy?"]
+    DynamoCheck -->|Yes| DynamoLB["Dynamo Load Balancing"]
+    DynamoCheck -->|No| Llama["llama.cpp (CPU)"]
+    
+    DynamoLB --> RoundRobin["Round Robin"]
+    DynamoLB --> Weighted["Weighted"]
+    DynamoLB --> Random["Random"]
+    DynamoLB --> Priority["Priority"]
+    
+    Remote --> Marketplace["GPU Marketplace"]
+    Remote --> External["External API (OpenAI/Anthropic)"]
+    
+    Hybrid --> LocalCheck["Is Local Available?"]
+    LocalCheck -->|Yes| Local
+    LocalCheck -->|No| Remote
+    
+    HybridRemote --> RemoteCheck["Is Remote Available?"]
+    RemoteCheck -->|Yes| Remote
+    RemoteCheck -->|No| Local
+    
+    Auto --> AgentDecision["LangGraph Agent Decides"]
+    AgentDecision --> Local
+    AgentDecision --> Remote
+
+```
+
 ## Self-Improving Loop (MAPE)
 
 ```mermaid
@@ -175,6 +219,22 @@ graph TB
 
 ```
 
+## Good Answer -> Fine-Tuning Loop
+
+```mermaid
+graph LR
+    Vote[(good_answer_vote)] --> Collector[Data Collector cron]
+    Collector --> Exporter[Exporter to JSONL]
+    Exporter --> Launcher[Direct LangGraph call]
+    Launcher --> TrainingJob[Dynamo Training Job]
+    TrainingJob --> Unsloth[Unsloth single GPU]
+    TrainingJob --> Axolotl[Axolotl FSDP2 multi-GPU]
+    Unsloth --> FineTuned[Fine-tuned model]
+    Axolotl --> FineTuned
+    FineTuned --> ProviderModel[llm.provider in Odoo]
+    ProviderModel --> Field[(nettrades.field)]
+
+```
 
 ## Inference Architecture
 
@@ -185,8 +245,44 @@ The platform uses a layered inference architecture with automatic fallback:
 |---------|-------------|---------|
 | 1 | 	**NVIDIA Dynamo with vLLM** | Production-grade distributed inference, GPU-accelerated |
 | 2 | 	**NVIDIA Dynamo (CPU mode)** | Runs on CPU when GPU unavailable |
-| 3 | 	**llama.cpp** | Zero-dependency CPU fallback, runs on port 8080 |
+| 3 | 	**NVIDIA Dynamo with llama.cpp** | Production-grade distributed inference, CPU-accelerated |
+| 4 | 	**llama.cpp** | Zero-dependency CPU fallback, runs on port 8080 |
 
+
+## Security Architecture
+
+```mermaid
+
+graph TB
+    subgraph Layer1["Layer 1: Launcher Security"]
+        L1A["contextIsolation enabled"]
+        L1B["preload.js exposes safe APIs"]
+        L1C["Auto-update with signature verification"]
+    end
+    
+    subgraph Layer2["Layer 2: Network Security"]
+        L2A["WireGuard VPN Mesh/Hub-Spoke"]
+        L2B["Traefik with Let's Encrypt SSL"]
+        L2C["mDNS only within trusted network"]
+        L2D["STUN/TURN for NAT traversal (optional)"]
+    end
+    
+    subgraph Layer3["Layer 3: Container Security"]
+        L3A["gVisor runtime for strong isolation"]
+        L3B["no-new-privileges:true on all containers"]
+        L3C["seccomp profiles"]
+    end
+    
+    subgraph Layer4["Layer 4: Application Security"]
+        L4A["Odoo RBAC (roles, groups, permissions)"]
+        L4B["API key authentication"]
+        L4C["Audit logging"]
+        L4D["Rate limiting"]
+    end
+    
+    Layer1 --> Layer2 --> Layer3 --> Layer4
+    
+```
 
 ## Technology Stack
 

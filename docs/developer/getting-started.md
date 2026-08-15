@@ -189,6 +189,37 @@ After deployment, access the platform at:
 | Dynamo API | http://localhost:8001 | NVIDIA Dynamo inference | |
 
 
+### First Steps
+
+#### 1. Open the Launcher
+
+Navigate to `http://localhost:3002` in your browser.
+
+OR
+
+Navigate to `http://your-server-ip:3002` in your browser.
+
+OR
+
+Navigate to `http://your domain name:3002` in your browser.
+
+#### 2. Download a Model
+
+Click **Models -> Download Model** -> Select a model (e.g., DeepSeek 1.5B) -> Click **Download**
+
+#### 3. Start Chatting
+
+Click **Chat** -> Type a message -> Press Enter
+
+#### 4. Manage GPUs
+
+Click **GPUs -> Scan** to detect available GPUs -> **Register GPU** to add to the marketplace
+
+#### 5. Add a VPN Peer
+
+Click **Network -> Add Peer** -> Enter a name -> Click **Add Peer** -> Get a QR code for mobile
+
+
 ### Test Endpoints
 
 ```bash
