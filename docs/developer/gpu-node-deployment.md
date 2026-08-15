@@ -1,285 +1,254 @@
 
+---
+
+### File 2: `docs/developer/gpu-node-deployment.md`
+
+```markdown
 # GPU Node Deployment
 
-This guide covers deploying GPU nodes to the distributed GPU network on both Linux and Windows.
+This guide explains how to add GPU nodes to the NETTRADES.AI platform. The GPU node runs a lightweight Python agent that automatically discovers GPUs, registers with the central Odoo controller, and establishes a secure WireGuard VPN tunnel for communication.
 
----
+> **Important**: The GPU Agent is a standalone Python script (`src/agent/gpu_agent.py`). It does **not** run inside Kubernetes or require NVIDIA Dynamo to be installed on the node itself. Dynamo inference jobs are dispatched by the hub and run on top of this infrastructure.
 
 ## Overview
 
-GPU nodes are machines with one or more NVIDIA GPUs that participate in the distributed inference and fine-tuning network. The GPU node agent:
+The GPU Node Agent performs the following functions:
+1. **Auto-Discovery**: Detects installed NVIDIA GPUs via `nvidia-smi`.
+2. **Registration**: Sends GPU metadata (model, VRAM, compute capability) to the Odoo controller.
+3. **VPN Setup**: Generates WireGuard key pairs and applies the VPN configuration returned by the Odoo controller.
+4. **Heartbeat**: Periodically reports GPU utilisation and node health to the Odoo controller.
 
-1. Detects available GPUs
-2. Generates a hardware-bound node ID
-3. Registers with the Odoo server
-4. Sets up WireGuard encryption
-5. Starts the NVIDIA Dynamo worker
-6. Maintains a heartbeat and DNS watchdog
-
----
-
-## Architecture Diagram
+## Node Architecture
 
 ```mermaid
 graph TB
-    subgraph GPUNode["GPU Node"]
-        Agent["NETTRADES GPU Agent"]
-        WireGuard["WireGuard Tunnel"]
-        NVIDIAdynamo["NVIDIA Dynamo Worker"]
+    subgraph Hub["NETTRADES Hub (Odoo Controller)"]
+        OdooAPI["Odoo REST API (/api/gpu/register, /api/gpu/heartbeat)"]
+        WireGuardServer["WireGuard Server (Managed by Odoo)"]
+    end
+
+    subgraph Node["GPU Node (Ubuntu 24.04)"]
+        Agent["GPU Agent (gpu_agent.py)"]
+        WireGuardClient["WireGuard Client (wg0)"]
         GPU["NVIDIA GPU(s)"]
     end
 
-    subgraph Central["NETTRADES Central"]
-        Odoo["Odoo Server"]
-        Controller["WireGuard Controller"]
-        NVIDIAdynamoServer["NVIDIA Dynamo Server"]
-    end
+    Agent -->|"1. POST /register (GPU specs + PubKey)"| OdooAPI
+    OdooAPI -->|"2. Returns WireGuard Config"| Agent
+    Agent -->|"3. Writes /etc/wireguard/wg0.conf"| WireGuardClient
+    WireGuardClient <-->|"4. VPN Tunnel (UDP 51820)"| WireGuardServer
+    Agent -->|"5. GET /heartbeat (GPU util, uptime)"| OdooAPI
+    Agent --> GPU
 
-    Agent --> Odoo
-    Agent --> WireGuard
-    WireGuard --> Controller
-    Agent --> NVIDIAdynamo
-    NVIDIAdynamo --> NVIDIAdynamoServer
-    NVIDIAdynamo --> GPU
 ```
 
-To enable the distributed GPU peer setup for Phase 4, you need to create the wireguard-config.yaml file. This file defines a ConfigMap that Kubernetes uses to configure WireGuard on your GPU worker nodes, establishing a secure, encrypted overlay network for inter-node communication.
+## Prerequisites
 
-Here is a comprehensive guide and a complete, functional example you can use.
+	
+| Requirement | Details |
+|---------|-------------|
+| **OS**| 	Ubuntu 22.04 or 24.04 LTS |
+| **GPU**| 	NVIDIA GPU (Compute Capability 6.0+) |
+| **NVIDIA Drivers**| 	Version 550+ (with CUDA 12.4+ support) |
+| **Python**| 	Python 3.10+ |
+| **WireGuard**| 	Installed and available in $PATH |
+| **Network**| 	Outbound HTTPS access to the Odoo controller; UDP port 51820 for WireGuard |
 
-### 1. The Purpose of wireguard-config.yaml
+## Step-by-Step Deployment
 
-In a Kubernetes environment, this YAML file creates a ConfigMap containing the wg0.conf file. This configuration is then mounted into a WireGuard DaemonSet or pod, which applies it to set up the VPN tunnel on each node. For a GPU cluster, this ensures that all worker nodes can communicate securely, which is critical for distributed GPU workloads orchestrated by tools like NVIDIA Dynamo.
+### Step 1: Install System Dependencies
 
-#### 2. Prerequisites: Generate WireGuard Keys
+Run the following commands on the new GPU node:
 
-Before creating the file, you must generate a private key for the WireGuard server (or the primary node) and a pre-shared key for each peer.
-
-Run these commands on a Linux machine (or inside your WSL2 environment):
 ```bash
 
-# Generate the server's private key
-wg genkey | tee server_private.key
-# Generate the server's public key from the private key
-wg pubkey < server_private.key > server_public.key
+# 1. Install NVIDIA drivers
 
-# Generate a pre-shared key for a peer (run for each peer)
-wg genpsk > peer1_psk.key
+sudo apt update
+sudo apt install -y nvidia-driver-550 nvidia-utils-550
+
+# 2. Install WireGuard
+sudo apt install -y wireguard
+
+# 3. Install Python and pip
+sudo apt install -y python3 python3-pip python3-venv
+
+# 4. (Optional) Install Docker and NVIDIA Container Toolkit if you plan to run containers
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+distribution=$(. /etc/os-release; echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L "https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list" | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+sudo apt update
+sudo apt install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+
 ```
 
-Important: Keep the private keys (server_private.key, peer*_psk.key) secure. They will be stored as Kubernetes Secrets, not in the ConfigMap.
-### 3. The Complete wireguard-config.yaml File
+**Reboot the node** after installing the NVIDIA drivers to ensure the GPU is detected correctly.
 
-Below is a production-ready example. This file defines a ConfigMap with the wg0.conf for the WireGuard server.
+### Step 2: Clone the Repository
 
-File path: deploy/kubernetes/distributed-gpu/peers/wireguard-config.yaml
-```yaml
+```bash
 
-# =============================================================================
-# FILE: deploy/kubernetes/distributed-gpu/peers/wireguard-config.yaml
-# =============================================================================
-# PURPOSE:
-#   WireGuard ConfigMap for distributed GPU worker nodes.
-#   This ConfigMap provides the wg0.conf file that configures the WireGuard
-#   VPN tunnel on each Kubernetes node in the GPU cluster.
-#
-# USAGE:
-#   1. Generate WireGuard keys (see docs).
-#   2. Replace placeholders (SERVER_PRIVATE_KEY, PUBLIC_KEY, ENDPOINT_IP, etc.).
-#   3. Apply with: kubectl apply -f wireguard-config.yaml
-# =============================================================================
+git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
+cd nettrades-platform
 
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: wireguard-config
-  namespace: NVIDIAdynamo  # Or your desired namespace
-  labels:
-    app: wireguard
-    component: vpn
-data:
-  wg0.conf: |
-    # =========================================================================
-    # WireGuard Server Configuration
-    # =========================================================================
-    [Interface]
-    # The private key of the WireGuard server (primary node).
-    # This will be injected from a Kubernetes Secret for security.
-    # Replace with your actual private key.
-    PrivateKey = <SERVER_PRIVATE_KEY>
-    
-    # The IP address of the WireGuard server within the VPN.
-    Address = 10.0.0.1/24
-    
-    # The port on which the server listens for incoming connections.
-    ListenPort = 51820
-    
-    # Optional: Save the configuration automatically.
-    # SaveConfig = true
-    
-    # =========================================================================
-    # Peer Definitions (GPU Worker Nodes)
-    # =========================================================================
-    
-    # --- Peer 1: GPU Worker Node 1 ---
-    [Peer]
-    # The public key of this peer (GPU worker node).
-    # Generated from the peer's private key.
-    PublicKey = <PEER1_PUBLIC_KEY>
-    
-    # Pre-shared key for this peer (optional but recommended for added security).
-    # Will be injected from a Kubernetes Secret.
-    PresharedKey = <PEER1_PSK>
-    
-    # The IP address assigned to this peer within the VPN.
-    AllowedIPs = 10.0.0.2/32
-    
-    # If this peer is behind NAT, specify its endpoint.
-    # Endpoint = <PEER1_PUBLIC_IP>:51820
-    
-    # Persistent keepalive to maintain the connection through NAT.
-    PersistentKeepalive = 25
-    
-    # --- Peer 2: GPU Worker Node 2 ---
-    [Peer]
-    PublicKey = <PEER2_PUBLIC_KEY>
-    PresharedKey = <PEER2_PSK>
-    AllowedIPs = 10.0.0.3/32
-    # Endpoint = <PEER2_PUBLIC_IP>:51820
-    PersistentKeepalive = 25
-    
-    # --- Peer 3: GPU Worker Node 3 ---
-    [Peer]
-    PublicKey = <PEER3_PUBLIC_KEY>
-    PresharedKey = <PEER3_PSK>
-    AllowedIPs = 10.0.0.4/32
-    # Endpoint = <PEER3_PUBLIC_IP>:51820
-    PersistentKeepalive = 25
-    
-    # --- Add more peers as needed ---
-    # [Peer]
-    # PublicKey = <PEERn_PUBLIC_KEY>
-    # PresharedKey = <PEERn_PSK>
-    # AllowedIPs = 10.0.0.<n+1>/32
-    # PersistentKeepalive = 25
 ```
 
-### 4. Understanding the Configuration
 
-* [Interface]: Defines the server's private key, its VPN IP address, and the listening port.
+Step 3: Set Up the Python Environment
 
+```bash
 
-* [Peer]: Each [Peer] section defines a GPU worker node that can connect to the server.
+# Create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate
 
-* PublicKey: The public key of the worker node. The server uses this to authenticate the peer.
+# Install the required dependencies
+pip install -r requirements.txt
 
-* PresharedKey: An additional symmetric key for enhanced security. It must match the key configured on the peer.
-
-* AllowedIPs: This is critical for routing. It defines which IP addresses the peer is allowed to use. For a peer, this is typically its own VPN IP (e.g., 10.0.0.2/32). For a server or a hub, this could be a whole subnet. In a mesh or hub-and-spoke topology, you would adjust these values accordingly.
-
-* PersistentKeepalive: Sends keepalive packets to maintain the connection, especially useful if peers are behind NAT.
-
-### 5. Security: Handling Secrets
-
-The configuration file above uses placeholders for sensitive keys. In practice, you should not store private keys in a ConfigMap.
-
-Instead, create a Kubernetes Secret for the server's private key and each peer's pre-shared key, and then mount the Secret into your WireGuard pod alongside the ConfigMap.
-
-Example Secret (for the server's private key):
-```yaml
-
-apiVersion: v1
-kind: Secret
-metadata:
-  name: wireguard-secrets
-  namespace: NVIDIAdynamo
-type: Opaque
-data:
-  # Base64-encoded values
-  server_private_key: <BASE64_ENCODED_SERVER_PRIVATE_KEY>
-  peer1_psk: <BASE64_ENCODED_PEER1_PSK>
-  peer2_psk: <BASE64_ENCODED_PEER2_PSK>
-
-### 6. Integration with the Phase 4 Script
-
-The phase-k8s.sh script you have already includes a step to apply this configuration:
-bash
-
-# Configure WireGuard for secure pod-to-pod communication
-log_step "Configuring WireGuard..."
-if [[ -f "$K8S_DIR/distributed-gpu/peers/wireguard-config.yaml" ]]; then
-    kubectl apply -f "$K8S_DIR/distributed-gpu/peers/wireguard-config.yaml"
-    log_success "WireGuard configuration applied"
-else
-    log_warning "WireGuard configuration not found – skipping"
-fi
 ```
-To make this work:
 
-* Place the file in the correct directory: deploy/kubernetes/distributed-gpu/peers/wireguard-config.yaml.
+The `requirements.txt` file includes `requests`, `python-dotenv`, and `langgraph` dependencies needed for the agent.
 
-* Replace the placeholders (<SERVER_PRIVATE_KEY>, <PEER1_PUBLIC_KEY>, etc.) with your actual keys.
 
-* Create the corresponding Secret for the private keys.
+### Step 4: Configure Environment Variables
 
-* Ensure your WireGuard DaemonSet or deployment is configured to mount both the ConfigMap and the Secret.
+The GPU agent reads configuration from environment variables. Create a `.env` file in the project root (or export them directly):
 
-### 7. Example: A Simple WireGuard DaemonSet (for reference)
+```bash
 
-To actually use the configuration, you would deploy a WireGuard DaemonSet. Here is a simplified example of what that might look like:
-```yaml
+# .env file (or export in shell)
 
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: wireguard
-  namespace: NVIDIAdynamo
-spec:
-  selector:
-    matchLabels:
-      app: wireguard
-  template:
-    metadata:
-      labels:
-        app: wireguard
-    spec:
-      hostNetwork: true
-      containers:
-      - name: wireguard
-        image: linuxserver/wireguard:latest
-        env:
-        - name: PUID
-          value: "0"
-        - name: PGID
-          value: "0"
-        volumeMounts:
-        - name: wireguard-config
-          mountPath: /config/wg0.conf
-          subPath: wg0.conf
-        - name: wireguard-secrets
-          mountPath: /config/private.key
-          subPath: server_private_key
-        securityContext:
-          capabilities:
-            add: ["NET_ADMIN", "SYS_MODULE"]
-      volumes:
-      - name: wireguard-config
-        configMap:
-          name: wireguard-config
-      - name: wireguard-secrets
-        secret:
-          secretName: wireguard-secrets
+# Required: The URL of your Odoo controller (hub)
+export ODOO_URL="https://your-hub-domain.com"
+
+# Required: The API key used for authentication (generated in Odoo)
+export GPU_TOKEN="your-odoo-api-key"
+
+# Optional: Override the node hostname
+export HOSTNAME="gpu-node-01"
+
+# Optional: Set log level (default: INFO)
+export LOG_LEVEL="DEBUG"
+
 ```
-### 8. Next Steps
 
-* Generate keys for your server and all peer nodes.
+Security: Ensure the `.env` file has strict permissions (`chmod 600 .env`) to prevent credential leakage.
 
-* Create the wireguard-config.yaml file and place it in the correct directory.
+### Step 5: Run the GPU Node Agent
 
-* Create a corresponding Secret for the private keys.
+The agent is a self-contained Python script. Start it with:
 
-* Deploy a WireGuard DaemonSet (if you don't have one already) that uses these configurations.
+```bash
 
-* Run Phase 3 (./scripts/nettrades-setup.sh k8s --auto) to apply the ConfigMap and complete the setup.
+python3 src/agent/gpu_agent.py
 
-Once applied, all your GPU worker nodes will have a secure, encrypted tunnel for inter-node communication, which is essential for distributed GPU workloads managed by NVIDIA Dynamo
+```
+
+#### What happens when you run it?
+
+* GPU Detection: The script runs nvidia-smi --query-gpu=name,index,memory.total,compute_cap --format=csv,noheader to fetch GPU specs.
+
+* Key Generation: It checks for existing WireGuard keys in /etc/wireguard/. If missing, it generates a new private/public key pair using wg genkey and wg pubkey.
+
+* Registration: It sends a POST request to {ODOO_URL}/api/gpu/register with the GPU metadata and the WireGuard public key.
+
+* Config Application: On success, the Odoo controller returns a full WireGuard configuration. The agent writes this to /etc/wireguard/wg0.conf and runs sudo wg-quick up wg0 to establish the tunnel.
+
+* Heartbeat Loop: The agent enters an infinite loop, sending a heartbeat with GPU utilisation and uptime to {ODOO_URL}/api/gpu/heartbeat every 60 seconds.
+
+
+### Step 6: Run as a Systemd Service (Production)
+
+To keep the agent running reliably, create a systemd service:
+
+```bash
+
+sudo nano /etc/systemd/system/gpu-agent.service
+
+```
+
+Paste the following configuration:
+
+```ini
+
+[Unit]
+Description=NETTRADES GPU Node Agent
+After=network.target
+
+[Service]
+Type=simple
+User=your-user
+WorkingDirectory=/path/to/nettrades-platform
+Environment="ODOO_URL=https://your-hub-domain.com"
+Environment="GPU_TOKEN=your-odoo-api-key"
+ExecStart=/path/to/nettrades-platform/venv/bin/python3 /path/to/nettrades-platform/src/agent/gpu_agent.py
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+
+```
+
+Enable and start the service:
+
+```bash
+
+sudo systemctl daemon-reload
+sudo systemctl enable gpu-agent
+sudo systemctl start gpu-agent
+sudo systemctl status gpu-agent
+
+```
+
+
+## Monitoring & Troubleshooting
+
+
+### Check Agent Logs
+
+The agent logs to stdout. With systemd, view logs using:
+
+```bash
+
+sudo journalctl -u gpu-agent -f
+
+```
+
+### Verify WireGuard Tunnel
+
+```bash
+
+sudo wg show
+# Expected output: interface wg0, peer (hub's public key), transfer stats
+```
+
+### Verify GPU Detection
+
+```bash
+
+nvidia-smi
+```
+
+### Verify Odoo Registration
+
+```bash
+
+curl -X GET "https://your-hub-domain.com/api/gpu/nodes" \
+  -H "X-API-Key: your-odoo-api-key"
+```
+
+### Common Issues
+	
+| Problem | Solution |
+|---------|-------------|
+| `ModuleNotFoundError` | Ensure `pip install -r requirements.txt` was run inside the virtual environment.
+| **WireGuard fails to start** | Check `sudo wg-quick up wg0` manually. Ensure the interface `wg0` is not already in use.
+| **Registration fails (401)** | Verify the `GPU_TOKEN` matches the API key configured in Odoo.
+| **GPU not detected** | Run `nvidia-smi`. If it fails, reboot the node and ensure the NVIDIA drivers are loaded (`lsmod | grep nvidia`).
+| **Heartbeat timeout** | Ensure the Odoo controller is reachable from the node (check firewall rules for port 443/80).
