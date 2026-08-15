@@ -40,20 +40,27 @@ To ensure your agent performs well with these evaluations:
 
 All domain agents are stored in `src/core/agents/`:
 
-```
-src/core/agents/
-??? init.py
-??? recruitment_agent.py # CV / job matching
-??? freelance_agent.py # Project ? freelancer matching
-??? lead_gen_agent.py # Lead scoring & creation
-??? gpu_management_agent.py # GPU cluster health & scaling
-??? vision_agent.py # Multi-modal VLM agent
-??? action_agent.py # VLA agent for robotic control
-??? ask_someone_agent.py # Internal expert matching
-??? good_answer_agent.py # Response quality scoring
-??? gpu_marketplace_agent.py # GPU booking and marketplace
 
-```
+init.py
+
+recruitment_agent.py # CV / job matching
+
+freelance_agent.py # Project ? freelancer matching
+
+lead_gen_agent.py # Lead scoring & creation
+
+gpu_management_agent.py # GPU cluster health & scaling
+
+vision_agent.py # Multi-modal VLM agent
+
+action_agent.py # VLA agent for robotic control
+
+ask_someone_agent.py # Internal expert matching
+
+good_answer_agent.py # Response quality scoring
+
+gpu_marketplace_agent.py # GPU booking and marketplace
+
 
 
 **Important**: There is no generic `custom_agent.py` in the repository. You will create a new file (e.g., `my_new_agent.py`) following the template below.

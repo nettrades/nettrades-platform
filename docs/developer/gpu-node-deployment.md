@@ -1,9 +1,4 @@
 
----
-
-### File 2: `docs/developer/gpu-node-deployment.md`
-
-```markdown
 # GPU Node Deployment
 
 This guide explains how to add GPU nodes to the NETTRADES.AI platform. The GPU node runs a lightweight Python agent that automatically discovers GPUs, registers with the central Odoo controller, and establishes a secure WireGuard VPN tunnel for communication.
@@ -151,15 +146,15 @@ python3 src/agent/gpu_agent.py
 
 #### What happens when you run it?
 
-* GPU Detection: The script runs nvidia-smi --query-gpu=name,index,memory.total,compute_cap --format=csv,noheader to fetch GPU specs.
+* **GPU Detection:** The script runs `nvidia-smi --query-gpu=name,index,memory.total,compute_cap --format=csv,noheader` to fetch GPU specs.
 
-* Key Generation: It checks for existing WireGuard keys in /etc/wireguard/. If missing, it generates a new private/public key pair using wg genkey and wg pubkey.
+* **Key Generation:** It checks for existing WireGuard keys in `/etc/wireguard/`. If missing, it generates a new private/public key pair using `wg genkey` and `wg pubkey`.
 
-* Registration: It sends a POST request to {ODOO_URL}/api/gpu/register with the GPU metadata and the WireGuard public key.
+* **Registration:** It sends a POST request to `{ODOO_URL}/api/gpu/register` with the GPU metadata and the WireGuard public key.
 
-* Config Application: On success, the Odoo controller returns a full WireGuard configuration. The agent writes this to /etc/wireguard/wg0.conf and runs sudo wg-quick up wg0 to establish the tunnel.
+* **Config Application:** On success, the Odoo controller returns a full WireGuard configuration. The agent writes this to `/etc/wireguard/wg0.conf` and runs `sudo wg-quick up wg0` to establish the tunnel.
 
-* Heartbeat Loop: The agent enters an infinite loop, sending a heartbeat with GPU utilisation and uptime to {ODOO_URL}/api/gpu/heartbeat every 60 seconds.
+* **Heartbeat Loop**: The agent enters an infinite loop, sending a heartbeat with GPU utilisation and uptime to `{ODOO_URL}/api/gpu/heartbeat` every 60 seconds.
 
 
 ### Step 6: Run as a Systemd Service (Production)
