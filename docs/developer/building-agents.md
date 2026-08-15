@@ -38,6 +38,7 @@ To ensure your agent produces high-quality, unbiased responses:
 
 All agents live in `src/core/agents/`:
 
+```
 src/core/agents/
 ├── init.py
 ├── recruitment_agent.py # CV / job matching
@@ -49,7 +50,7 @@ src/core/agents/
 ├── ask_someone_agent.py # Expert matching
 ├── good_answer_agent.py # Quality scoring
 └── custom_agent.py # Your new agent goes here
-
+```
 
 ## Agent Architecture Diagram
 
