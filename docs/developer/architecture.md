@@ -487,12 +487,12 @@ The fairness module provides comprehensive bias detection and rationality evalua
 
 [Roadmap](roadmap.md)
 
-[NVIDIA Dynamo Integration](nvidia-dynamo-integration.md) – Dynamo integration guide
+[NVIDIA Dynamo Integration](nvidia-dynamo-integration.md) - Dynamo integration guide
 
-[Bridge Architecture](bridge-architecture.md) – Understanding the bridge
+[Bridge Architecture](bridge-architecture.md) - Understanding the bridge
 
-[Building Agents](building-agents.md) – Create custom LangGraph agents
+[Building Agents](building-agents.md) - Create custom LangGraph agents
 
-[API Reference](api-reference.md) – API documentation
+[API Reference](api-reference.md) - API documentation
 
-[Troubleshooting](troubleshooting.md) – Common issues and solutions
+[Troubleshooting](troubleshooting.md) - Common issues and solutions

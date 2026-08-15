@@ -3,110 +3,218 @@
 
 This document provides comprehensive API reference for the NETTRADES.AI platform.
 
----
-
 ## LangGraph `/invoke` API
 
 **Endpoint:** `POST /invoke`
 
 **Authentication:** `X-API-Key` header (must match `LANGGRAPH_API_KEY`)
 
-**Request Body:**
+### Request Body
 
 ```json
 {
-  "input": {
-    "messages": [
-      {"role": "user", "content": "Find me a Python developer"}
-    ],
-    "image_base64": "data:image/png;base64,..."  // Optional, for vision agent
-  },
-  "config": {
-    "configurable": {
-      "thread_id": "unique-session-id"  // For checkpointing
+    "input": {
+        "messages": [
+            {"role": "user", "content": "Find me a Python developer"}
+        ],
+        "image_base64": "data:image/png;base64,..."  // Optional, for vision agent
+    },
+    "config": {
+        "configurable": {
+            "thread_id": "unique-session-id"  // For checkpointing
+        }
     }
-  }
-}
-
-
-
-## Authentication Endpoints
-
-### Login
-
-**Endpoint:** `POST /api/auth/login`
-
-**Request Body:**
-```json
-{
-    "username": "admin",
-    "password": "your-password"
 }
 ```
 
-**Response:**
+#### Response
 
-```json
-{
-    "success": true,
-    "message": "Login successful",
-    "session_id": "uuid-token",
-    "user_id": 1,
-    "username": "admin"
-}
-```
-
-### Logout
-
-**Endpoint:** POST /api/auth/logout
-
-## Authentication Status
-
-### Endpoint: GET /api/auth/status
-
-## Operational Mode Endpoints
-
-### Update Mode
-
-**Endpoint:** POST /api/mode/update
-
-**Request Body:**
 ```json
 
 {
-    "mode": "red"  // or "yellow" or "green"
+    "output": {
+        "messages": [
+            {"role": "assistant", "content": "I found 5 candidates..."}
+        ],
+        "intent": "recruitment",
+        "route_source": "local"
+    },
+    "thread_id": "unique-session-id"
 }
 ```
-**Response:**
+
+#### Error Response
+
 ```json
 
 {
-    "success": true,
-    "message": "Mode updated to RED",
-    "mode": "red"
+    "error": "Authentication failed",
+    "detail": "Invalid API key"
 }
+
 ```
-Get Current Mode
 
-**Endpoint:** GET /api/mode/status
 
-**Response:**
+## Odoo JSON-RPC API
+
+
+### GPU Management
+
+
+Endpoint	Method	Description
+/api/v1/gpu/nodes	GET	List all GPU nodes
+/api/v1/gpu/register	POST	Register a new GPU node
+/api/v1/gpu/bookings	GET	List GPU bookings
+/api/v1/gpu/book	POST	Book a GPU
+
+
+### Bridge Routing
+
+
+Endpoint	Method	Description
+/api/bridge/route/decide	POST	Get a route decision
+/api/bridge/config	GET	Get effective configuration
+/api/bridge/usage	GET	Get usage logs
+/api/bridge/discovery/peers	GET	Get discovered peers
+/api/bridge/discovery/status	GET	Get discovery service status
+
+## NVIDIA Dynamo API
+
+
+NVIDIA Dynamo provides an OpenAI-compatible API.
+
+
+### Chat Completions
+
+
+**Endpoint:** `POST /v1/chat/completions`
+
+**Authentication:** `Authorization: Bearer <DYNAMO_API_KEY>`
+
+
 ```json
 
 {
-    "mode": "red",
-    "description": "100% Sovereign AI - All inference runs on local GPUs.",
-    "local_gpus": true,
-    "marketplace": false,
-    "external_apis": false,
-    "external_providers": []
+    "model": "deepseek-1.5b",
+    "messages": [
+        {"role": "user", "content": "Hello"}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 1024,
+    "stream": false
 }
 ```
-Get Available Modes
 
-**Endpoint:** GET /api/mode/modes
+### List Models
 
-**Response:** List of all three modes with descriptions and features.
-text
+**Endpoint:** `GET /v1/models`
+
+**Authentication:** `Authorization: Bearer <DYNAMO_API_KEY>`
 
 
+## Training API
+
+### Start Training
+
+**Endpoint:** `POST /runs/stream`
+
+**Authentication:** `X-API-Key` header (must match `LANGGRAPH_API_KEY`)
+
+```json
+
+{
+    "input": {
+        "dataset": "good-answers",
+        "model": "deepseek-1.5b",
+        "method": "unsloth",
+        "params": {
+            "epochs": 3,
+            "learning_rate": 2e-4
+        },
+        "action": "start_training"
+    },
+    "config": {
+        "configurable": {
+            "thread_id": "training-789"
+        }
+    }
+}
+
+```
+
+
+### Training Status
+
+**Endpoint:** `GET /training/status`
+
+**Authentication:** `X-API-Key` header (must match `LANGGRAPH_API_KEY`)
+
+
+## Ask Someone API
+
+### Submit Question
+
+**Endpoint:** `POST /runs/stream`
+
+**Authentication:** `X-API-Key` header (must match `LANGGRAPH_API_KEY`)
+
+```json
+
+{
+    "input": {
+        "question": "How do I deploy a LangGraph agent?",
+        "category": "technical",
+        "urgency": "medium",
+        "action": "ask_someone"
+    },
+    "config": {
+        "configurable": {
+            "thread_id": "ask-123"
+        }
+    }
+}
+
+```
+
+
+## Good Answer API
+
+
+### Submit Good Answer Vote
+
+
+**Endpoint:** `POST /runs/stream`
+
+**Authentication:** `X-API-Key` header (must match `LANGGRAPH_API_KEY`)
+
+```json
+
+{
+    "input": {
+        "question": "How do I deploy a LangGraph agent?",
+        "answer": "Use the LangGraph CLI...",
+        "rating": 5,
+        "action": "good_answer"
+    },
+    "config": {
+        "configurable": {
+            "thread_id": "vote-456"
+        }
+    }
+}
+
+```
+
+## Error Codes
+
+
+| Code	| Description |
+|--------|-------------|
+| 200	| 	Success |
+| 400	| 	Bad Request – Invalid input |
+| 401	| 	Unauthorised – Invalid API key |
+| 403	| 	Forbidden – Insufficient permissions |
+| 404	| 	Not Found – Resource does not exist |
+| 429	| 	Too Many Requests – Rate limit exceeded |
+| 500	| 	Internal Server Error |
+| 503	| 	Service Unavailable – Backend unavailable |
