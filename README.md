@@ -853,7 +853,7 @@ For more detailed help, see the [Full Documentation](docs/index.md).
 |---------|-------------|-------------|---------|-------------|-------------|
 | `Business Logic` | ERP / CRM / HR | Odoo | 19 CE | LGPL-3 | Core business logic |
 | `Job Queue` | Async processing | OCA queue_job | 19.0 | LGPL-3 | Background jobs |
-| `Payments` | Payment processing | OCA payment_stripe | 19.0 | LGPL-3 | Stripe integration |
+| `Payments` | Payment processing | OCA payment_stripe | 19.0 | LGPL-3 | Payment integration |
 | `Database` | Primary database | PostgreSQL + pgvector | 17 | PostgreSQL | Vector embeddings |
 | `Cache` | Session / Rate limiting | Valkey | 8 | BSD-3 | High-performance cache |
 | `Object Storage` | Files / Models | MinIO / S3 | Latest | AGPL-3 | Model artifacts |
@@ -1524,7 +1524,7 @@ graph TD
     P -->|Yes| S[Connect with Expert]
     P -->|No| T[Search Global Experts]
 
-    S --> U[Stripe Escrow Payment]
+    S --> U[Escrow Payment]
     U --> V[Consultation Session]
     V --> W[Session Complete]
 
@@ -1588,7 +1588,7 @@ graph TD
 
     G --> J[User Selects Expert]
     J --> K[Create Escrow Hold]
-    K --> L[Stripe Payment Processing]
+    K --> L[Payment Processing]
     L --> M[Payment Confirmed]
 
     M --> N[Start Consultation Session]
@@ -1879,7 +1879,7 @@ sequenceDiagram
     participant Ask as nettrades_ask_someone
     participant Bridge as nettrades_bridge
     participant Expert
-    participant Stripe
+    participant Payment
     participant NVIDIA Dynamo
 
     User->>Portal: Request help
@@ -1894,14 +1894,14 @@ sequenceDiagram
         Hub-->>Bridge: Expert found
         Bridge-->>Ask: Expert found
     end
-    Ask->>Stripe: Create escrow hold
-    Stripe-->>Ask: Hold confirmed
+    Ask->>Payment: Create escrow hold
+    Payment-->>Ask: Hold confirmed
     Ask->>Expert: Notify assignment
     Expert-->>User: Start session
     User-->>Expert: Provide details
     Expert-->>User: Provide answer
     User->>Ask: Rate answer
-    Ask->>Stripe: Release payment
+    Ask->>Payment: Release payment
     Ask->>NVIDIA Dynamo: Record for training
 ```
 
