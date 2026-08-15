@@ -76,6 +76,18 @@ This document lists all environment variables used by the NETTRADES.AI platform.
 | `DISABLE_AUTH` | Disable authentication (development only) | `false` | ⚠️ Optional | LangGraph |
 | `LLM_MODEL` | Model for LangGraph agents | `deepseek-r1:1.5b` | ⚠️ Optional | LangGraph agents |
 
+
+### Model Configuration
+
+| Variable | Purpose | Default | Required | Used By |
+|----------|---------|---------|----------|---------|
+| `MODEL_NAME` | Default model for inference | `Qwen2.5-1.5B-Instruct` | ⚠️ Optional | Dynamo, vLLM |
+| `LLM_MODEL` | Model for LangGraph agents | `deepseek-r1:1.5b` | ⚠️ Optional | LangGraph agents |
+| `OPENAI_API_KEY` | OpenAI API key | None | ⚠️ Optional | Fairness evaluator, external API |
+| `ANTHROPIC_API_KEY` | Anthropic API key | None | ⚠️ Optional | External API |
+
+---
+
 ### Inference Backends (Auto-detection priority)
 
 | Variable | Purpose | Default | Required | Used By |
@@ -241,6 +253,9 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 | `FEATURE_SELF_IMPROVING` | Enable self-improving AI | `true` | ⚠️ Optional | Self-Improving |
 | `FEATURE_TRAINING` | Enable training | `true` | ⚠️ Optional | Training |
 | `FEATURE_ASK_SOMEONE` | Enable Ask Someone | `false` | ⚠️ Optional | Ask Someone |
+| `FEATURE_JOB_MATCHING` | Enable job matching (coming soon) | `false` | ⚠️ Optional | Job Matching |
+| `FEATURE_DATA_COLLECTION` | Enable data collection (coming soon) | `false` | ⚠️ Optional | Data Collection |
+
 
 ## NETTRADES-UI
 
@@ -249,6 +264,12 @@ These variables are used by the `nettrades_bridge` module to route requests betw
 | `AUTH_ENABLED` | Enable authentication | `false` | ⚠️ Optional | NETTRADES-UI |
 | `UI_API_KEY` | API key for NETTRADES-UI | None | ⚠️ Optional | NETTRADES-UI |
 | `SESSION_SECRET` | Session encryption secret | None | ✅ **Critical** | NETTRADES-UI |
+| `ODOO_OAUTH_CLIENT_ID` | Odoo OAuth client ID | None | ⚠️ Optional | NETTRADES-UI |
+| `ODOO_OAUTH_CLIENT_SECRET` | Odoo OAuth client secret | None | ⚠️ Optional | NETTRADES-UI |
+| `ODOO_OAUTH_REDIRECT_URI` | Odoo OAuth redirect URI | `https://${DOMAIN}/api/auth/callback/odoo` | ⚠️ Optional | NETTRADES-UI |
+| `ODOO_OAUTH_AUTHORIZE_URL` | Odoo OAuth authorize URL | `${ODOO_URL}/restapi/1.0/common/oauth2/authorize` | ⚠️ Optional | NETTRADES-UI |
+| `ODOO_OAUTH_TOKEN_URL` | Odoo OAuth token URL | `${ODOO_URL}/restapi/1.0/common/oauth2/access_token` | ⚠️ Optional | NETTRADES-UI |
+| `ODOO_OAUTH_USERINFO_URL` | Odoo OAuth user info URL | `${ODOO_URL}/restapi/1.0/common/oauth2/userinfo` | ⚠️ Optional | NETTRADES-UI |
 
 ## WireGuard
 
@@ -355,4 +376,3 @@ FEATURE_ASK_SOMEONE=false
 [Glossary →](glossary.md) – Key terms and definitions
 [Database Schema →](database-schema.md) – Database schema reference
 [API Reference](../developer/api-reference.md) – API documentation
-[Back to Appendix →](index.md)
