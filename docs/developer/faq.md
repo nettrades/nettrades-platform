@@ -9,12 +9,13 @@ This page answers common questions from developers contributing to or extending 
 ### What technologies does the platform use?
 
 - **Backend**: Python (Odoo 19 CE, LangGraph, FastAPI)
-- **Database**: PostgreSQL 18 with pgvector
+- **Database**: PostgreSQL 17 with pgvector
 - **Caching**: Valkey (Redis-compatible)
 - **Containerisation**: Docker and Kubernetes (Talos)
-- **GPU orchestration**: NVIDIAdynamo
-- **Networking**: WireGuard
-- **Frontend**: Odoo's Owl framework (JavaScript)
+- **GPU orchestration**: NVIDIA Dynamo (with vLLM and llama.cpp)
+- **Networking**: WireGuard, mDNS/Avahi
+- **Security**: gVisor container isolation
+- **Frontend**: Odoo's Owl framework (JavaScript), Electron (Launcher)
 
 ### How do I set up a development environment?
 
@@ -27,13 +28,14 @@ Follow the [Developer Getting Started Guide](getting-started.md). It covers ever
 - `odoo-modules/` – Custom Odoo modules (LGPL-3.0)
 - `third-party/` – Vendored dependencies (do not modify)
 - `deploy/` – Deployment scripts and configurations
+- `installer/` – NETTRADES Launcher (Electron)
 
 ### What are the licensing requirements?
 
 - `src/` is AGPL-3.0 (copyleft).
 - `odoo-modules/` is LGPL-3.0.
 - Third-party dependencies retain their own licenses.
-- All contributors must sign a CLA.
+- All contributors must sign a CLA. See the [License Information](../../LICENSE.txt) for details.
 
 See the [License Information](../../LICENSE.txt) for details.
 
@@ -67,51 +69,75 @@ Full template: [Building Odoo Modules](building-odoo-modules.md).
 3. Register it in the widget registry.
 4. Add the template to `gpu_dashboard_templates.xml`.
 
-### How do I integrate with the MCP-Odoo bridge?
+### How do I integrate with NVIDIA Dynamo?
 
-The bridge is already available at `third-party/mcp-odoo/`. Use the `odoo_tools.py` functions (e.g., `res_partner_search`, `crm_lead_create`) to call Odoo from your agents. Ensure you authenticate with the `ODOO_API_KEY`.
+The inference integration is already handled by the `inference_tools.py` module. To use Dynamo directly:
 
----
+```python
+from src.core.tools.inference_tools import get_inference_backend
 
-## API & Integration
+backend = get_inference_backend()  # Returns 'dynamo', 'vllm', or 'llama_cpp'
+response = await backend.invoke(messages)
 
-### What authentication is required for the `/invoke` endpoint?
 
-You need to set the `X-API-Key` header to the value of `LANGGRAPH_API_KEY` from your environment.
 
-### How do I test the API locally?
+API & Integration
+What authentication is required for the /invoke endpoint?
 
-Run Odoo and LangGraph locally, then use `curl` to send requests to `http://localhost:8000/invoke` (or the FastAPI port). Example:
-```bash
+You need to set the X-API-Key header to the value of LANGGRAPH_API_KEY from your environment.
+How do I test the API locally?
+
+Run Odoo and LangGraph locally, then use curl to send requests to http://localhost:8000/invoke (or the FastAPI port).
+
+Example:
+bash
+
 curl -X POST http://localhost:8000/invoke \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-key" \
   -d '{"input": {"messages": [{"role":"user","content":"Hello"}]}}'
+
+How do I add a new inference backend?
+
+    Add the backend configuration to src/core/tools/inference_tools.py
+
+    Add health checking logic
+
+    Update the provider router to include the new backend
+
+    Update the LLM_BASE_URL and OPENAI_API_KEY environment variables
+
+Troubleshooting
+The virtual environment is not found
+
+Run Phase 1 first:
+bash
+
+./scripts/nettrades-setup.sh dev --force
+
+NVIDIA Dynamo is not starting
+
+Check the logs:
+bash
+
+docker compose logs dynamo
+
+Ensure the model exists in deploy/docker/dynamo-data/models/.
+llama.cpp is not starting
+
+Check that a GGUF model exists:
+bash
+
+ls -la deploy/docker/dynamo-data/models/*.gguf
+
+If missing, download one:
+bash
+
+./scripts/download-model.sh --model deepseek-1.5b --format gguf
   
-  
-## Deployment
-
-### What are the minimum hardware requirements for a single-VM deployment?
-
-- 4 CPU cores
-- 16 GB RAM
-- 100 GB NVMe SSD
-- Ubuntu 24.04 LTS
-- Ports 80, 443, and 22 open (and 51820 if using WireGuard)
-
-See [System Requirements](system-requirements.md) for details.
-
-### Can I deploy on a server without a GPU?
-
-Yes. The platform uses `llama.cpp` for CPU-based inference. If you add a GPU later, you can migrate to vLLM using the **`phase-add-gpu.sh`** script (or `migrate-to-gpu.sh`).
-
 ### How do I migrate from a single VM to Kubernetes?
 
 Run `./scripts/nettrades-setup.sh k8s --auto` to deploy the platform on a Talos Kubernetes cluster. This will preserve your data.
-
-### What is the recommended backup strategy?
-
-Perform daily PostgreSQL dumps, weekly filestore backups, and regularly backup your configuration files. See [Backup & Restore](backup-and-restore.md) for full details.
 
 ### How do I install the Odoo modules after deployment?
 
@@ -148,7 +174,7 @@ No. The platform is tightly integrated with WireGuard for AllowedIPs enforcement
 
 ### How do I expose services externally?
 
-Traefik acts as the ingress controller. It automatically obtains SSL certificates and routes traffic based on hostnames. Configure your DNS with wildcard records (e.g., `*.nettrades.ai`) to enable subdomain routing.
+Traefik acts as the ingress controller. It automatically obtains SSL certificates and routes traffic based on hostnames. Configure your DNS with wildcard records (e.g., `*.yourdomain.com`) to enable subdomain routing.
 
 ### How do I check if the platform is healthy?
 

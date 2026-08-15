@@ -1,4 +1,8 @@
-## Self Improving Loop
+## Self Improving Loop (MAPE)
+
+The NETTRADES platform implements a closed-loop self-improving system based on the MAPE (Monitor-Analyze-Plan-Execute) architecture.
+
+### MAPE Loop Diagram
 
 ```mermaid
 graph TB

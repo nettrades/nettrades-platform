@@ -6,6 +6,7 @@ This document provides a comprehensive overview of the NETTRADES.AI platform arc
 
 ## System Architecture Diagram
 
+
 ```mermaid
 
 graph TB
@@ -71,6 +72,7 @@ graph TB
 
 ```
 
+
 ## Bridge Architecture (Hub-and-Spoke)
 
 ```mermaid
@@ -94,6 +96,7 @@ graph TB
     CentralAgents --> GPU
 
 ```
+
 
 
 ## Routing Decision Engine
@@ -139,7 +142,10 @@ graph TD
 
 ```
 
+
+
 ## Self-Improving Loop (MAPE)
+
 
 ```mermaid
 graph TB
@@ -189,7 +195,10 @@ graph TB
         C --> Monitor
     end
 
+
 ```
+
+
 
 ## Fairness Architecture
 
@@ -219,6 +228,8 @@ graph TB
 
 ```
 
+
+
 ## Good Answer -> Fine-Tuning Loop
 
 ```mermaid
@@ -236,6 +247,8 @@ graph LR
 
 ```
 
+
+
 ## Inference Architecture
 
 
@@ -249,7 +262,9 @@ The platform uses a layered inference architecture with automatic fallback:
 | 4 | 	**llama.cpp** | Zero-dependency CPU fallback, runs on port 8080 |
 
 
+
 ## Security Architecture
+
 
 ```mermaid
 
@@ -284,6 +299,8 @@ graph TB
     
 ```
 
+
+
 ## Technology Stack
 
 		
@@ -304,6 +321,7 @@ graph TB
 | **mDNS/Avahi** | Latest | Automatic node discovery on local networks |
 
 
+
 ## Security Architecture
 
 
@@ -313,6 +331,7 @@ graph TB
 | **Network Security** | WireGuard, Traefik (Let's Encrypt), mDNS | VPN mesh, SSL, trusted network discovery |
 | **Container Security** | gVisor (CPU services), no-new-privileges, seccomp | Strong isolation, reduced attack surface |
 | **Application Security** | Odoo RBAC, API keys, audit logging | Access control, authentication, compliance |
+
 
 
 ## Component Descriptions
@@ -375,6 +394,7 @@ The sub-agents are LangGraph sub-graphs that handle specific business domains.
 | Vision Agent |  `src/core/agents/` |
 
 
+
 ### 4. Distributed GPU Agent (src/agent/gpu_agent.py)
 
 
@@ -404,6 +424,7 @@ The GPU agent runs on every GPU node in the cluster.
 * Periodically refresh NVIDIA Dynamo token
 
 
+
 ### 5. Fairness Module (odoo-modules/nettrades_fairness/)
 
 
@@ -421,6 +442,7 @@ The fairness module provides comprehensive bias detection and rationality evalua
 | `nettrades.fairness.metrics` | Fairness metrics calculator |
 
 
+
 ##### Configuration:
 		
 
@@ -433,6 +455,7 @@ The fairness module provides comprehensive bias detection and rationality evalua
 | `rationality_threshold` | 7.0 | Minimum rationality score |
 | `bias_threshold` | 3.0 | Maximum bias score |
 | `evaluation_model` | gpt-4o-mini | LLM judge model |
+
 
 
 #### Technology Stack
@@ -450,6 +473,7 @@ The fairness module provides comprehensive bias detection and rationality evalua
 | `Axolotl` | 0.16.1+ | Apache-2.0 | Multi-GPU fine-tuning with FSDP2 |
 | `WireGuard` | kernel module | GPL-2.0 | Kernel-level network isolation |
 | `gVisor` | release-20260420.0 | Apache-2.0 | 	Syscall-level container isolation |
+
 
 
 ### Next Steps

@@ -374,5 +374,7 @@ FEATURE_ASK_SOMEONE=false
 ## Next Steps
 
 [Glossary →](glossary.md) – Key terms and definitions
+
 [Database Schema →](database-schema.md) – Database schema reference
+
 [API Reference](../developer/api-reference.md) – API documentation

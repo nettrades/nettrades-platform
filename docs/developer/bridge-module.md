@@ -116,14 +116,20 @@ The bridge intercepts requests before they reach the LangGraph supervisor. The `
 | `nettrades_bridge_config` | Global configuration (singleton) |
 | `nettrades_bridge_company_config` | Per-company overrides |
 | `nettrades_bridge_usage_log` | Usage logs for billing |
+| `nettrades_bridge_route` | Route definitions with load balancing |
+| `nettrades_bridge_discovery` | mDNS discovered peers |
 
 ## Security
 
-* API keys are stored encrypted (`password=True` in Odoo fields)
+* API keys are required for all bridge requests, API keys are stored encrypted (`password=True` in Odoo fields)
 
 * Access controlled via `group_bridge_admin` and `group_bridge_user`
 
-* Usage logs track all requests for audit purposes
+* Company isolation ensures data separation
+
+* Audit logging for all routing decisions. Usage logs track all requests for audit purposes
+
+* gVisor isolation for untrusted workloads
 
 ## Next Steps
 

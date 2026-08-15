@@ -100,6 +100,7 @@ Different request types can have different routing modes:
 | **Fine-Tuning** | Model fine-tuning jobs | Local |
 | **Embedding** | Vector embedding generation | Local |
 
+
 ### Route Decision Engine
 
 
@@ -155,6 +156,7 @@ The bridge provides load balancing for NVIDIA Dynamo nodes:
 | **Random** | Random distribution | Simple, no state tracking |
 | **Priority** | Highest priority node first | Primary/backup configuration |
 
+
 ### Health Checking
 
 The bridge continuously monitors the health of all routes:
@@ -170,6 +172,7 @@ graph LR
     Update --> Store["Store in Database"]
 ```    
 
+
 Health Check Configuration:
 
 | Setting | Default | Description |
@@ -178,6 +181,7 @@ Health Check Configuration:
 | `health_check_endpoint` | `/health` | Health check endpoint URL |
 | `health_check_interval` | 30s | How often to check |
 | `health_check_timeout` | 5s | Timeout for each check |
+
 
 
 ## mDNS Discovery
@@ -208,6 +212,7 @@ graph TB
 ```
 
 
+
 ## TXT Records Advertised:
 
 
@@ -234,6 +239,8 @@ graph TB
 
 ```
 
+
+
 ### Marketplace Settings:
 
 | Setting | Description |
@@ -241,6 +248,7 @@ graph TB
 | `marketplace_min_rating` | Minimum GPU rating (0-5) |
 | `marketplace_max_price` | Maximum price per hour ($) |
 | `marketplace_preferred_nodes` | Preferred node IDs (comma-separated) |
+
 
 
 ## External API Integration
@@ -252,6 +260,7 @@ The bridge can route requests to external APIs:
 | **OpenAI** | `https://api.openai.com/v1` | `gpt-4`, `gpt-3.5-turbo` |
 | **Anthropic** | `https://api.anthropic.com/v1` | `claude-3-opus`, `claude-3-sonnet` |
 | **Custom** | User-defined | User-defined |
+
 
 
 ## API Endpoints
@@ -266,6 +275,7 @@ The bridge can route requests to external APIs:
 | `/api/bridge/discovery/status` | GET | Get discovery service status |
 
 
+
 ## Valkey as Configuration Cache
 
 The bridge routing engine reads operational mode settings from Valkey cache:
@@ -277,6 +287,7 @@ graph LR
     Valkey -->|"Microsecond read"| Router["LangGraph Router"]
     Router -->|"Apply routing"| Dynamo["NVIDIA Dynamo"]
 ```
+
 
 
 ## Next Steps
