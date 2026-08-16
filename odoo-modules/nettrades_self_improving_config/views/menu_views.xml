@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AUTO-GENERATED PLACEHOLDER
+    The original file 'views/menu_views.xml' was missing from the module 'nettrades_self_improving_config'.
+    This placeholder was created to prevent Odoo from failing during installation.
+    Please replace this with the actual view definition.
+-->
+<odoo>
+    <data>
+        <!-- TODO: Add view definitions for nettrades_self_improving_config -->
+    </data>
+</odoo>

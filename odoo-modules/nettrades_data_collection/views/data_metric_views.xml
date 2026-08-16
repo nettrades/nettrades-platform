@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AUTO-GENERATED PLACEHOLDER
+    The original file 'views/data_metric_views.xml' was missing from the module 'nettrades_data_collection'.
+    This placeholder was created to prevent Odoo from failing during installation.
+    Please replace this with the actual view definition.
+-->
+<odoo>
+    <data>
+        <!-- TODO: Add view definitions for nettrades_data_collection -->
+    </data>
+</odoo>
