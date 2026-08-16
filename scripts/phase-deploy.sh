@@ -140,7 +140,7 @@ ensure_bcrypt() {
         return 0
     else
         log_info "bcrypt not found – installing via pip in the virtual environment..."
-        if pip install bcrypt 2>/dev/null; then
+        if "$VENV_DIR/bin/python" -m pip install bcrypt 2>/dev/null; then
             log_success "bcrypt installed successfully"
             return 0
         else
@@ -963,16 +963,6 @@ if [[ -d "$WEB_CONFIG_FILE" ]]; then
 fi
 
 mkdir -p "$WEB_CONFIG_DIR"
-
-# Ensure bcrypt is available in the current environment (venv)
-if command -v python3 &>/dev/null; then
-    # Install bcrypt if missing (use venv if available)
-    if [[ -n "$VIRTUAL_ENV" ]]; then
-        pip install bcrypt 2>/dev/null || true
-    else
-        python3 -m pip install bcrypt 2>/dev/null || true
-    fi
-fi
 
 # Generate hash using Python (with fallback)
 HASH=""

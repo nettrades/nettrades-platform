@@ -24,6 +24,20 @@ source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # -----------------------------------------------------------------------------
+# Ensure VENV_DIR is available and activate the virtual environment
+# VIRTUAL ENVIRONMENT IS NOW MANDATORY – fail if not found
+# -----------------------------------------------------------------------------
+VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
+if [ -f "$VENV_DIR/bin/activate" ]; then
+    source "$VENV_DIR/bin/activate"
+    log_info "Activated Python virtual environment: $VENV_DIR"
+else
+    log_error "Virtual environment not found at $VENV_DIR"
+    log_info "Please run Phase 1 first: ./scripts/nettrades-setup.sh dev"
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
 # Parse arguments
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
