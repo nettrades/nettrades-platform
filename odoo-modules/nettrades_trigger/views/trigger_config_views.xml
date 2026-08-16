@@ -1,12 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/trigger_config_views.xml' was missing from the module 'nettrades_trigger'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_trigger -->
-    </data>
+    <!-- Trigger configurations define what events trigger actions -->
+    <record id="view_trigger_config_tree" model="ir.ui.view">
+        <field name="name">trigger.config.tree</field>
+        <field name="model">trigger.config</field>
+        <field name="arch" type="xml">
+            <tree string="Trigger Configs" editable="bottom">
+                <field name="name" string="Trigger"/>
+                <field name="event_type" string="Event Type"/>
+                <field name="action" string="Action"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_trigger_config_form" model="ir.ui.view">
+        <field name="name">trigger.config.form</field>
+        <field name="model">trigger.config</field>
+        <field name="arch" type="xml">
+            <form string="Trigger Configuration">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Trigger name..."/>
+                        <field name="active" widget="boolean_toggle"/>
+                    </group>
+                    <group string="Conditions">
+                        <field name="event_type" selection="[('data_updated','Data Updated'),('cycle_completed','Cycle Completed'),('time_based','Time Based')]"/>
+                        <field name="action" placeholder="e.g., send_email, start_cycle"/>
+                    </group>
+                    <group string="Parameters">
+                        <field name="params" placeholder='{"key":"value"}' widget="json"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_trigger_config_search" model="ir.ui.view">
+        <field name="name">trigger.config.search</field>
+        <field name="model">trigger.config</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="event_type"/>
+                <filter name="active" string="Active" domain="[('active','=',True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_trigger_config" model="ir.actions.act_window">
+        <field name="name">Trigger Configurations</field>
+        <field name="res_model">trigger.config</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>

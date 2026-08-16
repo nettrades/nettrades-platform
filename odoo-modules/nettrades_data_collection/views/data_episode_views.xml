@@ -1,12 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/data_episode_views.xml' was missing from the module 'nettrades_data_collection'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_data_collection -->
-    </data>
+    <!--
+        Data Episode View
+        An "episode" represents a collection of interactions, annotations, or a dataset slice.
+    -->
+    <record id="view_data_episode_tree" model="ir.ui.view">
+        <field name="name">data.episode.tree</field>
+        <field name="model">data.episode</field>
+        <field name="arch" type="xml">
+            <tree string="Episodes" editable="bottom">
+                <field name="name" string="Episode Name"/>
+                <field name="description" string="Description"/>
+                <field name="start_date" string="Start Date"/>
+                <field name="end_date" string="End Date"/>
+                <field name="state" string="Status" widget="badge"/>
+                <field name="user_id" string="Responsible"/>
+                <field name="create_date" string="Created On" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_data_episode_form" model="ir.ui.view">
+        <field name="name">data.episode.form</field>
+        <field name="model">data.episode</field>
+        <field name="arch" type="xml">
+            <form string="Episode">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Episode name..."/>
+                        <field name="user_id" widget="many2one_avatar"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,open,done"/>
+                    </group>
+                    <group string="Description">
+                        <field name="description" nolabel="1" placeholder="Detailed description..."/>
+                    </group>
+                    <notebook>
+                        <page string="Annotations" name="annotations">
+                            <field name="annotation_ids" context="{'default_episode_id': active_id}">
+                                <tree string="Annotations" editable="top">
+                                    <field name="name"/>
+                                    <field name="user_id"/>
+                                    <field name="annotation_text" sum="Count"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Feedback" name="feedback">
+                            <field name="feedback_ids"/>
+                        </page>
+                        <page string="Metrics" name="metrics">
+                            <field name="metric_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_data_episode_search" model="ir.ui.view">
+        <field name="name">data.episode.search</field>
+        <field name="model">data.episode</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" string="Episode"/>
+                <field name="user_id"/>
+                <field name="state"/>
+                <filter name="my_episodes" string="My Episodes" domain="[('user_id','=',uid)]"/>
+                <separator/>
+                <filter name="open" string="Open" domain="[('state','=','open')]"/>
+                <filter name="done" string="Closed" domain="[('state','=','done')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_state" string="Status" context="{'group_by':'state'}"/>
+                    <filter name="group_by_user" string="User" context="{'group_by':'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_data_episode" model="ir.actions.act_window">
+        <field name="name">Episodes</field>
+        <field name="res_model">data.episode</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>Manage data collection episodes. Each episode groups annotations, feedback, and metrics.</p>
+        </field>
+    </record>
 </odoo>

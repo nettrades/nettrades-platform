@@ -1,12 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/menu_views.xml' was missing from the module 'nettrades_self_improving_config'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_self_improving_config -->
-    </data>
+    <!-- Menu configuration for self-improving module -->
+    <record id="view_menu_config_tree" model="ir.ui.view">
+        <field name="name">menu.config.tree</field>
+        <field name="model">menu.config</field>
+        <field name="arch" type="xml">
+            <tree string="Menu Configurations" editable="bottom">
+                <field name="name" string="Menu Name"/>
+                <field name="parent_id" string="Parent"/>
+                <field name="action_id" string="Action"/>
+                <field name="sequence" string="Sequence"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_menu_config_form" model="ir.ui.view">
+        <field name="name">menu.config.form</field>
+        <field name="model">menu.config</field>
+        <field name="arch" type="xml">
+            <form string="Menu Configuration">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Menu title..."/>
+                        <field name="parent_id" options="{'no_create': True}"/>
+                        <field name="action_id" options="{'no_create': True}"/>
+                    </group>
+                    <group>
+                        <field name="sequence" placeholder="Order"/>
+                        <field name="active" widget="boolean_toggle"/>
+                    </group>
+                    <group string="Icon">
+                        <field name="icon" placeholder="e.g., fa-gear"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_menu_config_search" model="ir.ui.view">
+        <field name="name">menu.config.search</field>
+        <field name="model">menu.config</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="parent_id"/>
+                <filter name="active" string="Active" domain="[('active','=',True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_menu_config" model="ir.actions.act_window">
+        <field name="name">Menu Configurations</field>
+        <field name="res_model">menu.config</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>

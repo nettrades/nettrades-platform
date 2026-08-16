@@ -1,12 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/fairness_audit_views.xml' was missing from the module 'nettrades_fairness'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_fairness -->
-    </data>
+    <!-- Fairness audit: track bias and fairness metrics for models -->
+    <record id="view_fairness_audit_tree" model="ir.ui.view">
+        <field name="name">fairness.audit.tree</field>
+        <field name="model">fairness.audit</field>
+        <field name="arch" type="xml">
+            <tree string="Fairness Audits" editable="bottom">
+                <field name="name" string="Audit Name"/>
+                <field name="model_id" string="Model"/>
+                <field name="fairness_score" string="Score" sum="Average"/>
+                <field name="status" string="Status" widget="badge"/>
+                <field name="audit_date" string="Date"/>
+                <field name="user_id" string="Auditor"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fairness_audit_form" model="ir.ui.view">
+        <field name="name">fairness.audit.form</field>
+        <field name="model">fairness.audit</field>
+        <field name="arch" type="xml">
+            <form string="Fairness Audit">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Audit title..."/>
+                        <field name="model_id" options="{'no_create': True}"/>
+                        <field name="user_id" readonly="1"/>
+                        <field name="audit_date" default="(context_today())"/>
+                    </group>
+                    <group string="Results">
+                        <field name="fairness_score" widget="progressbar" help="0-100 score"/>
+                        <field name="status" widget="statusbar" statusbar_visible="draft,review,approved"/>
+                    </group>
+                    <notebook>
+                        <page string="Details" name="details">
+                            <field name="details" placeholder="Full audit report..." widget="text"/>
+                        </page>
+                        <page string="Recommendations" name="recs">
+                            <field name="recommendations" placeholder="Improvement suggestions..." widget="text"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fairness_audit_search" model="ir.ui.view">
+        <field name="name">fairness.audit.search</field>
+        <field name="model">fairness.audit</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="model_id"/>
+                <field name="status"/>
+                <filter name="high_score" string="Score >= 80" domain="[('fairness_score','>=',80)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_fairness_audit" model="ir.actions.act_window">
+        <field name="name">Fairness Audits</field>
+        <field name="res_model">fairness.audit</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>

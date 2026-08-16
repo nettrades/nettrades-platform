@@ -1,12 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/loop_orchestrator_views.xml' was missing from the module 'nettrades_loop'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_loop -->
-    </data>
+    <!-- Orchestrator manages multiple cycles and steps -->
+    <record id="view_loop_orchestrator_tree" model="ir.ui.view">
+        <field name="name">loop.orchestrator.tree</field>
+        <field name="model">loop.orchestrator</field>
+        <field name="arch" type="xml">
+            <tree string="Orchestrators" editable="bottom">
+                <field name="name" string="Orchestrator"/>
+                <field name="current_step" string="Current Step"/>
+                <field name="status" string="Status" widget="badge"/>
+                <field name="cycle_count" string="Cycles" sum="Total"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_loop_orchestrator_form" model="ir.ui.view">
+        <field name="name">loop.orchestrator.form</field>
+        <field name="model">loop.orchestrator</field>
+        <field name="arch" type="xml">
+            <form string="Orchestrator">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Orchestrator name..."/>
+                        <field name="status" widget="statusbar"/>
+                    </group>
+                    <group string="Configuration">
+                        <field name="current_step" placeholder="e.g., collect, train, evaluate"/>
+                        <field name="cycle_count" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Cycles" name="cycles">
+                            <field name="cycle_ids" context="{'default_orchestrator_id': active_id}">
+                                <tree string="Cycles" editable="bottom">
+                                    <field name="name"/>
+                                    <field name="start_date"/>
+                                    <field name="state"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_loop_orchestrator_search" model="ir.ui.view">
+        <field name="name">loop.orchestrator.search</field>
+        <field name="model">loop.orchestrator</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="status"/>
+                <filter name="active" string="Active" domain="[('status','=','running')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_loop_orchestrator" model="ir.actions.act_window">
+        <field name="name">Orchestrators</field>
+        <field name="res_model">loop.orchestrator</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>

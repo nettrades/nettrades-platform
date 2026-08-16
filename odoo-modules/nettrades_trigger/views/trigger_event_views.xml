@@ -1,12 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/trigger_event_views.xml' was missing from the module 'nettrades_trigger'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_trigger -->
-    </data>
+    <!-- Trigger events: actual occurrences of triggers -->
+    <record id="view_trigger_event_tree" model="ir.ui.view">
+        <field name="name">trigger.event.tree</field>
+        <field name="model">trigger.event</field>
+        <field name="arch" type="xml">
+            <tree string="Trigger Events" editable="bottom">
+                <field name="name" string="Event"/>
+                <field name="config_id" string="Trigger Config"/>
+                <field name="triggered_at" string="Triggered At"/>
+                <field name="status" string="Status" widget="badge"/>
+                <field name="result" string="Result"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_trigger_event_form" model="ir.ui.view">
+        <field name="name">trigger.event.form</field>
+        <field name="model">trigger.event</field>
+        <field name="arch" type="xml">
+            <form string="Trigger Event">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Event name..."/>
+                        <field name="config_id" options="{'no_create': True}"/>
+                        <field name="triggered_at" default="(context_today())" readonly="1"/>
+                    </group>
+                    <group string="Execution">
+                        <field name="status" widget="statusbar" statusbar_visible="pending,success,failed"/>
+                        <field name="result" placeholder="Outcome message..." widget="text"/>
+                    </group>
+                    <group string="Payload">
+                        <field name="payload" placeholder="Event data..." widget="json"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_trigger_event_search" model="ir.ui.view">
+        <field name="name">trigger.event.search</field>
+        <field name="model">trigger.event</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="config_id"/>
+                <field name="status"/>
+                <filter name="recent" string="Today" domain="[('triggered_at','>=', context_today())]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_trigger_event" model="ir.actions.act_window">
+        <field name="name">Trigger Events</field>
+        <field name="res_model">trigger.event</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>

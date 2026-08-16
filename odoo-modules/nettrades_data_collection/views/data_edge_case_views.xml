@@ -1,12 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/data_edge_case_views.xml' was missing from the module 'nettrades_data_collection'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_data_collection -->
-    </data>
+    <!-- Edge cases represent exceptional situations in data -->
+    <record id="view_data_edge_case_tree" model="ir.ui.view">
+        <field name="name">data.edge_case.tree</field>
+        <field name="model">data.edge_case</field>
+        <field name="arch" type="xml">
+            <tree string="Edge Cases" editable="top">
+                <field name="name" string="Case"/>
+                <field name="severity" string="Severity" widget="badge"/>
+                <field name="episode_id" string="Episode"/>
+                <field name="description" string="Description"/>
+                <field name="state" string="Status"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_data_edge_case_form" model="ir.ui.view">
+        <field name="name">data.edge_case.form</field>
+        <field name="model">data.edge_case</field>
+        <field name="arch" type="xml">
+            <form string="Edge Case">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Edge case title..."/>
+                        <field name="episode_id"/>
+                        <field name="state" widget="statusbar"/>
+                    </group>
+                    <group string="Details">
+                        <field name="severity" selection="[('low','Low'),('medium','Medium'),('high','High')]"/>
+                        <field name="description" placeholder="Describe the edge case..." widget="text"/>
+                    </group>
+                    <group string="Mitigation">
+                        <field name="mitigation_notes" placeholder="How to handle..." widget="text"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_data_edge_case_search" model="ir.ui.view">
+        <field name="name">data.edge_case.search</field>
+        <field name="model">data.edge_case</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="episode_id"/>
+                <field name="severity"/>
+                <filter name="high_severity" string="High Severity" domain="[('severity','=','high')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_data_edge_case" model="ir.actions.act_window">
+        <field name="name">Edge Cases</field>
+        <field name="res_model">data.edge_case</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>

@@ -1,12 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/data_metric_views.xml' was missing from the module 'nettrades_data_collection'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_data_collection -->
-    </data>
+    <!-- Metrics track quantitative measures (accuracy, performance, etc.) -->
+    <record id="view_data_metric_tree" model="ir.ui.view">
+        <field name="name">data.metric.tree</field>
+        <field name="model">data.metric</field>
+        <field name="arch" type="xml">
+            <tree string="Metrics" editable="top">
+                <field name="name" string="Metric Name"/>
+                <field name="value" string="Value" sum="Total"/>
+                <field name="date" string="Date"/>
+                <field name="episode_id" string="Episode"/>
+                <field name="unit" string="Unit"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_data_metric_form" model="ir.ui.view">
+        <field name="name">data.metric.form</field>
+        <field name="model">data.metric</field>
+        <field name="arch" type="xml">
+            <form string="Metric">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="episode_id" options="{'no_create': True}"/>
+                    </group>
+                    <group>
+                        <field name="value" placeholder="Numeric value"/>
+                        <field name="unit" placeholder="e.g., %, count, ms"/>
+                        <field name="date" default="(context_today())"/>
+                    </group>
+                    <group string="Description">
+                        <field name="description" placeholder="Additional notes..." widget="text"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_data_metric_search" model="ir.ui.view">
+        <field name="name">data.metric.search</field>
+        <field name="model">data.metric</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="episode_id"/>
+                <field name="date" filter="date"/>
+                <filter name="high_value" string="Value > 100" domain="[('value','>',100)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_data_metric" model="ir.actions.act_window">
+        <field name="name">Metrics</field>
+        <field name="res_model">data.metric</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>

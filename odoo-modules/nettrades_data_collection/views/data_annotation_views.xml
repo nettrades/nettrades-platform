@@ -1,12 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/data_annotation_views.xml' was missing from the module 'nettrades_data_collection'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_data_collection -->
-    </data>
+    <!-- Annotation model: a single label or comment on a piece of data -->
+    <record id="view_data_annotation_tree" model="ir.ui.view">
+        <field name="name">data.annotation.tree</field>
+        <field name="model">data.annotation</field>
+        <field name="arch" type="xml">
+            <tree string="Annotations" editable="top">
+                <field name="name" string="Annotation"/>
+                <field name="episode_id" string="Episode"/>
+                <field name="user_id" string="Annotator"/>
+                <field name="annotation_text" string="Text"/>
+                <field name="create_date" string="Date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_data_annotation_form" model="ir.ui.view">
+        <field name="name">data.annotation.form</field>
+        <field name="model">data.annotation</field>
+        <field name="arch" type="xml">
+            <form string="Annotation">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Annotation title..."/>
+                        <field name="episode_id" options="{'no_create': True}"/>
+                        <field name="user_id" readonly="1"/>
+                    </group>
+                    <group string="Content">
+                        <field name="annotation_text" nolabel="1" placeholder="Enter annotation text..." widget="text"/>
+                    </group>
+                    <group string="Feedback">
+                        <field name="feedback_ids" context="{'default_annotation_id': active_id}"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_data_annotation_search" model="ir.ui.view">
+        <field name="name">data.annotation.search</field>
+        <field name="model">data.annotation</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="annotation_text" string="Text contains"/>
+                <field name="user_id"/>
+                <field name="episode_id"/>
+                <filter name="my_annotations" string="My Annotations" domain="[('user_id','=',uid)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_data_annotation" model="ir.actions.act_window">
+        <field name="name">Annotations</field>
+        <field name="res_model">data.annotation</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>

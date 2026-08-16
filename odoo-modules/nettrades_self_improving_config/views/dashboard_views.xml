@@ -1,12 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file 'views/dashboard_views.xml' was missing from the module 'nettrades_self_improving_config'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
 <odoo>
-    <data>
-        <!-- TODO: Add view definitions for nettrades_self_improving_config -->
-    </data>
+    <!-- Self-improving configuration dashboard (overview of settings) -->
+    <record id="view_self_improving_config_dashboard" model="ir.ui.view">
+        <field name="name">self.improving.config.dashboard</field>
+        <field name="model">self.improving.config</field>
+        <field name="arch" type="xml">
+            <tree string="Configuration Dashboard" editable="bottom">
+                <field name="name" string="Config Name"/>
+                <field name="active" string="Active" widget="boolean_toggle"/>
+                <field name="loop_orchestrator_id" string="Orchestrator"/>
+                <field name="auto_trigger" string="Auto Trigger" widget="boolean"/>
+                <field name="last_run" string="Last Run"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_self_improving_config_form" model="ir.ui.view">
+        <field name="name">self.improving.config.form</field>
+        <field name="model">self.improving.config</field>
+        <field name="arch" type="xml">
+            <form string="Self-Improving Configuration">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="Configuration name..."/>
+                        <field name="active" widget="boolean_toggle"/>
+                        <field name="loop_orchestrator_id"/>
+                    </group>
+                    <group string="Settings">
+                        <field name="auto_trigger" help="Automatically start new cycles"/>
+                        <field name="trigger_interval" help="In hours, if auto_trigger is set"/>
+                        <field name="max_cycles" help="Maximum number of cycles to run"/>
+                    </group>
+                    <group string="Description">
+                        <field name="description" placeholder="Describe this configuration..." widget="text"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_self_improving_config_search" model="ir.ui.view">
+        <field name="name">self.improving.config.search</field>
+        <field name="model">self.improving.config</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="active"/>
+                <filter name="active_filter" string="Active" domain="[('active','=',True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_self_improving_config" model="ir.actions.act_window">
+        <field name="name">Self-Improving Configs</field>
+        <field name="res_model">self.improving.config</field>
+        <field name="view_mode">tree,form</field>
+    </record>
 </odoo>
