@@ -261,72 +261,48 @@ run_interactive() {
 install_gvisor() {
     log_info "Installing gVisor (runsc) runtime for container sandboxing..."
     
-    # Check if runsc is already installed
-    if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' | grep -q runsc; then
+    # Check if runsc is already installed and registered with Docker
+    if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
         log_success "gVisor already installed and configured."
         return 0
     fi
 
-    # Determine architecture
-    ARCH=$(uname -m)
-    case $ARCH in
-        x86_64)  ARCH="x86_64" ;;
-        aarch64) ARCH="arm64" ;;
-        *)       log_error "Unsupported architecture: $ARCH"; return 1 ;;
-    esac
-
-    # Download latest containerd-shim-runsc-v1
-    local TMP_DIR=$(mktemp -d)
-    cd "$TMP_DIR"
-    curl -fsSL "https://gvisor.dev/archive/releases/release/latest/${ARCH}/containerd-shim-runsc-v1.tar.gz" -o runsc.tar.gz
-    tar -xzvf runsc.tar.gz
-    sudo mv runsc /usr/local/bin/runsc
-    sudo chmod +x /usr/local/bin/runsc
-    cd - > /dev/null
-    rm -rf "$TMP_DIR"
-
-    # Ensure runsc is executable
-    if ! command -v runsc &>/dev/null; then
-        log_error "Failed to install runsc binary."
+    # Use the official gVisor install script
+    log_info "Downloading and running the official gVisor install script..."
+    if curl -fsSL https://gvisor.dev/install.sh | bash; then
+        log_success "gVisor installed successfully via install script"
+    else
+        log_error "gVisor installation failed. Please install manually:"
+        log_info "  curl -fsSL https://gvisor.dev/install.sh | bash"
+        log_info "Then restart Docker: sudo systemctl restart docker"
         return 1
     fi
 
-    # Configure Docker daemon to include runsc runtime
-    local DOCKER_CONFIG="/etc/docker/daemon.json"
-    if [ ! -f "$DOCKER_CONFIG" ]; then
-        echo '{}' | sudo tee "$DOCKER_CONFIG" > /dev/null
-    fi
-
-    # Use jq to add the runsc runtime if missing
-    if command -v jq &>/dev/null; then
-        sudo jq '. + {"runtimes": {"runsc": {"path": "/usr/local/bin/runsc"}}}' "$DOCKER_CONFIG" | sudo tee "$DOCKER_CONFIG.tmp" > /dev/null
-        sudo mv "$DOCKER_CONFIG.tmp" "$DOCKER_CONFIG"
-    else
-        # Fallback: manual edit (less safe, but works)
-        if ! grep -q '"runsc"' "$DOCKER_CONFIG"; then
-            sudo sed -i.bak 's/}$/,"runtimes":{"runsc":{"path":"\/usr\/local\/bin\/runsc"}}}/' "$DOCKER_CONFIG"
-        fi
-    fi
-
-    # Restart Docker daemon
+    # Ensure Docker daemon is restarted to pick up the new runtime
     log_info "Restarting Docker daemon to apply runtime changes..."
-    sudo systemctl restart docker
-    sleep 3
+    if sudo systemctl restart docker; then
+        sleep 3
+        log_success "Docker restarted"
+    else
+        log_warning "Could not restart Docker automatically. Please restart Docker manually."
+    fi
 
     # Verify that runsc is now a runtime
-    if docker info --format '{{json .Runtimes}}' | grep -q runsc; then
-        log_success "gVisor (runsc) installed and configured successfully."
-        # Test run with hello-world
+    if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+        log_success "gVisor (runsc) is now registered as a Docker runtime."
+        # Optional test
         if docker run --rm --runtime=runsc hello-world &>/dev/null; then
             log_success "Test run with runsc succeeded."
         else
             log_warning "Test run with runsc failed, but runtime is registered. Check logs."
         fi
+        return 0
     else
-        log_error "runsc runtime not registered after Docker restart. Check $DOCKER_CONFIG"
+        log_error "runsc runtime not registered after installation. Please check Docker configuration."
         return 1
     fi
 }
+
 
 # =============================================================================
 # Install uv (fast Python package installer)
