@@ -297,38 +297,56 @@ install_gvisor() {
             log_success "gVisor already installed and configured."
             return 0
         else
-            # On WSL2 we want to upgrade to the latest upstream to ensure network fix
-            log_info "WSL2 detected: upgrading runsc to latest upstream version..."
-            # Continue to download and replace the binary
+            # On WSL2 we want to ensure we have the latest version
+            local current_version=$(runsc --version 2>/dev/null | head -1 | grep -o '[0-9]*' | head -1)
+            if [ -n "$current_version" ] && [ "$current_version" -ge 2026 ]; then
+                log_success "gVisor already installed with recent version $(runsc --version | head -1)"
+                return 0
+            fi
+            log_info "WSL2 detected: upgrading to latest runsc version..."
         fi
     fi
 
-    # Determine architecture
-    local arch=$(uname -m)
-    case "$arch" in
-        x86_64)  arch="amd64" ;;
-        aarch64) arch="arm64" ;;
-        *)       log_error "Unsupported architecture: $arch"; return 1 ;;
-    esac
-    local RUNSC_URL="https://storage.googleapis.com/gvisor/releases/release/latest/linux_${arch}/runsc"
+    # ======================================================================
+    # Install using official APT repository (works for WSL2 and native Linux)
+    # ======================================================================
+    log_info "Installing runsc from official gVisor repository..."
+    
+    # Add GPG key
+    curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg 2>/dev/null || {
+        log_error "Failed to download GPG key"
+        return 1
+    }
+    
+    # Add repository
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | \
+        sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
+    
+    # Install runsc
+    sudo apt-get update -qq 2>/dev/null || true
+    if sudo apt-get install -y runsc 2>/dev/null; then
+        log_success "runsc installed via official repository."
+        
+        # Configure Docker to use it
+        configure_docker_runsc "/usr/bin/runsc"
+        return 0
+    else
+        log_error "Failed to install runsc via APT repository."
+        return 1
+    fi
+}
 
-    if [ "$is_wsl2" = true ]; then
-        # On WSL2: always download upstream (bypass apt)
-        log_info "Downloading runsc from $RUNSC_URL (upstream version)..."
-        if ! curl -fsSL -o /tmp/runsc "$RUNSC_URL"; then
-            log_error "Failed to download runsc. Please install manually:"
-            log_info "  curl -fsSL $RUNSC_URL -o /usr/local/bin/runsc"
-            log_info "  chmod +x /usr/local/bin/runsc"
-            return 1
-        fi
-        sudo mv /tmp/runsc /usr/local/bin/runsc
-        sudo chmod +x /usr/local/bin/runsc
-        log_success "Upstream runsc installed to /usr/local/bin/runsc"
-        configure_docker_runsc "/usr/local/bin/runsc"
+    # ======================================================================
+    # Non-WSL2: Check if already installed and working
+    # ======================================================================
+    if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+        log_success "gVisor already installed and configured."
         return 0
     fi
 
-    # Non‑WSL2: try apt first (Ubuntu/Debian)
+    # ======================================================================
+    # Non-WSL2: Try apt first, fallback to upstream
+    # ======================================================================
     if command -v apt &>/dev/null; then
         log_info "Attempting to install runsc via apt..."
         if apt-cache show runsc &>/dev/null; then
@@ -343,7 +361,9 @@ install_gvisor() {
         fi
     fi
 
-    # Fallback: manual download for non‑WSL2 (same as before)
+    # ======================================================================
+    # Fallback: manual download (non-WSL2)
+    # ======================================================================
     log_info "Downloading runsc from $RUNSC_URL..."
     if ! curl -fsSL -o /tmp/runsc "$RUNSC_URL"; then
         log_error "Failed to download runsc. Please install manually:"
