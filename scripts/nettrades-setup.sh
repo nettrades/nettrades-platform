@@ -507,13 +507,19 @@ setup_dev_environment() {
     log_success "Scripts made executable"
 
     # Fix line endings
-    if [[ -f "$PROJECT_ROOT/scripts/fix-line-endings.sh" ]]; then
-        log_step "Fixing line endings (converting to LF)..."
-        bash "$PROJECT_ROOT/scripts/fix-line-endings.sh" --force 2>/dev/null || {
-            log_warning "fix-line-endings.sh failed – continuing anyway"
-        }
+    if [[ ! -f "$PROJECT_ROOT/.line-endings-fixed" ]]; then
+        if [[ -f "$PROJECT_ROOT/scripts/fix-line-endings.sh" ]]; then
+            log_step "Fixing line endings (converting to LF)..."
+            bash "$PROJECT_ROOT/scripts/fix-line-endings.sh" --force 2>/dev/null || {
+                log_warning "fix-line-endings.sh failed – continuing anyway"
+            }
+            touch "$PROJECT_ROOT/.line-endings-fixed"
+            log_success "Line endings fixed – marker created"
+        else
+            log_warning "fix-line-endings.sh not found – skipping line ending fix"
+        fi
     else
-        log_warning "fix-line-endings.sh not found – skipping line ending fix"
+        log_info "Line endings already fixed – skipping"
     fi
 
     # Install uv only if USE_UV is true

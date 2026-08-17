@@ -1,0 +1,72 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Node modules
+node_modules/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Backup files
+*.bak
+*.backup
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
+
+# Documentation (not needed for build)
+docs/
+*.md
+!README.md
+
+# Tests
+tests/
+test/
+*.test.js
+*.spec.js
+
+# Build outputs
+dist/
+build/
+out/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large data files
+*.gguf
+*.bin
+*.tar.gz
+*.zip
+dynamo-data/
+data/
+models/

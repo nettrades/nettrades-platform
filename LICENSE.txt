@@ -1,3 +1,20 @@
+The NETTRADES Platform is dual-licensed:
+
+1. Commercial License (Paid)
+No obligation to release source code — keep your modifications proprietary.
+Includes use restrictions — prohibits military, surveillance and harmful use.
+Includes KYC, audit rights and enterprise support
+
+A copy of which could be found here: https://raw.githubusercontent.com/nettrades/nettrades-platform/main/COMMERCIAL-LICENSE.md
+
+And 
+
+1. AGPL-3.0 (Open Source)
+Free to use and modify
+Requires you to release your modifications under the same license if you make the software available over a network
+No use restrictions — subject to the AGPL-3.0 copyleft terms:
+
+
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 

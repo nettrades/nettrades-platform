@@ -43,6 +43,7 @@
 #   - FIXED: Virtual environment is now MANDATORY – script fails if not found.
 #   - Added conditional Docker Compose file loading for Grove, KAI, fine-tuning.
 #   - Added WSL2 detection to disable gVisor (use default runc) for compatibility.
+#   - OPTIMISED: Only run dos2unix on .env if it contains CRLF characters.
 # =============================================================================
 
 set -euo pipefail
@@ -783,9 +784,12 @@ fi
 cd "$DEPLOY_DIR"
 log_step "Starting PostgreSQL container and initialising database..."
 
-# Ensure .env has Unix line endings (fix Windows CRLF)
-if command -v dos2unix &>/dev/null; then
+# Ensure .env has Unix line endings (fix Windows CRLF) – only if it contains CRLF
+if command -v dos2unix &>/dev/null && grep -q $'\r' "$ENV_FILE" 2>/dev/null; then
     dos2unix "$ENV_FILE" 2>/dev/null || true
+    log_info "Converted .env to LF line endings"
+elif command -v dos2unix &>/dev/null; then
+    log_info ".env already has LF line endings – skipping dos2unix"
 fi
 
 # Source .env for environment variables
@@ -1111,7 +1115,7 @@ enable_pgcrypto || true
 # -----------------------------------------------------------------------------
 log_step "Building and starting Docker Compose stack (with retries)..."
 
-# Before starting containers, set RUNTIME variable
+# Before starting containers, ensure RUNTIME is set
 if [ "$IS_WSL" = true ]; then
     RUNTIME=""
 else
@@ -1119,10 +1123,8 @@ else
 fi
 export RUNTIME
 
-# Start with the main compose file
-RUNTIME="${RUNTIME:-}" 
-export RUNTIME
-docker compose up -d --build
+# Pass RUNTIME explicitly to the compose command
+RUNTIME="${RUNTIME:-}" docker compose up -d --build
 
 # If Grove is enabled, start it
 if [[ "${WITH_GROVE:-false}" == "true" ]]; then

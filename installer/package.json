@@ -70,7 +70,7 @@
       "shortcutName": "NETTRADES Launcher",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
-      "license": "LICENSE.txt"
+      "license": "../LICENSE.txt"
     },
     "mac": {
       "target": "dmg",
