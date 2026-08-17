@@ -297,25 +297,29 @@ install_gvisor() {
         local runsc_path=$(which runsc)
         log_info "runsc found at: $runsc_path"
         
-        # Check if Docker already has runsc registered
+        # Check if Docker has runsc registered with the correct path
         if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
-            if [ "$is_wsl2" = false ]; then
-                log_success "gVisor already installed and configured."
-                return 0
+            # Verify the path in daemon.json matches
+            local current_path=$(grep -o '"path":"[^"]*"' /etc/docker/daemon.json 2>/dev/null | grep runsc | cut -d'"' -f4)
+            if [ -n "$current_path" ] && [ "$current_path" != "$runsc_path" ]; then
+                log_warning "Docker points to $current_path, but runsc is at $runsc_path. Updating..."
+                configure_docker_runsc "$runsc_path"
             else
-                # On WSL2, check if we have a recent enough version
-                local version_output=$(runsc --version 2>/dev/null | head -1)
-                if echo "$version_output" | grep -q "2026"; then
-                    log_success "gVisor already installed with recent version: $version_output"
-                    # Ensure Docker is configured with the correct path
-                    configure_docker_runsc "$runsc_path"
+                if [ "$is_wsl2" = false ]; then
+                    log_success "gVisor already installed and configured."
                     return 0
                 else
-                    log_info "WSL2 detected: upgrading to latest runsc version..."
+                    local version_output=$(runsc --version 2>/dev/null | head -1)
+                    if echo "$version_output" | grep -q "2026"; then
+                        log_success "gVisor already installed with recent version: $version_output"
+                        return 0
+                    else
+                        log_info "WSL2 detected: upgrading to latest runsc version..."
+                    fi
                 fi
             fi
         else
-            # runsc is installed but not registered with Docker
+            # runsc installed but not registered with Docker
             log_info "runsc installed but not registered with Docker. Configuring..."
             configure_docker_runsc "$runsc_path"
             return 0
@@ -323,7 +327,7 @@ install_gvisor() {
     fi
 
     # ======================================================================
-    # Install using official APT repository (works for WSL2 and native Linux)
+    # Install using official APT repository
     # ======================================================================
     log_info "Installing runsc from official gVisor repository..."
 
@@ -344,7 +348,6 @@ install_gvisor() {
     sudo apt-get update -qq 2>/dev/null || true
     if sudo apt-get install -y runsc 2>/dev/null; then
         log_success "runsc installed via official repository."
-        # Find the actual path of runsc
         local runsc_path=$(which runsc 2>/dev/null || echo "/usr/bin/runsc")
         log_info "runsc installed at: $runsc_path"
         configure_docker_runsc "$runsc_path"
