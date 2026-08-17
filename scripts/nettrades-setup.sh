@@ -289,73 +289,62 @@ install_gvisor() {
     local is_wsl2=false
     if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null; then
         is_wsl2=true
-        log_info "WSL2 environment detected."
     fi
 
-    # Check if runsc is already installed
-    if command -v runsc &>/dev/null; then
-        local runsc_path=$(which runsc)
-        log_info "runsc found at: $runsc_path"
-        
-        # Check if Docker has runsc registered with the correct path
-        if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
-            # Verify the path in daemon.json matches
-            local current_path=$(grep -o '"path":"[^"]*"' /etc/docker/daemon.json 2>/dev/null | grep runsc | cut -d'"' -f4)
-            if [ -n "$current_path" ] && [ "$current_path" != "$runsc_path" ]; then
-                log_warning "Docker points to $current_path, but runsc is at $runsc_path. Updating..."
-                configure_docker_runsc "$runsc_path"
-            else
-                if [ "$is_wsl2" = false ]; then
-                    log_success "gVisor already installed and configured."
-                    return 0
-                else
-                    local version_output=$(runsc --version 2>/dev/null | head -1)
-                    if echo "$version_output" | grep -q "2026"; then
-                        log_success "gVisor already installed with recent version: $version_output"
-                        return 0
-                    else
-                        log_info "WSL2 detected: upgrading to latest runsc version..."
-                    fi
-                fi
+    # On WSL2, gVisor is not recommended and we won't install it.
+    if [ "$is_wsl2" = true ]; then
+        log_info "WSL2 detected – skipping gVisor installation (use default runc runtime)."
+        log_info "This is the recommended configuration for WSL2 to avoid network and performance issues."
+        return 0
+    fi
+
+    # ======================================================================
+    # Non‑WSL2: proceed with installation
+    # ======================================================================
+
+    # Check if runsc is already installed and registered with Docker
+    if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+        log_success "gVisor already installed and configured."
+        return 0
+    fi
+
+    # Try apt first (Ubuntu/Debian)
+    if command -v apt &>/dev/null; then
+        log_info "Attempting to install runsc via apt..."
+        if apt-cache show runsc &>/dev/null; then
+            sudo apt update -qq 2>/dev/null || true
+            if sudo apt install -y runsc 2>/dev/null; then
+                log_success "runsc installed via apt."
+                configure_docker_runsc "/usr/bin/runsc"
+                return 0
             fi
         else
-            # runsc installed but not registered with Docker
-            log_info "runsc installed but not registered with Docker. Configuring..."
-            configure_docker_runsc "$runsc_path"
-            return 0
+            log_warning "runsc not available via apt. Trying manual download..."
         fi
     fi
 
-    # ======================================================================
-    # Install using official APT repository
-    # ======================================================================
-    log_info "Installing runsc from official gVisor repository..."
+    # Fallback: manual download (with fixed URL)
+    local arch=$(uname -m)
+    case "$arch" in
+        x86_64)  arch="amd64" ;;
+        aarch64) arch="arm64" ;;
+        *)       log_error "Unsupported architecture: $arch"; return 1 ;;
+    esac
 
-    # Add GPG key
-    if ! curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg 2>/dev/null; then
-        log_warning "Failed to download GPG key, trying alternative..."
-        curl -fsSL https://gvisor.dev/archive.key | sudo apt-key add - 2>/dev/null || {
-            log_error "Failed to add GPG key. Please install runsc manually."
-            return 1
-        }
-    fi
+    local RUNSC_URL="https://storage.googleapis.com/gvisor/releases/release/latest/linux_${arch}/runsc"
+    log_info "Downloading runsc from $RUNSC_URL..."
 
-    # Add repository
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | \
-        sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
-
-    # Install runsc
-    sudo apt-get update -qq 2>/dev/null || true
-    if sudo apt-get install -y runsc 2>/dev/null; then
-        log_success "runsc installed via official repository."
-        local runsc_path=$(which runsc 2>/dev/null || echo "/usr/bin/runsc")
-        log_info "runsc installed at: $runsc_path"
-        configure_docker_runsc "$runsc_path"
-        return 0
-    else
-        log_error "Failed to install runsc via APT repository."
+    if ! curl -fsSL -o /tmp/runsc "$RUNSC_URL"; then
+        log_error "Failed to download runsc. Please install manually:"
+        log_info "  curl -fsSL $RUNSC_URL -o /usr/local/bin/runsc"
+        log_info "  chmod +x /usr/local/bin/runsc"
         return 1
     fi
+
+    sudo mv /tmp/runsc /usr/local/bin/runsc
+    sudo chmod +x /usr/local/bin/runsc
+
+    configure_docker_runsc "/usr/local/bin/runsc"
 }
 
 
@@ -538,15 +527,24 @@ setup_dev_environment() {
         log_info "USE_UV=false, skipping uv installation and using pip."
     fi
 
-    # Install gVisor (runsc) now because it's needed for Odoo container
-    install_gvisor || log_warning "gVisor installation failed; containers may fail to start."
-
-    # Verify that runsc is available in Docker
-    if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
-        log_success "Docker runtime 'runsc' is available."
+    # =========================================================================
+    # gVisor verification – skip on WSL2
+    # =========================================================================
+    # Detect WSL2 (reuse the same logic as install_gvisor)
+    local is_wsl2=false
+    if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null; then
+        is_wsl2=true
+    fi
+    
+    if [ "$is_wsl2" = true ]; then
+        log_info "WSL2 detected – skipping gVisor verification (using default runc runtime)."
     else
-        log_error "Docker runtime 'runsc' is NOT available. Please check /etc/docker/daemon.json"
-        exit 1
+        if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+            log_success "Docker runtime 'runsc' is available."
+        else
+            log_error "Docker runtime 'runsc' is NOT available. Please check /etc/docker/daemon.json"
+            exit 1
+        fi
     fi
 
     # Define requirement files

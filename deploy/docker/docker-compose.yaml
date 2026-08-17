@@ -164,9 +164,10 @@ services:
     build:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.odoo
+    # network_mode: host
     container_name: odoo
     # gVisor runtime for container isolation (security hardening)
-    runtime: "runsc"
+    runtime: ${RUNTIME:-}
     ports:
       - "8069:8069"
     volumes:
@@ -231,7 +232,7 @@ services:
       dockerfile: deploy/docker/Dockerfile.langgraph
     container_name: langgraph-server
     # gVisor runtime for container isolation (security hardening)
-    runtime: "runsc"
+    runtime: ${RUNTIME:-}
     restart: unless-stopped
     networks:
       - web

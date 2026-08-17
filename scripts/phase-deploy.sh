@@ -42,6 +42,7 @@
 #   - Added self-improving environment variables and container startup.
 #   - FIXED: Virtual environment is now MANDATORY – script fails if not found.
 #   - Added conditional Docker Compose file loading for Grove, KAI, fine-tuning.
+#   - Added WSL2 detection to disable gVisor (use default runc) for compatibility.
 # =============================================================================
 
 set -euo pipefail
@@ -67,6 +68,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
+
+# -----------------------------------------------------------------------------
+# Detect WSL2
+# -----------------------------------------------------------------------------
+IS_WSL=false
+if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null; then
+    IS_WSL=true
+    log_info "WSL2 detected – gVisor will be disabled for compatibility."
+fi
+export IS_WSL
 
 # -----------------------------------------------------------------------------
 # Ensure VENV_DIR is available and activate the virtual environment
@@ -1087,8 +1098,16 @@ enable_pgcrypto || true
 # -----------------------------------------------------------------------------
 log_step "Building and starting Docker Compose stack (with retries)..."
 
+# Before starting containers, set RUNTIME variable
+if [ "$IS_WSL" = true ]; then
+    RUNTIME=""
+else
+    RUNTIME="runsc"
+fi
+export RUNTIME
+
 # Start with the main compose file
-docker compose up -d --build
+RUNTIME="${RUNTIME:-}" docker compose up -d --build
 
 # If Grove is enabled, start it
 if [[ "${WITH_GROVE:-false}" == "true" ]]; then

@@ -846,10 +846,16 @@ fi
 # 18. Check gVisor installation
 # -----------------------------------------------------------------------------
 log_step "Checking gVisor installation..."
-if command -v runsc &>/dev/null; then
-    log_success "gVisor already installed"
+
+# Detect WSL2 (reuse the same logic)
+if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null; then
+    log_info "WSL2 detected – gVisor is not used (default runc runtime will be used)."
 else
-    log_info "gVisor not installed – will be installed during Kubernetes phase if needed"
+    if command -v runsc &>/dev/null; then
+        log_success "gVisor already installed"
+    else
+        log_info "gVisor not installed – will be installed during Kubernetes phase if needed"
+    fi
 fi
 
 # -----------------------------------------------------------------------------
