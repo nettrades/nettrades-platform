@@ -227,17 +227,37 @@ fi
 # 3.5 Install python3-venv (required for virtual environment creation)
 # -----------------------------------------------------------------------------
 log_step "Checking python3-venv installation..."
-if ! python3 -c "import venv" &>/dev/null; then
-    log_info "Installing python3-venv..."
+
+# Check if venv and ensurepip are available
+VENV_OK=false
+if python3 -c "import venv; import ensurepip" &>/dev/null; then
+    VENV_OK=true
+    log_success "python3-venv already installed (venv and ensurepip available)"
+fi
+
+if [ "$VENV_OK" != true ]; then
+    log_info "python3-venv or ensurepip missing – installing..."
     if [[ "$OS" == "linux" ]]; then
-        sudo apt-get update -qq
-        sudo apt-get install -y python3-venv
-        log_success "python3-venv installed"
+        # Try installing the versioned package first (Ubuntu 24.04+)
+        if apt-cache show python3.12-venv &>/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y python3.12-venv
+        else
+            # Fallback to generic python3-venv
+            sudo apt-get update -qq
+            sudo apt-get install -y python3-venv
+        fi
+        # Verify after installation
+        if python3 -c "import venv; import ensurepip" &>/dev/null; then
+            log_success "python3-venv installed successfully"
+        else
+            log_error "python3-venv installation failed – please install manually:"
+            log_info "  apt install python3.12-venv"
+            exit 1
+        fi
     else
         log_warning "Please install python3-venv manually for $OS"
     fi
-else
-    log_success "python3-venv already installed"
 fi
 
 # -----------------------------------------------------------------------------
