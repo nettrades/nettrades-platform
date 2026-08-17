@@ -278,6 +278,7 @@ run_interactive() {
     export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN
 }
 
+
 # ----------------------------------------------------------------------
 # install_gvisor - Installs gVisor (runsc) and configures Docker runtime
 # ----------------------------------------------------------------------
@@ -297,13 +298,15 @@ install_gvisor() {
             log_success "gVisor already installed and configured."
             return 0
         else
-            # On WSL2 we want to ensure we have the latest version
-            local current_version=$(runsc --version 2>/dev/null | head -1 | grep -o '[0-9]*' | head -1)
-            if [ -n "$current_version" ] && [ "$current_version" -ge 2026 ]; then
-                log_success "gVisor already installed with recent version $(runsc --version | head -1)"
+            # On WSL2, check if we have a recent enough version
+            local version_output=$(runsc --version 2>/dev/null | head -1)
+            if echo "$version_output" | grep -q "2026"; then
+                log_success "gVisor already installed with recent version: $version_output"
                 return 0
+            else
+                log_info "WSL2 detected: upgrading to latest runsc version..."
+                # Continue to upgrade
             fi
-            log_info "WSL2 detected: upgrading to latest runsc version..."
         fi
     fi
 
@@ -311,23 +314,25 @@ install_gvisor() {
     # Install using official APT repository (works for WSL2 and native Linux)
     # ======================================================================
     log_info "Installing runsc from official gVisor repository..."
-    
+
     # Add GPG key
-    curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg 2>/dev/null || {
-        log_error "Failed to download GPG key"
-        return 1
-    }
-    
+    if ! curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg 2>/dev/null; then
+        log_warning "Failed to download GPG key, trying alternative..."
+        # Alternative: use apt-key (deprecated but works on older systems)
+        curl -fsSL https://gvisor.dev/archive.key | sudo apt-key add - 2>/dev/null || {
+            log_error "Failed to add GPG key. Please install runsc manually."
+            return 1
+        }
+    fi
+
     # Add repository
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | \
         sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
-    
+
     # Install runsc
     sudo apt-get update -qq 2>/dev/null || true
     if sudo apt-get install -y runsc 2>/dev/null; then
         log_success "runsc installed via official repository."
-        
-        # Configure Docker to use it
         configure_docker_runsc "/usr/bin/runsc"
         return 0
     else
@@ -336,46 +341,6 @@ install_gvisor() {
     fi
 }
 
-    # ======================================================================
-    # Non-WSL2: Check if already installed and working
-    # ======================================================================
-    if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
-        log_success "gVisor already installed and configured."
-        return 0
-    fi
-
-    # ======================================================================
-    # Non-WSL2: Try apt first, fallback to upstream
-    # ======================================================================
-    if command -v apt &>/dev/null; then
-        log_info "Attempting to install runsc via apt..."
-        if apt-cache show runsc &>/dev/null; then
-            sudo apt update -qq 2>/dev/null || true
-            if sudo apt install -y runsc 2>/dev/null; then
-                log_success "runsc installed via apt."
-                configure_docker_runsc "/usr/bin/runsc"
-                return 0
-            fi
-        else
-            log_warning "runsc not available via apt. Trying manual download..."
-        fi
-    fi
-
-    # ======================================================================
-    # Fallback: manual download (non-WSL2)
-    # ======================================================================
-    log_info "Downloading runsc from $RUNSC_URL..."
-    if ! curl -fsSL -o /tmp/runsc "$RUNSC_URL"; then
-        log_error "Failed to download runsc. Please install manually:"
-        log_info "  curl -fsSL $RUNSC_URL -o /usr/local/bin/runsc"
-        log_info "  chmod +x /usr/local/bin/runsc"
-        return 1
-    fi
-
-    sudo mv /tmp/runsc /usr/local/bin/runsc
-    sudo chmod +x /usr/local/bin/runsc
-    configure_docker_runsc "/usr/local/bin/runsc"
-}
 
 # ----------------------------------------------------------------------
 # configure_docker_runsc - Configures Docker to use the runsc runtime
