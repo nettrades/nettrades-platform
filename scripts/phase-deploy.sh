@@ -44,6 +44,8 @@
 #   - Added conditional Docker Compose file loading for Grove, KAI, fine-tuning.
 #   - Added WSL2 detection to disable gVisor (use default runc) for compatibility.
 #   - OPTIMISED: Only run dos2unix on .env if it contains CRLF characters.
+#   - IMPROVED: Database initialisation now always runs if core table missing.
+#   - FIXED: RUNTIME variable is now correctly passed to docker compose up.
 # =============================================================================
 
 set -euo pipefail
@@ -1071,20 +1073,25 @@ wait_for_postgres || {
 }
 
 # -----------------------------------------------------------------------------
-# Check if database is already initialised
+# Check if database is already initialised – but we always force init if core table missing
 # -----------------------------------------------------------------------------
 DB_INITIALISED=false
+# Check if the core Odoo table 'ir_module_module' exists
 if docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
     DB_INITIALISED=true
 fi
 
-if [ "$DB_INITIALISED" = true ] && [[ "$FORCE" != true ]]; then
-    log_success "Database already initialised – skipping init."
-else
+# Also check if the database has any tables at all
+TABLE_COUNT=$(docker compose exec -T postgres psql -U odoo -d odoo -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | tr -d ' ')
+
+if [ "$DB_INITIALISED" = false ] || [ "$TABLE_COUNT" -lt 10 ] || [[ "$FORCE" == true ]]; then
+    log_info "Database not properly initialised or --force used. Running full initialisation..."
+
+    # Drop and recreate database if it exists and we're forcing
     if [[ "$FORCE" == true ]]; then
-        log_info "Force mode – re‑initialising database (data will be preserved, but modules will be re‑installed)."
-    else
-        log_info "Database seems empty – initialising with init-db.sql and base module..."
+        log_info "Force mode: dropping and recreating database..."
+        docker compose exec -T postgres dropdb -U odoo odoo 2>/dev/null || true
+        docker compose exec -T postgres createdb -U odoo odoo
     fi
 
     # Apply init-db.sql (idempotent – creates tables if they don't exist)
@@ -1106,6 +1113,8 @@ else
       --db_password="$POSTGRES_PASSWORD" \
       -i base --stop-after-init --log-level=info
     log_success "Base modules installed"
+else
+    log_success "Database already initialised – skipping init."
 fi
 
 enable_pgcrypto || true

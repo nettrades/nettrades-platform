@@ -82,6 +82,16 @@ if ! docker ps | grep -q odoo; then
 fi
 
 # -----------------------------------------------------------------------------
+# Check if Odoo is properly initialised (has core tables)
+# -----------------------------------------------------------------------------
+
+if ! docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
+    log_error "Odoo database not initialised. Please run Phase 2 first or run:"
+    log_info "  docker compose run --rm odoo odoo -d odoo -i base --stop-after-init"
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
 # Ensure Odoo is using the latest modules (restart if --force)
 # -----------------------------------------------------------------------------
 if [[ "$FORCE" == true ]]; then

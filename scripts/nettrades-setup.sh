@@ -43,7 +43,9 @@
 #   - Added --with-grove and --with-kai options for optional components.
 #   - Added --with-router option for Sovereign AI Router mode.
 #   - Added --domain option for production external access.
-#   - Fixed gVisor installation with automatic Docker configuration.
+#   - Fixed gVisor installation with official repository and robust retries.
+#   - Optimised line-ending fix with a marker to skip repeated runs.
+#   - Improved Python virtual environment creation to ensure ensurepip is available.
 #
 # =============================================================================
 
@@ -308,19 +310,46 @@ install_gvisor() {
         return 0
     fi
 
-    # Try apt first (Ubuntu/Debian)
+    # Try apt first (Ubuntu/Debian) – use the official repository method
     if command -v apt &>/dev/null; then
-        log_info "Attempting to install runsc via apt..."
-        if apt-cache show runsc &>/dev/null; then
-            sudo apt update -qq 2>/dev/null || true
-            if sudo apt install -y runsc 2>/dev/null; then
+        log_info "Attempting to install runsc via official gVisor repository..."
+
+        # Add the GPG key and repository
+        local gpg_keyring="/usr/share/keyrings/gvisor-archive-keyring.gpg"
+        if [[ ! -f "$gpg_keyring" ]]; then
+            if curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o "$gpg_keyring" 2>/dev/null; then
+                log_success "gVisor GPG key added."
+            else
+                log_warning "Failed to download GPG key. Trying alternative method..."
+                curl -fsSL https://gvisor.dev/archive.key | sudo apt-key add - 2>/dev/null || {
+                    log_error "Failed to add GPG key. Falling back to manual download."
+                    # fall through
+                }
+            fi
+        fi
+
+        # Add repository (only if the keyring exists)
+        if [ -f "$gpg_keyring" ]; then
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=$gpg_keyring] https://storage.googleapis.com/gvisor/releases release main" | \
+                sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
+            log_success "gVisor repository added."
+        fi
+
+        # Update and install with retries
+        local max_retries=3
+        local attempt=1
+        while [ $attempt -le $max_retries ]; do
+            log_info "Attempt $attempt/$max_retries to install runsc via apt..."
+            if sudo apt-get update -qq 2>/dev/null && sudo apt-get install -y runsc 2>/dev/null; then
                 log_success "runsc installed via apt."
-                configure_docker_runsc "/usr/bin/runsc"
+                local runsc_path=$(which runsc 2>/dev/null || echo "/usr/bin/runsc")
+                configure_docker_runsc "$runsc_path"
                 return 0
             fi
-        else
-            log_warning "runsc not available via apt. Trying manual download..."
-        fi
+            attempt=$((attempt + 1))
+            sleep 2
+        done
+        log_warning "apt installation failed after $max_retries attempts. Trying manual download..."
     fi
 
     # Fallback: manual download (with fixed URL)
@@ -451,10 +480,10 @@ setup_dev_environment() {
     # Python virtual environment setup – MANDATORY
     # ============================================================
 
-    # Check if venv module is available
-    if ! python3 -c "import venv" 2>/dev/null; then
-        log_error "python3-venv not installed. Please install it:"
-        log_info "  Ubuntu/Debian: sudo apt install python3-venv"
+    # Check if venv and ensurepip are available
+    if ! python3 -c "import venv; import ensurepip" &>/dev/null; then
+        log_error "python3-venv or ensurepip not fully installed. Please install:"
+        log_info "  Ubuntu/Debian: sudo apt install python3.12-venv"
         log_info "  macOS: brew install python3"
         exit 1
     fi
@@ -506,15 +535,17 @@ setup_dev_environment() {
     chmod +x "$PROJECT_ROOT"/scripts/lib/*.sh 2>/dev/null || true
     log_success "Scripts made executable"
 
-    # Fix line endings
+    # Fix line endings – only if not already done
     if [[ ! -f "$PROJECT_ROOT/.line-endings-fixed" ]]; then
         if [[ -f "$PROJECT_ROOT/scripts/fix-line-endings.sh" ]]; then
             log_step "Fixing line endings (converting to LF)..."
             bash "$PROJECT_ROOT/scripts/fix-line-endings.sh" --force 2>/dev/null || {
                 log_warning "fix-line-endings.sh failed – continuing anyway"
             }
-            touch "$PROJECT_ROOT/.line-endings-fixed"
-            log_success "Line endings fixed – marker created"
+            if [[ $? -eq 0 ]]; then
+                touch "$PROJECT_ROOT/.line-endings-fixed"
+                log_success "Line endings fixed – marker created"
+            fi
         else
             log_warning "fix-line-endings.sh not found – skipping line ending fix"
         fi
@@ -533,6 +564,9 @@ setup_dev_environment() {
         log_info "USE_UV=false, skipping uv installation and using pip."
     fi
 
+    # Install gVisor (runsc) now because it's needed for Odoo container
+    install_gvisor || log_warning "gVisor installation failed; containers may fail to start."
+
     # =========================================================================
     # gVisor verification – skip on WSL2
     # =========================================================================
@@ -541,7 +575,7 @@ setup_dev_environment() {
     if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null; then
         is_wsl2=true
     fi
-    
+
     if [ "$is_wsl2" = true ]; then
         log_info "WSL2 detected – skipping gVisor verification (using default runc runtime)."
     else
