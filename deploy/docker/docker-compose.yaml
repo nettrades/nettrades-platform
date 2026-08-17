@@ -366,6 +366,7 @@ services:
       - web
     depends_on:
       - traefik
+      - odoo
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.redirector.rule=PathPrefix(`/`)"

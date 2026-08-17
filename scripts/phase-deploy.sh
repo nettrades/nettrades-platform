@@ -1066,11 +1066,24 @@ wait_for_postgres || {
     exit 1
 }
 
+# -----------------------------------------------------------------------------
 # Check if database is already initialised
+# -----------------------------------------------------------------------------
+DB_INITIALISED=false
 if docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
+    DB_INITIALISED=true
+fi
+
+if [ "$DB_INITIALISED" = true ] && [[ "$FORCE" != true ]]; then
     log_success "Database already initialised – skipping init."
 else
-    log_info "Database seems empty – initialising with init-db.sql and base module..."
+    if [[ "$FORCE" == true ]]; then
+        log_info "Force mode – re‑initialising database (data will be preserved, but modules will be re‑installed)."
+    else
+        log_info "Database seems empty – initialising with init-db.sql and base module..."
+    fi
+
+    # Apply init-db.sql (idempotent – creates tables if they don't exist)
     if [[ -f "$INIT_SQL" ]]; then
         docker compose exec -T postgres psql -U odoo odoo < "$INIT_SQL" || {
             log_warning "Database initialisation may have already been done."
@@ -1080,8 +1093,8 @@ else
         exit 1
     fi
 
-    # Install base module
-    log_info "Initialising database with base modules..."
+    # Install the base module (and all its dependencies)
+    log_info "Installing base modules..."
     docker compose run --rm odoo odoo -d odoo \
       --db_host=postgres \
       --db_port=5432 \
@@ -1107,7 +1120,9 @@ fi
 export RUNTIME
 
 # Start with the main compose file
-RUNTIME="${RUNTIME:-}" docker compose up -d --build
+RUNTIME="${RUNTIME:-}" 
+export RUNTIME
+docker compose up -d --build
 
 # If Grove is enabled, start it
 if [[ "${WITH_GROVE:-false}" == "true" ]]; then
