@@ -30,6 +30,10 @@
 #   --regenerate-secrets Regenerate all secrets in .env (use with caution)
 #   --reset-data        Wipe all containers and volumes (destroys data!)
 #   --with-finetune     Install fine-tuning packages (torch, unsloth, axolotl)
+#   --with-grove        Deploy Grove observability platform
+#   --with-kai          Deploy KAI Scheduler for GPU scheduling (K8s)
+#   --with-router       Install and configure the bridge module for routing
+#   --domain=DOMAIN     Set domain name for external access (enables HTTPS)
 #   --platform          Override platform detection (linux, macos, wsl)
 #
 # UPDATES (2026-08):
@@ -37,6 +41,9 @@
 #   - All Python scripts now run inside the venv.
 #   - Added checks to ensure venv exists before any Python operations.
 #   - Added --with-grove and --with-kai options for optional components.
+#   - Added --with-router option for Sovereign AI Router mode.
+#   - Added --domain option for production external access.
+#   - Fixed gVisor installation with automatic Docker configuration.
 #
 # =============================================================================
 
@@ -93,6 +100,8 @@ AUTO=false
 WITH_FINETUNE=false
 WITH_GROVE=false
 WITH_KAI=false
+WITH_ROUTER=false
+DOMAIN=""
 PHASES_LIST=""
 PROFILE=""
 INTERACTIVE=false
@@ -141,6 +150,8 @@ ${YELLOW}OPTIONS (CLI):${NC}
     --with-finetune       Install large fine-tuning packages (torch, unsloth, axolotl).
     --with-grove          Deploy Grove observability platform (future scaling).
     --with-kai            Deploy KAI Scheduler for GPU scheduling (K8s).
+    --with-router         Install and configure the bridge module for routing.
+    --domain=DOMAIN       Set domain name for external access (enables HTTPS).
     --platform            Override platform detection (linux, macos, wsl).
 
 ${YELLOW}EXAMPLES:${NC}
@@ -149,6 +160,8 @@ ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh deploy --production    # Deploy with production hardening
     ./nettrades-setup.sh all --force            # Full re-deployment (keeps data)
     ./nettrades-setup.sh all --with-finetune    # Include fine-tuning packages
+    ./nettrades-setup.sh all --with-router      # Include router bridge module
+    ./nettrades-setup.sh all --production --domain=ai.company.com  # External production
     ./nettrades-setup.sh k8s --with-kai         # Kubernetes with KAI Scheduler
     ./nettrades-setup.sh deploy --with-grove    # Deploy with Grove observability
 EOF
@@ -196,6 +209,16 @@ run_interactive() {
     esac
     log_info "Environment: $ENVIRONMENT"
 
+    # --- Domain (only for production) ---
+    if [[ "$ENVIRONMENT" == "production" ]]; then
+        echo ""
+        read -rp "Enter domain name for external access (e.g., ai.company.com): " domain_input
+        if [[ -n "$domain_input" ]]; then
+            DOMAIN="$domain_input"
+            log_info "Domain: $DOMAIN"
+        fi
+    fi
+
     echo ""
     read -rp "Force re-run completed phases? (y/N): " force_yn
     [[ "$force_yn" =~ ^[Yy]$ ]] && FORCE=true || FORCE=false
@@ -203,27 +226,26 @@ run_interactive() {
     read -rp "Upgrade modules instead of fresh install? (y/N): " upgrade_yn
     [[ "$upgrade_yn" =~ ^[Yy]$ ]] && UPGRADE=true || UPGRADE=false
 
-    read -rp "Fine Tuning packages take too long to install. (You could install them later if you want to fine tune your models by running pip install -r requirements-finetune.txt) It is best to press n if you are just getting started. Do you want to install fine-tuning packages (torch, unsloth, axolotl)? (y/N): " finetune_yn
-    [[ "$finetune_yn" =~ ^[Yy]$ ]] && WITH_FINETUNE=true || WITH_FINETUNE=false
-
     read -rp "Auto mode (non-interactive, no prompts)? (y/N): " auto_yn
     [[ "$auto_yn" =~ ^[Yy]$ ]] && AUTO=true || AUTO=false
 
     # --- Optional components ---
     echo ""
-    read -rp "Fine Tuning packages take too long to install... Do you want to install fine-tuning packages (torch, unsloth, axolotl)? (y/N): " finetune_yn
+    echo "Optional modules:"
+    read -rp "Install fine-tuning packages (torch, unsloth, axolotl)? (y/N): " finetune_yn
     [[ "$finetune_yn" =~ ^[Yy]$ ]] && WITH_FINETUNE=true || WITH_FINETUNE=false
 
     echo ""
-    read -rp "Deploy Grove observability platform (future scaling)? (y/N): " grove_yn   # NEW
-    [[ "$grove_yn" =~ ^[Yy]$ ]] && WITH_GROVE=true || WITH_GROVE=false                 # NEW
+    read -rp "Deploy Grove observability platform (Prometheus, Loki, Tempo)? (y/N): " grove_yn
+    [[ "$grove_yn" =~ ^[Yy]$ ]] && WITH_GROVE=true || WITH_GROVE=false
 
     echo ""
-    read -rp "Deploy KAI Scheduler for GPU scheduling (Kubernetes only)? (y/N): " kai_yn   # NEW
-    [[ "$kai_yn" =~ ^[Yy]$ ]] && WITH_KAI=true || WITH_KAI=false                         # NEW
+    read -rp "Deploy KAI Scheduler for GPU scheduling (requires Kubernetes)? (y/N): " kai_yn
+    [[ "$kai_yn" =~ ^[Yy]$ ]] && WITH_KAI=true || WITH_KAI=false
 
-    read -rp "Auto mode (non-interactive, no prompts)? (y/N): " auto_yn
-    [[ "$auto_yn" =~ ^[Yy]$ ]] && AUTO=true || AUTO=false
+    echo ""
+    read -rp "Enable Router mode (bridge module for routing to other nodes)? (y/N): " router_yn
+    [[ "$router_yn" =~ ^[Yy]$ ]] && WITH_ROUTER=true || WITH_ROUTER=false
 
     # --- Determine phases ---
     case "$PROFILE" in
@@ -240,69 +262,135 @@ run_interactive() {
     echo -e "${YELLOW}Summary:${NC}"
     echo "  Profile: $PROFILE"
     echo "  Environment: $ENVIRONMENT"
+    echo "  Domain: ${DOMAIN:-none}"
     echo "  Force: $FORCE"
     echo "  Upgrade: $UPGRADE"
     echo "  Auto: $AUTO"
     echo "  With Fine-tuning: $WITH_FINETUNE"
     echo "  With Grove: $WITH_GROVE"
     echo "  With KAI Scheduler: $WITH_KAI"
+    echo "  With Router: $WITH_ROUTER"
     echo "  Phases: ${PHASES[*]}"
     echo ""
     read -rp "Proceed with these settings? (y/N): " confirm
     [[ ! "$confirm" =~ ^[Yy]$ ]] && { log_info "Aborted."; exit 0; }
 
-    export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE WITH_GROVE WITH_KAI
+    export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN
 }
-
 
 # ----------------------------------------------------------------------
 # install_gvisor - Installs gVisor (runsc) and configures Docker runtime
 # ----------------------------------------------------------------------
 install_gvisor() {
     log_info "Installing gVisor (runsc) runtime for container sandboxing..."
-    
+
     # Check if runsc is already installed and registered with Docker
     if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
         log_success "gVisor already installed and configured."
         return 0
     fi
 
-    # Use the official gVisor install script
-    log_info "Downloading and running the official gVisor install script..."
-    if curl -fsSL https://gvisor.dev/install.sh | bash; then
-        log_success "gVisor installed successfully via install script"
-    else
-        log_error "gVisor installation failed. Please install manually:"
-        log_info "  curl -fsSL https://gvisor.dev/install.sh | bash"
-        log_info "Then restart Docker: sudo systemctl restart docker"
-        return 1
-    fi
-
-    # Ensure Docker daemon is restarted to pick up the new runtime
-    log_info "Restarting Docker daemon to apply runtime changes..."
-    if sudo systemctl restart docker; then
-        sleep 3
-        log_success "Docker restarted"
-    else
-        log_warning "Could not restart Docker automatically. Please restart Docker manually."
-    fi
-
-    # Verify that runsc is now a runtime
-    if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
-        log_success "gVisor (runsc) is now registered as a Docker runtime."
-        # Optional test
-        if docker run --rm --runtime=runsc hello-world &>/dev/null; then
-            log_success "Test run with runsc succeeded."
+    # Try apt first (Ubuntu/Debian)
+    if command -v apt &>/dev/null; then
+        log_info "Attempting to install runsc via apt..."
+        if apt-cache show runsc &>/dev/null; then
+            sudo apt update -qq 2>/dev/null || true
+            if sudo apt install -y runsc 2>/dev/null; then
+                log_success "runsc installed via apt."
+                configure_docker_runsc "/usr/bin/runsc"
+                return 0
+            fi
         else
-            log_warning "Test run with runsc failed, but runtime is registered. Check logs."
+            log_warning "runsc not available via apt. Trying manual download..."
         fi
-        return 0
-    else
-        log_error "runsc runtime not registered after installation. Please check Docker configuration."
+    fi
+
+    # Fallback: manual download (with fixed URL)
+    local arch=$(uname -m)
+    case "$arch" in
+        x86_64)  arch="amd64" ;;
+        aarch64) arch="arm64" ;;
+        *)       log_error "Unsupported architecture: $arch"; return 1 ;;
+    esac
+
+    local RUNSC_URL="https://storage.googleapis.com/gvisor/releases/release/latest/linux_${arch}/runsc"
+    log_info "Downloading runsc from $RUNSC_URL..."
+
+    if ! curl -fsSL -o /tmp/runsc "$RUNSC_URL"; then
+        log_error "Failed to download runsc. Please install manually:"
+        log_info "  curl -fsSL $RUNSC_URL -o /usr/local/bin/runsc"
+        log_info "  chmod +x /usr/local/bin/runsc"
         return 1
     fi
+
+    sudo mv /tmp/runsc /usr/local/bin/runsc
+    sudo chmod +x /usr/local/bin/runsc
+
+    configure_docker_runsc "/usr/local/bin/runsc"
 }
 
+# ----------------------------------------------------------------------
+# configure_docker_runsc - Configures Docker to use the runsc runtime
+# ----------------------------------------------------------------------
+configure_docker_runsc() {
+    local runsc_path="$1"
+    local DOCKER_CONFIG="/etc/docker/daemon.json"
+
+    # Create daemon.json if it doesn't exist
+    if [[ ! -f "$DOCKER_CONFIG" ]]; then
+        echo '{}' | sudo tee "$DOCKER_CONFIG" > /dev/null
+    fi
+
+    # Add runsc runtime using jq if available
+    if command -v jq &>/dev/null; then
+        sudo jq --arg path "$runsc_path" \
+            '.runtimes += {"runsc": {"path": $path}}' \
+            "$DOCKER_CONFIG" | sudo tee "$DOCKER_CONFIG.tmp" > /dev/null
+        sudo mv "$DOCKER_CONFIG.tmp" "$DOCKER_CONFIG"
+    else
+        # Fallback: use sed to inject the runtime
+        if ! grep -q '"runsc"' "$DOCKER_CONFIG"; then
+            sudo sed -i.bak 's/}$/,"runtimes":{"runsc":{"path":"'"$runsc_path"'"}}}/' "$DOCKER_CONFIG"
+        fi
+    fi
+
+    log_success "Docker daemon.json updated with runsc runtime."
+
+    # Restart Docker - handle WSL properly
+    log_info "Restarting Docker daemon..."
+    if sudo systemctl restart docker 2>/dev/null; then
+        sleep 5
+    elif sudo service docker restart 2>/dev/null; then
+        sleep 5
+    else
+        log_warning "Could not restart Docker automatically."
+        log_info "Please restart Docker manually: sudo systemctl restart docker"
+        read -rp "Press Enter after Docker has been restarted..." -n1
+        echo ""
+    fi
+
+    # Multiple verification attempts with retries
+    local max_attempts=5
+    local attempt=0
+    while [ $attempt -lt $max_attempts ]; do
+        if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+            log_success "gVisor (runsc) is now registered as a Docker runtime."
+            docker run --rm --runtime=runsc hello-world &>/dev/null && \
+                log_success "Test succeeded." || \
+                log_warning "Test failed, but runtime is registered."
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        log_info "Waiting for Docker to register runsc... (attempt $attempt/$max_attempts)"
+        sleep 3
+    done
+
+    log_error "runsc runtime not registered after $max_attempts attempts."
+    log_info "Please check manually:"
+    log_info "  docker info --format '{{json .Runtimes}}'"
+    log_info "  cat $DOCKER_CONFIG"
+    return 1
+}
 
 # =============================================================================
 # Install uv (fast Python package installer)
@@ -423,6 +511,14 @@ setup_dev_environment() {
     # Install gVisor (runsc) now because it's needed for Odoo container
     install_gvisor || log_warning "gVisor installation failed; containers may fail to start."
 
+    # Verify that runsc is available in Docker
+    if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+        log_success "Docker runtime 'runsc' is available."
+    else
+        log_error "Docker runtime 'runsc' is NOT available. Please check /etc/docker/daemon.json"
+        exit 1
+    fi
+
     # Define requirement files
     local base_req="$PROJECT_ROOT/requirements-base.txt"
     local dev_req="$PROJECT_ROOT/requirements-dev.txt"
@@ -511,13 +607,18 @@ while [[ $# -gt 0 ]]; do
         --regenerate-secrets) REGENERATE_SECRETS=true; shift ;;
         --reset-data) RESET_DATA=true; shift ;;
         --with-finetune) WITH_FINETUNE=true; shift ;;
+        --with-router) WITH_ROUTER=true; shift ;;
+        --with-grove) WITH_GROVE=true; shift ;;
+        --with-kai) WITH_KAI=true; shift ;;
         --platform)
             PLATFORM_OVERRIDE="$2"
             shift 2
             ;;
         --phases=*) PHASES_LIST="${1#--phases=}"; shift ;;
-        --with-grove) WITH_GROVE=true; shift ;;
-        --with-kai) WITH_KAI=true; shift ;;
+        --domain=*)
+            DOMAIN="${1#--domain=}"
+            shift
+            ;;
         --help) show_help; exit 0 ;;
         -*)
             log_error "Unknown option: $1"
@@ -537,7 +638,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI VENV_DIR
+export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN VENV_DIR
 
 # Set PLATFORM for phase scripts
 if [[ -n "$PLATFORM_OVERRIDE" ]]; then
@@ -766,11 +867,13 @@ export PROJECT_ROOT FORCE UPGRADE SKIP_INSTALLED AUTO
 log_header "NETTRADES.AI – Unified Setup"
 log_info "Profile: ${PROFILE:-custom}"
 log_info "Environment: $ENVIRONMENT"
+log_info "Domain: ${DOMAIN:-none}"
 log_info "Phases: ${PHASES[*]}"
 log_info "Force: $FORCE"
 log_info "Upgrade: $UPGRADE"
 log_info "Auto: $AUTO"
 log_info "With Fine-tuning: $WITH_FINETUNE"
+log_info "With Router: $WITH_ROUTER"
 log_info "Virtual Environment: $VENV_DIR"
 log_info "Platform: $PLATFORM"
 echo ""
@@ -801,17 +904,19 @@ for phase in "${PHASES[@]}"; do
             # Ensure VENV_DIR is available for phase-deploy.sh
             export VENV_DIR
             # Pass optional component flags to phase-deploy.sh
-            export WITH_GROVE WITH_KAI WITH_FINETUNE
+            export WITH_GROVE WITH_KAI WITH_FINETUNE WITH_ROUTER DOMAIN
             bash "$SCRIPT_DIR/phase-deploy.sh"
             ;;
         3)
             log_header "Phase 3 — Kubernetes Scaling"
             export VENV_DIR
+            export WITH_GROVE WITH_KAI WITH_FINETUNE
             bash "$SCRIPT_DIR/phase-k8s.sh"
             ;;
         4)
             log_header "Phase 4 — Module Installation"
             export VENV_DIR
+            export WITH_ROUTER DOMAIN
             bash "$SCRIPT_DIR/phase-modules.sh"
             ;;
         5)
@@ -833,7 +938,11 @@ echo "Next steps:"
 echo " 1. Configure fairness settings: Settings → Technical → Fairness → Global Configuration"
 echo " 2. Configure GPU marketplace settings: Settings → GPU → Marketplace"
 echo " 3. Set up WireGuard peers for secure communication"
-echo " 4. Access your platform at https://your-domain"
+if [[ -n "$DOMAIN" ]]; then
+    echo " 4. Access your platform at https://$DOMAIN"
+else
+    echo " 4. Access your platform at https://your-domain"
+fi
 if [[ "$ENVIRONMENT" == "development" ]]; then
     echo " 5. Development mode: SSH password auth is still enabled on port 22."
 else

@@ -1334,6 +1334,189 @@
             right: auto;
             left: 8px;
         }
+
+        /* ─── Deployment Cards ─── */
+        .deployment-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .deployment-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 18px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .deployment-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .deployment-card.selected {
+            border-color: #4a8aff;
+            background: rgba(74, 138, 255, 0.08);
+            box-shadow: 0 0 30px rgba(74, 138, 255, 0.1);
+        }
+
+        .deployment-card.recommended {
+            border-color: #28c840;
+        }
+
+        .deployment-card.advanced {
+            opacity: 0.75;
+        }
+
+        .deployment-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .deployment-card .card-header h4 {
+            font-size: 16px;
+        }
+
+        .deployment-card .card-description {
+            color: #8a8a9a;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .deployment-card .card-endpoint {
+            font-size: 13px;
+            color: #4a8aff;
+            margin-bottom: 8px;
+            padding: 4px 10px;
+            background: rgba(74, 138, 255, 0.1);
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .deployment-card .card-features {
+            list-style: none;
+            font-size: 12px;
+            color: #6a6a7a;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 12px;
+        }
+
+        .deployment-card .card-features li {
+            display: inline;
+        }
+
+        .badge-recommended {
+            background: rgba(40, 200, 64, 0.2);
+            color: #28c840;
+            font-size: 10px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .badge-advanced {
+            background: rgba(255, 189, 46, 0.2);
+            color: #ffbd2e;
+            font-size: 10px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        /* ─── Hardware Detection ─── */
+        .hardware-info {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            font-size: 13px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 16px;
+        }
+
+        .hardware-item {
+            padding: 2px 0;
+        }
+        .hardware-item.success { color: #28c840; }
+        .hardware-item.warning { color: #ffbd2e; }
+        .hardware-item.error { color: #ff5f57; }
+
+        /* ─── Install Progress ─── */
+        .install-log {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            padding: 14px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 12px;
+            color: #8a8a9a;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-top: 12px;
+        }
+
+        .install-log .log-placeholder {
+            color: #4a4a5a;
+            font-style: italic;
+        }
+
+        /* ─── Phase Picker ─── */
+        .phase-picker {
+            margin: 16px 0;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .phase-item {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .phase-item:last-child {
+            border-bottom: none;
+        }
+
+        .phase-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .phase-label.mandatory .phase-name {
+            color: #4a8aff;
+        }
+
+        .phase-label .phase-mandatory {
+            font-size: 11px;
+            color: #4a8aff;
+            margin-left: 4px;
+        }
+
+        .phase-label .phase-time {
+            margin-left: auto;
+            font-size: 12px;
+            color: #6a6a7a;
+        }
+
+        .phase-desc {
+            font-size: 12px;
+            color: #6a6a7a;
+            margin-left: 28px;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -1909,45 +2092,138 @@ You can:
                 </div>
 
                 <!-- ============================================================
-                DEPLOY TAB
+                DEPLOY TAB (Enhanced with Profiles)
                 ============================================================ -->
                 <div id="tab-deploy" class="tab-content">
                     <div class="dashboard-header">
                         <div>
                             <h2>🚀 Deploy Platform</h2>
-                            <div class="subtitle">One-click deployment of the full NETTRADES stack</div>
+                            <div class="subtitle">One-click deployment with profile selection</div>
                         </div>
                     </div>
 
-                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
-                        <button class="btn btn-primary" id="deploy-btn" onclick="startDeployment('all')">⚡ Deploy All</button>
-                        <button class="btn btn-secondary" onclick="startDeployment('deploy')">📦 Deploy (Phases 0-2)</button>
-                        <button class="btn btn-secondary" onclick="startDeployment('modules')">📦 Install Modules</button>
-                        <button class="btn btn-secondary" onclick="startDeployment('monitoring')">📊 Monitoring</button>
+                    <!-- Step 1: Profile Selection -->
+                    <div id="deploy-step-1">
+                        <h3 style="margin-bottom:12px;">Step 1: Choose Your Deployment Type</h3>
+                        <div id="deployment-cards" class="deployment-cards">
+                            <!-- Rendered by JavaScript -->
+                        </div>
+
+                        <!-- Custom phase picker (hidden initially) -->
+                        <div id="custom-phases" style="display:none;">
+                            <h4 style="margin-top:16px;">Select Phases for Custom Deployment</h4>
+                            <div id="phase-picker" class="phase-picker">
+                                <!-- Rendered by JavaScript -->
+                            </div>
+                            <p style="font-size:12px;color:#6a6a7a;margin-top:8px;">
+                                ⚠️ Phase 1 (venv) is mandatory and cannot be deselected.
+                            </p>
+                        </div>
+
+                        <div class="btn-group" style="display:flex;gap:12px;margin-top:16px;">
+                            <button class="btn btn-primary" id="btn-deploy-next" disabled>Next →</button>
+                        </div>
                     </div>
 
-                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
-                        <label style="display:flex;align-items:center;gap:8px;color:#8a8a9a;font-size:13px;">
-                            <input type="checkbox" id="deploy-force" /> Force Re-run
-                        </label>
-                        <label style="display:flex;align-items:center;gap:8px;color:#8a8a9a;font-size:13px;">
-                            <input type="checkbox" id="deploy-auto" checked /> Auto Mode
-                        </label>
-                        <label style="display:flex;align-items:center;gap:8px;color:#8a8a9a;font-size:13px;">
-                            <input type="checkbox" id="deploy-production" /> Production Mode
-                        </label>
+                    <!-- Step 2: Modules & Summary -->
+                    <div id="deploy-step-2" style="display:none;">
+                        <h3 style="margin-bottom:12px;">Step 2: Select Optional Modules</h3>
+
+                        <div class="module-options" style="margin:16px 0;padding:16px;background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(255,255,255,0.06);">
+                            <label style="display:block;padding:6px 0;font-size:14px;cursor:pointer;">
+                                <input type="checkbox" name="module-finetune" value="finetune">
+                                Fine‑Tuning (Unsloth/Axolotl)
+                                <span style="display:block;font-size:12px;color:#6a6a7a;margin-left:24px;">Train and fine-tune models on your GPUs.</span>
+                            </label>
+                            <label style="display:block;padding:6px 0;font-size:14px;cursor:pointer;">
+                                <input type="checkbox" name="module-grove" value="grove">
+                                Grove Observability
+                                <span style="display:block;font-size:12px;color:#6a6a7a;margin-left:24px;">Prometheus, Loki, Tempo monitoring stack.</span>
+                            </label>
+                            <label style="display:block;padding:6px 0;font-size:14px;cursor:pointer;">
+                                <input type="checkbox" name="module-kai" value="kai">
+                                KAI Scheduler
+                                <span style="display:block;font-size:12px;color:#6a6a7a;margin-left:24px;">GPU scheduling for Kubernetes clusters.</span>
+                            </label>
+                            <label style="display:block;padding:6px 0;font-size:14px;cursor:pointer;">
+                                <input type="checkbox" name="module-router" value="router">
+                                Router Mode (Bridge Module)
+                                <span style="display:block;font-size:12px;color:#6a6a7a;margin-left:24px;">Enable this node to route requests to other GPU nodes.</span>
+                            </label>
+                        </div>
+
+                        <div style="margin:12px 0;">
+                            <label style="font-size:14px;display:inline-flex;align-items:center;gap:8px;">
+                                <input type="radio" name="env" value="development" checked>
+                                🛠️ Development
+                            </label>
+                            <label style="font-size:14px;display:inline-flex;align-items:center;gap:8px;margin-left:16px;">
+                                <input type="radio" name="env" value="production">
+                                🔒 Production
+                            </label>
+                        </div>
+
+                        <div style="margin:8px 0;">
+                            <label style="font-size:14px;display:inline-flex;align-items:center;gap:8px;">
+                                <input type="text" id="domain-input" placeholder="Enter domain (e.g., ai.company.com)" style="display:none;padding:6px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e8e8e8;width:260px;">
+                            </label>
+                        </div>
+
+                        <div style="margin:8px 0;">
+                            <label style="font-size:14px;display:inline-flex;align-items:center;gap:8px;margin-right:16px;">
+                                <input type="checkbox" id="deploy-force"> ⚡ Force re-run
+                            </label>
+                            <label style="font-size:14px;display:inline-flex;align-items:center;gap:8px;margin-right:16px;">
+                                <input type="checkbox" id="deploy-upgrade"> 🔄 Upgrade
+                            </label>
+                            <label style="font-size:14px;display:inline-flex;align-items:center;gap:8px;">
+                                <input type="checkbox" id="deploy-auto" checked> 🤖 Auto
+                            </label>
+                        </div>
+
+                        <div id="hardware-info" class="hardware-info">
+                            <!-- Rendered by JavaScript -->
+                        </div>
+
+                        <h4 style="margin-top:16px;">Summary</h4>
+                        <div id="config-summary" style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px 20px;margin:16px 0;border:1px solid rgba(255,255,255,0.06);">
+                            <div class="config-row" style="padding:4px 0;font-size:14px;">
+                                <strong>Profile:</strong> <span id="summary-profile">None selected</span>
+                            </div>
+                            <div class="config-row" style="padding:4px 0;font-size:14px;">
+                                <strong>Phases:</strong> <span id="summary-phases">-</span>
+                            </div>
+                            <div class="config-row" style="padding:4px 0;font-size:14px;">
+                                <strong>Environment:</strong> <span id="config-env">Development</span>
+                            </div>
+                            <div class="config-row" style="color:#6a6a7a;font-size:0.85rem;margin-top:0.5rem;">
+                                Phase 1 (venv) is always included as it's required by all other phases.
+                            </div>
+                        </div>
+
+                        <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+                            <button class="btn btn-secondary" id="btn-deploy-back">← Back</button>
+                            <button class="btn btn-primary" id="btn-deploy-start">🚀 Install</button>
+                        </div>
                     </div>
 
-                    <div id="deploy-status" style="margin-bottom:12px;">
-                        <span style="color:#6a6a7a;">Ready to deploy</span>
-                    </div>
+                    <!-- Step 3: Installation Progress -->
+                    <div id="deploy-step-3" style="display:none;">
+                        <h3 style="margin-bottom:12px;">Installing...</h3>
+                        <div id="install-status-badge" class="status-badge status-unknown" style="padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;background:rgba(255,149,0,0.2);color:#ff9500;">⏳ Installing...</div>
 
-                    <div class="progress-container">
-                        <div class="progress-bar" id="deploy-progress" style="width:0%;"></div>
-                    </div>
+                        <div class="progress-container" style="margin-top:12px;">
+                            <div class="progress-bar" id="install-progress-fill" style="width:0%;"></div>
+                        </div>
+                        <div style="font-size:13px;color:#8a8a9a;margin-top:8px;" id="install-progress-label">Starting installation...</div>
 
-                    <div id="deploy-log" class="log-container" style="max-height:400px;margin-top:12px;">
-                        <div class="log-line info">⏳ Waiting for deployment to start...</div>
+                        <div id="install-log-output" class="install-log">
+                            <div class="log-placeholder">Waiting for output...</div>
+                        </div>
+
+                        <div style="display:flex;gap:12px;margin-top:12px;">
+                            <button class="btn btn-danger" id="btn-install-cancel" style="display:none;">✖ Cancel</button>
+                        </div>
                     </div>
                 </div>
 
@@ -2139,46 +2415,45 @@ You can:
                                 </div>
                             </div>
                         </div>
-                        <!-- Optional Components -->
-			            <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.05);padding-top:24px;">
-			                <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Optional Components</h3>
 
-			                <!-- Grove Toggle -->
-			                <div class="toggle-container">
-			                    <div class="info">
-			                        <span class="label">Grove Observability</span>
-			                        <span class="description">Unified observability platform (Prometheus + Loki + Tempo)</span>
-			                    </div>
-			                    <div class="toggle" id="grove-toggle" onclick="toggleGrove()">
-			                        <span class="status-text" id="grove-status-text">OFF</span>
-			                        <div class="slider"></div>
-			                    </div>
-			                </div>
+                        <!-- Optional Components Toggles -->
+                        <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.05);padding-top:24px;">
+                            <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Optional Components</h3>
 
-			                <!-- KAI Scheduler Toggle -->
-			                <div class="toggle-container">
-			                    <div class="info">
-			                        <span class="label">KAI Scheduler</span>
-			                        <span class="description">GPU-aware scheduling for Kubernetes</span>
-			                    </div>
-			                    <div class="toggle" id="kai-toggle" onclick="toggleKAI()">
-			                        <span class="status-text" id="kai-status-text">OFF</span>
-			                        <div class="slider"></div>
-			                    </div>
-			                </div>
+                            <div class="toggle-container">
+                                <div class="info">
+                                    <span class="label">Grove Observability</span>
+                                    <span class="description">Unified observability platform (Prometheus + Loki + Tempo)</span>
+                                </div>
+                                <div class="toggle" id="grove-toggle" onclick="toggleGrove()">
+                                    <span class="status-text" id="grove-status-text">OFF</span>
+                                    <div class="slider"></div>
+                                </div>
+                            </div>
 
-			                <!-- Fine-Tuning Toggle -->
-			                <div class="toggle-container">
-			                    <div class="info">
-			                        <span class="label">Fine-Tuning Workers</span>
-			                        <span class="description">Unsloth/Axolotl training workers</span>
-			                    </div>
-			                    <div class="toggle" id="finetune-toggle" onclick="toggleFinetune()">
-			                        <span class="status-text" id="finetune-status-text">OFF</span>
-			                        <div class="slider"></div>
-			                    </div>
-			                </div>
+                            <div class="toggle-container">
+                                <div class="info">
+                                    <span class="label">KAI Scheduler</span>
+                                    <span class="description">GPU-aware scheduling for Kubernetes</span>
+                                </div>
+                                <div class="toggle" id="kai-toggle" onclick="toggleKAI()">
+                                    <span class="status-text" id="kai-status-text">OFF</span>
+                                    <div class="slider"></div>
+                                </div>
+                            </div>
+
+                            <div class="toggle-container">
+                                <div class="info">
+                                    <span class="label">Fine-Tuning Workers</span>
+                                    <span class="description">Unsloth/Axolotl training workers</span>
+                                </div>
+                                <div class="toggle" id="finetune-toggle" onclick="toggleFinetune()">
+                                    <span class="status-text" id="finetune-status-text">OFF</span>
+                                    <div class="slider"></div>
+                                </div>
+                            </div>
                         </div>
+
                         <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.05);padding-top:24px;">
                             <button class="btn btn-danger" onclick="resetPlatform()">🗑️ Reset Platform</button>
                             <button class="btn btn-secondary" onclick="viewLogsDirectory()">📄 Open Logs Directory</button>
@@ -2218,9 +2493,7 @@ You can:
     <!-- Toast Container -->
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- ============================================================
-    MODAL OVERLAY
-    ============================================================ -->
+    <!-- Modal Overlay -->
     <div id="modal-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;">
         <div style="background:#1a1a2e;border-radius:16px;padding:32px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
             <div id="modal-content"></div>
@@ -2240,6 +2513,9 @@ You can:
         let vpnPeers = [];
         let chatHistory = [];
         let isChatStreaming = false;
+        let selectedProfile = null;
+        let selectedPhases = [];
+        let isInstalling = false;
 
         // ─── DOM Ready ───
         document.addEventListener('DOMContentLoaded', () => {
@@ -2277,11 +2553,44 @@ You can:
                 });
             });
 
+            // Deployment navigation
+            document.getElementById('btn-deploy-next').addEventListener('click', () => {
+                if (!selectedProfile) return;
+                document.getElementById('deploy-step-1').style.display = 'none';
+                document.getElementById('deploy-step-2').style.display = 'block';
+                updateModuleRecommendations();
+                updateDeploySummary();
+            });
+
+            document.getElementById('btn-deploy-back').addEventListener('click', () => {
+                document.getElementById('deploy-step-2').style.display = 'none';
+                document.getElementById('deploy-step-1').style.display = 'block';
+            });
+
+            document.getElementById('btn-deploy-start').addEventListener('click', startDeployment);
+
+            document.getElementById('btn-install-cancel').addEventListener('click', cancelInstallation);
+
+            // Environment toggle
+            document.querySelectorAll('input[name="env"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const isProduction = radio.value === 'production';
+                    const domainInput = document.getElementById('domain-input');
+                    if (domainInput) {
+                        domainInput.style.display = isProduction ? 'inline-block' : 'none';
+                    }
+                    document.getElementById('config-env').textContent = isProduction ? 'Production' : 'Development';
+                });
+            });
+
             // Set up IPC listeners
             setupIpcListeners();
 
             // Load initial data
             refreshAll();
+
+            // Render deployment cards
+            renderDeploymentCards();
 
             // Auto-refresh every 30 seconds
             setInterval(refreshAll, 30000);
@@ -2289,42 +2598,59 @@ You can:
 
         // ─── IPC Listeners ───
         function setupIpcListeners() {
-            // Install output
             window.api.onInstallOutput((data) => {
-                const logContainer = document.getElementById('deploy-log');
+                const logContainer = document.getElementById('install-log-output');
                 if (logContainer) {
+                    const placeholder = logContainer.querySelector('.log-placeholder');
+                    if (placeholder) placeholder.remove();
                     const line = document.createElement('div');
                     line.className = `log-line ${data.type === 'stderr' ? 'error' : 'info'}`;
                     line.textContent = data.data.trim();
                     logContainer.appendChild(line);
                     logContainer.scrollTop = logContainer.scrollHeight;
                 }
+
+                // Update progress
+                if (data.data.includes('Phase 0')) {
+                    document.getElementById('install-progress-fill').style.width = '10%';
+                    document.getElementById('install-progress-label').textContent = 'Phase 0: System Preparation...';
+                } else if (data.data.includes('Phase 1')) {
+                    document.getElementById('install-progress-fill').style.width = '30%';
+                    document.getElementById('install-progress-label').textContent = 'Phase 1: Environment Setup...';
+                } else if (data.data.includes('Phase 2')) {
+                    document.getElementById('install-progress-fill').style.width = '50%';
+                    document.getElementById('install-progress-label').textContent = 'Phase 2: Deployment...';
+                } else if (data.data.includes('Phase 3')) {
+                    document.getElementById('install-progress-fill').style.width = '70%';
+                    document.getElementById('install-progress-label').textContent = 'Phase 3: Kubernetes...';
+                } else if (data.data.includes('Phase 4')) {
+                    document.getElementById('install-progress-fill').style.width = '85%';
+                    document.getElementById('install-progress-label').textContent = 'Phase 4: Module Installation...';
+                } else if (data.data.includes('Phase 5')) {
+                    document.getElementById('install-progress-fill').style.width = '95%';
+                    document.getElementById('install-progress-label').textContent = 'Phase 5: Monitoring Setup...';
+                } else if (data.data.includes('Setup Complete')) {
+                    document.getElementById('install-progress-fill').style.width = '100%';
+                    document.getElementById('install-progress-label').textContent = '✅ Installation complete!';
+                    document.getElementById('install-status-badge').textContent = '✅ Complete';
+                    document.getElementById('install-status-badge').className = 'status-badge status-running';
+                    isInstalling = false;
+                    document.getElementById('btn-install-cancel').style.display = 'none';
+                }
             });
 
-            // Install progress
             window.api.onInstallProgress((data) => {
-                const progressBar = document.getElementById('deploy-progress');
-                if (progressBar) {
-                    progressBar.style.width = `${data.progress}%`;
+                // Update progress bar if specific progress data is sent
+                if (data.progress !== undefined) {
+                    document.getElementById('install-progress-fill').style.width = `${data.progress}%`;
                 }
             });
 
-            // Download progress
-            window.api.onDownloadProgress((data) => {
-                // Show in models tab
-                const statusEl = document.getElementById('model-download-status');
-                if (statusEl) {
-                    statusEl.textContent = data.data || 'Downloading...';
-                }
-            });
-
-            // Node discovery
             window.api.onNodeDiscovered((node) => {
                 showToast(`Node discovered: ${node.name}`, 'info');
                 discoverNodes();
             });
 
-            // Backup output
             window.api.onBackupOutput((data) => {
                 const logContainer = document.getElementById('backup-log');
                 if (logContainer) {
@@ -2333,13 +2659,6 @@ You can:
                     line.textContent = data.data.trim();
                     logContainer.appendChild(line);
                     logContainer.scrollTop = logContainer.scrollHeight;
-                }
-            });
-
-            // Update status
-            window.api.onUpdateStatus((status) => {
-                if (status.status === 'available') {
-                    showToast(`New version ${status.version} available!`, 'success');
                 }
             });
         }
@@ -2356,7 +2675,6 @@ You can:
                 tab.classList.toggle('active', tab.id === `tab-${tabName}`);
             });
 
-            // Refresh data for the tab
             switch (tabName) {
                 case 'dashboard': refreshDashboard(); break;
                 case 'gpus': detectGPUs(); break;
@@ -2368,6 +2686,7 @@ You can:
                 case 'logs': refreshLogs(); break;
                 case 'backup': refreshBackups(); break;
                 case 'marketplace': refreshMarketplace(); break;
+                case 'deploy': detectHardware(); break;
             }
         }
 
@@ -2428,6 +2747,81 @@ You can:
             });
         }
 
+        // ─── Hardware Detection ───
+        function detectHardware() {
+            window.api.detectHardware().then((hardware) => {
+                if (!hardware) return;
+                const container = document.getElementById('hardware-info');
+                if (!container) return;
+
+                let html = '';
+                if (hardware.gpuAvailable && hardware.gpus.length > 0) {
+                    const gpuSummary = hardware.gpus.map(g =>
+                        `✅ ${g.name} (${g.memoryTotal} VRAM)`
+                    ).join('<br>');
+                    html += `<div class="hardware-item success">${gpuSummary}</div>`;
+                } else {
+                    html += `<div class="hardware-item warning">⚠️ No GPU detected (CPU mode only)</div>`;
+                }
+
+                html += `<div class="hardware-item">💾 ${hardware.totalMemory} RAM</div>`;
+                html += `<div class="hardware-item">🖥️ ${hardware.cpuCores} cores</div>`;
+
+                if (hardware.k8sDetected) {
+                    html += `<div class="hardware-item success">☸️ Kubernetes cluster detected</div>`;
+                } else {
+                    html += `<div class="hardware-item warning">⚠️ No Kubernetes cluster detected</div>`;
+                }
+
+                if (hardware.dockerInstalled) {
+                    html += `<div class="hardware-item success">🐳 Docker installed</div>`;
+                } else {
+                    html += `<div class="hardware-item error">❌ Docker not installed</div>`;
+                }
+
+                container.innerHTML = html;
+
+                // Auto-recommend Fine-Tuning if GPU with >16GB VRAM
+                const hasLargeGPU = hardware.gpus.some(g => {
+                    const match = g.memoryTotal.match(/(\d+)/);
+                    if (match) {
+                        const vram = parseInt(match[1]);
+                        return vram > 16000;
+                    }
+                    return false;
+                });
+
+                const finetuneCheckbox = document.querySelector('input[name="module-finetune"]');
+                if (finetuneCheckbox && hasLargeGPU) {
+                    finetuneCheckbox.checked = true;
+                }
+
+                // Auto-disable KAI if no Kubernetes
+                const kaiCheckbox = document.querySelector('input[name="module-kai"]');
+                if (kaiCheckbox && !hardware.k8sDetected) {
+                    kaiCheckbox.disabled = true;
+                    kaiCheckbox.parentElement.title = 'Requires Kubernetes cluster';
+                }
+
+                // Update GPU count
+                document.getElementById('gpu-count').textContent = hardware.gpus.length;
+                document.getElementById('dashboard-gpu-count').textContent = hardware.gpus.length;
+
+                const gpuStatus = document.getElementById('gpu-status');
+                if (gpuStatus) {
+                    if (hardware.gpuAvailable) {
+                        gpuStatus.textContent = `✅ ${hardware.gpus.length} GPU(s) detected`;
+                        gpuStatus.className = 'status-badge status-running';
+                    } else {
+                        gpuStatus.textContent = '⚠️ No GPU detected (CPU mode)';
+                        gpuStatus.className = 'status-badge status-unknown';
+                    }
+                }
+            }).catch(() => {
+                // Silently fail
+            });
+        }
+
         // ─── GPU Detection ───
         function detectGPUs() {
             const container = document.getElementById('gpu-list');
@@ -2436,15 +2830,14 @@ You can:
             window.api.detectGpu().then((detected) => {
                 gpus = detected;
                 document.getElementById('gpu-count').textContent = gpus.length;
-                document.getElementById('dashboard-gpu-count').textContent = gpus.filter(g => g.vendor === 'nvidia').length;
+                document.getElementById('dashboard-gpu-count').textContent = gpus.length;
 
                 if (gpus.length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <div class="icon">🔍</div>
                             <h3>No GPUs Detected</h3>
-                            <p>No compatible GPUs found. Click "Install Drivers" to install NVIDIA drivers.</p>
-                            <button class="btn btn-primary" onclick="installNvidiaDrivers()" style="margin-top:12px;">Install NVIDIA Drivers</button>
+                            <p>Click "Scan" to detect GPUs on this system, or install NVIDIA drivers.</p>
                         </div>
                     `;
                     return;
@@ -2641,10 +3034,8 @@ You can:
             window.api.loadModel(path).then((result) => {
                 if (result.success) {
                     showToast(`Model loaded: ${result.model}`, 'success');
-                    // Update chat model selector
                     const select = document.getElementById('chat-model');
                     if (select) {
-                        // Add the model to the dropdown if not already present
                         const option = document.createElement('option');
                         option.value = result.model;
                         option.textContent = result.model;
@@ -2670,13 +3061,11 @@ You can:
             const temperature = parseFloat(document.getElementById('chat-temperature').value);
             const stream = document.getElementById('chat-stream').checked;
 
-            // Add user message
             const userMsg = document.createElement('div');
             userMsg.className = 'chat-message user';
             userMsg.innerHTML = `<div class="role">You</div><div class="content">${escapeHtml(message)}</div>`;
             messagesContainer.appendChild(userMsg);
 
-            // Add assistant placeholder
             const assistantMsg = document.createElement('div');
             assistantMsg.className = 'chat-message assistant';
             assistantMsg.innerHTML = `<div class="role">Assistant</div><div class="content"><span class="spinner" style="width:16px;height:16px;"></span></div>`;
@@ -2687,10 +3076,8 @@ You can:
             isChatStreaming = true;
             document.getElementById('chat-send-btn').disabled = true;
 
-            // Scroll to bottom
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // Send to API (use the LangGraph endpoint)
             const serverUrl = document.getElementById('settings-server-url').value || 'http://localhost';
             const messages = Array.from(messagesContainer.querySelectorAll('.chat-message')).map(msg => {
                 const role = msg.classList.contains('user') ? 'user' : 'assistant';
@@ -2698,7 +3085,6 @@ You can:
                 return { role, content };
             });
 
-            // For now, use a simple fetch to the LangGraph endpoint
             fetch(`${serverUrl}:8000/runs/stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2761,7 +3147,6 @@ You can:
                 if (result.success) {
                     showToast('Question submitted! An expert will respond shortly.', 'success');
                     document.getElementById('ask-question').value = '';
-                    // Add to history
                     const history = document.getElementById('ask-history');
                     history.innerHTML = `
                         <div class="good-answer-item fade-in">
@@ -2786,7 +3171,6 @@ You can:
 
         // ─── Good Answer ───
         function markGoodAnswer() {
-            // Get the last assistant message
             const messages = document.getElementById('chat-messages').querySelectorAll('.chat-message.assistant');
             if (messages.length === 0) {
                 showToast('No assistant message to rate', 'warning');
@@ -2831,7 +3215,6 @@ You can:
                     const container = document.getElementById('training-progress-container');
                     container.style.display = 'block';
                     document.getElementById('training-progress-label').textContent = `Training ${model} on ${dataset}`;
-                    // Start polling for status
                     pollTrainingStatus();
                 } else {
                     showToast(`Failed to start training: ${result.error}`, 'error');
@@ -2855,7 +3238,6 @@ You can:
                     }
                 }
             }).catch(() => {
-                // Continue polling anyway
                 setTimeout(pollTrainingStatus, 10000);
             });
         }
@@ -2921,15 +3303,11 @@ You can:
 
             window.api.vpnStatus().then((status) => {
                 if (status && status.running) {
-                    statusContainer.innerHTML = `
-                        <span style="color:#28c840;">🟢 WireGuard is running</span>
-                    `;
+                    statusContainer.innerHTML = `<span style="color:#28c840;">🟢 WireGuard is running</span>`;
                     document.getElementById('vpn-status').textContent = '🟢';
                     document.getElementById('vpn-status').className = 'badge active-badge';
                 } else {
-                    statusContainer.innerHTML = `
-                        <span style="color:#ff5f57;">🔴 WireGuard is not running</span>
-                    `;
+                    statusContainer.innerHTML = `<span style="color:#ff5f57;">🔴 WireGuard is not running</span>`;
                     document.getElementById('vpn-status').textContent = '🔴';
                     document.getElementById('vpn-status').className = 'badge';
                 }
@@ -2937,7 +3315,6 @@ You can:
 
             window.api.vpnListPeers().then((result) => {
                 if (result.success) {
-                    // Parse the output
                     const output = result.output || '';
                     const lines = output.split('\n').filter(l => l.trim());
                     if (lines.length === 0) {
@@ -2951,7 +3328,6 @@ You can:
                         `;
                         return;
                     }
-                    // Simple display for now
                     peersContainer.innerHTML = lines.map(line => `
                         <div class="node-card fade-in">
                             <div class="node-name">🔒 Peer</div>
@@ -3065,7 +3441,6 @@ You can:
         // ─── Monitor ───
         function refreshMonitor() {
             window.api.systemHealth().then((health) => {
-                // Update service status
                 const services = ['odoo', 'langgraph', 'dynamo', 'postgres'];
                 for (const service of services) {
                     const dot = document.getElementById(`monitor-${service}-dot`);
@@ -3077,7 +3452,6 @@ You can:
                     }
                 }
             }).catch(() => {
-                // Set all to unknown
                 document.querySelectorAll('[id^="monitor-"]').forEach(el => {
                     if (el.id.endsWith('-status')) {
                         el.textContent = '❓ Unknown';
@@ -3093,11 +3467,7 @@ You can:
 
             window.api.listBackups().then((backups) => {
                 if (backups.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state" style="padding:20px;">
-                            <p>No backups found.</p>
-                        </div>
-                    `;
+                    container.innerHTML = `<div class="empty-state" style="padding:20px;"><p>No backups found.</p></div>`;
                     select.innerHTML = '<option value="">No backups found</option>';
                     return;
                 }
@@ -3277,38 +3647,325 @@ You can:
         }
 
         // ─── Deployment ───
-        function startDeployment(profile) {
-            const deployBtn = document.getElementById('deploy-btn');
-            const logContainer = document.getElementById('deploy-log');
-            const progressBar = document.getElementById('deploy-progress');
-            const statusDisplay = document.getElementById('deploy-status');
+        const deploymentProfiles = [
+            {
+                id: 'sovereign',
+                name: '🏠 Sovereign AI in a Box',
+                description: 'All AI services on a single server. Perfect for getting started.',
+                phases: [0, 1, 2, 4, 5],
+                recommended: true,
+                endpoint: 'Internal IP (e.g., 192.168.1.100:8069)',
+                features: ['Odoo', 'LangGraph', 'Dynamo', 'llama.cpp', 'GPU Marketplace'],
+            },
+            {
+                id: 'router',
+                name: '🔀 Sovereign AI Router',
+                description: 'Routes requests to multiple GPU nodes. No inference.',
+                phases: [0, 1, 2],
+                recommended: false,
+                endpoint: 'Internal IP (e.g., 192.168.1.100:8069)',
+                features: ['Bridge Module', 'Request Routing', 'Node Discovery'],
+            },
+            {
+                id: 'production',
+                name: '🌐 Production [External] Website',
+                description: 'Same as "Box" but with public HTTPS access and domain.',
+                phases: [0, 1, 2, 4, 5],
+                recommended: false,
+                endpoint: 'https://your-domain.com',
+                features: ['SSL Certificates', 'Domain DNS', 'Security Hardening', 'Public Access'],
+                advanced: true,
+            },
+            {
+                id: 'k8s',
+                name: '☸️ Kubernetes Cluster',
+                description: 'Multi-node enterprise deployment with auto-scaling.',
+                phases: [0, 1, 3, 4, 5],
+                recommended: false,
+                endpoint: 'Load balancer IP or domain',
+                features: ['Talos Linux', 'Argo CD', 'KAI Scheduler', 'High Availability'],
+                advanced: true,
+            },
+            {
+                id: 'custom',
+                name: '⚙️ Custom Deployment',
+                description: 'Select individual phases and components. For experts.',
+                phases: [],
+                recommended: false,
+                endpoint: 'Varies',
+                features: ['Phase Selection', 'Component Control', 'Testing & Debugging'],
+                advanced: true,
+            },
+        ];
 
-            const force = document.getElementById('deploy-force').checked;
-            const auto = document.getElementById('deploy-auto').checked;
-            const production = document.getElementById('deploy-production').checked;
+        function renderDeploymentCards() {
+            const container = document.getElementById('deployment-cards');
+            if (!container) return;
+            container.innerHTML = '';
 
-            deployBtn.disabled = true;
-            deployBtn.textContent = '⏳ Deploying...';
-            statusDisplay.innerHTML = '<span style="color:#ffbd2e;">⏳ Deployment in progress...</span>';
-            logContainer.innerHTML = '';
+            deploymentProfiles.forEach(profile => {
+                const card = document.createElement('div');
+                card.className = 'deployment-card';
+                if (profile.recommended) card.classList.add('recommended');
+                if (profile.advanced) card.classList.add('advanced');
+                card.dataset.id = profile.id;
 
-            window.api.runInstall({ profile, force, auto, production }).then((result) => {
+                const badge = profile.recommended
+                    ? '<span class="badge-recommended">Recommended</span>'
+                    : profile.advanced
+                    ? '<span class="badge-advanced">Advanced</span>'
+                    : '';
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h4>${profile.name}</h4>
+                        ${badge}
+                    </div>
+                    <p class="card-description">${profile.description}</p>
+                    <div class="card-endpoint">📍 Access: ${profile.endpoint}</div>
+                    <ul class="card-features">
+                        ${profile.features.map(f => `<li>✓ ${f}</li>`).join('')}
+                    </ul>
+                `;
+
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.deployment-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    selectedProfile = profile.id;
+                    document.getElementById('btn-deploy-next').disabled = false;
+
+                    if (profile.id === 'custom') {
+                        document.getElementById('custom-phases').style.display = 'block';
+                        renderPhasePicker();
+                    } else {
+                        document.getElementById('custom-phases').style.display = 'none';
+                        selectedPhases = profile.phases;
+                    }
+                });
+
+                container.appendChild(card);
+            });
+
+            // Set default selection
+            const defaultCard = container.querySelector('.deployment-card.recommended');
+            if (defaultCard) {
+                defaultCard.click();
+            }
+        }
+
+        function renderPhasePicker() {
+            const container = document.getElementById('phase-picker');
+            if (!container) return;
+
+            const phases = [
+                { id: 0, name: 'System Preparation & Hardening', desc: 'Docker, UFW, WireGuard, SSH hardening', time: '5-10 min' },
+                { id: 1, name: 'Development Environment (MANDATORY)', desc: 'Python venv, pip, uv, dependencies', time: '2-5 min', mandatory: true },
+                { id: 2, name: 'Single-VM Deployment', desc: 'NVIDIA Dynamo, llama.cpp, Docker Compose', time: '10-20 min' },
+                { id: 3, name: 'Kubernetes Scaling', desc: 'Talos Linux, Argo CD, KAI Scheduler', time: '15-30 min' },
+                { id: 4, name: 'Module Installation', desc: 'Odoo modules (nettrades_core, etc.)', time: '3-5 min' },
+                { id: 5, name: 'Monitoring Setup', desc: 'Prometheus, Grafana', time: '3-5 min' },
+            ];
+
+            container.innerHTML = phases.map(phase => `
+                <div class="phase-item">
+                    <label class="phase-label ${phase.mandatory ? 'mandatory' : ''}">
+                        <input type="checkbox"
+                               name="phase-${phase.id}"
+                               ${phase.mandatory ? 'checked disabled' : 'checked'}
+                               data-phase="${phase.id}">
+                        <span class="phase-name">${phase.name}</span>
+                        ${phase.mandatory ? '<span class="phase-mandatory">(Required)</span>' : ''}
+                        <span class="phase-time">⏱ ${phase.time}</span>
+                    </label>
+                    <div class="phase-desc">${phase.desc}</div>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const id = parseInt(cb.dataset.phase);
+                    if (cb.checked) {
+                        if (!selectedPhases.includes(id)) selectedPhases.push(id);
+                    } else {
+                        selectedPhases = selectedPhases.filter(p => p !== id);
+                    }
+                    updateDeploySummary();
+                });
+            });
+
+            if (!selectedPhases.includes(1)) {
+                selectedPhases.push(1);
+            }
+
+            updateDeploySummary();
+        }
+
+        function updateModuleRecommendations() {
+            // Hardware detection already runs on the deploy tab
+            detectHardware();
+        }
+
+        function updateDeploySummary() {
+            const profile = deploymentProfiles.find(p => p.id === selectedProfile);
+            const phases = profile && profile.id !== 'custom' ? profile.phases : selectedPhases;
+            const sortedPhases = [...phases].sort((a, b) => a - b);
+
+            document.getElementById('summary-profile').textContent = profile ? profile.name : 'None selected';
+            document.getElementById('summary-phases').textContent = sortedPhases.length > 0 ? sortedPhases.join(' → ') : 'None selected';
+        }
+
+        function startDeployment() {
+            // Gather options
+            const environment = document.querySelector('input[name="env"]:checked')?.value || 'development';
+            const force = document.getElementById('deploy-force')?.checked || false;
+            const auto = document.getElementById('deploy-auto')?.checked || false;
+            const upgrade = document.getElementById('deploy-upgrade')?.checked || false;
+
+            const withFinetune = document.querySelector('input[name="module-finetune"]')?.checked || false;
+            const withGrove = document.querySelector('input[name="module-grove"]')?.checked || false;
+            const withKai = document.querySelector('input[name="module-kai"]')?.checked || false;
+            const withRouter = document.querySelector('input[name="module-router"]')?.checked || false;
+
+            const domain = document.getElementById('domain-input')?.value || '';
+
+            // Validate domain for production
+            if (environment === 'production' && !domain) {
+                showToast('For production deployments, please enter a domain name.', 'warning');
+                return;
+            }
+
+            const options = {
+                profile: selectedProfile,
+                environment: environment,
+                force: force,
+                auto: auto,
+                upgrade: upgrade,
+                withFinetune: withFinetune,
+                withGrove: withGrove,
+                withKai: withKai,
+                withRouter: withRouter,
+                domain: domain,
+                phases: selectedPhases.length > 0 ? selectedPhases : null,
+                resetData: false,
+            };
+
+            // Switch to installation progress view
+            document.getElementById('deploy-step-2').style.display = 'none';
+            document.getElementById('deploy-step-3').style.display = 'block';
+
+            const progressFill = document.getElementById('install-progress-fill');
+            const progressLabel = document.getElementById('install-progress-label');
+            const logOutput = document.getElementById('install-log-output');
+
+            if (logOutput) logOutput.innerHTML = '<div class="log-placeholder">Starting installation...</div>';
+
+            isInstalling = true;
+            document.getElementById('btn-install-cancel').style.display = 'inline-block';
+            document.getElementById('install-status-badge').textContent = '⏳ Installing...';
+            document.getElementById('install-status-badge').className = 'status-badge status-unknown';
+
+            // Set up listeners before calling runInstall
+            window.api.onInstallOutput((data) => {
+                // This is handled by the existing listener
+            });
+
+            window.api.runInstall(options).then((result) => {
+                isInstalling = false;
+                document.getElementById('btn-install-cancel').style.display = 'none';
                 if (result.success) {
-                    statusDisplay.innerHTML = '<span style="color:#28c840;">✅ Deployment completed successfully!</span>';
+                    document.getElementById('install-progress-fill').style.width = '100%';
+                    document.getElementById('install-progress-label').textContent = '✅ Installation complete!';
+                    document.getElementById('install-status-badge').textContent = '✅ Complete';
+                    document.getElementById('install-status-badge').className = 'status-badge status-running';
                     showToast('Deployment completed successfully!', 'success');
-                    progressBar.style.width = '100%';
                 } else {
-                    statusDisplay.innerHTML = `<span style="color:#ff5f57;">❌ Deployment failed: ${result.error}</span>`;
+                    document.getElementById('install-progress-fill').style.width = '100%';
+                    document.getElementById('install-progress-fill').style.background = '#ff5f57';
+                    document.getElementById('install-progress-label').textContent = '❌ Installation failed';
+                    document.getElementById('install-status-badge').textContent = '❌ Failed';
+                    document.getElementById('install-status-badge').className = 'status-badge status-stopped';
                     showToast(`Deployment failed: ${result.error}`, 'error');
                 }
-                deployBtn.disabled = false;
-                deployBtn.textContent = '⚡ Deploy All';
             }).catch((error) => {
-                statusDisplay.innerHTML = `<span style="color:#ff5f57;">❌ ${error.message}</span>`;
+                isInstalling = false;
+                document.getElementById('btn-install-cancel').style.display = 'none';
+                document.getElementById('install-progress-fill').style.width = '100%';
+                document.getElementById('install-progress-fill').style.background = '#ff5f57';
+                document.getElementById('install-progress-label').textContent = '❌ Installation failed';
+                document.getElementById('install-status-badge').textContent = '❌ Failed';
+                document.getElementById('install-status-badge').className = 'status-badge status-stopped';
                 showToast(`Deployment error: ${error.message}`, 'error');
-                deployBtn.disabled = false;
-                deployBtn.textContent = '⚡ Deploy All';
             });
+        }
+
+        function cancelInstallation() {
+            if (isInstalling) {
+                window.api.cancelInstall().then((result) => {
+                    if (result.success) {
+                        isInstalling = false;
+                        document.getElementById('btn-install-cancel').style.display = 'none';
+                        document.getElementById('install-progress-label').textContent = '⏹ Installation cancelled';
+                        document.getElementById('install-status-badge').textContent = '⏹ Cancelled';
+                        const logOutput = document.getElementById('install-log-output');
+                        if (logOutput) logOutput.innerHTML += '\n\n⏹ Installation cancelled.';
+                    }
+                });
+            }
+        }
+
+        // ─── Optional Components Toggles ───
+        async function toggleGrove() {
+            const toggle = document.getElementById('grove-toggle');
+            const statusText = document.getElementById('grove-status-text');
+
+            if (toggle.classList.contains('active')) {
+                const result = await window.api.stopGrove();
+                if (result.success) {
+                    toggle.classList.remove('active');
+                    statusText.textContent = 'OFF';
+                    showToast('Grove stopped', 'info');
+                } else {
+                    showToast(`Failed to stop Grove: ${result.error}`, 'error');
+                }
+            } else {
+                const result = await window.api.startGrove();
+                if (result.success) {
+                    toggle.classList.add('active');
+                    statusText.textContent = 'ON';
+                    showToast('Grove started', 'success');
+                } else {
+                    showToast(`Failed to start Grove: ${result.error}`, 'error');
+                }
+            }
+        }
+
+        async function toggleKAI() {
+            const toggle = document.getElementById('kai-toggle');
+            const statusText = document.getElementById('kai-status-text');
+
+            if (toggle.classList.contains('active')) {
+                const result = await window.api.stopKAI();
+                if (result.success) {
+                    toggle.classList.remove('active');
+                    statusText.textContent = 'OFF';
+                    showToast('KAI Scheduler stopped', 'info');
+                } else {
+                    showToast(`Failed to stop KAI: ${result.error}`, 'error');
+                }
+            } else {
+                const result = await window.api.startKAI();
+                if (result.success) {
+                    toggle.classList.add('active');
+                    statusText.textContent = 'ON';
+                    showToast('KAI Scheduler started', 'success');
+                } else {
+                    showToast(`Failed to start KAI: ${result.error}`, 'error');
+                }
+            }
+        }
+
+        async function toggleFinetune() {
+            showToast('Fine-tuning toggle coming soon', 'warning');
         }
 
         // ─── Modal ───
@@ -3321,7 +3978,6 @@ You can:
             document.getElementById('modal-overlay').style.display = 'none';
         }
 
-        // Close modal on overlay click
         document.getElementById('modal-overlay').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) closeModal();
         });
@@ -3389,97 +4045,7 @@ You can:
         window.showToast = showToast;
         window.formatSize = formatSize;
         window.escapeHtml = escapeHtml;
-
-
-        // ─── Optional Components Toggles ───
-        async function toggleGrove() {
-            const toggle = document.getElementById('grove-toggle');
-            const statusText = document.getElementById('grove-status-text');
-
-            if (toggle.classList.contains('active')) {
-                // Stop Grove
-                const result = await window.api.stopGrove();
-                if (result.success) {
-                    toggle.classList.remove('active');
-                    statusText.textContent = 'OFF';
-                    showToast('Grove stopped', 'info');
-                } else {
-                    showToast(`Failed to stop Grove: ${result.error}`, 'error');
-                }
-            } else {
-                // Start Grove
-                const result = await window.api.startGrove();
-                if (result.success) {
-                    toggle.classList.add('active');
-                    statusText.textContent = 'ON';
-                    showToast('Grove started', 'success');
-                } else {
-                    showToast(`Failed to start Grove: ${result.error}`, 'error');
-                }
-            }
-        }
-
-        async function toggleKAI() {
-            const toggle = document.getElementById('kai-toggle');
-            const statusText = document.getElementById('kai-status-text');
-
-            if (toggle.classList.contains('active')) {
-                const result = await window.api.stopKAI();
-                if (result.success) {
-                    toggle.classList.remove('active');
-                    statusText.textContent = 'OFF';
-                    showToast('KAI Scheduler stopped', 'info');
-                } else {
-                    showToast(`Failed to stop KAI: ${result.error}`, 'error');
-                }
-            } else {
-                const result = await window.api.startKAI();
-                if (result.success) {
-                    toggle.classList.add('active');
-                    statusText.textContent = 'ON';
-                    showToast('KAI Scheduler started', 'success');
-                } else {
-                    showToast(`Failed to start KAI: ${result.error}`, 'error');
-                }
-            }
-        }
-
-        async function toggleFinetune() {
-            // Similar logic for fine-tuning workers
-            // This would call start/stop APIs for the training-worker service
-            showToast('Fine-tuning toggle coming soon', 'warning');
-        }
-
-        // ─── Load Optional Component Status ───
-        async function loadOptionalComponentStatus() {
-            try {
-                const groveStatus = await window.api.getGroveStatus();
-                const groveToggle = document.getElementById('grove-toggle');
-                const groveText = document.getElementById('grove-status-text');
-                if (groveStatus && groveStatus.running) {
-                    groveToggle.classList.add('active');
-                    groveText.textContent = 'ON';
-                }
-
-                const kaiStatus = await window.api.getKAIStatus();
-                const kaiToggle = document.getElementById('kai-toggle');
-                const kaiText = document.getElementById('kai-status-text');
-                if (kaiStatus && kaiStatus.running) {
-                    kaiToggle.classList.add('active');
-                    kaiText.textContent = 'ON';
-                }
-            } catch (error) {
-                console.error('Error loading optional component status:', error);
-            }
-        }
-
-        // Call this on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            // ... (existing DOMContentLoaded code) ...
-            loadOptionalComponentStatus();
-        });
-
-        // ─── Expose new functions to window ───
+        window.detectHardware = detectHardware;
         window.toggleGrove = toggleGrove;
         window.toggleKAI = toggleKAI;
         window.toggleFinetune = toggleFinetune;

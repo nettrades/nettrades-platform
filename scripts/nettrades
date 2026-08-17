@@ -1,0 +1,67 @@
+#!/bin/bash
+# =============================================================================
+# FILE: scripts/nettrades
+# =============================================================================
+# PURPOSE:
+#   Unified CLI for NETTRADES with explicit verbs.
+#
+# USAGE:
+#   nettrades deploy <PROFILE> [options]   # Install or re-run (idempotent)
+#   nettrades upgrade [options]            # Add modules, apply updates
+#   nettrades status                       # Show deployment state
+#   nettrades reset [--force]              # Wipe and reinstall
+#   nettrades destroy [--force]            # Tear down everything
+# =============================================================================
+
+case "$1" in
+    deploy)
+        shift
+        # Map to existing phase script, but NEVER use --force by default
+        ./scripts/nettrades-setup.sh "$@" --auto
+        ;;
+    upgrade)
+        shift
+        # Add new modules without forcing a full re-run
+        ./scripts/nettrades-setup.sh "$@" --auto --upgrade
+        ;;
+    status)
+        # Show current phase markers
+        echo "=== NETTRADES Deployment Status ==="
+        for phase in 0 1 2 3 4 5; do
+            if [ -f ".phase-${phase}-complete" ]; then
+                echo "✅ Phase $phase: Complete"
+            else
+                echo "⬜ Phase $phase: Not installed"
+            fi
+        done
+        ;;
+    reset)
+        shift
+        echo "⚠️  WARNING: This will wipe all data and reinstall."
+        if [[ "$1" != "--force" ]]; then
+            read -rp "Type 'RESET' to continue: " confirm
+            [[ "$confirm" != "RESET" ]] && { echo "Aborted."; exit 0; }
+        fi
+        ./scripts/nettrades-setup.sh all --force --reset-data "$@"
+        ;;
+    destroy)
+        shift
+        echo "⚠️  DESTROY: This will permanently delete everything."
+        if [[ "$1" != "--force" ]]; then
+            read -rp "Type 'DESTROY' to continue: " confirm
+            [[ "$confirm" != "DESTROY" ]] && { echo "Aborted."; exit 0; }
+        fi
+        # Backup option
+        if [[ -f "./scripts/backup.sh" ]]; then
+            ./scripts/backup.sh
+        fi
+        # Destroy containers, volumes, and phase markers
+        docker compose -f deploy/docker/docker-compose.yml down -v 2>/dev/null || true
+        rm -f .phase-*-complete
+        echo "✅ Destroy complete."
+        ;;
+    *)
+        echo "Usage: nettrades {deploy|upgrade|status|reset|destroy} [options]"
+        exit 1
+        ;;
+esac

@@ -9,9 +9,15 @@
 // KEY FEATURES:
 //   - Tab navigation
 //   - Dashboard status updates
-//   - Installation wizard with deployment selection
+//   - Installation wizard with profile selection
+//   - Custom deployment with phase picker
+//   - Upgrade path with module selection
+//   - Hardware detection and auto-recommendations
 //   - Backup creation and restoration
 //   - Live log viewing
+//   - Model management
+//   - VPN management
+//   - Platform control
 // =============================================================================
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -32,6 +38,10 @@ let currentTab = 'dashboard';
 let featureFlags = {};
 let isInstalling = false;
 let serverUrl = 'http://localhost';
+let selectedProfile = null;
+let selectedPhases = [];
+let installOptions = {};
+let detectedHardware = null;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tab Navigation
@@ -44,7 +54,7 @@ tabs.forEach(tab => {
 });
 
 function switchTab(tabName) {
-    // Update nav items
+	// Update nav items
     tabs.forEach(t => t.classList.remove('active'));
     document.querySelector(`.nav-item[data-tab="${tabName}"]`).classList.add('active');
 
@@ -60,6 +70,7 @@ function switchTab(tabName) {
     // Refresh data when switching to certain tabs
     if (tabName === 'dashboard') {
         updateDashboard();
+        detectHardware();
     }
     if (tabName === 'backup') {
         loadBackupList();
@@ -69,6 +80,10 @@ function switchTab(tabName) {
     }
     if (tabName === 'vpn') {
         loadVPNUsers();
+    }
+    if (tabName === 'installer') {
+        detectHardware();
+        renderDeploymentCards();
     }
 }
 
@@ -81,7 +96,6 @@ async function loadPlatformInfo() {
         document.getElementById('platform-info').textContent =
             `${info.platform} (${info.arch})`;
         document.getElementById('version').textContent = `v1.0.0`;
-
         // Store for later use
         window.platformInfo = info;
     } catch (e) {
@@ -102,7 +116,6 @@ async function loadServerUrl() {
             if (input) {
                 input.value = serverUrl;
             }
-            console.log(`Server URL: ${serverUrl}`);
         }
     } catch (e) {
         console.error('Failed to load server URL:', e);
@@ -129,6 +142,102 @@ function getServiceUrl(service) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Hardware Detection
+// ──────────────────────────────────────────────────────────────────────────────
+async function detectHardware() {
+    try {
+        const hardware = await window.api.detectHardware();
+        detectedHardware = hardware;
+        updateHardwareDisplay(hardware);
+        updateRecommendations(hardware);
+        return hardware;
+    } catch (e) {
+        console.error('Hardware detection failed:', e);
+        return null;
+    }
+}
+
+function updateHardwareDisplay(hardware) {
+    const container = document.getElementById('hardware-info');
+    if (!container) return;
+
+    let html = '';
+    if (hardware.gpuAvailable && hardware.gpus.length > 0) {
+        const gpuSummary = hardware.gpus.map(g =>
+            `✅ ${g.name} (${g.memoryTotal} VRAM)`
+        ).join('<br>');
+        html += `<div class="hardware-item success">${gpuSummary}</div>`;
+    } else {
+        html += `<div class="hardware-item warning">⚠️ No GPU detected (CPU mode only)</div>`;
+    }
+
+    html += `<div class="hardware-item">💾 ${hardware.totalMemory} RAM</div>`;
+    html += `<div class="hardware-item">🖥️ ${hardware.cpuCores} cores (${hardware.cpuModel})</div>`;
+
+    if (hardware.k8sDetected) {
+        html += `<div class="hardware-item success">☸️ Kubernetes cluster detected</div>`;
+    } else {
+        html += `<div class="hardware-item warning">⚠️ No Kubernetes cluster detected</div>`;
+    }
+
+    if (hardware.dockerInstalled) {
+        html += `<div class="hardware-item success">🐳 Docker installed</div>`;
+    } else {
+        html += `<div class="hardware-item error">❌ Docker not installed</div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function updateRecommendations(hardware) {
+    if (!hardware) return;
+
+    // Auto-recommend Fine-Tuning if GPU with >16GB VRAM
+    const hasLargeGPU = hardware.gpus.some(g => {
+        const match = g.memoryTotal.match(/(\d+)/);
+        if (match) {
+            const vram = parseInt(match[1]);
+            return vram > 16000;
+        }
+        return false;
+    });
+
+    const finetuneCheckbox = document.querySelector('input[name="module-finetune"]');
+    if (finetuneCheckbox && hasLargeGPU) {
+        finetuneCheckbox.checked = true;
+        finetuneCheckbox.parentElement.classList.add('recommended');
+    }
+
+    // Auto-disable KAI if no Kubernetes
+    const kaiCheckbox = document.querySelector('input[name="module-kai"]');
+    if (kaiCheckbox && !hardware.k8sDetected) {
+        kaiCheckbox.disabled = true;
+        kaiCheckbox.parentElement.title = 'Requires Kubernetes cluster';
+        const warning = document.createElement('span');
+        warning.className = 'warning-text';
+        warning.textContent = ' (requires Kubernetes)';
+        kaiCheckbox.parentElement.appendChild(warning);
+    }
+
+    // Update GPU status in dashboard
+    const gpuStatus = document.getElementById('gpu-status');
+    if (gpuStatus) {
+        if (hardware.gpuAvailable) {
+            gpuStatus.textContent = `✅ ${hardware.gpus.length} GPU(s) detected`;
+            gpuStatus.className = 'status-badge status-running';
+        } else {
+            gpuStatus.textContent = '⚠️ No GPU detected (CPU mode)';
+            gpuStatus.className = 'status-badge status-unknown';
+        }
+    }
+
+    const statGpus = document.getElementById('stat-gpus');
+    if (statGpus) {
+        statGpus.textContent = hardware.gpus.length;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Feature Flags
 // ──────────────────────────────────────────────────────────────────────────────
 async function loadFeatureFlags() {
@@ -147,10 +256,9 @@ async function updateDashboard() {
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
     const uptimeText = document.getElementById('uptime-text');
-    const versionText = document.getElementById('version-text');
 
     try {
-        // Try to check if Odoo is running using the dynamic server URL
+		// Try to check if Odoo is running using the dynamic server URL
         const odooUrl = getServiceUrl('odoo');
         const response = await fetch(odooUrl, { method: 'HEAD', mode: 'no-cors' });
         // If we can reach it, it's likely running
@@ -158,13 +266,11 @@ async function updateDashboard() {
         statusBadge.className = 'status-badge status-running';
         statusText.textContent = 'Running';
         uptimeText.textContent = '--';
-        versionText.textContent = 'v1.0.0';
     } catch (e) {
         statusBadge.textContent = '⏹ Stopped';
         statusBadge.className = 'status-badge status-stopped';
         statusText.textContent = 'Stopped';
         uptimeText.textContent = '--';
-        versionText.textContent = '--';
     }
 
     // Load backup count
@@ -184,100 +290,224 @@ async function updateDashboard() {
     }
 
     // Detect GPUs
-    detectGpu();
+    detectHardware();
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Installation Wizard
+// Installation Wizard – Profile Selection
 // ──────────────────────────────────────────────────────────────────────────────
-let selectedDeployment = null;
-let installOptions = {};
+const profiles = [
+    {
+        id: 'sovereign',
+        name: '🏠 Sovereign AI in a Box',
+        description: 'All AI services on a single server. Perfect for getting started.',
+        phases: [0, 1, 2, 4, 5],
+        recommended: true,
+        endpoint: 'Internal IP (e.g., 192.168.1.100:8069)',
+        features: ['Odoo', 'LangGraph', 'Dynamo', 'llama.cpp', 'GPU Marketplace'],
+    },
+    {
+        id: 'router',
+        name: '🔀 Sovereign AI Router',
+        description: 'Routes requests to multiple GPU nodes. No inference.',
+        phases: [0, 1, 2],
+        recommended: false,
+        endpoint: 'Internal IP (e.g., 192.168.1.100:8069)',
+        features: ['Bridge Module', 'Request Routing', 'Node Discovery'],
+    },
+    {
+        id: 'production',
+        name: '🌐 Production [External] Website',
+        description: 'Same as "Box" but with public HTTPS access and domain.',
+        phases: [0, 1, 2, 4, 5],
+        recommended: false,
+        endpoint: 'https://your-domain.com',
+        features: ['SSL Certificates', 'Domain DNS', 'Security Hardening', 'Public Access'],
+        advanced: true,
+    },
+    {
+        id: 'k8s',
+        name: '☸️ Kubernetes Cluster',
+        description: 'Multi-node enterprise deployment with auto-scaling.',
+        phases: [0, 1, 3, 4, 5],
+        recommended: false,
+        endpoint: 'Load balancer IP or domain',
+        features: ['Talos Linux', 'Argo CD', 'KAI Scheduler', 'High Availability'],
+        advanced: true,
+    },
+    {
+        id: 'custom',
+        name: '⚙️ Custom Deployment',
+        description: 'Select individual phases and components. For experts.',
+        phases: [],
+        recommended: false,
+        endpoint: 'Varies',
+        features: ['Phase Selection', 'Component Control', 'Testing & Debugging'],
+        advanced: true,
+    },
+];
 
 function renderDeploymentCards() {
     const container = document.getElementById('deployment-cards');
     if (!container) return;
     container.innerHTML = '';
 
-    const deployments = [
-        {
-            id: 'sovereign-ai',
-            name: '🚀 Sovereign AI in a Box',
-            description: 'Complete AI infrastructure on a single machine.',
-            features: ['Dynamo', 'llama.cpp', 'LangGraph', 'Odoo', 'Ask Someone', 'Good Answer'],
-            ready: true,
-        },
-        {
-            id: 'router',
-            name: '🌐 Sovereign AI Router',
-            description: 'Intelligent routing for distributed inference.',
-            features: ['LLMRouter', 'LiteLLM', 'KAI Scheduler'],
-            ready: featureFlags.FEATURE_ROUTER || false,
-        },
-        {
-            id: 'marketplace',
-            name: '🏭 GPU Marketplace',
-            description: 'GPU sharing and rental marketplace.',
-            features: ['Marketplace', 'P2P', 'Token Economics'],
-            ready: featureFlags.FEATURE_GPU_MARKETPLACE || false,
-        },
-        {
-            id: 'training',
-            name: '🧠 AI Training & Development',
-            description: 'Fine-tuning and model training.',
-            features: ['Unsloth', 'Axolotl', 'Training Pipeline'],
-            ready: featureFlags.FEATURE_TRAINING || false,
-        },
-        {
-            id: 'enterprise',
-            name: '🏢 Autonomous Enterprise Platform',
-            description: 'Full enterprise suite with CRM, ERP, AI agents.',
-            features: ['Odoo ERP/CRM', 'Recruitment', 'Lead Gen', 'Freelance'],
-            ready: featureFlags.FEATURE_ENTERPRISE || false,
-        },
-        {
-            id: 'development',
-            name: '💻 Development Environment',
-            description: 'For AI developers building on the platform.',
-            features: ['LangGraph', 'Python venv', 'Dev Tools'],
-            ready: true,
-        },
-    ];
-
-    deployments.forEach(dep => {
+    profiles.forEach(profile => {
         const card = document.createElement('div');
-        card.className = `deployment-card ${dep.ready ? '' : 'coming-soon'}`;
-        card.dataset.id = dep.id;
+        card.className = 'deployment-card';
+        if (profile.recommended) card.classList.add('recommended');
+        if (profile.advanced) card.classList.add('advanced');
+        card.dataset.id = profile.id;
+
+        const badge = profile.recommended
+            ? '<span class="badge badge-recommended">Recommended</span>'
+            : profile.advanced
+            ? '<span class="badge badge-advanced">Advanced</span>'
+            : '';
 
         card.innerHTML = `
-            <h4>${dep.name}</h4>
-            <p>${dep.description}</p>
-            <ul style="list-style:none;padding:0;margin:0.5rem 0;font-size:0.8rem;color:var(--text-muted);">
-                ${dep.features.map(f => `<li style="display:inline-block;margin-right:0.5rem;">✓ ${f}</li>`).join('')}
+            <div class="card-header">
+                <h4>${profile.name}</h4>
+                ${badge}
+            </div>
+            <p class="card-description">${profile.description}</p>
+            <div class="card-endpoint">
+                📍 Access: ${profile.endpoint}
+            </div>
+            <ul class="card-features">
+                ${profile.features.map(f => `<li>✓ ${f}</li>`).join('')}
             </ul>
-            ${dep.ready ? '<span class="badge badge-ready">Ready</span>' : '<span class="badge badge-coming">Coming Soon</span>'}
         `;
 
-        if (dep.ready) {
-            card.addEventListener('click', () => {
-                document.querySelectorAll('.deployment-card').forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
-                selectedDeployment = dep.id;
-                document.getElementById('btn-install-next').disabled = false;
-            });
-        }
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.deployment-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedProfile = profile.id;
+            document.getElementById('btn-install-next').disabled = false;
+
+            // Show custom phase picker if custom is selected
+            if (profile.id === 'custom') {
+                document.getElementById('custom-phases').style.display = 'block';
+                renderPhasePicker();
+            } else {
+                document.getElementById('custom-phases').style.display = 'none';
+                // Pre-select phases for the profile
+                selectedPhases = profile.phases;
+                updatePhaseSummary(profile);
+            }
+        });
 
         container.appendChild(card);
     });
 
-    const nextBtn = document.getElementById('btn-install-next');
-    if (nextBtn) nextBtn.disabled = true;
+    // Set default selection
+    const defaultCard = container.querySelector('.deployment-card.recommended');
+    if (defaultCard) {
+        defaultCard.click();
+    }
 }
 
+function renderPhasePicker() {
+    const container = document.getElementById('phase-picker');
+    if (!container) return;
+
+    const phases = [
+        { id: 0, name: 'System Preparation & Hardening', desc: 'Docker, UFW, WireGuard, SSH hardening', time: '5-10 min' },
+        { id: 1, name: 'Development Environment (MANDATORY)', desc: 'Python venv, pip, uv, dependencies', time: '2-5 min', mandatory: true },
+        { id: 2, name: 'Single-VM Deployment', desc: 'NVIDIA Dynamo, llama.cpp, Docker Compose', time: '10-20 min' },
+        { id: 3, name: 'Kubernetes Scaling', desc: 'Talos Linux, Argo CD, KAI Scheduler', time: '15-30 min' },
+        { id: 4, name: 'Module Installation', desc: 'Odoo modules (nettrades_core, etc.)', time: '3-5 min' },
+        { id: 5, name: 'Monitoring Setup', desc: 'Prometheus, Grafana', time: '3-5 min' },
+    ];
+
+    container.innerHTML = phases.map(phase => `
+        <div class="phase-item">
+            <label class="phase-label ${phase.mandatory ? 'mandatory' : ''}">
+                <input type="checkbox"
+                       name="phase-${phase.id}"
+                       ${phase.mandatory ? 'checked disabled' : 'checked'}
+                       data-phase="${phase.id}">
+                <span class="phase-name">${phase.name}</span>
+                ${phase.mandatory ? '<span class="phase-mandatory">(Required)</span>' : ''}
+                <span class="phase-time">⏱ ${phase.time}</span>
+            </label>
+            <div class="phase-desc">${phase.desc}</div>
+        </div>
+    `).join('');
+
+    // Add event listeners for checkboxes
+    container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const id = parseInt(cb.dataset.phase);
+            if (cb.checked) {
+                if (!selectedPhases.includes(id)) selectedPhases.push(id);
+            } else {
+                selectedPhases = selectedPhases.filter(p => p !== id);
+            }
+            updatePhaseSummary(null);
+        });
+    });
+
+    // Ensure Phase 1 is always selected
+    if (!selectedPhases.includes(1)) {
+        selectedPhases.push(1);
+    }
+
+    updatePhaseSummary(null);
+}
+
+function updatePhaseSummary(profile) {
+    const summary = document.getElementById('config-summary');
+    if (!summary) return;
+
+    let profileName = 'Custom';
+    let phases = selectedPhases;
+
+    if (profile) {
+        const p = profiles.find(pr => pr.id === profile.id);
+        profileName = p ? p.name : 'Custom';
+        phases = profile.phases || selectedPhases;
+    }
+
+    // Sort phases
+    phases.sort((a, b) => a - b);
+
+    summary.innerHTML = `
+        <div class="config-row">
+            <strong>Profile:</strong> ${profileName}
+        </div>
+        <div class="config-row">
+            <strong>Phases:</strong> ${phases.join(' → ')}
+        </div>
+        <div class="config-row">
+            <strong>Environment:</strong> <span id="config-env">Development</span>
+        </div>
+        <div class="config-row" style="color:var(--text-muted);font-size:0.85rem;margin-top:0.5rem;">
+            Phase 1 (venv) is always included as it's required by all other phases.
+        </div>
+    `;
+
+    // Store selected phases for installation
+    installOptions.phases = phases;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Installation Wizard – Step Navigation
+// ──────────────────────────────────────────────────────────────────────────────
+
 document.getElementById('btn-install-next').addEventListener('click', () => {
-    if (!selectedDeployment) return;
+    if (!selectedProfile) return;
+
+    // Show step 2 (modules and summary)
     document.getElementById('install-step-1').classList.remove('active');
     document.getElementById('install-step-2').classList.add('active');
-    showConfigSummary(selectedDeployment);
+
+    // Update module recommendations based on hardware
+    updateModuleRecommendations();
+
+    // Update summary
+    const profile = profiles.find(p => p.id === selectedProfile);
+    updatePhaseSummary(profile);
 });
 
 document.getElementById('btn-install-back').addEventListener('click', () => {
@@ -285,37 +515,94 @@ document.getElementById('btn-install-back').addEventListener('click', () => {
     document.getElementById('install-step-1').classList.add('active');
 });
 
-function showConfigSummary(deploymentId) {
-    const names = {
-        'sovereign-ai': '🚀 Sovereign AI in a Box',
-        'router': '🌐 Sovereign AI Router',
-        'marketplace': '🏭 GPU Marketplace',
-        'training': '🧠 AI Training & Development',
-        'enterprise': '🏢 Autonomous Enterprise Platform',
-        'development': '💻 Development Environment',
-    };
+// ──────────────────────────────────────────────────────────────────────────────
+// Installation Wizard – Module Selection
+// ──────────────────────────────────────────────────────────────────────────────
 
-    const summary = document.getElementById('config-summary');
-    if (!summary) return;
-    summary.innerHTML = `
-        <div class="config-row">
-            <strong>Deployment:</strong> ${names[deploymentId] || deploymentId}
-        </div>
-        <div class="config-row">
-            <strong>Environment:</strong> Production
-        </div>
-        <div class="config-row">
-            <strong>Auto Mode:</strong> Enabled
-        </div>
-        <div class="config-row" style="color:var(--text-muted);font-size:0.85rem;margin-top:0.5rem;">
-            This will install the platform with default settings. You can change these later.
-        </div>
-    `;
+function updateModuleRecommendations() {
+    const hardware = detectedHardware;
+    if (!hardware) return;
+
+    // Fine-Tuning recommendation
+    const finetuneLabel = document.querySelector('.module-finetune');
+    if (finetuneLabel) {
+        if (hardware.gpuAvailable) {
+            finetuneLabel.innerHTML = `
+                ☑ Fine‑Tuning (Unsloth/Axolotl) <span class="recommended-badge">Recommended</span>
+                <span class="module-desc">Train and fine-tune models on your GPUs.</span>
+            `;
+        } else {
+            finetuneLabel.innerHTML = `
+                ☐ Fine‑Tuning (Unsloth/Axolotl) <span class="warning-text">(requires GPU)</span>
+                <span class="module-desc">Train and fine-tune models on your GPUs.</span>
+            `;
+        }
+    }
+
+    // KAI Scheduler recommendation
+    const kaiLabel = document.querySelector('.module-kai');
+    if (kaiLabel) {
+        if (hardware.k8sDetected) {
+            kaiLabel.innerHTML = `
+                ☑ KAI Scheduler <span class="recommended-badge">Recommended</span>
+                <span class="module-desc">GPU scheduling for Kubernetes clusters.</span>
+            `;
+        } else {
+            kaiLabel.innerHTML = `
+                ☐ KAI Scheduler <span class="warning-text">(requires Kubernetes)</span>
+                <span class="module-desc">GPU scheduling for Kubernetes clusters.</span>
+            `;
+        }
+    }
 }
 
-document.getElementById('btn-install-start').addEventListener('click', async () => {
-    if (!selectedDeployment) return;
+// ──────────────────────────────────────────────────────────────────────────────
+// Installation Wizard – Start Installation
+// ──────────────────────────────────────────────────────────────────────────────
 
+document.getElementById('btn-install-start').addEventListener('click', async () => {
+    // Gather options
+    const environment = document.querySelector('input[name="env"]:checked')?.value || 'development';
+    const force = document.getElementById('force-checkbox')?.checked || false;
+    const auto = document.getElementById('auto-checkbox')?.checked || false;
+    const upgrade = document.getElementById('upgrade-checkbox')?.checked || false;
+
+    const withFinetune = document.querySelector('input[name="module-finetune"]')?.checked || false;
+    const withGrove = document.querySelector('input[name="module-grove"]')?.checked || false;
+    const withKai = document.querySelector('input[name="module-kai"]')?.checked || false;
+    const withRouter = document.querySelector('input[name="module-router"]')?.checked || false;
+
+    const domain = document.getElementById('domain-input')?.value || '';
+
+    // Validate domain for production
+    if (environment === 'production' && !domain) {
+        const result = await window.api.showDialog({
+            type: 'warning',
+            title: 'Domain Required',
+            message: 'For production deployments, please enter a domain name.',
+            buttons: ['OK'],
+        });
+        return;
+    }
+
+    const options = {
+        profile: selectedProfile,
+        environment: environment,
+        force: force,
+        auto: auto,
+        upgrade: upgrade,
+        withFinetune: withFinetune,
+        withGrove: withGrove,
+        withKai: withKai,
+        withRouter: withRouter,
+        domain: domain,
+        phases: selectedPhases.length > 0 ? selectedPhases : null,
+        resetData: false,
+    };
+
+    installOptions = options;
+
+    // Switch to installation progress view
     document.getElementById('install-step-2').classList.remove('active');
     document.getElementById('install-step-3').classList.add('active');
 
@@ -324,13 +611,6 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
     const logOutput = document.getElementById('install-log-output');
 
     if (logOutput) logOutput.innerHTML = '<div class="log-placeholder">Starting installation...</div>';
-
-    const options = {
-        profile: selectedDeployment,
-        environment: 'production',
-        force: false,
-        auto: true,
-    };
 
     isInstalling = true;
     document.getElementById('btn-install-cancel').style.display = 'inline-block';
@@ -350,7 +630,7 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
             if (progressLabel) progressLabel.textContent = 'Phase 2: Deployment...';
         } else if (data.includes('Phase 3')) {
             if (progressFill) progressFill.style.width = '70%';
-            if (progressLabel) progressLabel.textContent = 'Phase 3: GPU Setup...';
+            if (progressLabel) progressLabel.textContent = 'Phase 3: Kubernetes...';
         } else if (data.includes('Phase 4')) {
             if (progressFill) progressFill.style.width = '85%';
             if (progressLabel) progressLabel.textContent = 'Phase 4: Module Installation...';
@@ -369,6 +649,15 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
             if (lines.length > 200) lines.splice(0, lines.length - 200);
             logOutput.textContent = lines.join('\n');
             logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        // Also add to global logs
+        const globalLogs = document.getElementById('logs-output');
+        if (globalLogs) {
+            const placeholder = globalLogs.querySelector('.log-placeholder');
+            if (placeholder) placeholder.remove();
+            globalLogs.textContent += data + '\n';
+            globalLogs.scrollTop = globalLogs.scrollHeight;
         }
     });
 
@@ -412,7 +701,23 @@ document.getElementById('btn-install-cancel').addEventListener('click', async ()
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Model Manager (LM Studio-style)
+// Environment toggle
+// ──────────────────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('input[name="env"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+        const isProduction = radio.value === 'production';
+        const domainInput = document.getElementById('domain-input');
+        if (domainInput) {
+            domainInput.style.display = isProduction ? 'inline-block' : 'none';
+            domainInput.required = isProduction;
+        }
+        document.getElementById('config-env').textContent = isProduction ? 'Production' : 'Development';
+    });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Model Manager
 // ──────────────────────────────────────────────────────────────────────────────
 
 async function loadModels() {
@@ -441,8 +746,8 @@ async function loadModels() {
                 <div class="model-name">${model.name}</div>
                 <div class="model-size">${model.sizeFormatted}</div>
                 <div class="model-actions">
-                    <button class="btn btn-success" data-path="${model.path}" onclick="loadModel('${model.path}')">▶ Load</button>
-                    <button class="btn btn-danger" data-path="${model.path}" onclick="deleteModel('${model.path}')">🗑️ Delete</button>
+                    <button class="btn btn-success" data-path="${model.path}" onclick="window.loadModel('${model.path}')">▶ Load</button>
+                    <button class="btn btn-danger" data-path="${model.path}" onclick="window.deleteModel('${model.path}')">🗑️ Delete</button>
                 </div>
             </div>
         `).join('');
@@ -465,10 +770,7 @@ async function browseModels() {
         { name: `deepseek-r1-1.5B-Q4_K_M.gguf`, url: 'https://huggingface.co/...' },
     ];
 
-    const modelList = demoModels.map(m =>
-        `${m.name}`
-    ).join('\n');
-
+    const modelList = demoModels.map(m => `${m.name}`).join('\n');
     const selection = prompt(`Available models:\n${modelList}\n\nEnter the full model name to download:`);
     if (selection) {
         downloadModel(selection);
@@ -564,37 +866,6 @@ window.deleteModel = async function(modelPath) {
         addActivity(`Error deleting model: ${e.message}`);
     }
 };
-
-// ──────────────────────────────────────────────────────────────────────────────
-// GPU Detection
-// ──────────────────────────────────────────────────────────────────────────────
-
-async function detectGpu() {
-    const gpuStatus = document.getElementById('gpu-status');
-    const statGpus = document.getElementById('stat-gpus');
-    if (!gpuStatus) return;
-
-    try {
-        const result = await window.api.detectGpu();
-        if (result.gpuAvailable) {
-            const gpuInfo = result.gpus.map(g =>
-                `${g.name} - ${g.memoryTotal} (${g.memoryUsed} used)`
-            ).join('\n');
-            gpuStatus.textContent = `✅ ${result.gpus.length} GPU(s) detected`;
-            gpuStatus.title = gpuInfo;
-            gpuStatus.className = 'status-badge status-running';
-            if (statGpus) statGpus.textContent = result.gpus.length;
-        } else {
-            gpuStatus.textContent = '⚠️ No GPU detected (CPU mode)';
-            gpuStatus.className = 'status-badge status-unknown';
-            if (statGpus) statGpus.textContent = '0';
-        }
-    } catch (e) {
-        gpuStatus.textContent = '❌ GPU detection failed';
-        gpuStatus.className = 'status-badge status-stopped';
-        if (statGpus) statGpus.textContent = '?';
-    }
-}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Backup & Restore
@@ -755,7 +1026,7 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Quick Actions (Dashboard) – Dynamic Server URLs
+// Quick Actions (Dashboard)
 // ──────────────────────────────────────────────────────────────────────────────
 
 document.getElementById('btn-quick-backup').addEventListener('click', () => {
@@ -785,7 +1056,7 @@ document.getElementById('btn-open-ui').addEventListener('click', () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Platform Control (Start / Stop / Restart)
+// Platform Control
 // ──────────────────────────────────────────────────────────────────────────────
 
 document.getElementById('btn-start-platform').addEventListener('click', async () => {
@@ -798,7 +1069,6 @@ document.getElementById('btn-start-platform').addEventListener('click', async ()
 
     try {
         window.api.onPlatformOutput((data) => {
-            console.log('[Platform]', data);
             addActivity(`[Platform] ${data.trim()}`);
         });
 
@@ -886,22 +1156,6 @@ document.getElementById('btn-restart-platform').addEventListener('click', async 
     }
 });
 
-document.getElementById('btn-update-platform').addEventListener('click', async () => {
-    const statusBadge = document.getElementById('status-badge');
-    if (statusBadge) {
-        statusBadge.textContent = '⏳ Checking for updates...';
-        statusBadge.className = 'status-badge status-unknown';
-    }
-
-    // This would trigger the update check
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    if (statusBadge) {
-        statusBadge.textContent = '✅ Up to date';
-        statusBadge.className = 'status-badge status-running';
-    }
-    addActivity('Checked for updates: up to date');
-});
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Logs Tab
 // ──────────────────────────────────────────────────────────────────────────────
@@ -970,10 +1224,114 @@ document.getElementById('btn-save-server-url').addEventListener('click', async (
             addActivity(`Failed to save server URL: ${result.error}`);
         }
     } else {
-        // Reset to default
+		// Reset to default
         serverUrl = 'http://localhost';
         await window.api.saveServerUrl('http://localhost');
         addActivity('Server URL reset to localhost');
+    }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// VPN Management
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function loadVPNUsers() {
+    const container = document.getElementById('vpn-list-container');
+    if (!container) return;
+
+    try {
+        const data = await window.api.vpnListUsers();
+        if (data.users.length === 0) {
+            container.innerHTML = '<p class="vpn-empty">No VPN users found. Add your first admin above.</p>';
+            return;
+        }
+
+        container.innerHTML = data.users.map(user => `
+            <div class="vpn-item">
+                <div class="vpn-item-info">
+                    <span class="vpn-item-name">${user.name}</span>
+                    <span class="vpn-item-ip">${user.assigned_ip}</span>
+                    <span class="vpn-item-status ${user.is_online ? 'online' : 'offline'}">
+                        ${user.is_online ? '🟢 Online' : '🔴 Offline'}
+                    </span>
+                </div>
+                <div class="vpn-item-actions">
+                    <button class="btn btn-secondary" onclick="window.vpnConfig('${user.name}')">📄 Config</button>
+                    <button class="btn btn-danger" onclick="window.vpnRevoke('${user.name}')">🗑️ Revoke</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        container.innerHTML = `<p class="vpn-empty">Error loading VPN users: ${err.message}</p>`;
+    }
+}
+
+window.vpnConfig = function(name) {
+    window.api.showDialog({
+        type: 'info',
+        title: `VPN Config: ${name}`,
+        message: `Configuration for ${name} will be displayed here.`,
+        buttons: ['Close'],
+    });
+};
+
+window.vpnRevoke = async function(name) {
+    const confirmResult = await window.api.showDialog({
+        type: 'warning',
+        title: 'Revoke VPN User',
+        message: `Are you sure you want to revoke ${name}?`,
+        buttons: ['Cancel', 'Revoke'],
+        defaultId: 0,
+        cancelId: 0,
+    });
+    if (confirmResult.response !== 1) return;
+
+    try {
+        const result = await window.api.vpnRevokeUser(name);
+        if (result.success) {
+            addActivity(`VPN user revoked: ${name}`);
+            loadVPNUsers();
+        } else {
+            addActivity(`Failed to revoke user: ${result.error}`);
+        }
+    } catch (err) {
+        addActivity(`Error revoking user: ${err.message}`);
+    }
+};
+
+document.getElementById('btn-vpn-create').addEventListener('click', async () => {
+    const nameInput = document.getElementById('vpn-new-name');
+    const partnerInput = document.getElementById('vpn-new-partner');
+    const name = nameInput ? nameInput.value.trim() : '';
+    const partnerId = partnerInput ? parseInt(partnerInput.value.trim()) : NaN;
+
+    if (!name || isNaN(partnerId)) {
+        await window.api.showDialog({
+            type: 'warning',
+            title: 'Invalid Input',
+            message: 'Please enter a name and partner ID.',
+            buttons: ['OK'],
+        });
+        return;
+    }
+
+    try {
+        const result = await window.api.vpnAddUser(name, partnerId);
+        if (result.success) {
+            addActivity(`VPN user created: ${name} (IP: ${result.assigned_ip})`);
+            const resultDiv = document.getElementById('vpn-create-result');
+            if (resultDiv) {
+                resultDiv.style.display = 'block';
+                document.getElementById('vpn-new-ip').textContent = result.assigned_ip;
+            }
+            loadVPNUsers();
+            nameInput.value = '';
+            partnerInput.value = '';
+        } else {
+            addActivity(`Failed to create user: ${result.error}`);
+        }
+    } catch (err) {
+        addActivity(`Error creating user: ${err.message}`);
     }
 });
 
@@ -1008,13 +1366,13 @@ async function init() {
     await loadServerUrl();
     await updateDashboard();
     await loadBackupList();
-    await detectGpu();
+    await detectHardware();
 
     addActivity('Launcher started');
 
     // Set up periodic dashboard refresh
     setInterval(updateDashboard, 30000);
-    setInterval(detectGpu, 60000);
+    setInterval(detectHardware, 60000);
 
     // Add log listener to capture all output
     window.api.onInstallOutput((data) => {
@@ -1030,141 +1388,19 @@ async function init() {
             addActivity(data.trim());
         }
     });
-
     // Platform output listener
     window.api.onPlatformOutput((data) => {
         addActivity(`[Platform] ${data.trim()}`);
     });
 
-    // Bind model manager events if they exist
-    document.getElementById('btn-browse-models')?.addEventListener('click', browseModels);
-    document.getElementById('btn-import-model')?.addEventListener('click', importModel);
+    // Enable upgrade tab if deployment exists
+    const hasDeployment = document.querySelector('.phase-marker-check')?.value === 'true';
+    if (hasDeployment) {
+        document.querySelector('.nav-item[data-tab="upgrade"]')?.classList.remove('disabled');
+    }
 
     addActivity('Platform ready');
 }
 
 // Start the app
 init();
-
-// =============================================================================
-// VPN Management
-// =============================================================================
-
-async function loadVPNUsers() {
-    const container = document.getElementById('vpn-list-container');
-    if (!container) return;
-
-    try {
-        const response = await fetch('/api/wireguard/users', {
-            headers: { 'X-API-Key': localStorage.getItem('apiKey') || '' }
-        });
-        if (!response.ok) throw new Error('Failed to fetch VPN users');
-        const data = await response.json();
-
-        if (data.users.length === 0) {
-            container.innerHTML = '<p class="vpn-empty">No VPN users found. Add your first admin above.</p>';
-            return;
-        }
-
-        container.innerHTML = data.users.map(user => `
-            <div class="vpn-item">
-                <div class="vpn-item-info">
-                    <span class="vpn-item-name">${user.name}</span>
-                    <span class="vpn-item-ip">${user.assigned_ip}</span>
-                    <span class="vpn-item-status ${user.is_online ? 'online' : 'offline'}">
-                        ${user.is_online ? '🟢 Online' : '🔴 Offline'}
-                    </span>
-                </div>
-                <div class="vpn-item-actions">
-                    <a href="/api/wireguard/users/${user.id}/config" class="btn btn-secondary">📄 Config</a>
-                    <button class="btn btn-danger" onclick="revokeVPNUser(${user.id})">🗑️ Revoke</button>
-                </div>
-            </div>
-        `).join('');
-    } catch (err) {
-        container.innerHTML = `<p class="vpn-empty">Error loading VPN users: ${err.message}</p>`;
-    }
-}
-
-async function createVPNUser() {
-    const nameInput = document.getElementById('vpn-new-name');
-    const partnerInput = document.getElementById('vpn-new-partner');
-    const name = nameInput ? nameInput.value.trim() : '';
-    const partner_id = partnerInput ? parseInt(partnerInput.value.trim()) : NaN;
-
-    if (!name || isNaN(partner_id)) {
-        alert('Please enter a name and partner ID.');
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/wireguard/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': localStorage.getItem('apiKey') || ''
-            },
-            body: JSON.stringify({ name, partner_id })
-        });
-
-        if (!response.ok) throw new Error('Failed to create VPN user');
-        const data = await response.json();
-
-        // Show result
-        const resultDiv = document.getElementById('vpn-create-result');
-        if (resultDiv) resultDiv.style.display = 'block';
-        const ipSpan = document.getElementById('vpn-new-ip');
-        if (ipSpan) ipSpan.textContent = data.assigned_ip;
-        const configLink = document.getElementById('vpn-new-config-link');
-        if (configLink) configLink.href = `/api/wireguard/users/${data.id}/config`;
-
-        // Show QR code
-        const qrContainer = document.getElementById('vpn-new-qr');
-        if (qrContainer) {
-            if (data.qr_code) {
-                qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code" style="max-width:200px;">`;
-            } else {
-                qrContainer.innerHTML = '<p>QR code not available.</p>';
-            }
-        }
-
-        // Refresh the list
-        loadVPNUsers();
-
-        // Clear inputs
-        if (nameInput) nameInput.value = '';
-        if (partnerInput) partnerInput.value = '';
-
-    } catch (err) {
-        alert(`Error creating VPN user: ${err.message}`);
-    }
-}
-
-async function revokeVPNUser(userId) {
-    if (!confirm('Are you sure you want to revoke this user?')) return;
-
-    try {
-        const response = await fetch(`/api/wireguard/users/${userId}`, {
-            method: 'DELETE',
-            headers: { 'X-API-Key': localStorage.getItem('apiKey') || '' }
-        });
-
-        if (!response.ok) throw new Error('Failed to revoke user');
-        loadVPNUsers();
-    } catch (err) {
-        alert(`Error revoking user: ${err.message}`);
-    }
-}
-
-// Event listeners
-document.getElementById('btn-vpn-create').addEventListener('click', createVPNUser);
-
-// Load VPN users when the tab is switched
-document.querySelector('.nav-item[data-tab="vpn"]').addEventListener('click', () => {
-    loadVPNUsers();
-});
-
-// Also load VPN users if the tab is already active on startup
-if (document.querySelector('.nav-item[data-tab="vpn"].active')) {
-    loadVPNUsers();
-}

@@ -551,7 +551,21 @@ ipcMain.handle('run-install', async (event, options) => {
         return { success: false, error: 'Installation already in progress' };
     }
 
-    const { profile = 'all', force = false, auto = true, production = false } = options || {};
+    const {
+        profile = 'all',
+        force = false,
+        auto = true,
+        production = false,
+        upgrade = false,
+        withFinetune = false,
+        withGrove = false,
+        withKai = false,
+        withRouter = false,
+        domain = '',
+        phases = null,
+        resetData = false
+    } = options || {};
+
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'nettrades-setup.sh');
 
     if (!fs.existsSync(scriptPath)) {
@@ -566,10 +580,28 @@ ipcMain.handle('run-install', async (event, options) => {
     }
 
     return new Promise((resolve) => {
-        let cmd = `bash ${scriptPath} ${profile}`;
+        let cmd = `bash ${scriptPath}`;
+
+        // Profile or phases
+        if (profile === 'custom' && phases && phases.length > 0) {
+            cmd += ` --phases=${phases.join(',')}`;
+        } else if (profile && profile !== 'custom') {
+            cmd += ` ${profile}`;
+        } else {
+            cmd += ' all';
+        }
+
+        // Flags
         if (force) cmd += ' --force';
         if (auto) cmd += ' --auto';
         if (production) cmd += ' --production';
+        if (upgrade) cmd += ' --upgrade';
+        if (resetData) cmd += ' --reset-data';
+        if (withFinetune) cmd += ' --with-finetune';
+        if (withGrove) cmd += ' --with-grove';
+        if (withKai) cmd += ' --with-kai';
+        if (withRouter) cmd += ' --with-router';
+        if (domain) cmd += ` --domain=${domain}`;
 
         logInfo(`Starting deployment: ${cmd}`);
 
@@ -880,6 +912,47 @@ function getDirectorySize(dirPath) {
 
 ipcMain.handle('detect-gpu', () => {
     return detectGPUs();
+});
+
+ipcMain.handle('detect-hardware', () => {
+    const gpus = detectGPUs();
+    const totalMemory = os.totalmem();
+    const cpus = os.cpus();
+
+    // Check for Kubernetes
+    let k8sDetected = false;
+    try {
+        exec('kubectl cluster-info 2>/dev/null', (error, stdout) => {
+            k8sDetected = !error && stdout.length > 0;
+        });
+    } catch (e) {
+        k8sDetected = false;
+    }
+
+    // Check for Docker
+    let dockerInstalled = false;
+    try {
+        exec('docker --version 2>/dev/null', (error, stdout) => {
+            dockerInstalled = !error && stdout.length > 0;
+        });
+    } catch (e) {
+        dockerInstalled = false;
+    }
+
+    const result = {
+        gpus: gpus,
+        gpuAvailable: gpus.length > 0,
+        totalMemory: `${Math.round(totalMemory / 1024 / 1024 / 1024)} GB`,
+        freeMemory: `${Math.round(os.freemem() / 1024 / 1024 / 1024)} GB`,
+        cpuCores: cpus.length,
+        cpuModel: cpus.length > 0 ? cpus[0].model : 'Unknown',
+        k8sDetected: k8sDetected,
+        dockerInstalled: dockerInstalled,
+        platform: process.platform,
+        isWSL: process.platform === 'linux' && fs.existsSync('/proc/sys/fs/binfmt_misc/WSLInterop'),
+    };
+
+    return result;
 });
 
 function detectGPUs() {
