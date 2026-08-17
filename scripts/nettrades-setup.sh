@@ -292,21 +292,33 @@ install_gvisor() {
         log_info "WSL2 environment detected."
     fi
 
-    # Check if runsc is already installed and registered with Docker
-    if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
-        if [ "$is_wsl2" = false ]; then
-            log_success "gVisor already installed and configured."
-            return 0
-        else
-            # On WSL2, check if we have a recent enough version
-            local version_output=$(runsc --version 2>/dev/null | head -1)
-            if echo "$version_output" | grep -q "2026"; then
-                log_success "gVisor already installed with recent version: $version_output"
+    # Check if runsc is already installed
+    if command -v runsc &>/dev/null; then
+        local runsc_path=$(which runsc)
+        log_info "runsc found at: $runsc_path"
+        
+        # Check if Docker already has runsc registered
+        if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+            if [ "$is_wsl2" = false ]; then
+                log_success "gVisor already installed and configured."
                 return 0
             else
-                log_info "WSL2 detected: upgrading to latest runsc version..."
-                # Continue to upgrade
+                # On WSL2, check if we have a recent enough version
+                local version_output=$(runsc --version 2>/dev/null | head -1)
+                if echo "$version_output" | grep -q "2026"; then
+                    log_success "gVisor already installed with recent version: $version_output"
+                    # Ensure Docker is configured with the correct path
+                    configure_docker_runsc "$runsc_path"
+                    return 0
+                else
+                    log_info "WSL2 detected: upgrading to latest runsc version..."
+                fi
             fi
+        else
+            # runsc is installed but not registered with Docker
+            log_info "runsc installed but not registered with Docker. Configuring..."
+            configure_docker_runsc "$runsc_path"
+            return 0
         fi
     fi
 
@@ -318,7 +330,6 @@ install_gvisor() {
     # Add GPG key
     if ! curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg 2>/dev/null; then
         log_warning "Failed to download GPG key, trying alternative..."
-        # Alternative: use apt-key (deprecated but works on older systems)
         curl -fsSL https://gvisor.dev/archive.key | sudo apt-key add - 2>/dev/null || {
             log_error "Failed to add GPG key. Please install runsc manually."
             return 1
@@ -333,7 +344,10 @@ install_gvisor() {
     sudo apt-get update -qq 2>/dev/null || true
     if sudo apt-get install -y runsc 2>/dev/null; then
         log_success "runsc installed via official repository."
-        configure_docker_runsc "/usr/bin/runsc"
+        # Find the actual path of runsc
+        local runsc_path=$(which runsc 2>/dev/null || echo "/usr/bin/runsc")
+        log_info "runsc installed at: $runsc_path"
+        configure_docker_runsc "$runsc_path"
         return 0
     else
         log_error "Failed to install runsc via APT repository."
