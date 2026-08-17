@@ -284,13 +284,51 @@ run_interactive() {
 install_gvisor() {
     log_info "Installing gVisor (runsc) runtime for container sandboxing..."
 
+    # Detect if we are running inside WSL2
+    local is_wsl2=false
+    if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null; then
+        is_wsl2=true
+        log_info "WSL2 environment detected."
+    fi
+
     # Check if runsc is already installed and registered with Docker
     if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
-        log_success "gVisor already installed and configured."
+        if [ "$is_wsl2" = false ]; then
+            log_success "gVisor already installed and configured."
+            return 0
+        else
+            # On WSL2 we want to upgrade to the latest upstream to ensure network fix
+            log_info "WSL2 detected: upgrading runsc to latest upstream version..."
+            # Continue to download and replace the binary
+        fi
+    fi
+
+    # Determine architecture
+    local arch=$(uname -m)
+    case "$arch" in
+        x86_64)  arch="amd64" ;;
+        aarch64) arch="arm64" ;;
+        *)       log_error "Unsupported architecture: $arch"; return 1 ;;
+    esac
+    local RUNSC_URL="https://storage.googleapis.com/gvisor/releases/release/latest/linux_${arch}/runsc"
+
+    if [ "$is_wsl2" = true ]; then
+        # On WSL2: always download upstream (bypass apt)
+        log_info "Downloading runsc from $RUNSC_URL (upstream version)..."
+        if ! curl -fsSL -o /tmp/runsc "$RUNSC_URL"; then
+            log_error "Failed to download runsc. Please install manually:"
+            log_info "  curl -fsSL $RUNSC_URL -o /usr/local/bin/runsc"
+            log_info "  chmod +x /usr/local/bin/runsc"
+            return 1
+        fi
+        sudo mv /tmp/runsc /usr/local/bin/runsc
+        sudo chmod +x /usr/local/bin/runsc
+        log_success "Upstream runsc installed to /usr/local/bin/runsc"
+        configure_docker_runsc "/usr/local/bin/runsc"
         return 0
     fi
 
-    # Try apt first (Ubuntu/Debian)
+    # Non‑WSL2: try apt first (Ubuntu/Debian)
     if command -v apt &>/dev/null; then
         log_info "Attempting to install runsc via apt..."
         if apt-cache show runsc &>/dev/null; then
@@ -305,17 +343,8 @@ install_gvisor() {
         fi
     fi
 
-    # Fallback: manual download (with fixed URL)
-    local arch=$(uname -m)
-    case "$arch" in
-        x86_64)  arch="amd64" ;;
-        aarch64) arch="arm64" ;;
-        *)       log_error "Unsupported architecture: $arch"; return 1 ;;
-    esac
-
-    local RUNSC_URL="https://storage.googleapis.com/gvisor/releases/release/latest/linux_${arch}/runsc"
+    # Fallback: manual download for non‑WSL2 (same as before)
     log_info "Downloading runsc from $RUNSC_URL..."
-
     if ! curl -fsSL -o /tmp/runsc "$RUNSC_URL"; then
         log_error "Failed to download runsc. Please install manually:"
         log_info "  curl -fsSL $RUNSC_URL -o /usr/local/bin/runsc"
@@ -325,7 +354,6 @@ install_gvisor() {
 
     sudo mv /tmp/runsc /usr/local/bin/runsc
     sudo chmod +x /usr/local/bin/runsc
-
     configure_docker_runsc "/usr/local/bin/runsc"
 }
 
