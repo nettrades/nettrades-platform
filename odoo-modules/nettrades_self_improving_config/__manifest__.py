@@ -1,55 +1,62 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Self-Improving Config - Administration Module
+# NETTRADES Self-Improving Configuration
 # =============================================================================
 # FILE: odoo-modules/nettrades_self_improving_config/__manifest__.py
 #
 # PURPOSE:
-#   This module provides the administration interface for the self-improving
-#   system. It allows administrators to configure and monitor the
-#   self-improving loop.
+#   Configuration module for self-improving AI features.
+#   Provides configuration options for:
+#     - Training triggers and thresholds
+#     - Model selection for fine-tuning
+#     - Data quality requirements
+#     - Episode management
 #
-#   Configuration includes:
-#     - Loop settings: enable/disable, frequency, auto-deploy
-#     - Data quality: minimum quality score, votes required
-#     - A/B testing: enable, traffic split, promotion threshold
-#     - Triggers: create, edit, delete trigger configurations
-#     - Cycles: view and monitor self-improvement cycles
-#
+# UPDATES (2026-08):
+#   - Removed dependency on nettrades_gpustack_adapter (GPUStack replaced by Dynamo)
+#   - Added dependency on nettrades_core for base functionality
 # =============================================================================
+
 {
     'name': 'NETTRADES Self-Improving Configuration',
     'version': '1.0.0',
-    'category': 'Nettrades',
-    'summary': 'Administration interface for self-improving AI system',
+    'category': 'AI',
+    'summary': 'Self-Improving AI Configuration',
     'description': """
-        This module provides the administration interface for the
-        self-improving AI system.
-
-        Key Features:
-        - Loop configuration (enable/disable, frequency)
-        - Data quality settings
-        - A/B testing configuration
-        - Trigger management
-        - Cycle monitoring and reporting
-        - Manual cycle triggering
+        Configuration for self-improving AI features.
+        Provides configuration options for:
+        - Training triggers and thresholds (episodes, quality scores)
+        - Model selection for fine-tuning (DeepSeek, Qwen, Llama)
+        - Data quality requirements
+        - Episode management and classification
+        - Auto-trigger settings
     """,
-    'author': 'Nettrades',
+    'author': 'NETTRADES',
     'website': 'https://nettrades.ai',
-    'license': 'AGPL-3',
     'depends': [
-        'nettrades_loop',           # For cycle management
-        'nettrades_trigger',        # For trigger management
-        'nettrades_data_collection', # For episode management
-        'base',                     # Core Odoo
+        'base',
+        'mail',
+        'web',
+        'queue_job',
+        'nettrades_core',           # Core platform tables
+        'nettrades_data_collection',  # Data collection
+        'nettrades_loop',             # Loop orchestration
+        # 'nettrades_gpustack_adapter',  # REMOVED - GPUStack replaced by Dynamo
     ],
     'data': [
         'security/ir.model.access.csv',
-        'views/config_views.xml',
+        'security/nettrades_self_improving_config_security.xml',
+        'views/self_improving_config_views.xml',
         'views/dashboard_views.xml',
         'views/menu_views.xml',
+        'views/trigger_config_views.xml',
+        'data/self_improving_config_data.xml',
+    ],
+    'demo': [
+        'demo/self_improving_config_demo.xml',
     ],
     'installable': True,
-    'application': True,
+    'application': False,
     'auto_install': False,
+    'license': 'AGPL-3',
 }

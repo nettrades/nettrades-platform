@@ -1,63 +1,49 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES LLM Configuration - Provider Management for AI Agents
+# NETTRADES LLM Configuration
 # =============================================================================
 # FILE: odoo-modules/nettrades_llm_config/__manifest__.py
 #
 # PURPOSE:
-#   This module extends the Apexive odoo-llm provider system to add company-
-#   specific LLM configuration for LangGraph agents. It allows administrators
-#   to configure which LLM provider each company should use for inference,
-#   with support for:
-#     - Multiple providers (OpenAI, Anthropic, DeepSeek, Ollama, NETTRADES.AI)
-#     - GPU overflow routing to NETTRADES.AI
-#     - Fallback providers
-#     - Per-company API keys and endpoints
+#   Configuration module for LLM providers and settings.
+#   This module manages the configuration of language model providers,
+#   including connection settings, model selection, and API keys.
 #
-# KEY FEATURES:
-#   - Company-specific LLM provider selection
-#   - GPU overflow detection and routing
-#   - Automatic provider switching based on configuration
-#   - Integration with Apexive odoo-llm provider system
-#   - Fallback provider support
-#
+# UPDATES (2026-08):
+#   - Removed dependency on llm_provider (replaced by Dynamo)
 # =============================================================================
 
 {
     'name': 'NETTRADES LLM Configuration',
     'version': '1.0.0',
     'category': 'Nettrades/LLM',
-    'summary': 'Company-specific LLM provider configuration for LangGraph agents',
+    'summary': 'LLM Provider Configuration',
     'description': """
-        This module extends the Apexive odoo-llm provider system to add company-
-        specific LLM configuration for LangGraph agents.
-
-        Administrators can configure:
-        - Which LLM provider each company uses (OpenAI, Anthropic, DeepSeek,
-          Ollama, NETTRADES.AI)
-        - API keys and custom endpoints
-        - GPU overflow routing to NETTRADES.AI
-        - Fallback providers
-        - Default models per provider
-
-        The LangGraph supervisor reads this configuration at runtime and
-        dynamically creates the appropriate LLM instance.
+        Configuration for Language Model providers.
+        Manages connection settings, model selection, and API keys
+        for various LLM providers including Dynamo, OpenAI, and others.
     """,
-    'author': 'Nettrades',
+    'author': 'NETTRADES',
     'website': 'https://nettrades.ai',
-    'license': 'AGPL-3',
     'depends': [
-        'nettrades_core',          # For company and user models
-        'nettrades_gpu_admin',     # For GPU utilisation monitoring
-        'llm',                     # Apexive base LLM module
-        'llm_provider',            # Apexive provider system
+        'base',
+        'mail',
+        'web',
+        'queue_job',
+        # 'llm_provider',  # REMOVED - replaced by Dynamo
     ],
     'data': [
         'security/ir.model.access.csv',
-        'views/llm_company_config_views.xml',
+        'views/llm_config_views.xml',
+        'views/llm_provider_views.xml',
+        'views/res_config_settings_views.xml',
         'data/llm_provider_data.xml',
+    ],
+    'demo': [
+        'demo/llm_provider_demo.xml',
     ],
     'installable': True,
     'application': False,
     'auto_install': False,
+    'license': 'AGPL-3',
 }

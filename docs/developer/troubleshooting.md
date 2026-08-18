@@ -411,7 +411,7 @@ Open `.vscode/settings.json` and add:
    
 ```
    
-cheat sheet for the most common issues.
+Cheat sheet for the most common issues.
 
 ---
 
