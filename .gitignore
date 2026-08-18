@@ -105,6 +105,12 @@ deploy/docker/prometheus-data/
 deploy/docker/grafana-data/
 deploy/docker/backups/
 deploy/docker/odoo-modules/
+deploy/docker/dynamo-data
+
+# -----------------------------------------------------------------------------
+# Odoo
+# -----------------------------------------------------------------------------
+/third-party/odoo
 
 # -----------------------------------------------------------------------------
 # Logs
