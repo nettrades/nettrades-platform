@@ -10,7 +10,6 @@
 #   - Odoo provides the governance layer (users, models, GPU resources)
 #   - LangGraph (custom app.py + uvicorn) orchestrates agents with state persistence
 #
-#
 # SERVICES:
 #   - Traefik: Reverse proxy with automatic Let's Encrypt SSL
 #   - PostgreSQL 17 with pgvector: RAG embeddings & main database
@@ -26,8 +25,22 @@
 #   - Self-Improving Service: Continuous learning and fine-tuning
 #   - WireGuard: Admin VPN server
 #   - Redirector: Landing page redirector
-#   - gVisor: Container isolation runtime (security hardening)#
+#   - gVisor: Container isolation runtime (security hardening)
+#
+# RUNTIME CONFIGURATION:
+#   Each service uses a runtime variable from .env:
+#     - RUNTIME_ODOO: Odoo (trusted, always runc)
+#     - RUNTIME_LANGGRAPH: LangGraph (runsc for untrusted tenants)
+#     - RUNTIME_SELF_IMPROVING: Self-Improving (runsc for untrusted tenants)
+#     - RUNTIME_UI: NETTRADES UI (runsc for untrusted tenants)
+#     - RUNTIME_DYNAMO: Dynamo (MUST be runc - GPU requires runc)
+#     - RUNTIME_POSTGRES: PostgreSQL (MUST be runc - I/O performance)
+#     - RUNTIME_VALKEY: Valkey (MUST be runc - performance critical)
+#
+#   Many AI companies use gVisor for agent sandboxing with egress restricted
+#   to the API only. 
 # =============================================================================
+
 # -----------------------------------------------------------------------------
 # Networks
 # -----------------------------------------------------------------------------
@@ -101,6 +114,8 @@ services:
   # =========================================================================
   postgres:
     image: pgvector/pgvector:pg17
+    # PostgreSQL MUST use runc - gVisor adds 10-30% I/O overhead
+    runtime: ${RUNTIME_POSTGRES:-}
     environment:
       POSTGRES_DB: odoo
       POSTGRES_USER: odoo
@@ -143,6 +158,8 @@ services:
   valkey:
     image: valkey/valkey:8-alpine
     container_name: valkey
+    # Valkey MUST use runc - performance critical for caching
+    runtime: ${RUNTIME_VALKEY:-}
     restart: unless-stopped
     networks:
       - internal
@@ -160,14 +177,16 @@ services:
   # =========================================================================
   # 5. ODOO 19 CE - ERP, Marketplace, and AI Hub (Governance Layer)
   # =========================================================================
+  # Odoo is the trusted orchestrator - always run on runc for performance.
+  # Many AI companies run trusted orchestrator unsandboxed.
+  # =========================================================================
   odoo:
     build:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.odoo
-    # network_mode: host
     container_name: odoo
-    # gVisor runtime for container isolation (security hardening)
-    runtime: ${RUNTIME:-}
+    # Odoo is the trusted governance layer - always use runc for performance
+    runtime: ${RUNTIME_ODOO:-}
     ports:
       - "8069:8069"
     volumes:
@@ -215,24 +234,23 @@ services:
         max-size: 10m
         max-file: 3
 
-
-
   # =========================================================================
-  # 7. LANGGRAPH SERVER - Custom app.py + uvicorn (Full Control)
+  # 6. LANGGRAPH SERVER - AI Agent Orchestration
   # =========================================================================
-  # This is the Autonomous Enterprise Platform layer – LangGraph agents with
-  # state persistence, checkpointing, and multi-agent orchestration.
-  # It uses the Dynamo API for inference, but remains separate from the core
-  # inference routing so that customer agents don't break the distributed system.
+  # For untrusted tenants (freelancers, home users), this runs under gVisor.
+  # For enterprise tenants, it runs on runc for performance.
   #
+  # Many AI companies run each agent in a gVisor container with egress
+  # restricted to the API. A few use gVisor for AI agent isolation.
   # =========================================================================
   langgraph-server:
     build:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.langgraph
     container_name: langgraph-server
-    # gVisor runtime for container isolation (security hardening)
-    runtime: ${RUNTIME:-}
+    # Runtime is tenant-aware: runsc for untrusted, runc for trusted
+    # Set RUNTIME_LANGGRAPH=runsc in .env for untrusted tenants
+    runtime: ${RUNTIME_LANGGRAPH:-}
     restart: unless-stopped
     networks:
       - web
@@ -255,10 +273,7 @@ services:
       - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       # LANGGRAPH_API_URL is used for URL generation (workaround for #7390)
-      # This tells LangGraph its external URL so generated links include /api
       - LANGGRAPH_API_URL=https://${DOMAIN}/api
-      # MOUNT_PREFIX is REMOVED – it has no effect on custom FastAPI app
-      # - MOUNT_PREFIX=/api   # DELETED – not used
       - LANGGRAPH_TRUST_X_FORWARDED_HEADERS=true
     ports:
       - "8000:8000"
@@ -300,13 +315,18 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 8. NETTRADES-UI - FastAPI (Served on Dedicated Port 3002)
+  # 7. NETTRADES-UI - FastAPI (Served on Dedicated Port 3002)
+  # =========================================================================
+  # For untrusted tenants, run under gVisor for additional isolation.
+  # Set RUNTIME_UI=runsc in .env for untrusted tenants.
   # =========================================================================
   nettrades-ui:
     build:
       context: ../../
       dockerfile: deploy/docker/nettrades-ui/Dockerfile
     container_name: nettrades-ui
+    # Runtime is tenant-aware: runsc for untrusted, runc for trusted
+    runtime: ${RUNTIME_UI:-}
     restart: unless-stopped
     ports:
       - "3002:8000"
@@ -433,9 +453,12 @@ services:
   #   - OpenAI-compatible API
   # This is the Sovereign AI layer – it handles all GPU routing and inference.
   #
-  # For CPU-ONLY testing, we use the dynamo-frontend
-  # container which is lightweight and requires no GPU. It provides the same
-  # OpenAI-compatible API with mock workers, allowing full orchestration testing.
+  # GPU workloads MUST use runc - gVisor does NOT support GPU passthrough.
+  # Reference: gVisor GPU support is experimental and can break drivers.
+  #
+  # For CPU-ONLY testing, we use the dynamo-frontend container which is
+  # lightweight and requires no GPU. It provides the same OpenAI-compatible
+  # API with mock workers, allowing full orchestration testing.
   # When a GPU becomes available, switch to the GPU runtime images:
   #   - nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.3.1
   #   - nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.3.1
@@ -444,6 +467,8 @@ services:
     # CPU-compatible frontend for testing (no GPU required)
     image: nvcr.io/nvidia/ai-dynamo/dynamo-frontend:1.3.1
     container_name: dynamo
+    # GPU requires runc - gVisor does not support GPU passthrough
+    runtime: ${RUNTIME_DYNAMO:-}
     restart: unless-stopped
     networks:
       - web
@@ -458,8 +483,6 @@ services:
     # - MODEL_PATH=/models/${MODEL_NAME:-Qwen2.5-1.5B-Instruct}
       - DYNAMO_LOG_LEVEL=info
     # Frontend command with file-based discovery (no etcd needed)
-    # For GPU-enabled Dynamo, use the default runtime (not gVisor)
-    # gVisor does not support GPU passthrough yet
     entrypoint: ["python3", "-m", "dynamo.frontend"]
     command:
       - "--http-port"
@@ -580,7 +603,47 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 13. PROMETHEUS - Metrics Collection
+  # 13. SELF-IMPROVING SERVICE - Continuous Learning & Fine-Tuning
+  # =========================================================================
+  # For untrusted tenants, run under gVisor for additional isolation.
+  # Set RUNTIME_SELF_IMPROVING=runsc in .env for untrusted tenants.
+  # =========================================================================
+  self-improving:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.self-improving
+    container_name: self-improving
+    # Runtime is tenant-aware: runsc for untrusted, runc for trusted
+    runtime: ${RUNTIME_SELF_IMPROVING:-}
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
+      - ODOO_URL=${ODOO_URL:-http://odoo:8069}
+      - ODOO_API_KEY=${ODOO_API_KEY}
+      - THRESHOLD_EPISODES=50
+      - THRESHOLD_QUALITY=7.0
+      - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-1.5b}
+      - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
+    volumes:
+      - ./dynamo-data/models:/models
+      - ./training-data:/training-data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      odoo:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  # =========================================================================
+  # 14. PROMETHEUS - Metrics Collection
   # =========================================================================
   prometheus:
     image: prom/prometheus:latest
@@ -614,7 +677,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 14. GRAFANA - Visualisation Dashboard
+  # 15. GRAFANA - Visualisation Dashboard
   # =========================================================================
   grafana:
     image: grafana/grafana:latest
@@ -648,7 +711,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 15. NODE EXPORTER - System Metrics for Prometheus
+  # 16. NODE EXPORTER - System Metrics for Prometheus
   # =========================================================================
   node_exporter:
     image: prom/node-exporter:latest
@@ -674,7 +737,7 @@ services:
         max-file: 3
 
   # =============================================================================
-  # WireGuard Admin VPN Server
+  # WIREGUARD - Admin VPN Server
   # =============================================================================
   # The WireGuard server provides secure VPN access for administrators.
   # It uses the same configuration as the existing setup scripts.
@@ -703,38 +766,3 @@ services:
       - net.ipv4.conf.all.src_valid_mark=1
       - net.ipv4.ip_forward=1
     restart: unless-stopped
-
-  # =============================================================================
-  # 16. SELF-IMPROVING SERVICE - Continuous Learning & Fine-Tuning
-  # =============================================================================
-  self-improving:
-    build:
-      context: ../../
-      dockerfile: deploy/docker/Dockerfile.self-improving
-    container_name: self-improving
-    restart: unless-stopped
-    networks:
-      - internal
-    environment:
-      - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
-      - ODOO_URL=${ODOO_URL:-http://odoo:8069}
-      - ODOO_API_KEY=${ODOO_API_KEY}
-      - THRESHOLD_EPISODES=50
-      - THRESHOLD_QUALITY=7.0
-      - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-1.5b}
-      - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
-    volumes:
-      - ./dynamo-data/models:/models
-      - ./training-data:/training-data
-    depends_on:
-      postgres:
-        condition: service_healthy
-      odoo:
-        condition: service_started
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: 3

@@ -24,6 +24,8 @@
 //   - GPU marketplace integration
 //   - Node discovery and WireGuard VPN management
 //   - Grove and KAI Scheduler management
+//   - Tenant type selection and runtime configuration
+//   - gVisor enablement for untrusted tenants
 //
 // USAGE:
 //   npm start
@@ -65,6 +67,40 @@ const COMPOSE_FILE = path.join(PROJECT_ROOT, 'deploy', 'docker', 'docker-compose
 
 // Virtual environment directory
 const VENV_DIR = path.join(PROJECT_ROOT, '.venv');
+
+// .env file path
+const ENV_FILE = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
+
+// -----------------------------------------------------------------------------
+// Tenant Types and Runtime Configuration
+// -----------------------------------------------------------------------------
+
+const TENANT_TYPES = {
+    ENTERPRISE: 'enterprise',
+    FREELANCER: 'freelancer',
+    HOME: 'home'
+};
+
+const RUNTIME_CONFIG = {
+    [TENANT_TYPES.ENTERPRISE]: {
+        langgraph: '',
+        selfImproving: '',
+        ui: '',
+        description: 'Full performance, trusted workload'
+    },
+    [TENANT_TYPES.FREELANCER]: {
+        langgraph: 'runsc',
+        selfImproving: 'runsc',
+        ui: 'runsc',
+        description: 'gVisor isolation for untrusted code'
+    },
+    [TENANT_TYPES.HOME]: {
+        langgraph: 'runsc',
+        selfImproving: 'runsc',
+        ui: 'runsc',
+        description: 'gVisor isolation for home users'
+    }
+};
 
 // -----------------------------------------------------------------------------
 // Logging
@@ -358,8 +394,90 @@ ipcMain.handle('get-platform', () => {
         projectRoot: PROJECT_ROOT,
         modelsDir: MODELS_DIR,
         venvDir: VENV_DIR,
+        envFile: ENV_FILE,
         isPackaged: isPackaged,
+        tenantTypes: Object.values(TENANT_TYPES),
     };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenant Configuration
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-tenant-config', () => {
+    try {
+        if (fs.existsSync(ENV_FILE)) {
+            const content = fs.readFileSync(ENV_FILE, 'utf8');
+            const tenantType = content.match(/^TENANT_TYPE=(\w+)/m)?.[1] || 'enterprise';
+            const tenantName = content.match(/^TENANT_NAME=(.+)/m)?.[1] || 'default';
+            return {
+                tenantType,
+                tenantName,
+                runtimeConfig: RUNTIME_CONFIG[tenantType] || RUNTIME_CONFIG[TENANT_TYPES.ENTERPRISE]
+            };
+        }
+    } catch (error) {
+        logError(`Error reading tenant config: ${error.message}`);
+    }
+    return {
+        tenantType: 'enterprise',
+        tenantName: 'default',
+        runtimeConfig: RUNTIME_CONFIG[TENANT_TYPES.ENTERPRISE]
+    };
+});
+
+ipcMain.handle('set-tenant-config', async (event, config) => {
+    const { tenantType, tenantName } = config;
+    
+    // Validate tenant type
+    if (!Object.values(TENANT_TYPES).includes(tenantType)) {
+        return { success: false, error: `Invalid tenant type: ${tenantType}` };
+    }
+
+    try {
+        let content = '';
+        if (fs.existsSync(ENV_FILE)) {
+            content = fs.readFileSync(ENV_FILE, 'utf8');
+        }
+
+        // Update or add TENANT_TYPE
+        if (content.match(/^TENANT_TYPE=/m)) {
+            content = content.replace(/^TENANT_TYPE=\w+/m, `TENANT_TYPE=${tenantType}`);
+        } else {
+            content += `\nTENANT_TYPE=${tenantType}\n`;
+        }
+
+        // Update or add TENANT_NAME
+        if (content.match(/^TENANT_NAME=/m)) {
+            content = content.replace(/^TENANT_NAME=.+/m, `TENANT_NAME=${tenantName || 'default'}`);
+        } else {
+            content += `TENANT_NAME=${tenantName || 'default'}\n`;
+        }
+
+        // Update runtime variables based on tenant type
+        const runtime = RUNTIME_CONFIG[tenantType];
+        const runtimeVars = [
+            { key: 'RUNTIME_LANGGRAPH', value: runtime.langgraph },
+            { key: 'RUNTIME_SELF_IMPROVING', value: runtime.selfImproving },
+            { key: 'RUNTIME_UI', value: runtime.ui },
+        ];
+
+        for (const { key, value } of runtimeVars) {
+            if (content.match(new RegExp(`^${key}=`))) {
+                content = content.replace(new RegExp(`^${key}=.*`, 'm'), `${key}=${value}`);
+            } else {
+                content += `${key}=${value}\n`;
+            }
+        }
+
+        fs.writeFileSync(ENV_FILE, content, 'utf8');
+        logSuccess(`Tenant configuration updated: ${tenantType} (${tenantName || 'default'})`);
+        
+        return { success: true };
+    } catch (error) {
+        logError(`Error setting tenant config: ${error.message}`);
+        return { success: false, error: error.message };
+    }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -421,7 +539,6 @@ async function getDockerServiceStatus(serviceName) {
 }
 
 // Helper function to run docker compose with an additional file
-// UPDATED: Added file existence check before running
 function runDockerComposeWithFile(composeFile, command) {
     return new Promise((resolve) => {
         const composePath = path.join(path.dirname(COMPOSE_FILE), composeFile);
@@ -506,7 +623,6 @@ ipcMain.handle('save-server-url', (event, url) => {
 
 ipcMain.handle('get-feature-flags', () => {
     // Read from .env file if available
-    const envPath = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
     const flags = {
         gpuMarketplace: true,
         askSomeone: true,
@@ -515,15 +631,15 @@ ipcMain.handle('get-feature-flags', () => {
         training: true,
         bridge: true,
         notifications: true,
-        fairness: false,      // Coming soon
-        jobMatching: false,   // Coming soon
-        research: false,      // Coming soon
-        triggers: false,      // Coming soon
+        fairness: false,
+        jobMatching: false,
+        research: false,
+        triggers: false,
     };
 
     try {
-        if (fs.existsSync(envPath)) {
-            const envContent = fs.readFileSync(envPath, 'utf8');
+        if (fs.existsSync(ENV_FILE)) {
+            const envContent = fs.readFileSync(ENV_FILE, 'utf8');
             const lines = envContent.split('\n');
             for (const line of lines) {
                 if (line.startsWith('FEATURE_')) {
@@ -563,7 +679,9 @@ ipcMain.handle('run-install', async (event, options) => {
         withRouter = false,
         domain = '',
         phases = null,
-        resetData = false
+        resetData = false,
+        tenantType = 'enterprise',
+        tenantName = 'default',
     } = options || {};
 
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'nettrades-setup.sh');
@@ -577,6 +695,12 @@ ipcMain.handle('run-install', async (event, options) => {
     if (!fs.existsSync(venvActivate)) {
         logError('Virtual environment not found. Please run Phase 1 first.');
         return { success: false, error: 'Virtual environment not found. Please run Phase 1 first.' };
+    }
+
+    // Set tenant configuration in .env
+    const tenantResult = await ipcMain.handle('set-tenant-config', null, { tenantType, tenantName });
+    if (!tenantResult.success) {
+        return { success: false, error: `Failed to set tenant config: ${tenantResult.error}` };
     }
 
     return new Promise((resolve) => {
@@ -603,11 +727,15 @@ ipcMain.handle('run-install', async (event, options) => {
         if (withRouter) cmd += ' --with-router';
         if (domain) cmd += ` --domain=${domain}`;
 
+        // Set environment variables for tenant type
+        const env = { ...process.env, VIRTUAL_ENV: VENV_DIR, TENANT_TYPE: tenantType };
+
         logInfo(`Starting deployment: ${cmd}`);
+        logInfo(`Tenant type: ${tenantType}`);
 
         installProcess = spawn('bash', ['-c', cmd], {
             cwd: PROJECT_ROOT,
-            env: { ...process.env, VIRTUAL_ENV: VENV_DIR },
+            env: env,
             shell: true,
         });
 
@@ -838,12 +966,11 @@ ipcMain.handle('delete-model', async (event, modelPath) => {
 
 ipcMain.handle('load-model', async (event, modelPath) => {
     // Update the .env file to use this model
-    const envPath = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
     try {
-        let envContent = fs.readFileSync(envPath, 'utf8');
+        let envContent = fs.readFileSync(ENV_FILE, 'utf8');
         const modelName = path.basename(modelPath);
         envContent = envContent.replace(/^MODEL_NAME=.*$/m, `MODEL_NAME=${modelName}`);
-        fs.writeFileSync(envPath, envContent);
+        fs.writeFileSync(ENV_FILE, envContent);
         logSuccess(`Model loaded: ${modelName}`);
         return { success: true, model: modelName };
     } catch (error) {
