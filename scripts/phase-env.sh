@@ -13,6 +13,8 @@
 #   - With --auto and --force, it regenerates silently (for CI/CD).
 #   - In production, additional confirmation is required.
 #   - NEW: Automatically detects the server IP and prompts for domain/email.
+#   - FIXED: DATABASE_URL is no longer modified – uses the template's placeholder.
+#   - FIXED: POSTGRES_PASSWORD is validated to be alphanumeric only.
 #
 #   SECRETS GENERATED:
 #   - POSTGRES_PASSWORD (prompted)
@@ -202,8 +204,15 @@ read_password_with_retry() {
         echo
 
         if [ "$password1" = "$password2" ] && [ -n "$password1" ]; then
-            echo "$password1"
-            return 0
+            # Validate alphanumeric only (no special chars, spaces, newlines)
+            if [[ "$password1" =~ ^[a-zA-Z0-9]+$ ]]; then
+                echo "$password1"
+                return 0
+            else
+                echo -e "${RED}❌ Password must contain only letters and numbers (no special characters). Please try again.${NC}"
+                attempts=$((attempts + 1))
+                continue
+            fi
         else
             attempts=$((attempts + 1))
             if [ $attempts -lt $max_attempts ]; then
@@ -261,7 +270,7 @@ GRAFANA_PASSWORD=$(generate_safe_password)
 PROMETHEUS_PASSWORD=$(generate_safe_password)
 DYNAMO_API_KEY=$(generate_safe_api_key)   # NEW – replaces GPUStack
 
-# NEW: Generate LangGraph API key (strong, alphanumeric)
+# Generate LangGraph API key (strong, alphanumeric)
 LANGGRAPH_API_KEY=$(generate_safe_api_key)
 
 # -----------------------------------------------------------------------------
@@ -277,12 +286,18 @@ safe_sed_replace "$ENV_FILE" "WIREGUARD_PRIVATE_KEY" "$WIREGUARD_PRIVATE_KEY"
 safe_sed_replace "$ENV_FILE" "WIREGUARD_PUBLIC_KEY" "$WIREGUARD_PUBLIC_KEY"
 safe_sed_replace "$ENV_FILE" "GRAFANA_PASSWORD" "$GRAFANA_PASSWORD"
 safe_sed_replace "$ENV_FILE" "PROMETHEUS_PASSWORD" "$PROMETHEUS_PASSWORD"
-safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"   # NEW
+safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
 safe_sed_replace "$ENV_FILE" "LANGGRAPH_API_KEY" "$LANGGRAPH_API_KEY"
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"  # Ensure sync
-
 # Ensure ODOO_API_KEY and PROXY_API_KEY are identical
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"
+
+# =============================================================================
+# CRITICAL FIX: Do NOT modify DATABASE_URL – keep the template's placeholder.
+# The template uses ${POSTGRES_PASSWORD} which will be expanded at runtime.
+# =============================================================================
+# The following line is REMOVED to prevent corruption:
+# safe_sed_replace "$ENV_FILE" "DATABASE_URL" "postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo"
 
 # -----------------------------------------------------------------------------
 # NEW: Configure DOMAIN and ADMIN_EMAIL (auto-detect + interactive prompt)
@@ -368,7 +383,6 @@ configure_domain_email() {
 
 # Run the domain/email configuration after secrets are written
 configure_domain_email
-
 
 # -----------------------------------------------------------------------------
 # Default Landing Page

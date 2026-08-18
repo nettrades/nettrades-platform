@@ -1272,7 +1272,6 @@
             color: #ff5f57;
         }
 
-
         /* ─── Settings Toggle Switch ─── */
         .toggle-container {
             display: flex;
@@ -1516,6 +1515,166 @@
             color: #6a6a7a;
             margin-left: 28px;
             margin-top: 2px;
+        }
+
+        /* ─── Tenant Configuration (Integrated into Deploy Tab) ─── */
+        .tenant-section {
+            margin: 24px 0 16px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+        }
+
+        .tenant-section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .tenant-section .subtitle {
+            font-size: 14px;
+            color: #8a8a9a;
+            margin-bottom: 16px;
+        }
+
+        .tenant-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .tenant-option {
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 18px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .tenant-option:hover {
+            border-color: rgba(74, 138, 255, 0.4);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tenant-option.selected {
+            border-color: #4a8aff;
+            background: rgba(74, 138, 255, 0.08);
+            box-shadow: 0 0 30px rgba(74, 138, 255, 0.1);
+        }
+
+        .tenant-option h3 {
+            font-size: 16px;
+            margin-top: 0;
+            margin-bottom: 6px;
+        }
+
+        .tenant-option .desc {
+            font-size: 13px;
+            color: #8a8a9a;
+            margin-bottom: 8px;
+        }
+
+        .tenant-option ul {
+            padding-left: 18px;
+            font-size: 13px;
+            color: #b0b0c0;
+            margin: 6px 0 0 0;
+        }
+
+        .tenant-option ul li {
+            margin-bottom: 2px;
+        }
+
+        .tenant-option code {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #4a8aff;
+        }
+
+        .select-tenant {
+            margin-top: 12px;
+            padding: 6px 16px;
+            background: #4a8aff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .select-tenant:hover {
+            background: #3a7ae0;
+        }
+
+        .tenant-details {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .tenant-details .selected-label {
+            font-size: 14px;
+            color: #b0b0c0;
+        }
+
+        .tenant-details .selected-label strong {
+            color: #4a8aff;
+        }
+
+        .tenant-details .selected-desc {
+            font-size: 13px;
+            color: #8a8a9a;
+            margin-top: 4px;
+        }
+
+        #deploy-tenant-btn {
+            margin-top: 16px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #4a8aff, #6a5aff);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #deploy-tenant-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(74, 138, 255, 0.3);
+        }
+
+        #deploy-tenant-btn:disabled {
+            background: #4a4a5a;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #6a6a7a;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .tenant-options {
+                grid-template-columns: 1fr;
+            }
+            .tenant-details .form-row {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -2092,7 +2251,7 @@ You can:
                 </div>
 
                 <!-- ============================================================
-                DEPLOY TAB (Enhanced with Profiles)
+                DEPLOY TAB (Enhanced with Profiles + Tenant Config)
                 ============================================================ -->
                 <div id="tab-deploy" class="tab-content">
                     <div class="dashboard-header">
@@ -2204,6 +2363,87 @@ You can:
                         <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
                             <button class="btn btn-secondary" id="btn-deploy-back">← Back</button>
                             <button class="btn btn-primary" id="btn-deploy-start">🚀 Install</button>
+                        </div>
+
+                        <!-- ============================================================
+                        TENANT CONFIGURATION - Integrated into Deploy Tab (Step 4)
+                        ============================================================ -->
+                        <div class="tenant-section" style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;">
+                            <h3>Step 4: Tenant Configuration</h3>
+                            <p class="subtitle">Select the type of tenant you are deploying. This determines runtime isolation and security settings.</p>
+
+                            <div class="tenant-options">
+                                <div class="tenant-option" data-type="enterprise">
+                                    <h3>🏢 Enterprise</h3>
+                                    <div class="desc">Full performance, trusted workload</div>
+                                    <ul>
+                                        <li>Uses <code>runc</code> runtime for all services</li>
+                                        <li>Maximum performance for production workloads</li>
+                                        <li>Recommended for companies with trusted code</li>
+                                    </ul>
+                                    <button class="select-tenant" data-type="enterprise">Select</button>
+                                </div>
+
+                                <div class="tenant-option" data-type="freelancer">
+                                    <h3>💼 Freelancer</h3>
+                                    <div class="desc">gVisor isolation for untrusted code</div>
+                                    <ul>
+                                        <li>Uses <code>runsc</code> (gVisor) for AI agents</li>
+                                        <li>Isolates untrusted agent code from host</li>
+                                        <li>Recommended for freelancers and contractors</li>
+                                    </ul>
+                                    <button class="select-tenant" data-type="freelancer">Select</button>
+                                </div>
+
+                                <div class="tenant-option" data-type="home">
+                                    <h3>🏠 Home User</h3>
+                                    <div class="desc">gVisor isolation for personal use</div>
+                                    <ul>
+                                        <li>Uses <code>runsc</code> (gVisor) for AI agents</li>
+                                        <li>Strong isolation for personal projects</li>
+                                        <li>Recommended for home users and hobbyists</li>
+                                    </ul>
+                                    <button class="select-tenant" data-type="home">Select</button>
+                                </div>
+                            </div>
+
+                            <div id="tenant-details" style="display:none;">
+                                <div class="tenant-details">
+                                    <div class="selected-label">Selected Tenant: <strong id="selected-tenant-type"></strong></div>
+                                    <div class="selected-desc" id="selected-tenant-description"></div>
+
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label for="tenant-name">Tenant Name</label>
+                                            <input type="text" id="tenant-name" placeholder="My Company">
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label for="tenant-domain">Domain</label>
+                                            <input type="text" id="tenant-domain" placeholder="ai.mycompany.com">
+                                        </div>
+                                    </div>
+
+                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:12px;">
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label for="tenant-email">Admin Email</label>
+                                            <input type="email" id="tenant-email" placeholder="admin@mycompany.com">
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label for="tenant-password">PostgreSQL Password</label>
+                                            <input type="password" id="tenant-password" placeholder="Enter strong password">
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:0;display:flex;align-items:center;padding-top:20px;">
+                                            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+                                                <input type="checkbox" id="tenant-wireguard" checked>
+                                                Enable WireGuard VPN
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="help-text" style="margin-top:8px;">Creates an isolated VPN subnet for this tenant</div>
+
+                                    <button id="deploy-tenant-btn" class="btn btn-primary" style="margin-top:16px;width:100%;justify-content:center;">🚀 Deploy Platform with Tenant Configuration</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -2516,6 +2756,7 @@ You can:
         let selectedProfile = null;
         let selectedPhases = [];
         let isInstalling = false;
+        let selectedTenantType = 'enterprise';
 
         // ─── DOM Ready ───
         document.addEventListener('DOMContentLoaded', () => {
@@ -2583,6 +2824,36 @@ You can:
                 });
             });
 
+            // ─── Tenant Selection (Integrated) ───
+            document.querySelectorAll('.select-tenant').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const type = this.dataset.type;
+                    const option = this.closest('.tenant-option');
+
+                    // Highlight selected
+                    document.querySelectorAll('.tenant-option').forEach(el => el.classList.remove('selected'));
+                    option.classList.add('selected');
+
+                    // Show details
+                    document.getElementById('tenant-details').style.display = 'block';
+                    const typeNames = {
+                        'enterprise': 'Enterprise',
+                        'freelancer': 'Freelancer',
+                        'home': 'Home User'
+                    };
+                    document.getElementById('selected-tenant-type').textContent = typeNames[type] || type;
+                    document.getElementById('selected-tenant-description').textContent =
+                        option.querySelector('.desc')?.textContent || '';
+
+                    // Store selected type
+                    selectedTenantType = type;
+                });
+            });
+
+            // ─── Tenant Deploy Button ───
+            document.getElementById('deploy-tenant-btn').addEventListener('click', deployWithTenantConfig);
+
             // Set up IPC listeners
             setupIpcListeners();
 
@@ -2595,6 +2866,111 @@ You can:
             // Auto-refresh every 30 seconds
             setInterval(refreshAll, 30000);
         });
+
+        // ─── Deploy with Tenant Configuration ───
+        async function deployWithTenantConfig() {
+            const tenantType = selectedTenantType || 'enterprise';
+            const tenantName = document.getElementById('tenant-name').value || 'default';
+            const domain = document.getElementById('tenant-domain').value || 'localhost';
+            const adminEmail = document.getElementById('tenant-email').value || 'admin@localhost';
+            const postgresPassword = document.getElementById('tenant-password').value || generatePassword();
+            const wireguardEnabled = document.getElementById('tenant-wireguard')?.checked !== false;
+
+            // Validate domain for production
+            const environment = document.querySelector('input[name="env"]:checked')?.value || 'development';
+            if (environment === 'production' && (!domain || domain === 'localhost')) {
+                showToast('For production deployments, please enter a valid domain name.', 'warning');
+                return;
+            }
+
+            // Validate password
+            if (!postgresPassword || postgresPassword.length < 8) {
+                showToast('Please enter a PostgreSQL password (minimum 8 characters).', 'warning');
+                return;
+            }
+
+            const deployBtn = document.getElementById('deploy-tenant-btn');
+            deployBtn.disabled = true;
+            deployBtn.textContent = '⏳ Configuring...';
+
+            try {
+                // Step 1: Set tenant configuration in .env
+                const configResult = await window.api.setTenantConfig({
+                    tenantType: tenantType,
+                    tenantName: tenantName
+                });
+
+                if (!configResult.success) {
+                    showToast(`Failed to set tenant config: ${configResult.error}`, 'error');
+                    deployBtn.disabled = false;
+                    deployBtn.textContent = '🚀 Deploy Platform with Tenant Configuration';
+                    return;
+                }
+
+                showToast(`Tenant configured as ${tenantType}`, 'success');
+
+                // Step 2: Run the main deployment
+                const options = {
+                    profile: selectedProfile || 'all',
+                    environment: environment,
+                    force: document.getElementById('deploy-force')?.checked || false,
+                    auto: document.getElementById('deploy-auto')?.checked || false,
+                    upgrade: document.getElementById('deploy-upgrade')?.checked || false,
+                    withFinetune: document.querySelector('input[name="module-finetune"]')?.checked || false,
+                    withGrove: document.querySelector('input[name="module-grove"]')?.checked || false,
+                    withKai: document.querySelector('input[name="module-kai"]')?.checked || false,
+                    withRouter: document.querySelector('input[name="module-router"]')?.checked || false,
+                    domain: domain,
+                    phases: selectedPhases.length > 0 ? selectedPhases : null,
+                    resetData: false,
+                    tenantType: tenantType,
+                    tenantName: tenantName,
+                };
+
+                // Switch to installation progress view
+                document.getElementById('deploy-step-2').style.display = 'none';
+                document.getElementById('deploy-step-3').style.display = 'block';
+
+                const progressFill = document.getElementById('install-progress-fill');
+                const progressLabel = document.getElementById('install-progress-label');
+                const logOutput = document.getElementById('install-log-output');
+
+                if (logOutput) logOutput.innerHTML = '<div class="log-placeholder">Starting installation...</div>';
+
+                isInstalling = true;
+                document.getElementById('btn-install-cancel').style.display = 'inline-block';
+                document.getElementById('install-status-badge').textContent = '⏳ Installing...';
+                document.getElementById('install-status-badge').className = 'status-badge status-unknown';
+
+                const result = await window.api.runInstall(options);
+
+                isInstalling = false;
+                document.getElementById('btn-install-cancel').style.display = 'none';
+                deployBtn.disabled = false;
+                deployBtn.textContent = '🚀 Deploy Platform with Tenant Configuration';
+
+                if (result.success) {
+                    progressFill.style.width = '100%';
+                    progressLabel.textContent = '✅ Installation complete!';
+                    document.getElementById('install-status-badge').textContent = '✅ Complete';
+                    document.getElementById('install-status-badge').className = 'status-badge status-running';
+                    showToast('Deployment completed successfully!', 'success');
+                } else {
+                    progressFill.style.width = '100%';
+                    progressFill.style.background = '#ff5f57';
+                    progressLabel.textContent = '❌ Installation failed';
+                    document.getElementById('install-status-badge').textContent = '❌ Failed';
+                    document.getElementById('install-status-badge').className = 'status-badge status-stopped';
+                    showToast(`Deployment failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                isInstalling = false;
+                document.getElementById('btn-install-cancel').style.display = 'none';
+                deployBtn.disabled = false;
+                deployBtn.textContent = '🚀 Deploy Platform with Tenant Configuration';
+                showToast(`Deployment error: ${error.message}`, 'error');
+            }
+        }
 
         // ─── IPC Listeners ───
         function setupIpcListeners() {
@@ -2640,7 +3016,6 @@ You can:
             });
 
             window.api.onInstallProgress((data) => {
-                // Update progress bar if specific progress data is sent
                 if (data.progress !== undefined) {
                     document.getElementById('install-progress-fill').style.width = `${data.progress}%`;
                 }
@@ -3847,6 +4222,8 @@ You can:
                 domain: domain,
                 phases: selectedPhases.length > 0 ? selectedPhases : null,
                 resetData: false,
+                tenantType: selectedTenantType || 'enterprise',
+                tenantName: document.getElementById('tenant-name')?.value || 'default',
             };
 
             // Switch to installation progress view
@@ -3996,6 +4373,25 @@ You can:
             return `${(bytes / 1073741824).toFixed(2)} GB`;
         }
 
+        // ─── Password Generation ───
+        function generatePassword() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let password = '';
+            for (let i = 0; i < 24; i++) {
+                password += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return password;
+        }
+
+        function generateApiKey() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let key = '';
+            for (let i = 0; i < 48; i++) {
+                key += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return key;
+        }
+
         // ─── Expose to window ───
         window.switchTab = switchTab;
         window.openApp = openApp;
@@ -4049,6 +4445,7 @@ You can:
         window.toggleGrove = toggleGrove;
         window.toggleKAI = toggleKAI;
         window.toggleFinetune = toggleFinetune;
+        window.deployWithTenantConfig = deployWithTenantConfig;
     </script>
 </body>
 </html>

@@ -45,7 +45,8 @@
 #   - Added WSL2 detection to disable gVisor (use default runc) for compatibility.
 #   - OPTIMISED: Only run dos2unix on .env if it contains CRLF characters.
 #   - IMPROVED: Database initialisation now always runs if core table missing.
-#   - FIXED: RUNTIME variable is now correctly passed to docker compose up.
+#   - FIXED: Runtime variables are now sourced from .env for each service.
+#   - ADDED: Tenant-aware runtime selection based on TENANT_TYPE from .env.
 # =============================================================================
 
 set -euo pipefail
@@ -263,6 +264,96 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
     log_error "docker-compose.yaml not found at $COMPOSE_FILE"
     exit 1
 fi
+
+# -----------------------------------------------------------------------------
+# Source .env to get runtime configuration
+# -----------------------------------------------------------------------------
+set -a
+source "$ENV_FILE"
+set +a
+
+# -----------------------------------------------------------------------------
+# Determine tenant type for runtime selection
+# -----------------------------------------------------------------------------
+TENANT_TYPE="${TENANT_TYPE:-enterprise}"
+log_info "Tenant type: $TENANT_TYPE"
+
+# -----------------------------------------------------------------------------
+# Runtime Selection - Tenant-Aware
+# -----------------------------------------------------------------------------
+# Based on Anthropic's approach: trusted orchestrator runs on runc,
+# untrusted agent execution runs on gVisor (runsc).
+#
+# Reference: Anthropic uses gVisor for agent sandboxing with egress
+# restricted to the API only.
+# =============================================================================
+#
+# Runtime decision logic:
+# 1. WSL: always use runc (gVisor has compatibility issues)
+# 2. GPU services (Dynamo): always use runc (gVisor GPU support is experimental)
+# 3. Database services (PostgreSQL, Valkey): always use runc (I/O performance)
+# 4. Untrusted AI agents (LangGraph, self-improving): use runsc if available
+# 5. Enterprise tenants: use runc for performance
+# =============================================================================
+
+# Read runtime settings from .env (already sourced)
+# These are set in .env.example with appropriate defaults
+RUNTIME_ODOO="${RUNTIME_ODOO:-}"
+RUNTIME_LANGGRAPH="${RUNTIME_LANGGRAPH:-}"
+RUNTIME_SELF_IMPROVING="${RUNTIME_SELF_IMPROVING:-}"
+RUNTIME_UI="${RUNTIME_UI:-}"
+RUNTIME_DYNAMO="${RUNTIME_DYNAMO:-}"
+RUNTIME_POSTGRES="${RUNTIME_POSTGRES:-}"
+RUNTIME_VALKEY="${RUNTIME_VALKEY:-}"
+
+# On WSL, force all runtimes to empty (use runc)
+if [ "$IS_WSL" = true ]; then
+    log_info "WSL2 detected – forcing all services to use runc runtime."
+    RUNTIME_ODOO=""
+    RUNTIME_LANGGRAPH=""
+    RUNTIME_SELF_IMPROVING=""
+    RUNTIME_UI=""
+    RUNTIME_DYNAMO=""
+    RUNTIME_POSTGRES=""
+    RUNTIME_VALKEY=""
+fi
+
+# For untrusted tenants, set appropriate runtimes if not explicitly configured
+if [ "$TENANT_TYPE" = "freelancer" ] || [ "$TENANT_TYPE" = "home" ]; then
+    log_info "Untrusted tenant type ($TENANT_TYPE) – enabling gVisor for AI agent services."
+    # Only set if not already configured in .env
+    if [ -z "$RUNTIME_LANGGRAPH" ]; then
+        RUNTIME_LANGGRAPH="runsc"
+    fi
+    if [ -z "$RUNTIME_SELF_IMPROVING" ]; then
+        RUNTIME_SELF_IMPROVING="runsc"
+    fi
+    if [ -z "$RUNTIME_UI" ]; then
+        RUNTIME_UI="runsc"
+    fi
+    # Ensure GPU and database services stay on runc
+    RUNTIME_DYNAMO=""
+    RUNTIME_POSTGRES=""
+    RUNTIME_VALKEY=""
+fi
+
+# Export runtime variables for docker-compose
+export RUNTIME_ODOO
+export RUNTIME_LANGGRAPH
+export RUNTIME_SELF_IMPROVING
+export RUNTIME_UI
+export RUNTIME_DYNAMO
+export RUNTIME_POSTGRES
+export RUNTIME_VALKEY
+
+log_info "Runtime configuration:"
+log_info "  Odoo: ${RUNTIME_ODOO:-runc}"
+log_info "  LangGraph: ${RUNTIME_LANGGRAPH:-runc}"
+log_info "  Self-Improving: ${RUNTIME_SELF_IMPROVING:-runc}"
+log_info "  UI: ${RUNTIME_UI:-runc}"
+log_info "  Dynamo: ${RUNTIME_DYNAMO:-runc}"
+log_info "  PostgreSQL: ${RUNTIME_POSTGRES:-runc}"
+log_info "  Valkey: ${RUNTIME_VALKEY:-runc}"
 
 # -----------------------------------------------------------------------------
 # 1. Create required directories (including redirector landing page)
@@ -794,7 +885,7 @@ elif command -v dos2unix &>/dev/null; then
     log_info ".env already has LF line endings – skipping dos2unix"
 fi
 
-# Source .env for environment variables
+# Source .env for environment variables (already done, but re-source to be safe)
 set -a
 source "$ENV_FILE"
 set +a
@@ -1106,7 +1197,13 @@ if [ "$DB_INITIALISED" = false ] || [ "$TABLE_COUNT" -lt 10 ] || [[ "$FORCE" == 
 
     # Install the base module (and all its dependencies)
     log_info "Installing base modules..."
-    docker compose run --rm odoo odoo -d odoo \
+    docker compose run --rm \
+      -e PGHOST=postgres \
+      -e PGPORT=5432 \
+      -e PGUSER=odoo \
+      -e PGPASSWORD="$POSTGRES_PASSWORD" \
+      -e PGDATABASE=odoo \
+      odoo odoo -d odoo \
       --db_host=postgres \
       --db_port=5432 \
       --db_user=odoo \
@@ -1124,16 +1221,19 @@ enable_pgcrypto || true
 # -----------------------------------------------------------------------------
 log_step "Building and starting Docker Compose stack (with retries)..."
 
-# Before starting containers, ensure RUNTIME is set
-if [ "$IS_WSL" = true ]; then
-    RUNTIME=""
-else
-    RUNTIME="runsc"
-fi
-export RUNTIME
+# The runtime variables are already exported from the .env file and overridden
+# for WSL/untrusted tenants above. We pass them to docker compose via the
+# environment, which will interpolate ${RUNTIME_*} variables in the compose file.
 
-# Pass RUNTIME explicitly to the compose command
-RUNTIME="${RUNTIME:-}" docker compose up -d --build
+# Pass all runtime variables explicitly to the compose command
+RUNTIME_ODOO="${RUNTIME_ODOO:-}" \
+RUNTIME_LANGGRAPH="${RUNTIME_LANGGRAPH:-}" \
+RUNTIME_SELF_IMPROVING="${RUNTIME_SELF_IMPROVING:-}" \
+RUNTIME_UI="${RUNTIME_UI:-}" \
+RUNTIME_DYNAMO="${RUNTIME_DYNAMO:-}" \
+RUNTIME_POSTGRES="${RUNTIME_POSTGRES:-}" \
+RUNTIME_VALKEY="${RUNTIME_VALKEY:-}" \
+docker compose up -d --build
 
 # If Grove is enabled, start it
 if [[ "${WITH_GROVE:-false}" == "true" ]]; then

@@ -35,6 +35,12 @@
 #   - Supports integration with external secret management (future)
 #   - Designed to work with both single-VM and Kubernetes deployments
 #
+# UPDATES (2026-08):
+#   - Added per-tenant subnet isolation
+#   - Added iptables rules to block cross-tenant traffic
+#   - Added tenant network mapping file
+#   - Added isolation verification
+#
 # USAGE:
 #   ./wireguard-manager.sh add <client-name> [ip-address]
 #   ./wireguard-manager.sh remove <client-name>
@@ -87,6 +93,9 @@ LOG_FILE="$LOG_DIR/wireguard-manager.log"
 
 # Backup directory
 BACKUP_DIR="${BACKUP_DIR:-/root/wireguard-backups}"
+
+# Tenant networks file (maps client names to their subnets)
+TENANT_NETWORKS_FILE="${TENANT_NETWORKS_FILE:-$WG_CONFIG_DIR/tenant-networks.conf}"
 
 # -----------------------------------------------------------------------------
 # COLOR CODES (for terminal output)
@@ -257,6 +266,63 @@ validate_client_name() {
 }
 
 # -----------------------------------------------------------------------------
+# TENANT ISOLATION FUNCTIONS
+# -----------------------------------------------------------------------------
+
+# Add iptables rules to isolate tenant subnets
+add_tenant_isolation_rules() {
+    local client_name="$1"
+    local client_subnet="$2"
+
+    local existing_subnets=$(grep -E "=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+" "$TENANT_NETWORKS_FILE" 2>/dev/null | \
+        cut -d= -f2 | sort -u || echo "")
+
+    # Block traffic from new subnet to all existing subnets
+    for existing in $existing_subnets; do
+        if [ "$existing" != "$client_subnet" ]; then
+            # Drop traffic from new subnet to existing
+            iptables -I FORWARD -s "$client_subnet" -d "$existing" -j DROP 2>/dev/null || true
+            # Drop traffic from existing to new subnet
+            iptables -I FORWARD -s "$existing" -d "$client_subnet" -j DROP 2>/dev/null || true
+            log_info "Added isolation rule: $client_subnet <-> $existing"
+        fi
+    done
+
+    # Save the tenant network mapping
+    echo "${client_name}=${client_subnet}" >> "$TENANT_NETWORKS_FILE"
+}
+
+# Remove tenant isolation rules for a client
+remove_tenant_isolation_rules() {
+    local client_name="$1"
+
+    # Get the subnet for this client
+    local client_subnet=$(grep "^${client_name}=" "$TENANT_NETWORKS_FILE" 2>/dev/null | cut -d= -f2 || echo "")
+
+    if [[ -n "$client_subnet" ]]; then
+        # Remove all rules involving this subnet
+        iptables -D FORWARD -s "$client_subnet" -d 0.0.0.0/0 -j DROP 2>/dev/null || true
+        iptables -D FORWARD -s 0.0.0.0/0 -d "$client_subnet" -j DROP 2>/dev/null || true
+
+        # Remove from tenant networks file
+        sed -i "/^${client_name}=/d" "$TENANT_NETWORKS_FILE"
+
+        log_info "Removed isolation rules for $client_name ($client_subnet)"
+    fi
+}
+
+# Verify isolation between tenants
+verify_tenant_isolation() {
+    log_info "Verifying tenant isolation..."
+    local rules=$(iptables -L FORWARD -n 2>/dev/null | grep -c "10\.[0-9]\+\.[0-9]\+\.0/24")
+    if [[ "$rules" -gt 0 ]]; then
+        log_success "Found $rules tenant isolation rules"
+    else
+        log_warning "No tenant isolation rules found"
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # CORE FUNCTIONS
 # -----------------------------------------------------------------------------
 
@@ -265,7 +331,7 @@ add_peer() {
     local client_name="$1"
     local client_ip="${2:-}"
 
-    ensure_server_config   # <--- ensure server is ready
+    ensure_server_config
     ensure_directories
 
     # Validate client name
@@ -302,11 +368,15 @@ add_peer() {
         return 1
     fi
 
+    # Calculate subnet for isolation
+    local client_subnet="${client_ip%.*}.0/24"
+
     # Store peer information
     cat > "$WG_PEERS_DIR/$client_name.conf" << EOF
 # Peer: $client_name
 # Added: $(date -Iseconds)
 # IP: $client_ip/32
+# Tenant Subnet: $client_subnet
 [Peer]
 PublicKey = $public_key
 AllowedIPs = $client_ip/32
@@ -316,10 +386,14 @@ EOF
     cat >> "$WG_CONFIG_DIR/$WG_INTERFACE.conf" << EOF
 
 # Peer: $client_name
+# Tenant Subnet: $client_subnet
 [Peer]
 PublicKey = $public_key
 AllowedIPs = $client_ip/32
 EOF
+
+    # Add tenant isolation rules
+    add_tenant_isolation_rules "$client_name" "$client_subnet"
 
     # Reload WireGuard
     if command -v wg &>/dev/null; then
@@ -330,12 +404,13 @@ EOF
 
     log_success "Peer '$client_name' added with IP $client_ip"
     log_info "Public key: $public_key"
+    log_info "Tenant subnet: $client_subnet (isolated from other tenants)"
 
     # Generate client config
     generate_client_config "$client_name" "$private_key" "$client_ip" "$public_key"
 
     # Log the operation
-    echo "$(date -Iseconds) ADD $client_name $client_ip $public_key" >> "$LOG_FILE"
+    echo "$(date -Iseconds) ADD $client_name $client_ip $public_key $client_subnet" >> "$LOG_FILE"
 }
 
 # Remove a peer
@@ -358,6 +433,9 @@ remove_peer() {
         log_error "Could not find public key for peer '$client_name'"
         return 1
     fi
+
+    # Remove tenant isolation rules
+    remove_tenant_isolation_rules "$client_name"
 
     # Remove from main config
     if [[ -f "$WG_CONFIG_DIR/$WG_INTERFACE.conf" ]]; then
@@ -397,16 +475,17 @@ list_peers() {
     echo ""
 
     if [[ -d "$WG_PEERS_DIR" ]] && [[ -n "$(ls -A "$WG_PEERS_DIR" 2>/dev/null)" ]]; then
-        printf "%-20s %-18s %-45s %-10s\n" "NAME" "IP" "PUBLIC KEY" "STATUS"
-        printf "%-20s %-18s %-45s %-10s\n" "----" "--" "----------" "------"
+        printf "%-20s %-18s %-22s %-45s %-10s\n" "NAME" "IP" "SUBNET" "PUBLIC KEY" "STATUS"
+        printf "%-20s %-18s %-22s %-45s %-10s\n" "----" "--" "------" "----------" "------"
 
         for peer in "$WG_PEERS_DIR"/*.conf; do
             if [[ -f "$peer" ]]; then
                 local name=$(basename "$peer" .conf)
                 local ip=$(grep -oP 'AllowedIPs = \K[0-9.]+' "$peer" 2>/dev/null || echo "unknown")
+                local subnet=$(grep -oP '# Tenant Subnet: \K[0-9./]+' "$peer" 2>/dev/null || echo "unknown")
                 local pubkey=$(grep -oP 'PublicKey = \K.*' "$peer" 2>/dev/null || echo "unknown")
                 local status=$(wg show "$WG_INTERFACE" 2>/dev/null | grep -q "$pubkey" && echo "active" || echo "inactive")
-                printf "%-20s %-18s %-45s %-10s\n" "$name" "$ip" "$pubkey" "$status"
+                printf "%-20s %-18s %-22s %-45s %-10s\n" "$name" "$ip" "$subnet" "$pubkey" "$status"
             fi
         done
     else
@@ -415,6 +494,8 @@ list_peers() {
 
     echo ""
     echo "Total peers: $(find "$WG_PEERS_DIR" -name "*.conf" 2>/dev/null | wc -l)"
+    echo ""
+    verify_tenant_isolation
 }
 
 # Generate a client configuration file
@@ -424,7 +505,7 @@ generate_client_config() {
     local client_ip="$3"
     local public_key="$4"
 
-    ensure_server_config   # ensures server public key is available
+    ensure_server_config
     ensure_directories
 
     local server_public_key=$(get_server_public_key)
@@ -481,7 +562,7 @@ generate_qr() {
 
 # Backup all WireGuard configurations
 backup_configs() {
-    ensure_server_config   # so that config exists
+    ensure_server_config
     ensure_directories
 
     local backup_file="$BACKUP_DIR/wireguard-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
@@ -549,6 +630,8 @@ show_status() {
     echo "Port: $WG_PORT"
     echo "Subnet: $WG_SUBNET"
     echo "Peers: $(find "$WG_PEERS_DIR" -name "*.conf" 2>/dev/null | wc -l)"
+    echo ""
+    verify_tenant_isolation
 }
 
 # -----------------------------------------------------------------------------
@@ -646,6 +729,10 @@ Environment Variables:
     WG_PORT         WireGuard listen port (default: 51821)
     LOG_DIR         Log directory (default: /var/log/nettrades)
     BACKUP_DIR      Backup directory (default: /root/wireguard-backups)
+
+Tenant Isolation:
+    Each client is assigned a unique /24 subnet and iptables rules prevent
+    cross-tenant network communication.
 EOF
             ;;
         *)

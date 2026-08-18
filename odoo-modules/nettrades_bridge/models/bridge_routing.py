@@ -11,6 +11,12 @@
 #
 #   This is the "brain" of the hub-and-spoke architecture.
 #
+# UPDATES (2026-08):
+#   - Added tenant validation to prevent cross-tenant access
+#   - Added audit logging for all cross-tenant requests
+#   - Added rate limiting per tenant
+#   - Added remote URL validation to prevent SSRF
+#   - Added per-tenant configuration support
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -19,6 +25,7 @@ import logging
 import json
 import requests
 import time
+from datetime import datetime, timedelta
 
 _logger = logging.getLogger(__name__)
 
@@ -51,8 +58,47 @@ class NettradesBridgeRouting(models.Model):
 
         Returns:
             dict: The response from the routed brain.
+
+        Raises:
+            ValidationError: If tenant validation fails.
         """
         _logger.info("Routing request with intent: %s for company: %s", intent, company_id)
+
+        # ======================================================================
+        # TENANT VALIDATION - CRITICAL SECURITY CHECK
+        # ======================================================================
+        # This prevents cross-tenant access. A user from Company A cannot
+        # access resources belonging to Company B.
+        # ======================================================================
+
+        # Get the authenticated user's company
+        user_company_id = self.env.user.company_id.id
+
+        # If company_id is provided, validate it matches the user's company
+        if company_id:
+            if company_id != user_company_id:
+                # Log the attempted cross-tenant access
+                self._log_cross_tenant_attempt(
+                    user_company_id=user_company_id,
+                    target_company_id=company_id,
+                    intent=intent,
+                    data=data
+                )
+                raise ValidationError(
+                    _("You are not authorized to access resources for company ID %s") % company_id
+                )
+        else:
+            # Use the user's own company
+            company_id = user_company_id
+
+        # ======================================================================
+        # RATE LIMITING - Prevent DoS from a single tenant
+        # ======================================================================
+        self._check_rate_limit(company_id)
+
+        # ======================================================================
+        # ROUTING LOGIC
+        # ======================================================================
 
         # Get effective configuration
         config = self._get_effective_config(company_id)
@@ -63,7 +109,7 @@ class NettradesBridgeRouting(models.Model):
         if should_route_remote:
             # Route to remote brain
             try:
-                response = self._call_remote_brain(intent, data, config)
+                response = self._call_remote_brain(intent, data, config, company_id)
                 self._log_usage(company_id, intent, 'remote', True, response)
                 return response
             except Exception as e:
@@ -71,13 +117,13 @@ class NettradesBridgeRouting(models.Model):
                 # Fallback to local if enabled
                 if config.get('fallback_to_local', True):
                     _logger.info("Falling back to local brain")
-                    response = self._call_local_brain(intent, data)
+                    response = self._call_local_brain(intent, data, company_id)
                     self._log_usage(company_id, intent, 'local_fallback', True, response)
                     return response
                 raise
 
         # Route to local brain
-        response = self._call_local_brain(intent, data)
+        response = self._call_local_brain(intent, data, company_id)
         self._log_usage(company_id, intent, 'local', True, response)
         return response
 
@@ -116,6 +162,7 @@ class NettradesBridgeRouting(models.Model):
             'max_retries': global_config.max_retries,
             'retry_delay': global_config.retry_delay,
             'fallback_to_local': global_config.fallback_to_local,
+            'allowed_remote_domains': global_config.allowed_remote_domains or '',
         }
 
     def _should_route_remote(self, intent, data, config, company_id):
@@ -209,7 +256,7 @@ class NettradesBridgeRouting(models.Model):
     # 3. Brain Communication Methods
     # -------------------------------------------------------------------------
 
-    def _call_remote_brain(self, intent, data, config):
+    def _call_remote_brain(self, intent, data, config, company_id):
         """
         Call the remote NETTRADES.ai brain.
 
@@ -217,14 +264,32 @@ class NettradesBridgeRouting(models.Model):
             intent (str): The intent of the request.
             data (dict): The request data.
             config (dict): The effective configuration.
+            company_id (int): The company ID.
 
         Returns:
             dict: The response from the remote brain.
+
+        Raises:
+            ValidationError: If the remote URL is not allowed.
         """
-        url = f"{config.get('remote_brain_url', 'https://api.nettrades.ai').rstrip('/')}/api/v1/route"
+        remote_url = config.get('remote_brain_url', 'https://api.nettrades.ai').rstrip('/')
+        full_url = f"{remote_url}/api/v1/route"
+
+        # ======================================================================
+        # REMOTE URL VALIDATION - Prevent SSRF and cross-tenant attacks
+        # ======================================================================
+        # Verify that the remote URL is allowed for this company
+        if not self._is_allowed_remote_url(company_id, remote_url, config):
+            _logger.warning(
+                "Blocked request to disallowed remote URL %s for company %s",
+                remote_url, company_id
+            )
+            raise ValidationError(_("Remote URL not allowed for this company"))
+
         headers = {
             'Content-Type': 'application/json',
             'X-Intent': intent,
+            'X-Tenant-ID': str(company_id),
         }
 
         if config.get('remote_brain_api_key'):
@@ -241,12 +306,12 @@ class NettradesBridgeRouting(models.Model):
         max_retries = config.get('max_retries', 3)
         retry_delay = config.get('retry_delay', 1)
 
-        _logger.info("Calling remote brain at %s with intent: %s", url, intent)
+        _logger.info("Calling remote brain at %s with intent: %s", full_url, intent)
 
         for attempt in range(max_retries):
             try:
                 response = requests.post(
-                    url,
+                    full_url,
                     json=payload,
                     headers=headers,
                     timeout=timeout
@@ -266,18 +331,56 @@ class NettradesBridgeRouting(models.Model):
 
         raise Exception(f"Remote brain request failed after {max_retries} attempts")
 
-    def _call_local_brain(self, intent, data):
+    def _is_allowed_remote_url(self, company_id, remote_url, config):
+        """
+        Check if the remote URL is allowed for this company.
+
+        Args:
+            company_id (int): The company ID.
+            remote_url (str): The remote URL to check.
+            config (dict): The effective configuration.
+
+        Returns:
+            bool: True if the URL is allowed.
+        """
+        # Get the company's allowed remote URLs from configuration
+        allowed_domains = config.get('allowed_remote_domains', '')
+
+        # If there's a whitelist, check it
+        if allowed_domains:
+            allowed_list = [d.strip() for d in allowed_domains.split(',') if d.strip()]
+            for allowed_domain in allowed_list:
+                if allowed_domain in remote_url:
+                    return True
+            return False
+
+        # If no whitelist, allow only if the URL is from the company's own domain
+        # This is a security measure - by default, only allow company-specific URLs
+        company = self.env['res.company'].browse(company_id)
+        if company and company.website:
+            return company.website in remote_url
+
+        # Fallback: require explicit whitelist
+        _logger.warning("No whitelist configured for company %s, blocking remote URL", company_id)
+        return False
+
+    def _call_local_brain(self, intent, data, company_id):
         """
         Call the local LangGraph brain.
 
         Args:
             intent (str): The intent of the request.
             data (dict): The request data.
+            company_id (int): The company ID.
 
         Returns:
             dict: The response from the local brain.
         """
-        _logger.info("Routing to local brain with intent: %s", intent)
+        _logger.info("Routing to local brain with intent: %s for company: %s", intent, company_id)
+
+        # Add tenant context to the data
+        data['tenant_id'] = company_id
+        data['tenant_scope'] = 'local'
 
         # This would call the local LangGraph agent
         # For now, we simulate a response
@@ -296,8 +399,75 @@ class NettradesBridgeRouting(models.Model):
         }
 
     # -------------------------------------------------------------------------
-    # 4. Usage Logging
+    # 4. Rate Limiting
     # -------------------------------------------------------------------------
+
+    def _check_rate_limit(self, company_id):
+        """
+        Check if the company has exceeded its rate limit.
+
+        Args:
+            company_id (int): The company ID.
+
+        Raises:
+            ValidationError: If rate limit is exceeded.
+        """
+        # Simple in-memory rate limiting (replace with Redis in production)
+        cache = self.env['bridge.rate_limit.cache']
+
+        # Get current count
+        record = cache.search([('company_id', '=', company_id)], limit=1)
+        if not record:
+            record = cache.create({
+                'company_id': company_id,
+                'count': 1,
+                'reset_at': datetime.now() + timedelta(minutes=1)
+            })
+            return
+
+        # Check if reset is needed
+        if record.reset_at < datetime.now():
+            record.write({'count': 1, 'reset_at': datetime.now() + timedelta(minutes=1)})
+            return
+
+        # Check limit
+        record.count += 1
+        if record.count > record.limit_per_minute:
+            _logger.warning("Rate limit exceeded for company %s", company_id)
+            raise ValidationError(_("Rate limit exceeded. Please try again later."))
+
+    # -------------------------------------------------------------------------
+    # 5. Audit Logging
+    # -------------------------------------------------------------------------
+
+    def _log_cross_tenant_attempt(self, user_company_id, target_company_id, intent, data):
+        """
+        Log attempted cross-tenant access for audit purposes.
+
+        Args:
+            user_company_id (int): The source company ID.
+            target_company_id (int): The target company ID.
+            intent (str): The intent of the request.
+            data (dict): The request data.
+        """
+        try:
+            # Create audit log entry
+            self.env['bridge.audit.log'].create({
+                'user_id': self.env.user.id,
+                'source_company_id': user_company_id,
+                'target_company_id': target_company_id,
+                'intent': intent,
+                'data': json.dumps(data),
+                'action': 'blocked_cross_tenant_access',
+                'timestamp': fields.Datetime.now()
+            })
+        except Exception as e:
+            _logger.warning("Failed to create audit log: %s", e)
+
+        _logger.warning(
+            "BLOCKED: Cross-tenant access attempt by user %s from company %s to company %s",
+            self.env.user.id, user_company_id, target_company_id
+        )
 
     def _log_usage(self, company_id, intent, source, success, response):
         """
@@ -321,3 +491,35 @@ class NettradesBridgeRouting(models.Model):
             })
         except Exception as e:
             _logger.warning("Failed to log bridge usage: %s", e)
+
+
+class BridgeRateLimitCache(models.Model):
+    """Bridge Rate Limit Cache"""
+    _name = 'bridge.rate_limit.cache'
+    _description = 'Bridge Rate Limit Cache'
+
+    company_id = fields.Many2one('res.company', string='Company', required=True)
+    count = fields.Integer(string='Request Count', default=0)
+    limit_per_minute = fields.Integer(string='Limit per Minute', default=60)
+    reset_at = fields.Datetime(string='Reset At')
+
+
+class BridgeAuditLog(models.Model):
+    """Bridge Audit Log"""
+    _name = 'bridge.audit.log'
+    _description = 'Bridge Audit Log'
+    _order = 'timestamp DESC'
+
+    user_id = fields.Many2one('res.users', string='User')
+    source_company_id = fields.Many2one('res.company', string='Source Company')
+    target_company_id = fields.Many2one('res.company', string='Target Company')
+    intent = fields.Char(string='Intent')
+    data = fields.Text(string='Data')
+    action = fields.Selection([
+        ('blocked_cross_tenant_access', 'Blocked Cross-Tenant Access'),
+        ('rate_limit_exceeded', 'Rate Limit Exceeded'),
+        ('remote_forward', 'Remote Forward'),
+        ('local_handle', 'Local Handle'),
+    ], string='Action')
+    timestamp = fields.Datetime(string='Timestamp', default=fields.Datetime.now)
+    ip_address = fields.Char(string='IP Address')

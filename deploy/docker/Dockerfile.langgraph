@@ -14,10 +14,10 @@ RUN apt-get update && apt-get install -y \
     curl git gcc libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the entire project (includes all source code)
-COPY . /app
+# Only copy necessary source files, not the entire project root. Only src/core/ and its dependencies should be copied
+COPY src/core/ /app/src/core/
 
-# Copy requirements from src/core (explicit, but already included in COPY .)
+# Copy requirements from src/core (explicit)
 # We keep it to leverage Docker layer caching – requirements.txt changes less often.
 COPY src/core/requirements.txt /app/requirements.txt
 

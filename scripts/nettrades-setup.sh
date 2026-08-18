@@ -46,7 +46,7 @@
 #   - Fixed gVisor installation with official repository and robust retries.
 #   - Optimised line-ending fix with a marker to skip repeated runs.
 #   - Improved Python virtual environment creation to ensure ensurepip is available.
-#
+#   - Added platform-based gVisor verification to skip on WSL reliably.
 # =============================================================================
 
 set -euo pipefail
@@ -568,15 +568,11 @@ setup_dev_environment() {
     install_gvisor || log_warning "gVisor installation failed; containers may fail to start."
 
     # =========================================================================
-    # gVisor verification – skip on WSL2
+    # gVisor verification – skip on WSL2 using PLATFORM variable
     # =========================================================================
-    # Detect WSL2 (reuse the same logic as install_gvisor)
-    local is_wsl2=false
-    if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null; then
-        is_wsl2=true
-    fi
-
-    if [ "$is_wsl2" = true ]; then
+    # PLATFORM is set in the main script and exported. Use it for reliable detection.
+    # =========================================================================
+    if [ "$PLATFORM" = "wsl" ]; then
         log_info "WSL2 detected – skipping gVisor verification (using default runc runtime)."
     else
         if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then

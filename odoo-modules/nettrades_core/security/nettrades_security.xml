@@ -1,73 +1,318 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     ============================================================================
-    NETTRADES Core – Security Groups
+    NETTRADES Core – Security Groups & Record Rules
     ============================================================================
     FILE:    odoo-modules/nettrades_core/security/nettrades_security.xml
-    VERSION: 1.0
+    VERSION: 2.0
 
     PURPOSE:
-        Defines the user groups used across the NETTRADES platform.
-        These groups are used for access control in various modules.
+        Defines the user groups and record rules used across the NETTRADES platform.
+        These enforce tenant isolation and access control.
 
     GROUPS:
         1. NETTRADES Manager – full access to all NETTRADES features.
         2. NETTRADES User – standard user access (portal, jobs, profiles).
         3. NETTRADES API – for external API integrations.
 
-    These groups are intended to be inherited by other modules' groups.
-    They provide a baseline for the platform's RBAC.
+    RECORD RULES:
+        Tenant isolation rules that prevent cross-company data access.
+        Users can only see records belonging to their own company.
 
+    UPDATES (2026-08):
+        - Added complete tenant isolation record rules for all models
+        - Added admin override rule for system administrators
+        - Added detailed comments for each rule
     ============================================================================
 -->
 <odoo>
 
+    <!-- =========================================================================
+         USER GROUPS
+         ========================================================================= -->
+
     <!-- 1. NETTRADES Manager – highest privilege level -->
     <record id="group_nettrades_manager" model="res.groups">
         <field name="name">NETTRADES Manager</field>
-        <!-- <field name="category_id" ref="base.module_category_hidden"/> -->
-        <!-- Implied groups: system administrators (base.group_system) would typically
-             be granted this group manually; we don't imply it here to avoid over-permission. -->
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <!-- Not implying base.group_system to limit damage -->
+        <field name="comment">Full access to all NETTRADES platform features.</field>
     </record>
 
     <!-- 2. NETTRADES User – standard user -->
     <record id="group_nettrades_user" model="res.groups">
         <field name="name">NETTRADES User</field>
-        <!-- <field name="category_id" ref="base.module_category_hidden"/> -->
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Standard user access for the NETTRADES platform.</field>
     </record>
 
     <!-- 3. NETTRADES API – for API calls -->
     <record id="group_nettrades_api" model="res.groups">
         <field name="name">NETTRADES API</field>
-        <!-- <field name="category_id" ref="base.module_category_hidden"/> -->
-        <!-- API users should have read access but not full write, we rely on record rules -->
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">API access group for external integrations.</field>
     </record>
 
-    <!-- NetTrades User Security -->
-    <record id="nettrades_user_rule" model="ir.rule">
-        <field name="name">NetTrades User: Self</field>
-        <field name="model_id" ref="model_nettrades_user"/>
-        <field name="global" eval="True"/>
-        <field name="domain_force">[('partner_id.user_ids', 'in', [user.id])]</field>
+    <!-- =========================================================================
+         TENANT ISOLATION RECORD RULES
+         These rules enforce that users can only access records belonging
+         to their own company (tenant). This is the primary mechanism for
+         preventing cross-tenant data leakage.
+         ========================================================================= -->
+
+    <!-- nettrades_users: Users belong to a company -->
+    <record id="rule_company_user" model="ir.rule">
+        <field name="name">Tenant: Users - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_users"/>
+        <field name="domain_force">[('company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only see and modify users from their own company.</field>
+    </record>
+
+    <!-- nettrades_companies: Companies are tenants -->
+    <record id="rule_company_companies" model="ir.rule">
+        <field name="name">Tenant: Companies - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_companies"/>
+        <field name="domain_force">[('id','=',user.company_id.id)]</field>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="False"/>
         <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only see their own company record.</field>
     </record>
 
-    <!-- NetTrades Company Security -->
-    <record id="nettrades_company_rule" model="ir.rule">
-        <field name="name">NetTrades Company: User's Company</field>
-        <field name="model_id" ref="model_nettrades_company"/>
-        <field name="global" eval="True"/>
-        <field name="domain_force">[('partner_id', '=', user.company_id.id)]</field>
+    <!-- nettrades_projects: Projects belong to a company -->
+    <record id="rule_company_projects" model="ir.rule">
+        <field name="name">Tenant: Projects - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_projects"/>
+        <field name="domain_force">[('company_id','=',user.company_id.id)]</field>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="True"/>
-        <field name="perm_create" eval="False"/>
+        <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access projects from their own company.</field>
     </record>
+
+    <!-- nettrades_good_answers: Good Answers belong to a company via user -->
+    <record id="rule_company_good_answers" model="ir.rule">
+        <field name="name">Tenant: Good Answers - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_good_answers"/>
+        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access good answers from their own company.</field>
+    </record>
+
+    <!-- nettrades_votes: Votes belong to a company via answer -->
+    <record id="rule_company_votes" model="ir.rule">
+        <field name="name">Tenant: Votes - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_votes"/>
+        <field name="domain_force">[('answer_id.user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access votes from their own company.</field>
+    </record>
+
+    <!-- nettrades_ask_someone_requests: Requests belong to a company via user -->
+    <record id="rule_company_ask_requests" model="ir.rule">
+        <field name="name">Tenant: Ask Requests - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_ask_someone_requests"/>
+        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access Ask Someone requests from their own company.</field>
+    </record>
+
+    <!-- nettrades_ask_someone_offers: Offers belong to a company via request -->
+    <record id="rule_company_ask_offers" model="ir.rule">
+        <field name="name">Tenant: Ask Offers - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_ask_someone_offers"/>
+        <field name="domain_force">[('request_id.user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access offers from their own company.</field>
+    </record>
+
+    <!-- nettrades_gpu_nodes: GPU nodes belong to a company via owner -->
+    <record id="rule_company_gpu_nodes" model="ir.rule">
+        <field name="name">Tenant: GPU Nodes - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_gpu_nodes"/>
+        <field name="domain_force">[('owner_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access GPU nodes owned by their company.</field>
+    </record>
+
+    <!-- nettrades_gpu_bookings: Bookings belong to a company via user -->
+    <record id="rule_company_gpu_bookings" model="ir.rule">
+        <field name="name">Tenant: GPU Bookings - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_gpu_bookings"/>
+        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access bookings from their own company.</field>
+    </record>
+
+    <!-- nettrades_bridge_routes: Bridge routes belong to a company -->
+    <record id="rule_company_bridge_routes" model="ir.rule">
+        <field name="name">Tenant: Bridge Routes - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_bridge_routes"/>
+        <field name="domain_force">[('company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access bridge routes from their own company.</field>
+    </record>
+
+    <!-- nettrades_job_matches: Job matches belong to a company via project -->
+    <record id="rule_company_job_matches" model="ir.rule">
+        <field name="name">Tenant: Job Matches - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_job_matches"/>
+        <field name="domain_force">[('project_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access job matches from their own company.</field>
+    </record>
+
+    <!-- nettrades_proposals: Proposals belong to a company via project -->
+    <record id="rule_company_proposals" model="ir.rule">
+        <field name="name">Tenant: Proposals - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_proposals"/>
+        <field name="domain_force">[('project_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access proposals from their own company.</field>
+    </record>
+
+    <!-- nettrades_fairness_scores: Fairness scores belong to a company via user -->
+    <record id="rule_company_fairness_scores" model="ir.rule">
+        <field name="name">Tenant: Fairness Scores - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_fairness_scores"/>
+        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access fairness scores from their own company.</field>
+    </record>
+
+    <!-- nettrades_notifications: Notifications belong to a company via user -->
+    <record id="rule_company_notifications" model="ir.rule">
+        <field name="name">Tenant: Notifications - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_notifications"/>
+        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access notifications from their own company.</field>
+    </record>
+
+    <!-- nettrades_research_projects: Research projects belong to a company via researcher -->
+    <record id="rule_company_research_projects" model="ir.rule">
+        <field name="name">Tenant: Research Projects - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_research_projects"/>
+        <field name="domain_force">[('researcher_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access research projects from their own company.</field>
+    </record>
+
+    <!-- nettrades_queue_tasks: Queue tasks belong to a company -->
+    <record id="rule_company_queue_tasks" model="ir.rule">
+        <field name="name">Tenant: Queue Tasks - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_queue_tasks"/>
+        <field name="domain_force">[('company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access queue tasks from their own company.</field>
+    </record>
+
+    <!-- nettrades_self_improving_config: Config belongs to a company -->
+    <record id="rule_company_self_improving_config" model="ir.rule">
+        <field name="name">Tenant: Self-Improving Config - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_self_improving_config"/>
+        <field name="domain_force">[('company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access self-improving config from their own company.</field>
+    </record>
+
+    <!-- nettrades_leads: Leads belong to a company -->
+    <record id="rule_company_leads" model="ir.rule">
+        <field name="name">Tenant: Leads - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_leads"/>
+        <field name="domain_force">[('company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access leads from their own company.</field>
+    </record>
+
+    <!-- nettrades_chatbot_conversations: Conversations belong to a company via user -->
+    <record id="rule_company_chatbot_conversations" model="ir.rule">
+        <field name="name">Tenant: Chatbot Conversations - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_chatbot_conversations"/>
+        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access chatbot conversations from their own company.</field>
+    </record>
+
+    <!-- nettrades_pwa_cache: PWA cache belongs to a company via user -->
+    <record id="rule_company_pwa_cache" model="ir.rule">
+        <field name="name">Tenant: PWA Cache - Own Company Only</field>
+        <field name="model_id" ref="model_nettrades_pwa_cache"/>
+        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="comment">Users can only access PWA cache from their own company.</field>
+    </record>
+
+    <!-- =========================================================================
+         ADMIN OVERRIDE RULE
+         System administrators can see all records across all companies.
+         ========================================================================= -->
+    <record id="rule_company_admin_all" model="ir.rule">
+        <field name="name">Admin: All Companies</field>
+        <field name="model_id" ref="model_nettrades_users"/>
+        <field name="domain_force">[(1,'=',1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        <field name="comment">System administrators can access all records across all companies.</field>
+    </record>
+
 </odoo>
