@@ -64,6 +64,30 @@ source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
+# =============================================================================
+# AUTO-FIX PERMISSIONS (WSL/Windows compatibility)
+# =============================================================================
+if [ "$PLATFORM" = "wsl" ]; then
+    # Check if any files in the project are owned by root
+    if find "$PROJECT_ROOT" -maxdepth 1 -user root 2>/dev/null | grep -q .; then
+        log_info "Some project files are owned by root. Fixing permissions..."
+        sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT"
+        log_success "Permissions fixed."
+    fi
+    
+    # Ensure .env has correct permissions
+    if [ -f "$PROJECT_ROOT/deploy/docker/.env" ]; then
+        chmod 644 "$PROJECT_ROOT/deploy/docker/.env" 2>/dev/null || true
+    fi
+    
+    # Ensure docker.sock is accessible (add user to docker group)
+    if ! groups | grep -q docker; then
+        log_info "Adding user to docker group..."
+        sudo usermod -aG docker $(whoami)
+        log_warning "Docker group membership updated. Please log out and back in for this to take effect."
+    fi
+fi
+
 # -----------------------------------------------------------------------------
 # Read feature flags (early, for installer UI)
 # -----------------------------------------------------------------------------
@@ -301,7 +325,7 @@ install_gvisor() {
     fi
 
     # ======================================================================
-    # Non‑WSL2: proceed with installation
+    # Non-WSL2: proceed with installation
     # ======================================================================
 
     # Check if runsc is already installed and registered with Docker

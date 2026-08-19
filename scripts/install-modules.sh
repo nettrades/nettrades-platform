@@ -23,9 +23,12 @@
 #   - Removed nettrades_gpustack_adapter (deprecated).
 #   - NEW: Validates that all view files exist before installation, creating
 #     placeholders if they are missing.
+#   - FIXED: Changed docker exec to docker compose exec for consistency.
+#   - FIXED: Added set -euo pipefail for stricter error handling.
+#   - FIXED: Added docker compose availability check.
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 # -----------------------------------------------------------------------------
 # Load environment variables and feature flags
@@ -73,6 +76,15 @@ for arg in "$@"; do
 done
 
 # -----------------------------------------------------------------------------
+# Check if docker compose is available
+# -----------------------------------------------------------------------------
+cd "$PROJECT_ROOT/deploy/docker"
+if ! docker compose version &>/dev/null; then
+    log_error "docker compose is not available. Please install Docker Compose."
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
 # Check if Odoo container is running
 # -----------------------------------------------------------------------------
 if ! docker ps | grep -q odoo; then
@@ -84,7 +96,6 @@ fi
 # -----------------------------------------------------------------------------
 # Check if Odoo is properly initialised (has core tables)
 # -----------------------------------------------------------------------------
-
 if ! docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
     log_error "Odoo database not initialised. Please run Phase 2 first or run:"
     log_info "  docker compose run --rm odoo odoo -d odoo -i base --stop-after-init"
@@ -126,7 +137,7 @@ cd "$PROJECT_ROOT"
 # NEW: Validate that all view files exist inside the container
 # This prevents the "FileNotFoundError" we saw in the logs.
 # -----------------------------------------------------------------------------
-log_step "Validating Odoo module files inside the container..."
+log_info "Validating Odoo module files inside the container..."
 
 # Get the list of NETTRADES modules from the filesystem
 MODULE_DIRS=$(docker compose exec -T odoo find /mnt/extra-addons -maxdepth 1 -type d -name "nettrades_*" 2>/dev/null | sed 's|/mnt/extra-addons/||' | tr -d '\r')
@@ -228,8 +239,9 @@ install_module() {
 
     log_info "${action^}ing module: $module"
 
-    # Explicitly pass database parameters to avoid any config issues
-    if docker exec \
+    # Use docker compose exec for consistency with the rest of the script
+    cd "$PROJECT_ROOT/deploy/docker"
+    if docker compose exec -T \
         -e PGPASSWORD="$POSTGRES_PASSWORD" \
         odoo odoo \
         -d odoo \
@@ -240,9 +252,11 @@ install_module() {
         "$flag" "$module" \
         --stop-after-init 2>&1; then
         log_success "✓ Module $module ${action}ed successfully"
+        cd "$PROJECT_ROOT"
         return 0
     else
         log_error "✗ Module $module ${action} failed"
+        cd "$PROJECT_ROOT"
         return 1
     fi
 }
