@@ -20,7 +20,7 @@ GROUPS:
         <field name="name">Fairness Administrator</field>
         <field name="category_id" ref="base.module_category_hidden"/>
         <field name="implied_ids" eval="[(4, ref('base.group_system'))]"/>
-        <field name="comment">Full access to fairness configuration, audits, and flags.</field>
+        <!--<field name="comment">Full access to fairness configuration, audits, and flags.</field>-->
     </record>
 
     <!-- Fairness Reviewer – can review flags -->
@@ -28,7 +28,7 @@ GROUPS:
         <field name="name">Fairness Reviewer</field>
         <field name="category_id" ref="base.module_category_hidden"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <field name="comment">Can view audits and review flags.</field>
+        <!--<field name="comment">Can view audits and review flags.</field>-->
     </record>
 
     <!-- Fairness Auditor – read-only -->
@@ -36,6 +36,6 @@ GROUPS:
         <field name="name">Fairness Auditor</field>
         <field name="category_id" ref="base.module_category_hidden"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <field name="comment">Read-only access to audits and metrics.</field>
+        <!--<field name="comment">Read-only access to audits and metrics.</field>-->
     </record>
 </odoo>

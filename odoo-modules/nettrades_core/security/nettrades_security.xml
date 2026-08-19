@@ -35,21 +35,21 @@
     <record id="group_nettrades_manager" model="res.groups">
         <field name="name">NETTRADES Manager</field>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <field name="comment">Full access to all NETTRADES platform features.</field>
+        <!--<field name="comment">Full access to all NETTRADES platform features.</field>-->
     </record>
 
     <!-- 2. NETTRADES User – standard user -->
     <record id="group_nettrades_user" model="res.groups">
         <field name="name">NETTRADES User</field>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <field name="comment">Standard user access for the NETTRADES platform.</field>
+        <!--<field name="comment">Standard user access for the NETTRADES platform.</field>-->
     </record>
 
     <!-- 3. NETTRADES API – for API calls -->
     <record id="group_nettrades_api" model="res.groups">
         <field name="name">NETTRADES API</field>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <field name="comment">API access group for external integrations.</field>
+        <!--<field name="comment">API access group for external integrations.</field>-->
     </record>
 
     <!-- =========================================================================
@@ -68,7 +68,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only see and modify users from their own company.</field>
+        <!--<field name="comment">Users can only see and modify users from their own company.</field>-->
     </record>
 
     <!-- nettrades_companies: Companies are tenants -->
@@ -80,7 +80,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="False"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only see their own company record.</field>
+        <!--<field name="comment">Users can only see their own company record.</field>-->
     </record>
 
     <!-- nettrades_projects: Projects belong to a company -->
@@ -92,7 +92,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access projects from their own company.</field>
+        <!--<field name="comment">Users can only access projects from their own company.</field>-->
     </record>
 
     <!-- nettrades_good_answers: Good Answers belong to a company via user -->
@@ -104,7 +104,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access good answers from their own company.</field>
+        <!--<field name="comment">Users can only access good answers from their own company.</field>-->
     </record>
 
     <!-- nettrades_votes: Votes belong to a company via answer -->
@@ -116,7 +116,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access votes from their own company.</field>
+        <!--<field name="comment">Users can only access votes from their own company.</field>-->
     </record>
 
     <!-- nettrades_ask_someone_requests: Requests belong to a company via user -->
@@ -128,7 +128,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access Ask Someone requests from their own company.</field>
+        <!--<field name="comment">Users can only access Ask Someone requests from their own company.</field>-->
     </record>
 
     <!-- nettrades_ask_someone_offers: Offers belong to a company via request -->
@@ -140,7 +140,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access offers from their own company.</field>
+        <!--<field name="comment">Users can only access offers from their own company.</field>-->
     </record>
 
     <!-- nettrades_gpu_nodes: GPU nodes belong to a company via owner -->
@@ -152,7 +152,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access GPU nodes owned by their company.</field>
+        <!--<field name="comment">Users can only access GPU nodes owned by their company.</field>-->
     </record>
 
     <!-- nettrades_gpu_bookings: Bookings belong to a company via user -->
@@ -164,7 +164,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access bookings from their own company.</field>
+        <!--<field name="comment">Users can only access bookings from their own company.</field>-->
     </record>
 
     <!-- nettrades_bridge_routes: Bridge routes belong to a company -->
@@ -176,7 +176,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access bridge routes from their own company.</field>
+        <!--<field name="comment">Users can only access bridge routes from their own company.</field>-->
     </record>
 
     <!-- nettrades_job_matches: Job matches belong to a company via project -->
@@ -188,7 +188,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access job matches from their own company.</field>
+        <!--<field name="comment">Users can only access job matches from their own company.</field>-->
     </record>
 
     <!-- nettrades_proposals: Proposals belong to a company via project -->
@@ -200,7 +200,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access proposals from their own company.</field>
+        <!--<field name="comment">Users can only access proposals from their own company.</field>-->
     </record>
 
     <!-- nettrades_fairness_scores: Fairness scores belong to a company via user -->
@@ -212,7 +212,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access fairness scores from their own company.</field>
+        <!--<field name="comment">Users can only access fairness scores from their own company.</field>-->
     </record>
 
     <!-- nettrades_notifications: Notifications belong to a company via user -->
@@ -224,7 +224,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access notifications from their own company.</field>
+        <!--<field name="comment">Users can only access notifications from their own company.</field>-->
     </record>
 
     <!-- nettrades_research_projects: Research projects belong to a company via researcher -->
@@ -236,7 +236,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access research projects from their own company.</field>
+        <!--<field name="comment">Users can only access research projects from their own company.</field>-->
     </record>
 
     <!-- nettrades_queue_tasks: Queue tasks belong to a company -->
@@ -248,7 +248,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access queue tasks from their own company.</field>
+        <!--<field name="comment">Users can only access queue tasks from their own company.</field>-->
     </record>
 
     <!-- nettrades_self_improving_config: Config belongs to a company -->
@@ -260,7 +260,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access self-improving config from their own company.</field>
+        <!--<field name="comment">Users can only access self-improving config from their own company.</field>-->
     </record>
 
     <!-- nettrades_leads: Leads belong to a company -->
@@ -272,7 +272,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access leads from their own company.</field>
+        <!--<field name="comment">Users can only access leads from their own company.</field>-->
     </record>
 
     <!-- nettrades_chatbot_conversations: Conversations belong to a company via user -->
@@ -284,7 +284,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access chatbot conversations from their own company.</field>
+        <!--<field name="comment">Users can only access chatbot conversations from their own company.</field>-->
     </record>
 
     <!-- nettrades_pwa_cache: PWA cache belongs to a company via user -->
@@ -296,7 +296,7 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
-        <field name="comment">Users can only access PWA cache from their own company.</field>
+        <!--<field name="comment">Users can only access PWA cache from their own company.</field>-->
     </record>
 
     <!-- =========================================================================
@@ -312,7 +312,7 @@
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="True"/>
         <field name="groups" eval="[(4, ref('base.group_system'))]"/>
-        <field name="comment">System administrators can access all records across all companies.</field>
+        <!--<field name="comment">System administrators can access all records across all companies.</field>-->
     </record>
 
 </odoo>
