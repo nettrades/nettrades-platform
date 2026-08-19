@@ -823,12 +823,13 @@ fi
 # 15. Install dos2unix, jq, xdg-utils, Wine, and Electron build/runtime libraries
 # -----------------------------------------------------------------------------
 log_step "Installing system dependencies (dos2unix, jq, xdg-utils, Wine, Electron libraries)..."
+
+# Check if already installed
 if command -v dos2unix &>/dev/null && command -v jq &>/dev/null && command -v xdg-open &>/dev/null && command -v wine &>/dev/null; then
     log_success "All system dependencies already installed"
 else
     if [[ "$OS" == "linux" ]]; then
         sudo apt-get update -qq
-        # Install all required packages in one command
         sudo apt-get install -y \
             dos2unix \
             curl \
@@ -846,8 +847,7 @@ else
             libnspr4
         log_success "All system dependencies installed"
     else
-        log_warning "Please install dos2unix, jq, xdg-utils, wine, and the Electron libraries manually for $OS"
-        log_info "  On macOS: brew install dos2unix jq wine (and Electron libs are usually present)"
+        log_warning "Please install dos2unix, jq, xdg-utils, wine, and Electron libraries manually for $OS"
     fi
 fi
 
