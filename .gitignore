@@ -26,6 +26,8 @@
 # -----------------------------------------------------------------------------
 *.Zone.Identifier
 **/*.Zone.Identifier
+launch.ps1:Zone.Identifier
+scripts/install-modules.sh:Zone.Identifier
 
 # -----------------------------------------------------------------------------
 # Line Endings Fixed
@@ -184,3 +186,5 @@ installer/node_modules/
 installer/build/
 !installer/build/icon.png
 !installer/build/icon.ico
+
+
