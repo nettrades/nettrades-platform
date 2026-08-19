@@ -4,7 +4,10 @@
   "description": "NETTRADES Launcher – Sovereign AI Control Centre for Autonomous Enterprises",
   "main": "main.js",
   "homepage": "https://nettrades.ai",
-  "author": "NETTRADES.AI",
+  "author": {
+    "name": "NETTRADES Team",
+    "email": "support@nettrades.ai"
+  },
   "license": "AGPL-3.0",
   "scripts": {
     "start": "electron .",

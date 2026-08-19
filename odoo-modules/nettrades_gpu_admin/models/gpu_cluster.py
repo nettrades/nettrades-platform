@@ -18,7 +18,7 @@
 #   - WireGuard mesh subnet configuration
 #   - Computed fields for cluster-wide statistics (node count, VRAM, earnings)
 #   - Methods for WireGuard config generation and peer management
-#   - Time‑based sharing schedule integration for auto‑switching payment mode
+#   - Time-based sharing schedule integration for auto‑switching payment mode
 #
 # UPDATES (2026-08-10):
 #   - Added payment_mode, platform_fee_percent, min/max booking hours
