@@ -301,6 +301,93 @@
             justify-content: center;
         }
 
+        /* ─── Hero Card (NEW) ─── */
+        .hero-card {
+            background: linear-gradient(135deg, #1e293b, #2d3a4f);
+            border: 2px solid #4a8aff;
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-card .hero-icon {
+            font-size: 4rem;
+            margin-bottom: 0.5rem;
+        }
+        .hero-card h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .hero-card p {
+            color: var(--text-muted, #94a3b8);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto 0.5rem;
+        }
+        .hero-card .hero-safe {
+            color: #28c840;
+            font-size: 0.95rem;
+        }
+        .btn-hero {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff;
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 1.3rem;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 8px 32px rgba(34, 197, 94, 0.3);
+        }
+        .btn-hero:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(34, 197, 94, 0.4);
+        }
+        .btn-hero:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-hero .btn-icon {
+            font-size: 1.5rem;
+        }
+
+        .hero-progress {
+            margin-top: 1rem;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hero-progress .progress-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .hero-progress .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4a8aff, #8b5cf6);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .hero-progress .progress-label {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+            display: block;
+        }
+
         /* ─── Status Cards ─── */
         .status-grid {
             display: grid;
@@ -832,6 +919,16 @@
             }
             .gpu-list {
                 grid-template-columns: 1fr;
+            }
+            .hero-card {
+                padding: 1.5rem;
+            }
+            .hero-card h2 {
+                font-size: 1.5rem;
+            }
+            .btn-hero {
+                padding: 0.75rem 1.5rem;
+                font-size: 1rem;
             }
         }
 
@@ -1801,6 +1898,23 @@
                         <div class="actions">
                             <button class="btn btn-secondary" onclick="refreshAll()">🔄 Refresh</button>
                             <button class="btn btn-primary" onclick="openApp('odoo')">Open Odoo</button>
+                        </div>
+                    </div>
+
+                    <!-- ============================================================
+                    NEW: HERO CARD – One-click Quick Setup
+                    ============================================================ -->
+                    <div class="hero-card">
+                        <div class="hero-icon">🚀</div>
+                        <h2>Set Up Your Development Environment</h2>
+                        <p>One click installs everything you need – Docker, WSL, Python, Odoo, AI models, and more.</p>
+                        <p class="hero-safe">🛡️ Safe to run again – it will only install what's missing.</p>
+                        <button class="btn-hero" id="btn-quick-setup">
+                            <span class="btn-icon">⚡</span> Set Up Development Environment
+                        </button>
+                        <div class="hero-progress" id="hero-progress" style="display:none;">
+                            <div class="progress-bar"><div class="progress-fill" id="hero-progress-fill" style="width:0%;"></div></div>
+                            <span class="progress-label" id="hero-progress-label">Starting...</span>
                         </div>
                     </div>
 
@@ -2854,6 +2968,9 @@ You can:
             // ─── Tenant Deploy Button ───
             document.getElementById('deploy-tenant-btn').addEventListener('click', deployWithTenantConfig);
 
+            // ─── Quick Setup Button ───
+            document.getElementById('btn-quick-setup').addEventListener('click', runQuickSetup);
+
             // Set up IPC listeners
             setupIpcListeners();
 
@@ -2865,7 +2982,84 @@ You can:
 
             // Auto-refresh every 30 seconds
             setInterval(refreshAll, 30000);
+
+            // Check if platform is already set up
+            window.api.isPlatformSetup().then((isSetup) => {
+                if (isSetup) {
+                    const btn = document.getElementById('btn-quick-setup');
+                    btn.textContent = '✅ Already Set Up';
+                    btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+                    btn.disabled = true;
+                }
+            }).catch(() => {});
         });
+
+        // ─── Quick Setup Handler ───
+        async function runQuickSetup() {
+            const btn = document.getElementById('btn-quick-setup');
+            const progressContainer = document.getElementById('hero-progress');
+            const progressFill = document.getElementById('hero-progress-fill');
+            const progressLabel = document.getElementById('hero-progress-label');
+            const activityLog = document.getElementById('activity-log');
+
+            if (btn.disabled) return;
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Setting up...';
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressLabel.textContent = 'Starting...';
+
+            // Clear previous activity
+            activityLog.innerHTML = '';
+
+            // Listen for progress
+            window.api.onInstallOutput((data) => {
+                const entry = document.createElement('div');
+                entry.className = 'log-line info';
+                entry.textContent = data.data.trim();
+                activityLog.appendChild(entry);
+                activityLog.scrollTop = activityLog.scrollHeight;
+            });
+
+            window.api.onInstallProgress((data) => {
+                if (data.progress !== undefined) {
+                    progressFill.style.width = `${data.progress}%`;
+                    if (data.phase) {
+                        progressLabel.textContent = `${data.phase} (${data.progress}%)`;
+                    } else {
+                        progressLabel.textContent = `${data.progress}%`;
+                    }
+                }
+            });
+
+            try {
+                const result = await window.api.runQuickSetup();
+
+                if (result.success) {
+                    progressFill.style.width = '100%';
+                    progressLabel.textContent = '✅ Setup complete!';
+                    btn.textContent = '✅ Done!';
+                    btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+                    showToast('Development environment is ready!', 'success');
+                    refreshAll();
+                } else {
+                    progressFill.style.width = '100%';
+                    progressFill.style.background = '#ff5f57';
+                    progressLabel.textContent = '❌ Setup failed';
+                    btn.textContent = '⚠️ Retry';
+                    btn.disabled = false;
+                    showToast(`Setup failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                progressFill.style.width = '100%';
+                progressFill.style.background = '#ff5f57';
+                progressLabel.textContent = '❌ Error';
+                btn.textContent = '⚠️ Retry';
+                btn.disabled = false;
+                showToast(`Error: ${error.message}`, 'error');
+            }
+        }
 
         // ─── Deploy with Tenant Configuration ───
         async function deployWithTenantConfig() {

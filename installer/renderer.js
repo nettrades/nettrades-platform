@@ -23,6 +23,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // DOM References
 // ──────────────────────────────────────────────────────────────────────────────
+
 const tabs = document.querySelectorAll('.nav-item');
 const tabContents = {
     dashboard: document.getElementById('tab-dashboard'),
@@ -31,7 +32,6 @@ const tabContents = {
     backup: document.getElementById('tab-backup'),
     logs: document.getElementById('tab-logs'),
     settings: document.getElementById('tab-settings'),
-    vpn: document.getElementById('tab-vpn'),
 };
 
 let currentTab = 'dashboard';
@@ -46,6 +46,7 @@ let detectedHardware = null;
 // ──────────────────────────────────────────────────────────────────────────────
 // Tab Navigation
 // ──────────────────────────────────────────────────────────────────────────────
+
 tabs.forEach(tab => {
     tab.addEventListener('click', () => {
         const tabName = tab.dataset.tab;
@@ -54,11 +55,9 @@ tabs.forEach(tab => {
 });
 
 function switchTab(tabName) {
-	// Update nav items
     tabs.forEach(t => t.classList.remove('active'));
     document.querySelector(`.nav-item[data-tab="${tabName}"]`).classList.add('active');
 
-    // Update content
     Object.keys(tabContents).forEach(key => {
         if (tabContents[key]) {
             tabContents[key].classList.toggle('active', key === tabName);
@@ -67,7 +66,6 @@ function switchTab(tabName) {
 
     currentTab = tabName;
 
-    // Refresh data when switching to certain tabs
     if (tabName === 'dashboard') {
         updateDashboard();
         detectHardware();
@@ -78,9 +76,6 @@ function switchTab(tabName) {
     if (tabName === 'models') {
         loadModels();
     }
-    if (tabName === 'vpn') {
-        loadVPNUsers();
-    }
     if (tabName === 'installer') {
         detectHardware();
         renderDeploymentCards();
@@ -90,13 +85,12 @@ function switchTab(tabName) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Platform Information
 // ──────────────────────────────────────────────────────────────────────────────
+
 async function loadPlatformInfo() {
     try {
         const info = await window.api.getPlatform();
-        document.getElementById('platform-info').textContent =
-            `${info.platform} (${info.arch})`;
+        document.getElementById('platform-info').textContent = `${info.platform} (${info.arch})`;
         document.getElementById('version').textContent = `v1.0.0`;
-        // Store for later use
         window.platformInfo = info;
     } catch (e) {
         console.error('Failed to load platform info:', e);
@@ -104,14 +98,14 @@ async function loadPlatformInfo() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Server URL (dynamic, replaces hardcoded localhost)
+// Server URL
 // ──────────────────────────────────────────────────────────────────────────────
+
 async function loadServerUrl() {
     try {
         const url = await window.api.getServerUrl();
         if (url) {
             serverUrl = url;
-            // Update the settings input if it exists
             const input = document.getElementById('server-url');
             if (input) {
                 input.value = serverUrl;
@@ -132,8 +126,6 @@ function getServiceUrl(service) {
         prometheus: ':9090',
     };
     const port = ports[service] || '';
-    // If serverUrl already includes a port, don't add another one
-    // Simple check: if serverUrl ends with a number, assume it has a port
     const hasPort = /:\d+$/.test(serverUrl);
     if (hasPort) {
         return `${serverUrl}${port}`;
@@ -144,6 +136,7 @@ function getServiceUrl(service) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Hardware Detection
 // ──────────────────────────────────────────────────────────────────────────────
+
 async function detectHardware() {
     try {
         const hardware = await window.api.detectHardware();
@@ -163,9 +156,7 @@ function updateHardwareDisplay(hardware) {
 
     let html = '';
     if (hardware.gpuAvailable && hardware.gpus.length > 0) {
-        const gpuSummary = hardware.gpus.map(g =>
-            `✅ ${g.name} (${g.memoryTotal} VRAM)`
-        ).join('<br>');
+        const gpuSummary = hardware.gpus.map(g => `✅ ${g.name} (${g.memoryTotal} VRAM)`).join('<br>');
         html += `<div class="hardware-item success">${gpuSummary}</div>`;
     } else {
         html += `<div class="hardware-item warning">⚠️ No GPU detected (CPU mode only)</div>`;
@@ -192,7 +183,6 @@ function updateHardwareDisplay(hardware) {
 function updateRecommendations(hardware) {
     if (!hardware) return;
 
-    // Auto-recommend Fine-Tuning if GPU with >16GB VRAM
     const hasLargeGPU = hardware.gpus.some(g => {
         const match = g.memoryTotal.match(/(\d+)/);
         if (match) {
@@ -208,7 +198,6 @@ function updateRecommendations(hardware) {
         finetuneCheckbox.parentElement.classList.add('recommended');
     }
 
-    // Auto-disable KAI if no Kubernetes
     const kaiCheckbox = document.querySelector('input[name="module-kai"]');
     if (kaiCheckbox && !hardware.k8sDetected) {
         kaiCheckbox.disabled = true;
@@ -219,7 +208,6 @@ function updateRecommendations(hardware) {
         kaiCheckbox.parentElement.appendChild(warning);
     }
 
-    // Update GPU status in dashboard
     const gpuStatus = document.getElementById('gpu-status');
     if (gpuStatus) {
         if (hardware.gpuAvailable) {
@@ -240,6 +228,7 @@ function updateRecommendations(hardware) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Feature Flags
 // ──────────────────────────────────────────────────────────────────────────────
+
 async function loadFeatureFlags() {
     try {
         featureFlags = await window.api.getFeatureFlags();
@@ -252,16 +241,15 @@ async function loadFeatureFlags() {
 // ──────────────────────────────────────────────────────────────────────────────
 // Dashboard
 // ──────────────────────────────────────────────────────────────────────────────
+
 async function updateDashboard() {
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
     const uptimeText = document.getElementById('uptime-text');
 
     try {
-		// Try to check if Odoo is running using the dynamic server URL
         const odooUrl = getServiceUrl('odoo');
         const response = await fetch(odooUrl, { method: 'HEAD', mode: 'no-cors' });
-        // If we can reach it, it's likely running
         statusBadge.textContent = '✅ Running';
         statusBadge.className = 'status-badge status-running';
         statusText.textContent = 'Running';
@@ -273,7 +261,6 @@ async function updateDashboard() {
         uptimeText.textContent = '--';
     }
 
-    // Load backup count
     try {
         const backups = await window.api.listBackups();
         document.getElementById('stat-backups').textContent = backups.length;
@@ -281,7 +268,6 @@ async function updateDashboard() {
         document.getElementById('stat-backups').textContent = '0';
     }
 
-    // Load model count
     try {
         const models = await window.api.listModels();
         document.getElementById('stat-models').textContent = models.length;
@@ -289,13 +275,82 @@ async function updateDashboard() {
         document.getElementById('stat-models').textContent = '0';
     }
 
-    // Detect GPUs
     detectHardware();
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// QUICK SETUP – One-click development environment
+// ──────────────────────────────────────────────────────────────────────────────
+
+document.getElementById('btn-quick-setup').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-quick-setup');
+    const progressContainer = document.getElementById('hero-progress');
+    const progressFill = document.getElementById('hero-progress-fill');
+    const progressLabel = document.getElementById('hero-progress-label');
+    const activityLog = document.getElementById('activity-log');
+
+    if (btn.disabled) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Setting up...';
+    progressContainer.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressLabel.textContent = 'Starting...';
+
+    // Clear previous activity
+    activityLog.innerHTML = '';
+
+    // Set up listeners
+    window.api.onInstallOutput((data) => {
+        const entry = document.createElement('p');
+        entry.textContent = `• ${new Date().toLocaleTimeString()} - ${data.trim()}`;
+        activityLog.appendChild(entry);
+        activityLog.scrollTop = activityLog.scrollHeight;
+    });
+
+    window.api.onInstallProgress((data) => {
+        if (data.progress !== undefined) {
+            progressFill.style.width = `${data.progress}%`;
+            if (data.phase) {
+                progressLabel.textContent = `${data.phase} (${data.progress}%)`;
+            } else {
+                progressLabel.textContent = `${data.progress}%`;
+            }
+        }
+    });
+
+    try {
+        const result = await window.api.runQuickSetup();
+
+        if (result.success) {
+            progressFill.style.width = '100%';
+            progressLabel.textContent = '✅ Setup complete!';
+            btn.textContent = '✅ Done!';
+            btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+            showToast('Development environment is ready!', 'success');
+            updateDashboard();
+        } else {
+            progressFill.style.width = '100%';
+            progressFill.style.background = 'var(--danger)';
+            progressLabel.textContent = '❌ Setup failed';
+            btn.textContent = '⚠️ Retry';
+            btn.disabled = false;
+            showToast(`Setup failed: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        progressFill.style.width = '100%';
+        progressFill.style.background = 'var(--danger)';
+        progressLabel.textContent = '❌ Error';
+        btn.textContent = '⚠️ Retry';
+        btn.disabled = false;
+        showToast(`Error: ${error.message}`, 'error');
+    }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Installation Wizard – Profile Selection
 // ──────────────────────────────────────────────────────────────────────────────
+
 const profiles = [
     {
         id: 'sovereign',
@@ -371,9 +426,7 @@ function renderDeploymentCards() {
                 ${badge}
             </div>
             <p class="card-description">${profile.description}</p>
-            <div class="card-endpoint">
-                📍 Access: ${profile.endpoint}
-            </div>
+            <div class="card-endpoint">📍 Access: ${profile.endpoint}</div>
             <ul class="card-features">
                 ${profile.features.map(f => `<li>✓ ${f}</li>`).join('')}
             </ul>
@@ -385,13 +438,11 @@ function renderDeploymentCards() {
             selectedProfile = profile.id;
             document.getElementById('btn-install-next').disabled = false;
 
-            // Show custom phase picker if custom is selected
             if (profile.id === 'custom') {
                 document.getElementById('custom-phases').style.display = 'block';
                 renderPhasePicker();
             } else {
                 document.getElementById('custom-phases').style.display = 'none';
-                // Pre-select phases for the profile
                 selectedPhases = profile.phases;
                 updatePhaseSummary(profile);
             }
@@ -400,7 +451,6 @@ function renderDeploymentCards() {
         container.appendChild(card);
     });
 
-    // Set default selection
     const defaultCard = container.querySelector('.deployment-card.recommended');
     if (defaultCard) {
         defaultCard.click();
@@ -435,7 +485,6 @@ function renderPhasePicker() {
         </div>
     `).join('');
 
-    // Add event listeners for checkboxes
     container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
         cb.addEventListener('change', () => {
             const id = parseInt(cb.dataset.phase);
@@ -448,7 +497,6 @@ function renderPhasePicker() {
         });
     });
 
-    // Ensure Phase 1 is always selected
     if (!selectedPhases.includes(1)) {
         selectedPhases.push(1);
     }
@@ -469,25 +517,17 @@ function updatePhaseSummary(profile) {
         phases = profile.phases || selectedPhases;
     }
 
-    // Sort phases
     phases.sort((a, b) => a - b);
 
     summary.innerHTML = `
-        <div class="config-row">
-            <strong>Profile:</strong> ${profileName}
-        </div>
-        <div class="config-row">
-            <strong>Phases:</strong> ${phases.join(' → ')}
-        </div>
-        <div class="config-row">
-            <strong>Environment:</strong> <span id="config-env">Development</span>
-        </div>
+        <div class="config-row"><strong>Profile:</strong> ${profileName}</div>
+        <div class="config-row"><strong>Phases:</strong> ${phases.join(' → ')}</div>
+        <div class="config-row"><strong>Environment:</strong> <span id="config-env">Development</span></div>
         <div class="config-row" style="color:var(--text-muted);font-size:0.85rem;margin-top:0.5rem;">
             Phase 1 (venv) is always included as it's required by all other phases.
         </div>
     `;
 
-    // Store selected phases for installation
     installOptions.phases = phases;
 }
 
@@ -498,14 +538,11 @@ function updatePhaseSummary(profile) {
 document.getElementById('btn-install-next').addEventListener('click', () => {
     if (!selectedProfile) return;
 
-    // Show step 2 (modules and summary)
     document.getElementById('install-step-1').classList.remove('active');
     document.getElementById('install-step-2').classList.add('active');
 
-    // Update module recommendations based on hardware
     updateModuleRecommendations();
 
-    // Update summary
     const profile = profiles.find(p => p.id === selectedProfile);
     updatePhaseSummary(profile);
 });
@@ -523,7 +560,6 @@ function updateModuleRecommendations() {
     const hardware = detectedHardware;
     if (!hardware) return;
 
-    // Fine-Tuning recommendation
     const finetuneLabel = document.querySelector('.module-finetune');
     if (finetuneLabel) {
         if (hardware.gpuAvailable) {
@@ -539,7 +575,6 @@ function updateModuleRecommendations() {
         }
     }
 
-    // KAI Scheduler recommendation
     const kaiLabel = document.querySelector('.module-kai');
     if (kaiLabel) {
         if (hardware.k8sDetected) {
@@ -561,11 +596,10 @@ function updateModuleRecommendations() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 document.getElementById('btn-install-start').addEventListener('click', async () => {
-    // Gather options
     const environment = document.querySelector('input[name="env"]:checked')?.value || 'development';
-    const force = document.getElementById('force-checkbox')?.checked || false;
-    const auto = document.getElementById('auto-checkbox')?.checked || false;
-    const upgrade = document.getElementById('upgrade-checkbox')?.checked || false;
+    const force = document.getElementById('deploy-force')?.checked || false;
+    const auto = document.getElementById('deploy-auto')?.checked || false;
+    const upgrade = document.getElementById('deploy-upgrade')?.checked || false;
 
     const withFinetune = document.querySelector('input[name="module-finetune"]')?.checked || false;
     const withGrove = document.querySelector('input[name="module-grove"]')?.checked || false;
@@ -574,7 +608,6 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
 
     const domain = document.getElementById('domain-input')?.value || '';
 
-    // Validate domain for production
     if (environment === 'production' && !domain) {
         const result = await window.api.showDialog({
             type: 'warning',
@@ -602,7 +635,6 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
 
     installOptions = options;
 
-    // Switch to installation progress view
     document.getElementById('install-step-2').classList.remove('active');
     document.getElementById('install-step-3').classList.add('active');
 
@@ -610,7 +642,7 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
     const progressLabel = document.getElementById('install-progress-label');
     const logOutput = document.getElementById('install-log-output');
 
-    if (logOutput) logOutput.innerHTML = '<div class="log-placeholder">Starting installation...</div>';
+    if (logOutput) logOutput.innerHTML = '<span class="log-placeholder">Starting installation...</span>';
 
     isInstalling = true;
     document.getElementById('btn-install-cancel').style.display = 'inline-block';
@@ -618,31 +650,29 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
     document.getElementById('install-status-badge').className = 'status-badge status-unknown';
 
     window.api.onInstallOutput((data) => {
-        // Update progress based on output
         if (data.includes('Phase 0')) {
-            if (progressFill) progressFill.style.width = '10%';
-            if (progressLabel) progressLabel.textContent = 'Phase 0: System Preparation...';
+            progressFill.style.width = '10%';
+            progressLabel.textContent = 'Phase 0: System Preparation...';
         } else if (data.includes('Phase 1')) {
-            if (progressFill) progressFill.style.width = '30%';
-            if (progressLabel) progressLabel.textContent = 'Phase 1: Environment Setup...';
+            progressFill.style.width = '30%';
+            progressLabel.textContent = 'Phase 1: Environment Setup...';
         } else if (data.includes('Phase 2')) {
-            if (progressFill) progressFill.style.width = '50%';
-            if (progressLabel) progressLabel.textContent = 'Phase 2: Deployment...';
+            progressFill.style.width = '50%';
+            progressLabel.textContent = 'Phase 2: Deployment...';
         } else if (data.includes('Phase 3')) {
-            if (progressFill) progressFill.style.width = '70%';
-            if (progressLabel) progressLabel.textContent = 'Phase 3: Kubernetes...';
+            progressFill.style.width = '70%';
+            progressLabel.textContent = 'Phase 3: Kubernetes...';
         } else if (data.includes('Phase 4')) {
-            if (progressFill) progressFill.style.width = '85%';
-            if (progressLabel) progressLabel.textContent = 'Phase 4: Module Installation...';
+            progressFill.style.width = '85%';
+            progressLabel.textContent = 'Phase 4: Module Installation...';
         } else if (data.includes('Phase 5')) {
-            if (progressFill) progressFill.style.width = '95%';
-            if (progressLabel) progressLabel.textContent = 'Phase 5: Monitoring Setup...';
+            progressFill.style.width = '95%';
+            progressLabel.textContent = 'Phase 5: Monitoring Setup...';
         } else if (data.includes('Setup Complete')) {
-            if (progressFill) progressFill.style.width = '100%';
-            if (progressLabel) progressLabel.textContent = '✅ Installation complete!';
+            progressFill.style.width = '100%';
+            progressLabel.textContent = '✅ Installation complete!';
         }
 
-        // Append to log
         if (logOutput) {
             const lines = logOutput.textContent.split('\n');
             lines.push(data);
@@ -651,7 +681,6 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
             logOutput.scrollTop = logOutput.scrollHeight;
         }
 
-        // Also add to global logs
         const globalLogs = document.getElementById('logs-output');
         if (globalLogs) {
             const placeholder = globalLogs.querySelector('.log-placeholder');
@@ -665,19 +694,17 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
         await window.api.runInstall(options);
         isInstalling = false;
         document.getElementById('btn-install-cancel').style.display = 'none';
-        if (progressFill) progressFill.style.width = '100%';
-        if (progressLabel) progressLabel.textContent = '✅ Installation complete!';
+        progressFill.style.width = '100%';
+        progressLabel.textContent = '✅ Installation complete!';
         document.getElementById('install-status-badge').textContent = '✅ Complete';
         document.getElementById('install-status-badge').className = 'status-badge status-running';
         updateDashboard();
     } catch (err) {
         isInstalling = false;
         document.getElementById('btn-install-cancel').style.display = 'none';
-        if (progressFill) {
-            progressFill.style.width = '100%';
-            progressFill.style.background = 'var(--danger)';
-        }
-        if (progressLabel) progressLabel.textContent = '❌ Installation failed';
+        progressFill.style.width = '100%';
+        progressFill.style.background = 'var(--danger)';
+        progressLabel.textContent = '❌ Installation failed';
         if (logOutput) {
             logOutput.textContent += `\n\n❌ Error: ${err.output || err.message || 'Unknown error'}`;
         }
@@ -708,8 +735,9 @@ document.querySelectorAll('input[name="env"]').forEach(radio => {
     radio.addEventListener('change', () => {
         const isProduction = radio.value === 'production';
         const domainInput = document.getElementById('domain-input');
-        if (domainInput) {
-            domainInput.style.display = isProduction ? 'inline-block' : 'none';
+        const domainGroup = document.getElementById('domain-input-group');
+        if (domainInput && domainGroup) {
+            domainGroup.style.display = isProduction ? 'block' : 'none';
             domainInput.required = isProduction;
         }
         document.getElementById('config-env').textContent = isProduction ? 'Production' : 'Development';
@@ -734,7 +762,6 @@ async function loadModels() {
                     <button class="btn btn-secondary" id="btn-import-model">📂 Import Model</button>
                 </div>
             `;
-            // Re-bind events
             document.getElementById('btn-browse-models')?.addEventListener('click', browseModels);
             document.getElementById('btn-import-model')?.addEventListener('click', importModel);
             return;
@@ -744,7 +771,7 @@ async function loadModels() {
             <div class="model-card">
                 <div class="model-icon">🧠</div>
                 <div class="model-name">${model.name}</div>
-                <div class="model-size">${model.sizeFormatted}</div>
+                <div class="model-size">${formatSize(model.size)}</div>
                 <div class="model-actions">
                     <button class="btn btn-success" data-path="${model.path}" onclick="window.loadModel('${model.path}')">▶ Load</button>
                     <button class="btn btn-danger" data-path="${model.path}" onclick="window.deleteModel('${model.path}')">🗑️ Delete</button>
@@ -762,8 +789,6 @@ async function browseModels() {
 
     addActivity(`Searching for models matching "${searchTerm}"...`);
 
-    // In production, this would use the Hugging Face API
-    // For now, we'll show a demo list
     const demoModels = [
         { name: `llama-3.2-1B-Q4_K_M.gguf`, url: 'https://huggingface.co/...' },
         { name: `qwen-2.5-1.5B-Q4_K_M.gguf`, url: 'https://huggingface.co/...' },
@@ -786,9 +811,6 @@ async function downloadModel(filename) {
     if (progressBar) progressBar.style.width = '0%';
     if (progressLabel) progressLabel.textContent = 'Starting download...';
 
-    // In production, this would call window.api.downloadModel()
-    // with the actual Hugging Face URL
-    // Simulate download progress
     let progress = 0;
     const interval = setInterval(() => {
         progress += 5;
@@ -815,8 +837,6 @@ async function importModel() {
         if (!file) return;
         addActivity(`Importing model: ${file.name}...`);
         try {
-            // In production, this would use window.api.importModel()
-            // For now, we'll simulate
             await new Promise(resolve => setTimeout(resolve, 1000));
             addActivity(`Model imported: ${file.name}`);
             loadModels();
@@ -827,7 +847,6 @@ async function importModel() {
     input.click();
 }
 
-// Global functions for onclick handlers
 window.loadModel = async function(modelPath) {
     addActivity(`Loading model: ${modelPath.split('/').pop()}...`);
     try {
@@ -880,7 +899,6 @@ async function loadBackupList() {
     try {
         const backups = await window.api.listBackups();
 
-        // Update select
         select.innerHTML = '<option value="">Select a backup...</option>';
         backups.forEach(b => {
             const opt = document.createElement('option');
@@ -890,7 +908,6 @@ async function loadBackupList() {
             select.appendChild(opt);
         });
 
-        // Update list
         if (backups.length === 0) {
             container.innerHTML = '<p class="backup-empty">No backups found. Create your first backup using the button above.</p>';
             return;
@@ -918,11 +935,14 @@ function formatSize(bytes) {
     return (bytes / 1073741824).toFixed(2) + ' GB';
 }
 
-document.getElementById('btn-create-backup').addEventListener('click', async () => {
+document.getElementById('btn-create-backup')?.addEventListener('click', createBackup);
+document.getElementById('btn-create-backup-card')?.addEventListener('click', createBackup);
+
+async function createBackup() {
     const logOutput = document.getElementById('backup-log-output');
     if (logOutput) {
         logOutput.style.display = 'block';
-        logOutput.innerHTML = '<div class="log-placeholder">Starting backup...</div>';
+        logOutput.innerHTML = '<span class="log-placeholder">Starting backup...</span>';
     }
 
     const statusBadge = document.getElementById('backup-status-badge');
@@ -958,7 +978,7 @@ document.getElementById('btn-create-backup').addEventListener('click', async () 
             logOutput.textContent += `\n\n❌ Error: ${err.output || err.message || 'Unknown error'}`;
         }
     }
-});
+}
 
 document.getElementById('btn-restore-backup').addEventListener('click', async () => {
     const select = document.getElementById('backup-select');
@@ -988,7 +1008,7 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
     const logOutput = document.getElementById('backup-log-output');
     if (logOutput) {
         logOutput.style.display = 'block';
-        logOutput.innerHTML = '<div class="log-placeholder">Starting restore...</div>';
+        logOutput.innerHTML = '<span class="log-placeholder">Starting restore...</span>';
     }
 
     const statusBadge = document.getElementById('backup-status-badge');
@@ -1026,40 +1046,31 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Quick Actions (Dashboard)
+// Quick Actions
 // ──────────────────────────────────────────────────────────────────────────────
 
-document.getElementById('btn-quick-backup').addEventListener('click', () => {
-    switchTab('backup');
-    document.getElementById('btn-create-backup').click();
+// Open apps
+document.querySelectorAll('[data-open-app]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const app = btn.dataset.openApp;
+        if (app) openApp(app);
+    });
 });
 
-document.getElementById('btn-quick-restore').addEventListener('click', () => {
-    switchTab('backup');
-});
+function openApp(appName) {
+    const url = getServiceUrl(appName);
+    window.api.openExternal(url);
+}
 
-// Service launchers with dynamic URLs
-document.getElementById('btn-open-odoo').addEventListener('click', () => {
-    window.api.openService('odoo');
-});
-
-document.getElementById('btn-open-grafana').addEventListener('click', () => {
-    window.api.openService('grafana');
-});
-
-document.getElementById('btn-open-llama').addEventListener('click', () => {
-    window.api.openService('llama');
-});
-
-document.getElementById('btn-open-ui').addEventListener('click', () => {
-    window.api.openService('ui');
-});
+// Switch tab helper
+window.switchTab = switchTab;
+window.openApp = openApp;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Platform Control
 // ──────────────────────────────────────────────────────────────────────────────
 
-document.getElementById('btn-start-platform').addEventListener('click', async () => {
+document.getElementById('btn-start-platform')?.addEventListener('click', async () => {
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
     if (statusBadge) {
@@ -1094,7 +1105,7 @@ document.getElementById('btn-start-platform').addEventListener('click', async ()
     }
 });
 
-document.getElementById('btn-stop-platform').addEventListener('click', async () => {
+document.getElementById('btn-stop-platform')?.addEventListener('click', async () => {
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
     if (statusBadge) {
@@ -1125,7 +1136,7 @@ document.getElementById('btn-stop-platform').addEventListener('click', async () 
     }
 });
 
-document.getElementById('btn-restart-platform').addEventListener('click', async () => {
+document.getElementById('btn-restart-platform')?.addEventListener('click', async () => {
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
     if (statusBadge) {
@@ -1160,7 +1171,7 @@ document.getElementById('btn-restart-platform').addEventListener('click', async 
 // Logs Tab
 // ──────────────────────────────────────────────────────────────────────────────
 
-document.getElementById('btn-copy-logs').addEventListener('click', () => {
+document.getElementById('btn-copy-logs')?.addEventListener('click', () => {
     const logs = document.getElementById('logs-output');
     if (!logs) return;
     const text = logs.textContent;
@@ -1174,7 +1185,7 @@ document.getElementById('btn-copy-logs').addEventListener('click', () => {
     }).catch(() => {});
 });
 
-document.getElementById('btn-save-logs').addEventListener('click', () => {
+document.getElementById('btn-save-logs')?.addEventListener('click', () => {
     const logs = document.getElementById('logs-output');
     if (!logs) return;
     const text = logs.textContent;
@@ -1187,24 +1198,51 @@ document.getElementById('btn-save-logs').addEventListener('click', () => {
     URL.revokeObjectURL(url);
 });
 
-document.getElementById('btn-clear-logs').addEventListener('click', () => {
+document.getElementById('btn-clear-logs')?.addEventListener('click', () => {
     const logs = document.getElementById('logs-output');
     if (logs) {
-        logs.innerHTML = '<div class="log-placeholder">Logs cleared.</div>';
+        logs.innerHTML = '<span class="log-placeholder">Logs cleared.</span>';
     }
 });
+
+document.getElementById('btn-refresh-logs')?.addEventListener('click', () => {
+    refreshLogs();
+});
+
+async function refreshLogs() {
+    const service = document.getElementById('log-service')?.value || 'all';
+    const container = document.getElementById('logs-output');
+
+    if (service === 'all') {
+        container.innerHTML = '<span class="log-placeholder">Select a specific service to view logs.</span>';
+        return;
+    }
+
+    container.innerHTML = '<span class="log-placeholder">Loading logs...</span>';
+
+    try {
+        const result = await window.api.getLogs({ service, lines: 100 });
+        if (result.success && result.data) {
+            const lines = result.data.split('\n').filter(l => l.trim());
+            container.innerHTML = lines.map(line => `<div class="log-line">${escapeHtml(line)}</div>`).join('');
+        } else {
+            container.innerHTML = `<span class="log-placeholder">❌ Failed to load logs: ${result.error || 'Unknown error'}</span>`;
+        }
+    } catch (e) {
+        container.innerHTML = `<span class="log-placeholder">❌ Failed to load logs: ${e.message}</span>`;
+    }
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Settings
 // ──────────────────────────────────────────────────────────────────────────────
 
-document.getElementById('settings-github-link').addEventListener('click', (e) => {
+document.getElementById('settings-github-link')?.addEventListener('click', (e) => {
     e.preventDefault();
-    window.api.openUrl('https://github.com/nettrades/nettrades-platform');
+    window.api.openExternal('https://github.com/nettrades/nettrades-platform');
 });
 
-// Server URL settings
-document.getElementById('btn-save-server-url').addEventListener('click', async () => {
+document.getElementById('btn-save-server-url')?.addEventListener('click', async () => {
     const input = document.getElementById('server-url');
     if (!input) return;
     const url = input.value.trim();
@@ -1213,7 +1251,6 @@ document.getElementById('btn-save-server-url').addEventListener('click', async (
         if (result.success) {
             serverUrl = url;
             addActivity(`Server URL saved: ${url}`);
-            // Show success feedback
             const btn = document.getElementById('btn-save-server-url');
             if (btn) {
                 const originalText = btn.textContent;
@@ -1224,114 +1261,9 @@ document.getElementById('btn-save-server-url').addEventListener('click', async (
             addActivity(`Failed to save server URL: ${result.error}`);
         }
     } else {
-		// Reset to default
         serverUrl = 'http://localhost';
         await window.api.saveServerUrl('http://localhost');
         addActivity('Server URL reset to localhost');
-    }
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// VPN Management
-// ──────────────────────────────────────────────────────────────────────────────
-
-async function loadVPNUsers() {
-    const container = document.getElementById('vpn-list-container');
-    if (!container) return;
-
-    try {
-        const data = await window.api.vpnListUsers();
-        if (data.users.length === 0) {
-            container.innerHTML = '<p class="vpn-empty">No VPN users found. Add your first admin above.</p>';
-            return;
-        }
-
-        container.innerHTML = data.users.map(user => `
-            <div class="vpn-item">
-                <div class="vpn-item-info">
-                    <span class="vpn-item-name">${user.name}</span>
-                    <span class="vpn-item-ip">${user.assigned_ip}</span>
-                    <span class="vpn-item-status ${user.is_online ? 'online' : 'offline'}">
-                        ${user.is_online ? '🟢 Online' : '🔴 Offline'}
-                    </span>
-                </div>
-                <div class="vpn-item-actions">
-                    <button class="btn btn-secondary" onclick="window.vpnConfig('${user.name}')">📄 Config</button>
-                    <button class="btn btn-danger" onclick="window.vpnRevoke('${user.name}')">🗑️ Revoke</button>
-                </div>
-            </div>
-        `).join('');
-    } catch (err) {
-        container.innerHTML = `<p class="vpn-empty">Error loading VPN users: ${err.message}</p>`;
-    }
-}
-
-window.vpnConfig = function(name) {
-    window.api.showDialog({
-        type: 'info',
-        title: `VPN Config: ${name}`,
-        message: `Configuration for ${name} will be displayed here.`,
-        buttons: ['Close'],
-    });
-};
-
-window.vpnRevoke = async function(name) {
-    const confirmResult = await window.api.showDialog({
-        type: 'warning',
-        title: 'Revoke VPN User',
-        message: `Are you sure you want to revoke ${name}?`,
-        buttons: ['Cancel', 'Revoke'],
-        defaultId: 0,
-        cancelId: 0,
-    });
-    if (confirmResult.response !== 1) return;
-
-    try {
-        const result = await window.api.vpnRevokeUser(name);
-        if (result.success) {
-            addActivity(`VPN user revoked: ${name}`);
-            loadVPNUsers();
-        } else {
-            addActivity(`Failed to revoke user: ${result.error}`);
-        }
-    } catch (err) {
-        addActivity(`Error revoking user: ${err.message}`);
-    }
-};
-
-document.getElementById('btn-vpn-create').addEventListener('click', async () => {
-    const nameInput = document.getElementById('vpn-new-name');
-    const partnerInput = document.getElementById('vpn-new-partner');
-    const name = nameInput ? nameInput.value.trim() : '';
-    const partnerId = partnerInput ? parseInt(partnerInput.value.trim()) : NaN;
-
-    if (!name || isNaN(partnerId)) {
-        await window.api.showDialog({
-            type: 'warning',
-            title: 'Invalid Input',
-            message: 'Please enter a name and partner ID.',
-            buttons: ['OK'],
-        });
-        return;
-    }
-
-    try {
-        const result = await window.api.vpnAddUser(name, partnerId);
-        if (result.success) {
-            addActivity(`VPN user created: ${name} (IP: ${result.assigned_ip})`);
-            const resultDiv = document.getElementById('vpn-create-result');
-            if (resultDiv) {
-                resultDiv.style.display = 'block';
-                document.getElementById('vpn-new-ip').textContent = result.assigned_ip;
-            }
-            loadVPNUsers();
-            nameInput.value = '';
-            partnerInput.value = '';
-        } else {
-            addActivity(`Failed to create user: ${result.error}`);
-        }
-    } catch (err) {
-        addActivity(`Error creating user: ${err.message}`);
     }
 });
 
@@ -1350,10 +1282,52 @@ function addActivity(message) {
     entry.textContent = `• ${new Date().toLocaleTimeString()} - ${message}`;
     container.appendChild(entry);
 
-    // Keep last 20 entries
     while (container.children.length > 20) {
         container.removeChild(container.firstChild);
     }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Toast Notifications
+// ──────────────────────────────────────────────────────────────────────────────
+
+function showToast(message, type = 'info', duration = 4000) {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 24px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 0.95rem;
+        z-index: 9999;
+        animation: fadeIn 0.3s ease;
+        box-shadow: var(--shadow);
+        max-width: 400px;
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ──────────────────────────────────────────────────────────────────────────────
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1370,11 +1344,23 @@ async function init() {
 
     addActivity('Launcher started');
 
-    // Set up periodic dashboard refresh
+    // Check if platform is already set up
+    try {
+        const isSetup = await window.api.isPlatformSetup();
+        if (isSetup) {
+            addActivity('✅ Platform is already set up');
+            document.getElementById('btn-quick-setup').textContent = '✅ Already Set Up';
+            document.getElementById('btn-quick-setup').style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+        } else {
+            addActivity('🚀 Ready to set up your development environment');
+        }
+    } catch (e) {
+        console.error('Failed to check setup status:', e);
+    }
+
     setInterval(updateDashboard, 30000);
     setInterval(detectHardware, 60000);
 
-    // Add log listener to capture all output
     window.api.onInstallOutput((data) => {
         const logs = document.getElementById('logs-output');
         if (logs) {
@@ -1383,24 +1369,16 @@ async function init() {
             logs.textContent += data + '\n';
             logs.scrollTop = logs.scrollHeight;
         }
-        // Also add to activity if it's a significant event
         if (data.includes('SUCCESS') || data.includes('ERROR') || data.includes('WARNING')) {
             addActivity(data.trim());
         }
     });
-    // Platform output listener
+
     window.api.onPlatformOutput((data) => {
         addActivity(`[Platform] ${data.trim()}`);
     });
 
-    // Enable upgrade tab if deployment exists
-    const hasDeployment = document.querySelector('.phase-marker-check')?.value === 'true';
-    if (hasDeployment) {
-        document.querySelector('.nav-item[data-tab="upgrade"]')?.classList.remove('disabled');
-    }
-
     addActivity('Platform ready');
 }
 
-// Start the app
 init();

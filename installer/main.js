@@ -71,6 +71,9 @@ const VENV_DIR = path.join(PROJECT_ROOT, '.venv');
 // .env file path
 const ENV_FILE = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
 
+// Phase marker directory
+const PHASE_MARKER_DIR = PROJECT_ROOT;
+
 // -----------------------------------------------------------------------------
 // Tenant Types and Runtime Configuration
 // -----------------------------------------------------------------------------
@@ -379,6 +382,24 @@ function getServerIP() {
 }
 
 // -----------------------------------------------------------------------------
+// Helper: Check if a phase is complete (idempotency check)
+// -----------------------------------------------------------------------------
+
+function isPhaseComplete(phaseNumber) {
+    const markerFile = path.join(PHASE_MARKER_DIR, `.phase-${phaseNumber}-complete`);
+    return fs.existsSync(markerFile);
+}
+
+// -----------------------------------------------------------------------------
+// Helper: Check if the platform is already fully set up
+// -----------------------------------------------------------------------------
+
+function isPlatformSetup() {
+    // Check if Phase 1 and Phase 2 are complete (minimum for a working dev environment)
+    return isPhaseComplete(1) && isPhaseComplete(2);
+}
+
+// -----------------------------------------------------------------------------
 // IPC Handlers
 // -----------------------------------------------------------------------------
 
@@ -400,262 +421,104 @@ ipcMain.handle('get-platform', () => {
     };
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tenant Configuration
-// ─────────────────────────────────────────────────────────────────────────────
-
-ipcMain.handle('get-tenant-config', () => {
-    try {
-        if (fs.existsSync(ENV_FILE)) {
-            const content = fs.readFileSync(ENV_FILE, 'utf8');
-            const tenantType = content.match(/^TENANT_TYPE=(\w+)/m)?.[1] || 'enterprise';
-            const tenantName = content.match(/^TENANT_NAME=(.+)/m)?.[1] || 'default';
-            return {
-                tenantType,
-                tenantName,
-                runtimeConfig: RUNTIME_CONFIG[tenantType] || RUNTIME_CONFIG[TENANT_TYPES.ENTERPRISE]
-            };
-        }
-    } catch (error) {
-        logError(`Error reading tenant config: ${error.message}`);
-    }
-    return {
-        tenantType: 'enterprise',
-        tenantName: 'default',
-        runtimeConfig: RUNTIME_CONFIG[TENANT_TYPES.ENTERPRISE]
-    };
-});
-
-ipcMain.handle('set-tenant-config', async (event, config) => {
-    const { tenantType, tenantName } = config;
-    
-    // Validate tenant type
-    if (!Object.values(TENANT_TYPES).includes(tenantType)) {
-        return { success: false, error: `Invalid tenant type: ${tenantType}` };
-    }
-
-    try {
-        let content = '';
-        if (fs.existsSync(ENV_FILE)) {
-            content = fs.readFileSync(ENV_FILE, 'utf8');
-        }
-
-        // Update or add TENANT_TYPE
-        if (content.match(/^TENANT_TYPE=/m)) {
-            content = content.replace(/^TENANT_TYPE=\w+/m, `TENANT_TYPE=${tenantType}`);
-        } else {
-            content += `\nTENANT_TYPE=${tenantType}\n`;
-        }
-
-        // Update or add TENANT_NAME
-        if (content.match(/^TENANT_NAME=/m)) {
-            content = content.replace(/^TENANT_NAME=.+/m, `TENANT_NAME=${tenantName || 'default'}`);
-        } else {
-            content += `TENANT_NAME=${tenantName || 'default'}\n`;
-        }
-
-        // Update runtime variables based on tenant type
-        const runtime = RUNTIME_CONFIG[tenantType];
-        const runtimeVars = [
-            { key: 'RUNTIME_LANGGRAPH', value: runtime.langgraph },
-            { key: 'RUNTIME_SELF_IMPROVING', value: runtime.selfImproving },
-            { key: 'RUNTIME_UI', value: runtime.ui },
-        ];
-
-        for (const { key, value } of runtimeVars) {
-            if (content.match(new RegExp(`^${key}=`))) {
-                content = content.replace(new RegExp(`^${key}=.*`, 'm'), `${key}=${value}`);
-            } else {
-                content += `${key}=${value}\n`;
-            }
-        }
-
-        fs.writeFileSync(ENV_FILE, content, 'utf8');
-        logSuccess(`Tenant configuration updated: ${tenantType} (${tenantName || 'default'})`);
-        
-        return { success: true };
-    } catch (error) {
-        logError(`Error setting tenant config: ${error.message}`);
-        return { success: false, error: error.message };
-    }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Grove & KAI Scheduler Management
-// ─────────────────────────────────────────────────────────────────────────────
-
-ipcMain.handle('get-grove-status', async () => {
-    try {
-        const result = await getDockerServiceStatus('grove');
-        return { running: result.running, error: result.error };
-    } catch (error) {
-        return { running: false, error: error.message };
-    }
-});
-
-ipcMain.handle('get-kai-status', async () => {
-    try {
-        const result = await getDockerServiceStatus('kai-scheduler');
-        return { running: result.running, error: result.error };
-    } catch (error) {
-        return { running: false, error: error.message };
-    }
-});
-
-ipcMain.handle('start-grove', async () => {
-    return runDockerComposeWithFile('docker-compose.grove.yaml', 'up -d grove loki tempo');
-});
-
-ipcMain.handle('stop-grove', async () => {
-    return runDockerComposeWithFile('docker-compose.grove.yaml', 'down');
-});
-
-ipcMain.handle('start-kai', async () => {
-    return runDockerComposeWithFile('docker-compose.kai.yaml', 'up -d kai-scheduler');
-});
-
-ipcMain.handle('stop-kai', async () => {
-    return runDockerComposeWithFile('docker-compose.kai.yaml', 'down');
-});
-
-// Helper function to check if a Docker service is running
-async function getDockerServiceStatus(serviceName) {
-    return new Promise((resolve) => {
-        const cmd = `docker compose -f ${COMPOSE_FILE} ps --format json ${serviceName}`;
-        exec(cmd, { cwd: path.dirname(COMPOSE_FILE) }, (error, stdout) => {
-            if (error) {
-                resolve({ running: false, error: error.message });
-                return;
-            }
-            try {
-                const services = JSON.parse(stdout);
-                const isRunning = services.some(s => s.State === 'running');
-                resolve({ running: isRunning });
-            } catch (e) {
-                resolve({ running: false, error: 'Failed to parse docker compose output' });
-            }
-        });
-    });
-}
-
-// Helper function to run docker compose with an additional file
-function runDockerComposeWithFile(composeFile, command) {
-    return new Promise((resolve) => {
-        const composePath = path.join(path.dirname(COMPOSE_FILE), composeFile);
-        
-        // Check if the compose file exists before running
-        if (!fs.existsSync(composePath)) {
-            logError(`Compose file not found: ${composePath}`);
-            resolve({ success: false, error: `Compose file not found: ${composeFile}` });
-            return;
-        }
-        
-        const cmd = `docker compose -f ${COMPOSE_FILE} -f ${composePath} ${command}`;
-        logInfo(`Running: ${cmd}`);
-
-        const proc = spawn('bash', ['-c', cmd], {
-            cwd: path.dirname(COMPOSE_FILE),
-        });
-
-        let output = '';
-        proc.stdout.on('data', (data) => {
-            const text = data.toString();
-            output += text;
-            mainWindow?.webContents.send('platform-output', { type: 'stdout', data: text });
-        });
-
-        proc.stderr.on('data', (data) => {
-            const text = data.toString();
-            output += text;
-            mainWindow?.webContents.send('platform-output', { type: 'stderr', data: text });
-        });
-
-        proc.on('close', (code) => {
-            if (code === 0) {
-                logSuccess(`Docker compose ${command} completed`);
-                resolve({ success: true, output });
-            } else {
-                logError(`Docker compose ${command} failed with code ${code}`);
-                resolve({ success: false, error: output || `Process exited with code ${code}` });
-            }
-        });
-    });
-}
-
 ipcMain.handle('get-project-root', () => PROJECT_ROOT);
 ipcMain.handle('get-models-dir', () => MODELS_DIR);
 
-let serverUrl = 'http://localhost';
-
-ipcMain.handle('get-server-url', () => {
-    // Try to read from a config file
-    try {
-        const configPath = path.join(app.getPath('userData'), 'config.json');
-        if (fs.existsSync(configPath)) {
-            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            if (config.serverUrl) {
-                serverUrl = config.serverUrl;
-            }
-        }
-    } catch (error) {
-        logError(`Error reading config: ${error.message}`);
-    }
-    return serverUrl;
-});
-
-ipcMain.handle('save-server-url', (event, url) => {
-    serverUrl = url;
-    try {
-        const configPath = path.join(app.getPath('userData'), 'config.json');
-        const config = { serverUrl: url };
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-        logInfo(`Server URL saved: ${url}`);
-        return { success: true };
-    } catch (error) {
-        logError(`Error saving config: ${error.message}`);
-        return { success: false, error: error.message };
-    }
+ipcMain.handle('is-platform-setup', () => {
+    return isPlatformSetup();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Feature Flags
+// QUICK SETUP – One-click development environment setup
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-feature-flags', () => {
-    // Read from .env file if available
-    const flags = {
-        gpuMarketplace: true,
-        askSomeone: true,
-        goodAnswer: true,
-        selfImproving: true,
-        training: true,
-        bridge: true,
-        notifications: true,
-        fairness: false,
-        jobMatching: false,
-        research: false,
-        triggers: false,
-    };
-
-    try {
-        if (fs.existsSync(ENV_FILE)) {
-            const envContent = fs.readFileSync(ENV_FILE, 'utf8');
-            const lines = envContent.split('\n');
-            for (const line of lines) {
-                if (line.startsWith('FEATURE_')) {
-                    const [key, value] = line.split('=');
-                    const featureKey = key.replace('FEATURE_', '').toLowerCase();
-                    if (flags.hasOwnProperty(featureKey)) {
-                        flags[featureKey] = value.trim().toLowerCase() === 'true';
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        logError(`Error reading feature flags: ${error.message}`);
+ipcMain.handle('run-quick-setup', async (event) => {
+    if (installProcess) {
+        return { success: false, error: 'Setup already in progress' };
     }
 
-    return flags;
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'nettrades-setup.sh');
+
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `Setup script not found: ${scriptPath}` };
+    }
+
+    // Check if already set up – if so, just run the upgrade/repair
+    const alreadySetup = isPlatformSetup();
+
+    return new Promise((resolve) => {
+        // Build the command: always run with --force --auto for idempotency
+        // If already setup, we still run to ensure everything is up-to-date (safe to re-run)
+        const cmd = `bash ${scriptPath} all --force --auto`;
+        logInfo(`Starting quick setup: ${cmd}`);
+        logInfo(`Platform previously setup: ${alreadySetup}`);
+
+        installProcess = spawn('bash', ['-c', cmd], {
+            cwd: PROJECT_ROOT,
+            env: { ...process.env },
+            shell: true,
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        installProcess.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('install-output', { type: 'stdout', data: text });
+
+            // Parse progress from phase names
+            if (text.includes('Phase 0')) {
+                deploymentProgress = 10;
+                mainWindow?.webContents.send('install-progress', { progress: 10, phase: 'System Preparation' });
+            } else if (text.includes('Phase 1')) {
+                deploymentProgress = 30;
+                mainWindow?.webContents.send('install-progress', { progress: 30, phase: 'Development Environment' });
+            } else if (text.includes('Phase 2')) {
+                deploymentProgress = 50;
+                mainWindow?.webContents.send('install-progress', { progress: 50, phase: 'Deployment' });
+            } else if (text.includes('Phase 3')) {
+                deploymentProgress = 70;
+                mainWindow?.webContents.send('install-progress', { progress: 70, phase: 'Kubernetes Scaling' });
+            } else if (text.includes('Phase 4')) {
+                deploymentProgress = 85;
+                mainWindow?.webContents.send('install-progress', { progress: 85, phase: 'Module Installation' });
+            } else if (text.includes('Phase 5')) {
+                deploymentProgress = 95;
+                mainWindow?.webContents.send('install-progress', { progress: 95, phase: 'Monitoring Setup' });
+            } else if (text.includes('Setup Complete')) {
+                deploymentProgress = 100;
+                mainWindow?.webContents.send('install-progress', { progress: 100, phase: 'Complete!' });
+            }
+        });
+
+        installProcess.stderr.on('data', (data) => {
+            const text = data.toString();
+            errorOutput += text;
+            mainWindow?.webContents.send('install-output', { type: 'stderr', data: text });
+        });
+
+        installProcess.on('close', (code) => {
+            installProcess = null;
+            isDeploying = false;
+            deploymentProgress = 100;
+
+            if (code === 0) {
+                logSuccess('Quick setup completed successfully');
+                resolve({ success: true, output, alreadySetup });
+            } else {
+                logError(`Quick setup failed with code ${code}`);
+                resolve({ success: false, error: errorOutput || `Process exited with code ${code}` });
+            }
+        });
+
+        installProcess.on('error', (err) => {
+            installProcess = null;
+            isDeploying = false;
+            logError(`Quick setup error: ${err.message}`);
+            resolve({ success: false, error: err.message });
+        });
+    });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -800,6 +663,221 @@ ipcMain.handle('get-install-status', () => {
         isRunning: !!installProcess,
         progress: deploymentProgress,
     };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenant Configuration
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-tenant-config', () => {
+    try {
+        if (fs.existsSync(ENV_FILE)) {
+            const content = fs.readFileSync(ENV_FILE, 'utf8');
+            const tenantType = content.match(/^TENANT_TYPE=(\w+)/m)?.[1] || 'enterprise';
+            const tenantName = content.match(/^TENANT_NAME=(.+)/m)?.[1] || 'default';
+            return {
+                tenantType,
+                tenantName,
+                runtimeConfig: RUNTIME_CONFIG[tenantType] || RUNTIME_CONFIG[TENANT_TYPES.ENTERPRISE]
+            };
+        }
+    } catch (error) {
+        logError(`Error reading tenant config: ${error.message}`);
+    }
+    return {
+        tenantType: 'enterprise',
+        tenantName: 'default',
+        runtimeConfig: RUNTIME_CONFIG[TENANT_TYPES.ENTERPRISE]
+    };
+});
+
+ipcMain.handle('set-tenant-config', async (event, config) => {
+    const { tenantType, tenantName } = config;
+
+    if (!Object.values(TENANT_TYPES).includes(tenantType)) {
+        return { success: false, error: `Invalid tenant type: ${tenantType}` };
+    }
+
+    try {
+        let content = '';
+        if (fs.existsSync(ENV_FILE)) {
+            content = fs.readFileSync(ENV_FILE, 'utf8');
+        }
+
+        if (content.match(/^TENANT_TYPE=/m)) {
+            content = content.replace(/^TENANT_TYPE=\w+/m, `TENANT_TYPE=${tenantType}`);
+        } else {
+            content += `\nTENANT_TYPE=${tenantType}\n`;
+        }
+
+        if (content.match(/^TENANT_NAME=/m)) {
+            content = content.replace(/^TENANT_NAME=.+/m, `TENANT_NAME=${tenantName || 'default'}`);
+        } else {
+            content += `TENANT_NAME=${tenantName || 'default'}\n`;
+        }
+
+        const runtime = RUNTIME_CONFIG[tenantType];
+        const runtimeVars = [
+            { key: 'RUNTIME_LANGGRAPH', value: runtime.langgraph },
+            { key: 'RUNTIME_SELF_IMPROVING', value: runtime.selfImproving },
+            { key: 'RUNTIME_UI', value: runtime.ui },
+        ];
+
+        for (const { key, value } of runtimeVars) {
+            if (content.match(new RegExp(`^${key}=`))) {
+                content = content.replace(new RegExp(`^${key}=.*`, 'm'), `${key}=${value}`);
+            } else {
+                content += `${key}=${value}\n`;
+            }
+        }
+
+        fs.writeFileSync(ENV_FILE, content, 'utf8');
+        logSuccess(`Tenant configuration updated: ${tenantType} (${tenantName || 'default'})`);
+
+        return { success: true };
+    } catch (error) {
+        logError(`Error setting tenant config: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grove & KAI Scheduler Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-grove-status', async () => {
+    try {
+        const result = await getDockerServiceStatus('grove');
+        return { running: result.running, error: result.error };
+    } catch (error) {
+        return { running: false, error: error.message };
+    }
+});
+
+ipcMain.handle('get-kai-status', async () => {
+    try {
+        const result = await getDockerServiceStatus('kai-scheduler');
+        return { running: result.running, error: result.error };
+    } catch (error) {
+        return { running: false, error: error.message };
+    }
+});
+
+ipcMain.handle('start-grove', async () => {
+    return runDockerComposeWithFile('docker-compose.grove.yaml', 'up -d grove loki tempo');
+});
+
+ipcMain.handle('stop-grove', async () => {
+    return runDockerComposeWithFile('docker-compose.grove.yaml', 'down');
+});
+
+ipcMain.handle('start-kai', async () => {
+    return runDockerComposeWithFile('docker-compose.kai.yaml', 'up -d kai-scheduler');
+});
+
+ipcMain.handle('stop-kai', async () => {
+    return runDockerComposeWithFile('docker-compose.kai.yaml', 'down');
+});
+
+async function getDockerServiceStatus(serviceName) {
+    return new Promise((resolve) => {
+        const cmd = `docker compose -f ${COMPOSE_FILE} ps --format json ${serviceName}`;
+        exec(cmd, { cwd: path.dirname(COMPOSE_FILE) }, (error, stdout) => {
+            if (error) {
+                resolve({ running: false, error: error.message });
+                return;
+            }
+            try {
+                const services = JSON.parse(stdout);
+                const isRunning = services.some(s => s.State === 'running');
+                resolve({ running: isRunning });
+            } catch (e) {
+                resolve({ running: false, error: 'Failed to parse docker compose output' });
+            }
+        });
+    });
+}
+
+function runDockerComposeWithFile(composeFile, command) {
+    return new Promise((resolve) => {
+        const composePath = path.join(path.dirname(COMPOSE_FILE), composeFile);
+
+        if (!fs.existsSync(composePath)) {
+            logError(`Compose file not found: ${composePath}`);
+            resolve({ success: false, error: `Compose file not found: ${composeFile}` });
+            return;
+        }
+
+        const cmd = `docker compose -f ${COMPOSE_FILE} -f ${composePath} ${command}`;
+        logInfo(`Running: ${cmd}`);
+
+        const proc = spawn('bash', ['-c', cmd], {
+            cwd: path.dirname(COMPOSE_FILE),
+        });
+
+        let output = '';
+        proc.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('platform-output', { type: 'stdout', data: text });
+        });
+
+        proc.stderr.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('platform-output', { type: 'stderr', data: text });
+        });
+
+        proc.on('close', (code) => {
+            if (code === 0) {
+                logSuccess(`Docker compose ${command} completed`);
+                resolve({ success: true, output });
+            } else {
+                logError(`Docker compose ${command} failed with code ${code}`);
+                resolve({ success: false, error: output || `Process exited with code ${code}` });
+            }
+        });
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature Flags
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-feature-flags', () => {
+    const flags = {
+        gpuMarketplace: true,
+        askSomeone: true,
+        goodAnswer: true,
+        selfImproving: true,
+        training: true,
+        bridge: true,
+        notifications: true,
+        fairness: false,
+        jobMatching: false,
+        research: false,
+        triggers: false,
+    };
+
+    try {
+        if (fs.existsSync(ENV_FILE)) {
+            const envContent = fs.readFileSync(ENV_FILE, 'utf8');
+            const lines = envContent.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('FEATURE_')) {
+                    const [key, value] = line.split('=');
+                    const featureKey = key.replace('FEATURE_', '').toLowerCase();
+                    if (flags.hasOwnProperty(featureKey)) {
+                        flags[featureKey] = value.trim().toLowerCase() === 'true';
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        logError(`Error reading feature flags: ${error.message}`);
+    }
+
+    return flags;
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -990,7 +1068,7 @@ function listModels() {
             const stats = fs.statSync(fullPath);
 
             if (stats.isDirectory()) {
-                // Check for config.json (HF model)
+				// Check for config.json (HF model)
                 if (fs.existsSync(path.join(fullPath, 'config.json'))) {
                     models.push({
                         name: file,
@@ -1693,7 +1771,7 @@ ipcMain.handle('get-logs', async (event, options) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Alerts
+// Alerts & Notifications
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('get-alerts', async () => {
@@ -1711,10 +1789,6 @@ ipcMain.handle('get-alerts', async () => {
         return { success: false, error: error.message };
     }
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Notifications
-// ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('get-notifications', async () => {
     const serverUrl = await ipcMain.handle('get-server-url');
@@ -1736,9 +1810,7 @@ ipcMain.handle('mark-notification-read', async (event, notificationId) => {
     const serverUrl = await ipcMain.handle('get-server-url');
 
     try {
-        const response = await fetch(`${serverUrl}:8000/notifications/${notificationId}/read`, {
-            method: 'POST',
-        });
+        const response = await fetch(`${serverUrl}:8000/notifications/${notificationId}/read`, { method: 'POST' });
         if (response.ok) {
             const result = await response.json();
             return { success: true, data: result };
@@ -1750,8 +1822,70 @@ ipcMain.handle('mark-notification-read', async (event, notificationId) => {
     }
 });
 
-// -----------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('open-external', (event, url) => {
+    shell.openExternal(url);
+});
+
+ipcMain.handle('show-dialog', async (event, options) => {
+    return dialog.showMessageBox(options);
+});
+
+ipcMain.handle('get-server-url', () => {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.serverUrl) {
+                return config.serverUrl;
+            }
+        }
+    } catch (error) {
+        logError(`Error reading config: ${error.message}`);
+    }
+    return 'http://localhost';
+});
+
+ipcMain.handle('save-server-url', (event, url) => {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        const config = { serverUrl: url };
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        logInfo(`Server URL saved: ${url}`);
+        return { success: true };
+    } catch (error) {
+        logError(`Error saving config: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Window Controls
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('minimize-window', () => {
+    if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.handle('maximize-window', () => {
+    if (mainWindow) {
+        if (mainWindow.isMaximized()) {
+            mainWindow.unmaximize();
+        } else {
+            mainWindow.maximize();
+        }
+    }
+});
+
+ipcMain.handle('close-window', () => {
+    if (mainWindow) mainWindow.close();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Export
-// -----------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = { app };

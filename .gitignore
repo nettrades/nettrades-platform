@@ -28,6 +28,16 @@
 **/*.Zone.Identifier
 launch.ps1:Zone.Identifier
 scripts/install-modules.sh:Zone.Identifier
+installer/main.js:Zone.Identifier
+installer/index.html:Zone.Identifier
+installer/preload.js:Zone.Identifier
+installer/styles.css:Zone.Identifier
+installer/renderer.js:Zone.Identifier
+installer/renderer.js:Zone.Identifier
+*Zone.Identifier
+**/Zone.Identifier
+*:Zone.Identifier
+**/:Zone.Identifier
 
 # -----------------------------------------------------------------------------
 # Line Endings Fixed
