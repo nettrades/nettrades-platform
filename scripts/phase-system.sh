@@ -820,19 +820,34 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 15. Install dos2unix, jq, and xdg-utils (for the Electron launcher)
+# 15. Install dos2unix, jq, xdg-utils, Wine, and Electron build/runtime libraries
 # -----------------------------------------------------------------------------
-log_step "Installing dos2unix, jq, and xdg-utils..."
-if command -v dos2unix &>/dev/null && command -v jq &>/dev/null && command -v xdg-open &>/dev/null; then
-    log_success "dos2unix, jq, and xdg-utils already installed"
+log_step "Installing system dependencies (dos2unix, jq, xdg-utils, Wine, Electron libraries)..."
+if command -v dos2unix &>/dev/null && command -v jq &>/dev/null && command -v xdg-open &>/dev/null && command -v wine &>/dev/null; then
+    log_success "All system dependencies already installed"
 else
     if [[ "$OS" == "linux" ]]; then
         sudo apt-get update -qq
-        sudo apt-get install -y dos2unix curl wget git jq xdg-utils
-        log_success "dos2unix, jq, and xdg-utils installed"
+        # Install all required packages in one command
+        sudo apt-get install -y \
+            dos2unix \
+            curl \
+            wget \
+            git \
+            jq \
+            xdg-utils \
+            wine \
+            libnss3 \
+            libxss1 \
+            libasound2 \
+            libatk-bridge2.0-0 \
+            libgtk-3-0 \
+            libgbm1 \
+            libnspr4
+        log_success "All system dependencies installed"
     else
-        log_warning "Please install dos2unix, jq, and xdg-utils manually for $OS"
-        log_info "  xdg-utils is required for the Electron launcher to open URLs."
+        log_warning "Please install dos2unix, jq, xdg-utils, wine, and the Electron libraries manually for $OS"
+        log_info "  On macOS: brew install dos2unix jq wine (and Electron libs are usually present)"
     fi
 fi
 
