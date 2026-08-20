@@ -820,9 +820,9 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 15. Install dos2unix, jq, xdg-utils, Wine, and Electron build/runtime libraries
+# 15. Install dos2unix, jq, xdg-utils, Wine, libfuse2, and Electron build/runtime libraries
 # -----------------------------------------------------------------------------
-log_step "Installing system dependencies (dos2unix, jq, xdg-utils, Wine, Electron libraries)..."
+log_step "Installing system dependencies (dos2unix, jq, xdg-utils, Wine, libfuse2, Electron libraries)..."
 
 # Check if already installed
 if command -v dos2unix &>/dev/null && command -v jq &>/dev/null && command -v xdg-open &>/dev/null && command -v wine &>/dev/null; then
@@ -837,17 +837,18 @@ else
             git \
             jq \
             xdg-utils \
+            libfuse2 \
             wine \
             libnss3 \
             libxss1 \
-            libasound2 \
-            libatk-bridge2.0-0 \
-            libgtk-3-0 \
+            libasound2t64 \
+            libatk-bridge2.0-0t64 \
+            libgtk-3-0t64 \
             libgbm1 \
             libnspr4
         log_success "All system dependencies installed"
     else
-        log_warning "Please install dos2unix, jq, xdg-utils, wine, and Electron libraries manually for $OS"
+        log_warning "Please install dos2unix, jq, xdg-utils, wine, libfuse2, and Electron libraries manually for $OS"
     fi
 fi
 

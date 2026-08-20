@@ -26,6 +26,7 @@
 //   - Grove and KAI Scheduler management
 //   - Tenant type selection and runtime configuration
 //   - gVisor enablement for untrusted tenants
+//   - Developer Mode with Wine installer (NEW)
 //
 // USAGE:
 //   npm start
@@ -34,11 +35,16 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
-const { spawn, exec } = require('child_process');
+const { spawn, exec, execSync } = require('child_process'); // FIXED: added execSync
 const fs = require('fs');
 const os = require('os');
 const https = require('https');
 const crypto = require('crypto');
+
+// -----------------------------------------------------------------------------
+// Disable GPU acceleration to avoid rendering errors on WSL
+// -----------------------------------------------------------------------------
+app.disableHardwareAcceleration(); // FIXED: prevents SharedImage errors on WSL
 
 // -----------------------------------------------------------------------------
 // Global variables
@@ -1068,7 +1074,7 @@ function listModels() {
             const stats = fs.statSync(fullPath);
 
             if (stats.isDirectory()) {
-				// Check for config.json (HF model)
+                // Check for config.json (HF model)
                 if (fs.existsSync(path.join(fullPath, 'config.json'))) {
                     models.push({
                         name: file,
@@ -1167,19 +1173,24 @@ function detectGPUs() {
     try {
         // NVIDIA GPU detection
         if (platform === 'linux' || platform === 'win32') {
-            const result = execSync('nvidia-smi --query-gpu=name,index,memory.total,compute_cap --format=csv,noheader', { encoding: 'utf8', stdio: 'pipe' });
-            if (result) {
-                const lines = result.trim().split('\n');
-                for (const line of lines) {
-                    const parts = line.split(',').map(s => s.trim());
-                    gpus.push({
-                        vendor: 'nvidia',
-                        name: parts[0] || 'Unknown',
-                        index: parseInt(parts[1]) || 0,
-                        memory: parts[2] || '0 MiB',
-                        computeCapability: parts[3] || 'unknown',
-                    });
+            try {
+                const result = execSync('nvidia-smi --query-gpu=name,index,memory.total,compute_cap --format=csv,noheader', { encoding: 'utf8', stdio: 'pipe' });
+                if (result) {
+                    const lines = result.trim().split('\n');
+                    for (const line of lines) {
+                        const parts = line.split(',').map(s => s.trim());
+                        gpus.push({
+                            vendor: 'nvidia',
+                            name: parts[0] || 'Unknown',
+                            index: parseInt(parts[1]) || 0,
+                            memory: parts[2] || '0 MiB',
+                            computeCapability: parts[3] || 'unknown',
+                        });
+                    }
                 }
+            } catch (e) {
+                // nvidia-smi not available – skip NVIDIA detection
+                logInfo('nvidia-smi not available – skipping NVIDIA GPU detection');
             }
         }
 
@@ -1202,7 +1213,9 @@ function detectGPUs() {
                         }
                     }
                 }
-            } catch {}
+            } catch (e) {
+                // rocminfo not available – skip AMD detection
+            }
         }
 
         // Intel GPU detection
@@ -1218,7 +1231,9 @@ function detectGPUs() {
                         computeCapability: 'unknown',
                     });
                 }
-            } catch {}
+            } catch (e) {
+                // clinfo not available – skip Intel detection
+            }
         }
     } catch (error) {
         logError(`GPU detection error: ${error.message}`);
@@ -1820,6 +1835,65 @@ ipcMain.handle('mark-notification-read', async (event, notificationId) => {
     } catch (error) {
         return { success: false, error: error.message };
     }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Developer Tools – Wine Installer
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('install-wine', async (event) => {
+    // Check if wine is already installed
+    try {
+        execSync('wine --version', { stdio: 'ignore' });
+        return { success: true, alreadyInstalled: true, message: 'Wine is already installed.' };
+    } catch (e) {
+        // Not installed, proceed
+    }
+
+    return new Promise((resolve) => {
+        const commands = [
+            'sudo dpkg --add-architecture i386',
+            'sudo apt update',
+            `sudo apt install -y wine wine64 wine32 libasound2t64 libasound2t64:i386 libnspr4 libnss3 libxss1 libatk-bridge2.0-0t64 libgtk-3-0t64 libgbm1 libnspr4:i386 libnss3:i386 libgtk-3-0t64:i386`
+        ];
+
+        const fullCmd = commands.join(' && ');
+        logInfo(`Installing Wine with: ${fullCmd}`);
+
+        const proc = spawn('bash', ['-c', fullCmd], {
+            stdio: 'pipe',
+            shell: true,
+        });
+
+        let output = '';
+
+        proc.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('wine-output', { type: 'stdout', data: text });
+        });
+
+        proc.stderr.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('wine-output', { type: 'stderr', data: text });
+        });
+
+        proc.on('close', (code) => {
+            if (code === 0) {
+                logSuccess('Wine installation completed successfully');
+                resolve({ success: true, output });
+            } else {
+                logError(`Wine installation failed with code ${code}`);
+                resolve({ success: false, error: output || `Process exited with code ${code}` });
+            }
+        });
+
+        proc.on('error', (err) => {
+            logError(`Wine installation error: ${err.message}`);
+            resolve({ success: false, error: err.message });
+        });
+    });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

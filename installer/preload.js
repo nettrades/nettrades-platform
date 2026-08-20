@@ -212,6 +212,15 @@ contextBridge.exposeInMainWorld('api', {
     stopKAI: () => ipcRenderer.invoke('stop-kai'),
 
     // ──────────────────────────────────────────────────────────────────────────
+	// Developer Tools – Wine Installer
+	// ──────────────────────────────────────────────────────────────────────────
+
+	installWine: () => ipcRenderer.invoke('install-wine'),
+	onWineOutput: (callback) => {
+	    ipcRenderer.on('wine-output', (event, data) => callback(data));
+    },
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Utilities
     // ──────────────────────────────────────────────────────────────────────────
 
