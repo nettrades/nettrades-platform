@@ -341,23 +341,32 @@ case "$GPU_VENDOR" in
             log_success "NVIDIA drivers already installed"
         fi
 
+        # -----------------------------------------------------------------
+        # Install NVIDIA Container Toolkit using the official method
+        # -----------------------------------------------------------------
         log_step "Installing NVIDIA Container Toolkit..."
-        if ! command -v nvidia-container-toolkit &>/dev/null; then
-            if [[ "$OS" == "linux" ]]; then
-                distribution=$(. /etc/os-release; echo "$ID$VERSION_ID")
-                curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-                curl -s -L "https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list" | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-                sudo apt-get update
-                sudo apt-get install -y nvidia-container-toolkit
-                sudo nvidia-ctk runtime configure --runtime=docker
-                sudo systemctl restart docker
-                log_success "NVIDIA Container Toolkit installed"
-            else
-                log_warning "Please install NVIDIA Container Toolkit manually for $OS"
-            fi
+
+        # Check if already installed
+        if command -v nvidia-container-toolkit &>/dev/null; then
+            log_success "nvidia-container-toolkit already installed"
         else
-            log_success "NVIDIA Container Toolkit already installed"
+            log_info "Adding NVIDIA Container Toolkit repository..."
+            # Set up the repository and GPG key
+            curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+                && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+                sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+                sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+            sudo apt-get update -qq
+            sudo apt-get install -y nvidia-container-toolkit
+            log_success "nvidia-container-toolkit installed"
         fi
+
+        # Configure the runtime
+        log_info "Configuring NVIDIA Container Toolkit runtime..."
+        sudo nvidia-ctk runtime configure --runtime=docker
+        sudo systemctl restart docker || sudo service docker restart
+        log_success "NVIDIA Container Toolkit configured"
         ;;
 
     amd)
@@ -472,86 +481,116 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Setting up SSH keys for secure access..."
 
-mkdir -p /root/.ssh
-chmod 700 /root/.ssh
+# Use sudo for all operations on /root/.ssh
+sudo mkdir -p /root/.ssh
+sudo chmod 700 /root/.ssh
 
-# Check for existing public key
-PUB_KEY_FILE=""
-if [[ -f /root/.ssh/id_ed25519.pub ]]; then
-    PUB_KEY_FILE="/root/.ssh/id_ed25519.pub"
-elif [[ -f /root/.ssh/id_rsa.pub ]]; then
-    PUB_KEY_FILE="/root/.ssh/id_rsa.pub"
+# =============================================================================
+# FIX: Check if SSH key already exists and skip interactive prompt in --auto mode
+# =============================================================================
+SSH_KEY_EXISTS=false
+if [[ -f /root/.ssh/id_ed25519.pub ]] || [[ -f /root/.ssh/id_rsa.pub ]]; then
+    SSH_KEY_EXISTS=true
 fi
 
 add_public_key() {
     local key="$1"
-    echo "$key" >> /root/.ssh/authorized_keys
-    chmod 600 /root/.ssh/authorized_keys
+    echo "$key" | sudo tee -a /root/.ssh/authorized_keys > /dev/null
+    sudo chmod 600 /root/.ssh/authorized_keys
     log_success "Public key added to authorized_keys"
 }
 
-if [[ -n "$PUB_KEY_FILE" ]]; then
-    log_info "Found existing public key: $PUB_KEY_FILE"
-    if ! grep -q -f "$PUB_KEY_FILE" /root/.ssh/authorized_keys 2>/dev/null; then
-        cat "$PUB_KEY_FILE" >> /root/.ssh/authorized_keys
-        chmod 600 /root/.ssh/authorized_keys
-        log_success "Existing public key added to authorized_keys"
-    else
-        log_success "Public key already in authorized_keys"
+# If keys already exist and we're in --auto mode, just use them
+if [[ "$SSH_KEY_EXISTS" == true ]] && [[ "$AUTO" == true ]]; then
+    log_info "SSH key already exists. Skipping key generation (auto mode)."
+    # Add existing key to authorized_keys if not already present
+    if [[ -f /root/.ssh/id_ed25519.pub ]]; then
+        if ! sudo grep -q -f /root/.ssh/id_ed25519.pub /root/.ssh/authorized_keys 2>/dev/null; then
+            sudo cat /root/.ssh/id_ed25519.pub | sudo tee -a /root/.ssh/authorized_keys > /dev/null
+            sudo chmod 600 /root/.ssh/authorized_keys
+            log_success "Existing SSH key added to authorized_keys"
+        fi
+    elif [[ -f /root/.ssh/id_rsa.pub ]]; then
+        if ! sudo grep -q -f /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys 2>/dev/null; then
+            sudo cat /root/.ssh/id_rsa.pub | sudo tee -a /root/.ssh/authorized_keys > /dev/null
+            sudo chmod 600 /root/.ssh/authorized_keys
+            log_success "Existing SSH key added to authorized_keys"
+        fi
     fi
+    # Skip the interactive prompt
+    PUB_KEY_FILE=""
 else
-    log_warning "No SSH public key found in /root/.ssh/"
+    # Check for existing public key
+    PUB_KEY_FILE=""
+    if [[ -f /root/.ssh/id_ed25519.pub ]]; then
+        PUB_KEY_FILE="/root/.ssh/id_ed25519.pub"
+    elif [[ -f /root/.ssh/id_rsa.pub ]]; then
+        PUB_KEY_FILE="/root/.ssh/id_rsa.pub"
+    fi
 
-    if [[ "$AUTO" == true ]]; then
-        log_info "Auto mode: generating a new Ed25519 SSH key without a passphrase..."
-        ssh-keygen -t ed25519 -C "root@$(hostname)" -f /root/.ssh/id_ed25519 -N ""
-        cat /root/.ssh/id_ed25519.pub >> /root/.ssh/authorized_keys
-        chmod 600 /root/.ssh/authorized_keys
-        log_success "New key generated and added to authorized_keys"
-        echo ""
-        echo "Your new public key is:"
-        cat /root/.ssh/id_ed25519.pub
-        echo ""
-        echo "Save this key on your local machine if you need it elsewhere."
+    if [[ -n "$PUB_KEY_FILE" ]]; then
+        log_info "Found existing public key: $PUB_KEY_FILE"
+        if ! sudo grep -q -f "$PUB_KEY_FILE" /root/.ssh/authorized_keys 2>/dev/null; then
+            sudo cat "$PUB_KEY_FILE" | sudo tee -a /root/.ssh/authorized_keys > /dev/null
+            sudo chmod 600 /root/.ssh/authorized_keys
+            log_success "Existing public key added to authorized_keys"
+        else
+            log_success "Public key already in authorized_keys"
+        fi
     else
-        echo ""
-        echo "To avoid being locked out after SSH hardening, you need an SSH key."
-        echo "Options:"
-        echo "  1) Generate a new SSH key pair now (recommended)"
-        echo "  2) Paste an existing public key from your local machine"
-        echo "  3) Skip (not recommended – you may lose SSH access)"
-        read -rp "Choose 1, 2, or 3: " key_choice
+        log_warning "No SSH public key found in /root/.ssh/"
 
-        case "$key_choice" in
-            1)
-                log_info "Generating a new Ed25519 SSH key pair..."
-                log_info "You will be asked for a passphrase – you can leave it empty for convenience."
-                ssh-keygen -t ed25519 -C "root@$(hostname)" -f /root/.ssh/id_ed25519
-                cat /root/.ssh/id_ed25519.pub >> /root/.ssh/authorized_keys
-                chmod 600 /root/.ssh/authorized_keys
-                log_success "New key generated and added to authorized_keys"
-                echo ""
-                echo "Your new public key is:"
-                cat /root/.ssh/id_ed25519.pub
-                echo ""
-                echo "Save this key on your local machine if you need it elsewhere."
-                ;;
-            2)
-                echo "Paste your public SSH key (e.g., from ~/.ssh/id_ed25519.pub on your local machine):"
-                read -r user_key
-                if [[ -n "$user_key" ]]; then
-                    add_public_key "$user_key"
-                else
-                    log_error "No key provided. Skipping key setup."
-                fi
-                ;;
-            3)
-                log_warning "Skipping SSH key setup. You may lose SSH access after hardening."
-                ;;
-            *)
-                log_error "Invalid choice. Skipping SSH key setup."
-                ;;
-        esac
+        if [[ "$AUTO" == true ]]; then
+            log_info "Auto mode: generating a new Ed25519 SSH key without a passphrase..."
+            sudo ssh-keygen -t ed25519 -C "root@$(hostname)" -f /root/.ssh/id_ed25519 -N ""
+            sudo cat /root/.ssh/id_ed25519.pub | sudo tee -a /root/.ssh/authorized_keys > /dev/null
+            sudo chmod 600 /root/.ssh/authorized_keys
+            log_success "New key generated and added to authorized_keys"
+            echo ""
+            echo "Your new public key is:"
+            sudo cat /root/.ssh/id_ed25519.pub
+            echo ""
+            echo "Save this key on your local machine if you need it elsewhere."
+        else
+            echo ""
+            echo "To avoid being locked out after SSH hardening, you need an SSH key."
+            echo "Options:"
+            echo "  1) Generate a new SSH key pair now (recommended)"
+            echo "  2) Paste an existing public key from your local machine"
+            echo "  3) Skip (not recommended – you may lose SSH access)"
+            read -rp "Choose 1, 2, or 3: " key_choice
+
+            case "$key_choice" in
+                1)
+                    log_info "Generating a new Ed25519 SSH key pair..."
+                    log_info "You will be asked for a passphrase – you can leave it empty for convenience."
+                    sudo ssh-keygen -t ed25519 -C "root@$(hostname)" -f /root/.ssh/id_ed25519
+                    sudo cat /root/.ssh/id_ed25519.pub | sudo tee -a /root/.ssh/authorized_keys > /dev/null
+                    sudo chmod 600 /root/.ssh/authorized_keys
+                    log_success "New key generated and added to authorized_keys"
+                    echo ""
+                    echo "Your new public key is:"
+                    sudo cat /root/.ssh/id_ed25519.pub
+                    echo ""
+                    echo "Save this key on your local machine if you need it elsewhere."
+                    ;;
+                2)
+                    echo "Paste your public SSH key (e.g., from ~/.ssh/id_ed25519.pub on your local machine):"
+                    read -r user_key
+                    if [[ -n "$user_key" ]]; then
+                        add_public_key "$user_key"
+                    else
+                        log_error "No key provided. Skipping key setup."
+                    fi
+                    ;;
+                3)
+                    log_warning "Skipping SSH key setup. You may lose SSH access after hardening."
+                    ;;
+                *)
+                    log_error "Invalid choice. Skipping SSH key setup."
+                    ;;
+            esac
+        fi
     fi
 fi
 
@@ -583,7 +622,7 @@ if [[ ! -d /run/sshd ]]; then
 fi
 
 # Create the rescue SSH configuration file
-cat > /etc/ssh/sshd_config_rescue << EOF
+sudo tee /etc/ssh/sshd_config_rescue > /dev/null << EOF
 Port 2222
 PasswordAuthentication yes
 PermitRootLogin yes
@@ -593,7 +632,7 @@ UsePAM yes
 EOF
 
 # Create a systemd service for the rescue SSH server
-cat > /etc/systemd/system/ssh-rescue.service << EOF
+sudo tee /etc/systemd/system/ssh-rescue.service > /dev/null << EOF
 [Unit]
 Description=Rescue SSH server on port 2222
 After=network.target
@@ -607,16 +646,16 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
-systemctl enable ssh-rescue.service
-systemctl start ssh-rescue.service
+sudo systemctl daemon-reload
+sudo systemctl enable ssh-rescue.service
+sudo systemctl start ssh-rescue.service
 
 # Verify it's running
 if systemctl is-active --quiet ssh-rescue.service; then
     log_success "Rescue SSH server started on port 2222 (password auth allowed) and enabled at boot"
 else
     log_warning "Failed to start rescue SSH server via systemd. Trying to start manually..."
-    $SSHD_PATH -f /etc/ssh/sshd_config_rescue -D &
+    sudo $SSHD_PATH -f /etc/ssh/sshd_config_rescue -D &
     sleep 2
     if pgrep -f "sshd.*rescue" > /dev/null; then
         log_success "Rescue SSH server started manually on port 2222"
@@ -655,20 +694,20 @@ fi
 log_info "Detected primary network interface: $PRIMARY_IFACE"
 
 WG_ADMIN_DIR="/etc/wireguard/admin"
-mkdir -p "$WG_ADMIN_DIR"
+sudo mkdir -p "$WG_ADMIN_DIR"
 
 if [[ ! -f "$WG_ADMIN_DIR/privatekey" ]]; then
-    wg genkey | tee "$WG_ADMIN_DIR/privatekey" | wg pubkey > "$WG_ADMIN_DIR/publickey"
+    sudo wg genkey | sudo tee "$WG_ADMIN_DIR/privatekey" | sudo wg pubkey > "$WG_ADMIN_DIR/publickey"
 fi
 
 # Check if WireGuard kernel module is available
 if modprobe wireguard 2>/dev/null; then
     # Module loaded successfully, use kernel WireGuard
-    cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
+    sudo tee "$WG_ADMIN_DIR/wg0.conf" > /dev/null << EOF
 [Interface]
 Address = 10.10.10.1/24
 ListenPort = 51821
-PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
+PrivateKey = $(sudo cat "$WG_ADMIN_DIR/privatekey")
 SaveConfig = false
 
 # Allow forwarding and NAT for VPN clients
@@ -679,8 +718,8 @@ PostUp = iptables -I FORWARD -i wg0 -d 10.0.0.0/16 -j DROP
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o $PRIMARY_IFACE -j MASQUERADE
 PostDown = iptables -D FORWARD -i wg0 -d 10.0.0.0/16 -j DROP 2>/dev/null || true
 EOF
-    systemctl enable wg-quick@admin-wg0 2>/dev/null || true
-    systemctl start wg-quick@admin-wg0 2>/dev/null || true
+    sudo systemctl enable wg-quick@admin-wg0 2>/dev/null || true
+    sudo systemctl start wg-quick@admin-wg0 2>/dev/null || true
     log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0/24)"
 else
     log_warning "WireGuard kernel module not available."
@@ -700,11 +739,11 @@ else
         fi
         
         # Create configuration for userspace WireGuard
-        cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
+        sudo tee "$WG_ADMIN_DIR/wg0.conf" > /dev/null << EOF
 [Interface]
 Address = 10.10.10.1/24
 ListenPort = 51821
-PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
+PrivateKey = $(sudo cat "$WG_ADMIN_DIR/privatekey")
 SaveConfig = false
 EOF
         
@@ -712,7 +751,7 @@ EOF
         sudo wireguard-go wg0 &
         sleep 2
         # Apply the configuration
-        wg setconf wg0 "$WG_ADMIN_DIR/wg0.conf"
+        sudo wg setconf wg0 "$WG_ADMIN_DIR/wg0.conf"
         # Add IP address
         sudo ip addr add 10.10.10.1/24 dev wg0
         sudo ip link set wg0 up
@@ -729,8 +768,8 @@ fi
 # 11. Copy WireGuard client management script to /usr/local/bin
 # -----------------------------------------------------------------------------
 if [[ -f "$SCRIPT_DIR/wireguard-manager.sh" ]]; then
-    cp "$SCRIPT_DIR/wireguard-manager.sh" /usr/local/bin/
-    chmod +x /usr/local/bin/wireguard-manager.sh
+    sudo cp "$SCRIPT_DIR/wireguard-manager.sh" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/wireguard-manager.sh
     log_success "WireGuard manager script installed to /usr/local/bin/wireguard-manager.sh"
 else
     log_warning "wireguard-manager.sh not found – skipping"
@@ -742,38 +781,38 @@ fi
 log_step "Hardening SSH configuration (main port 22)..."
 
 # Backup current config
-cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
 
 if [[ -f /etc/ssh/sshd_config ]]; then
     # Disable root login globally
-    sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-    sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+    sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+    sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 
     # Disable password authentication globally (will be overridden for VPN)
-    sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-    sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+    sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+    sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 
     # Allow password authentication from the WireGuard admin VPN subnet
     if ! grep -q "Match Address 10.10.10.0/24" /etc/ssh/sshd_config; then
-        echo "" >> /etc/ssh/sshd_config
-        echo "Match Address 10.10.10.0/24" >> /etc/ssh/sshd_config
-        echo "    PasswordAuthentication yes" >> /etc/ssh/sshd_config
-        echo "Match All" >> /etc/ssh/sshd_config
+        echo "" | sudo tee -a /etc/ssh/sshd_config
+        echo "Match Address 10.10.10.0/24" | sudo tee -a /etc/ssh/sshd_config
+        echo "    PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
+        echo "Match All" | sudo tee -a /etc/ssh/sshd_config
         log_success "SSH will allow password authentication from 10.10.10.0/24"
     fi
 fi
 
 # Test SSH config before restart
-if ! sshd -t; then
+if ! sudo sshd -t; then
     log_error "SSH config test failed. Restoring backup..."
-    cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
-    systemctl restart ssh
+    sudo cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
+    sudo systemctl restart ssh
     log_error "SSH config reverted. Please fix manually."
     exit 1
 fi
 
 # Restart SSH
-systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
+sudo systemctl restart ssh 2>/dev/null || sudo systemctl restart sshd 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
 # 13. Self-test: Verify SSH accessibility
@@ -786,8 +825,8 @@ if ssh -o ConnectTimeout=5 -o PasswordAuthentication=yes -o BatchMode=no -p 2222
 else
     log_error "Rescue SSH port test failed! SSH may be broken."
     log_error "Reverting SSH configuration to prevent lockout."
-    cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
-    systemctl restart ssh
+    sudo cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
+    sudo systemctl restart ssh
     log_error "SSH reverted to safe configuration. Please investigate."
     exit 1
 fi
@@ -845,7 +884,8 @@ else
             libatk-bridge2.0-0t64 \
             libgtk-3-0t64 \
             libgbm1 \
-            libnspr4
+            libnspr4 \
+            fonts-noto-color-emoji
         log_success "All system dependencies installed"
     else
         log_warning "Please install dos2unix, jq, xdg-utils, wine, libfuse2, and Electron libraries manually for $OS"

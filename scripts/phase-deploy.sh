@@ -47,6 +47,7 @@
 #   - IMPROVED: Database initialisation now always runs if core table missing.
 #   - FIXED: Runtime variables are now sourced from .env for each service.
 #   - ADDED: Tenant-aware runtime selection based on TENANT_TYPE from .env.
+#   - FIXED: Restarting LangGraph now uses a timeout and fallback to recreate.
 # =============================================================================
 
 set -euo pipefail
@@ -1479,7 +1480,22 @@ safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
 log_success ".env updated with inference backend settings"
 
 log_step "Restarting LangGraph to apply new inference settings..."
-docker compose restart langgraph-server
+
+# -----------------------------------------------------------------
+# FIX: Robust restart of langgraph-server with timeout and fallback
+# -----------------------------------------------------------------
+if ! timeout 120s docker compose restart langgraph-server; then
+    log_warning "Timeout or failure restarting langgraph-server. Attempting to recreate..."
+    docker compose stop langgraph-server
+    docker compose rm -f langgraph-server
+    docker compose up -d langgraph-server
+    log_info "LangGraph container recreated."
+else
+    log_success "LangGraph restarted successfully."
+fi
+
+# Wait a moment for LangGraph to settle
+sleep 5
 
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
        -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
@@ -1498,7 +1514,16 @@ safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
 log_success ".env updated"
 
 log_step "Restarting LangGraph..."
-docker compose restart langgraph-server
+# Use the same robust method again
+if ! timeout 120s docker compose restart langgraph-server; then
+    log_warning "Timeout or failure restarting langgraph-server. Attempting to recreate..."
+    docker compose stop langgraph-server
+    docker compose rm -f langgraph-server
+    docker compose up -d langgraph-server
+    log_info "LangGraph container recreated."
+else
+    log_success "LangGraph restarted successfully."
+fi
 
 # -----------------------------------------------------------------------------
 # 11. Install NETTRADES Odoo modules

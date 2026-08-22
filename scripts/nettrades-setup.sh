@@ -47,6 +47,7 @@
 #   - Optimised line-ending fix with a marker to skip repeated runs.
 #   - Improved Python virtual environment creation to ensure ensurepip is available.
 #   - Added platform-based gVisor verification to skip on WSL reliably.
+#   - FIXED: Moved PLATFORM detection before AUTO-FIX PERMISSIONS block.
 # =============================================================================
 
 set -euo pipefail
@@ -63,6 +64,12 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
+
+# -----------------------------------------------------------------------------
+# Detect platform early (needed for AUTO-FIX PERMISSIONS)
+# -----------------------------------------------------------------------------
+PLATFORM="$(detect_platform)"
+export PLATFORM
 
 # =============================================================================
 # AUTO-FIX PERMISSIONS (WSL/Windows compatibility)
@@ -728,11 +735,11 @@ done
 
 export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN VENV_DIR
 
-# Set PLATFORM for phase scripts
+# Set PLATFORM for phase scripts (override if --platform given)
 if [[ -n "$PLATFORM_OVERRIDE" ]]; then
     export PLATFORM="$PLATFORM_OVERRIDE"
 else
-    export PLATFORM=$(detect_platform)
+    export PLATFORM="$(detect_platform)"
 fi
 
 # -----------------------------------------------------------------------------

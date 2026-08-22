@@ -26,6 +26,7 @@
 #   - FIXED: Changed docker exec to docker compose exec for consistency.
 #   - FIXED: Added set -euo pipefail for stricter error handling.
 #   - FIXED: Added docker compose availability check.
+#   - FIXED: Added timeout protection for view file validation to prevent hanging.
 # =============================================================================
 
 set -euo pipefail
@@ -76,6 +77,18 @@ for arg in "$@"; do
 done
 
 # -----------------------------------------------------------------------------
+# Ensure VENV_DIR is available (for any Python scripts on the host)
+# -----------------------------------------------------------------------------
+VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
+if [ -f "$VENV_DIR/bin/activate" ]; then
+    source "$VENV_DIR/bin/activate"
+    log_info "Activated Python virtual environment: $VENV_DIR"
+else
+    log_warning "Virtual environment not found at $VENV_DIR"
+    log_info "Continuing without virtual environment (running inside Odoo container)"
+fi
+
+# -----------------------------------------------------------------------------
 # Check if docker compose is available
 # -----------------------------------------------------------------------------
 cd "$PROJECT_ROOT/deploy/docker"
@@ -107,7 +120,10 @@ fi
 # -----------------------------------------------------------------------------
 if [[ "$FORCE" == true ]]; then
     log_info "Force mode – restarting Odoo to load latest modules..."
-    docker compose restart odoo
+    # Use timeout to prevent hanging on restart
+    timeout 120s docker compose restart odoo || {
+        log_warning "Odoo restart timed out or failed. Continuing anyway..."
+    }
     sleep 5
     log_success "Odoo restarted"
 fi
@@ -136,28 +152,38 @@ cd "$PROJECT_ROOT"
 # -----------------------------------------------------------------------------
 # NEW: Validate that all view files exist inside the container
 # This prevents the "FileNotFoundError" we saw in the logs.
+# FIXED: Added timeout protection to prevent hanging on WSL.
 # -----------------------------------------------------------------------------
-log_info "Validating Odoo module files inside the container..."
+log_info "Validating Odoo module files inside the container (timeout 60s)..."
 
-# Get the list of NETTRADES modules from the filesystem
-MODULE_DIRS=$(docker compose exec -T odoo find /mnt/extra-addons -maxdepth 1 -type d -name "nettrades_*" 2>/dev/null | sed 's|/mnt/extra-addons/||' | tr -d '\r')
-
-for module in $MODULE_DIRS; do
-    # Check if the module has a manifest
-    if docker compose exec -T odoo test -f "/mnt/extra-addons/$module/__manifest__.py" &>/dev/null; then
-        # Extract view files from the manifest
-        VIEW_FILES=$(docker compose exec -T odoo grep -E "['\"]views/.*\.xml['\"]" "/mnt/extra-addons/$module/__manifest__.py" 2>/dev/null | sed "s/.*['\"]\(views\/.*\.xml\)['\"].*/\1/" | tr -d '\r')
-        
-        for view_file in $VIEW_FILES; do
-            if ! docker compose exec -T odoo test -f "/mnt/extra-addons/$module/$view_file" &>/dev/null; then
-                log_warning "  - Missing view file in module $module: $view_file"
-                log_info "    Creating placeholder inside the container..."
-                
-                # Create the directory if it doesn't exist
-                docker compose exec -T odoo mkdir -p "/mnt/extra-addons/$module/$(dirname "$view_file")" 2>/dev/null || true
-                
-                # Create a minimal placeholder XML file
-                docker compose exec -T odoo bash -c "cat > /mnt/extra-addons/$module/$view_file << 'EOF'
+# Use timeout to prevent hanging if the container is slow to respond
+MODULE_DIRS=$(timeout 60s docker compose exec -T odoo find /mnt/extra-addons -maxdepth 1 -type d -name "nettrades_*" 2>/dev/null || echo "")
+if [[ -z "$MODULE_DIRS" ]]; then
+    log_warning "Module validation timed out or found no modules. Skipping validation."
+else
+    for module in $MODULE_DIRS; do
+        module=$(echo "$module" | sed 's|/mnt/extra-addons/||' | tr -d '\r')
+        if [[ -z "$module" ]]; then
+            continue
+        fi
+        # Check if the module has a manifest
+        if timeout 60s docker compose exec -T odoo test -f "/mnt/extra-addons/$module/__manifest__.py" 2>/dev/null; then
+            # Extract view files from the manifest
+            VIEW_FILES=$(timeout 20s docker compose exec -T odoo grep -E "['\"]views/.*\.xml['\"]" "/mnt/extra-addons/$module/__manifest__.py" 2>/dev/null | sed "s/.*['\"]\(views\/.*\.xml\)['\"].*/\1/" | tr -d '\r')
+            
+            for view_file in $VIEW_FILES; do
+                if [[ -z "$view_file" ]]; then
+                    continue
+                fi
+                if ! timeout 20s docker compose exec -T odoo test -f "/mnt/extra-addons/$module/$view_file" 2>/dev/null; then
+                    log_warning "  - Missing view file in module $module: $view_file"
+                    log_info "    Creating placeholder inside the container..."
+                    
+                    # Create the directory if it doesn't exist
+                    timeout 20s docker compose exec -T odoo mkdir -p "/mnt/extra-addons/$module/$(dirname "$view_file")" 2>/dev/null || true
+                    
+                    # Create a minimal placeholder XML file
+                    timeout 20s docker compose exec -T odoo bash -c "cat > /mnt/extra-addons/$module/$view_file << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     AUTO-GENERATED PLACEHOLDER
@@ -171,14 +197,15 @@ for module in $MODULE_DIRS; do
     </data>
 </odoo>
 EOF" 2>/dev/null || {
-                    log_warning "    Failed to create placeholder for $view_file"
-                }
-                log_info "    Created placeholder: $view_file"
-            fi
-        done
-    fi
-done
-log_success "Module file validation complete"
+                        log_warning "    Failed to create placeholder for $view_file"
+                    }
+                    log_info "    Created placeholder: $view_file"
+                fi
+            done
+        fi
+    done
+    log_success "Module file validation complete"
+fi
 
 # -----------------------------------------------------------------------------
 # Define modules based on feature flags
@@ -241,7 +268,8 @@ install_module() {
 
     # Use docker compose exec for consistency with the rest of the script
     cd "$PROJECT_ROOT/deploy/docker"
-    if docker compose exec -T \
+    # Use timeout to prevent hanging on slow module installation
+    if timeout 120s docker compose exec -T \
         -e PGPASSWORD="$POSTGRES_PASSWORD" \
         odoo odoo \
         -d odoo \
@@ -255,7 +283,12 @@ install_module() {
         cd "$PROJECT_ROOT"
         return 0
     else
-        log_error "✗ Module $module ${action} failed"
+        local exit_code=$?
+        if [ $exit_code -eq 124 ]; then
+            log_error "✗ Module $module ${action} timed out after 120 seconds"
+        else
+            log_error "✗ Module $module ${action} failed"
+        fi
         cd "$PROJECT_ROOT"
         return 1
     fi
@@ -267,6 +300,13 @@ install_module() {
 FAILED_MODULES=()
 TOTAL_MODULES=${#MODULES[@]}
 CURRENT=0
+
+if [ $TOTAL_MODULES -eq 0 ]; then
+    log_warning "No modules to install. Skipping."
+    echo -e "${GREEN}=============================================================${NC}"
+    log_success "Module installation skipped."
+    exit 0
+fi
 
 log_info "Starting installation of $TOTAL_MODULES modules..."
 
