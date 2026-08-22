@@ -842,6 +842,32 @@ CREATE TABLE IF NOT EXISTS nettrades_pwa_cache (
 );
 
 -- =============================================================================
+-- Create secrets table with pgcrypto encryption
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS nettrades_secrets (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(255) UNIQUE NOT NULL,
+    value BYTEA NOT NULL,  -- Encrypted with pgcrypto
+    description TEXT,
+    created_by VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    version INTEGER DEFAULT 1
+);
+
+-- =============================================================================
+-- Create an audit log
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS nettrades_secrets_audit (
+    id SERIAL PRIMARY KEY,
+    secret_key VARCHAR(255),
+    action VARCHAR(50),
+    performed_by VARCHAR(255),
+    performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- =============================================================================
 -- Indexes for Performance
 -- =============================================================================
 CREATE INDEX IF NOT EXISTS idx_good_answers_user_id ON nettrades_good_answers(user_id);
@@ -1559,18 +1585,55 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 12. Create emergency Odoo user
+# 12. Create emergency Odoo user and multiple fallback options
 # -----------------------------------------------------------------------------
-log_step "Creating emergency Odoo user..."
+log_step "Creating emergency access options..."
+
+# Create Odoo emergency user (existing)
 EMERGENCY_PASSWORD=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-24)
 docker compose exec -T postgres psql -U odoo -d odoo <<EOF
 INSERT INTO res_users (login, password, active, create_date, write_date)
 VALUES ('emergency', crypt('$EMERGENCY_PASSWORD', gen_salt('bf')), true, NOW(), NOW())
 ON CONFLICT (login) DO NOTHING;
 EOF
-echo "$EMERGENCY_PASSWORD" > /root/emergency_password.txt
-chmod 600 /root/emergency_password.txt
-log_success "Emergency user created: login='emergency', password in /root/emergency_password.txt"
+
+# Store in multiple locations for redundancy
+mkdir -p /root/emergency_access
+echo "ODOO_EMERGENCY_PASSWORD=$EMERGENCY_PASSWORD" > /root/emergency_access/credentials.txt
+chmod 600 /root/emergency_access/credentials.txt
+
+# Also store in home directory for per-user installations
+mkdir -p "$HOME/.nettrades/emergency"
+echo "ODOO_EMERGENCY_PASSWORD=$EMERGENCY_PASSWORD" > "$HOME/.nettrades/emergency/credentials.txt"
+chmod 600 "$HOME/.nettrades/emergency/credentials.txt"
+
+log_success "Emergency credentials stored in:"
+log_info "  /root/emergency_access/credentials.txt"
+log_info "  ~/.nettrades/emergency/credentials.txt"
+
+# Create admin password reset script
+cat > /root/emergency_access/reset_admin_password.sh << 'EOF'
+#!/bin/bash
+read -sp "Enter new admin password: " new_password
+docker compose exec -T postgres psql -U odoo -d odoo <<SQL
+UPDATE res_users SET password = crypt('$new_password', gen_salt('bf'))
+WHERE login = 'admin';
+SQL
+echo "Admin password updated successfully"
+EOF
+chmod +x /root/emergency_access/reset_admin_password.sh
+chmod 600 /root/emergency_access/reset_admin_password.sh
+
+log_success "Emergency access configured:"
+echo ""
+echo "============================================================"
+echo " EMERGENCY ACCESS OPTIONS"
+echo "============================================================"
+echo "1. Odoo Emergency User:      login='emergency'"
+echo "   Password: /root/emergency_access/credentials.txt"
+echo "2. Rescue SSH:               ssh -p 2222 localhost (password auth)"
+echo "3. Admin Password Reset:     /root/emergency_access/reset_admin_password.sh"
+echo "============================================================"
 
 # -----------------------------------------------------------------------------
 # 13. Set up cron for daily backups

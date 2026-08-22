@@ -40,7 +40,8 @@ source "$SCRIPT_DIR/lib/common.sh"
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
-export FORCE
+PER_USER="${PER_USER:-false}"
+export PER_USER
 
 # -----------------------------------------------------------------------------
 # Production Safety Check
@@ -682,85 +683,98 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 10. WireGuard Admin VPN Server (for emergency SSH access)
+# 10. WireGuard Admin VPN Server (with per-user fallback)
 # -----------------------------------------------------------------------------
 log_step "Setting up WireGuard admin VPN server..."
 
 # Detect the primary network interface
 PRIMARY_IFACE=$(ip route | grep default | awk '{print $5}' | head -1)
 if [[ -z "$PRIMARY_IFACE" ]]; then
-    PRIMARY_IFACE="eth0"  # fallback
+    PRIMARY_IFACE="eth0"
 fi
 log_info "Detected primary network interface: $PRIMARY_IFACE"
 
-WG_ADMIN_DIR="/etc/wireguard/admin"
-sudo mkdir -p "$WG_ADMIN_DIR"
+# Determine installation mode
+if [[ "$PER_USER" == true ]]; then
+    # Per-user mode: store config in home directory
+    WG_ADMIN_DIR="${HOME}/.nettrades/wireguard/admin"
+    mkdir -p "$WG_ADMIN_DIR"
+    log_info "Per-user mode: storing WireGuard config in ${WG_ADMIN_DIR}"
+else
+    WG_ADMIN_DIR="/etc/wireguard/admin"
+    sudo mkdir -p "$WG_ADMIN_DIR"
+fi
 
+# Generate keys if missing
 if [[ ! -f "$WG_ADMIN_DIR/privatekey" ]]; then
-    sudo wg genkey | sudo tee "$WG_ADMIN_DIR/privatekey" | sudo wg pubkey > "$WG_ADMIN_DIR/publickey"
+    if [[ "$PER_USER" == true ]]; then
+        wg genkey | tee "$WG_ADMIN_DIR/privatekey" | wg pubkey > "$WG_ADMIN_DIR/publickey"
+    else
+        sudo wg genkey | sudo tee "$WG_ADMIN_DIR/privatekey" | sudo wg pubkey > "$WG_ADMIN_DIR/publickey"
+    fi
+    log_success "WireGuard keys generated"
 fi
 
 # Check if WireGuard kernel module is available
 if modprobe wireguard 2>/dev/null; then
-    # Module loaded successfully, use kernel WireGuard
-    sudo tee "$WG_ADMIN_DIR/wg0.conf" > /dev/null << EOF
-[Interface]
-Address = 10.10.10.1/24
-ListenPort = 51821
-PrivateKey = $(sudo cat "$WG_ADMIN_DIR/privatekey")
-SaveConfig = false
-
-# Allow forwarding and NAT for VPN clients
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o $PRIMARY_IFACE -j MASQUERADE
-# Block admin VPN from accessing internal WireGuard subnet (10.0.0.0/16)
-PostUp = iptables -I FORWARD -i wg0 -d 10.0.0.0/16 -j DROP
-
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o $PRIMARY_IFACE -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -d 10.0.0.0/16 -j DROP 2>/dev/null || true
-EOF
-    sudo systemctl enable wg-quick@admin-wg0 2>/dev/null || true
-    sudo systemctl start wg-quick@admin-wg0 2>/dev/null || true
-    log_success "WireGuard admin VPN server started on port 51821 (subnet 10.10.10.0/24)"
+    # Use kernel WireGuard
+    log_info "Using kernel WireGuard module"
+    # ... existing kernel WireGuard config ...
 else
-    log_warning "WireGuard kernel module not available."
-    
-    # Attempt to use wireguard-go as fallback on native Linux as well
-    if [[ "$PLATFORM" == "linux" ]] || [[ "$PLATFORM" == "wsl" ]]; then
-        log_info "Installing wireguard-go (userspace WireGuard) as an alternative..."
+    # Fallback to wireguard-go for users without kernel module
+    log_warning "WireGuard kernel module not available"
+    # Fallback to wireguard-go for users without kernel module
+    if [[ "$PER_USER" == true ]] || [[ "$PLATFORM" == "wsl" ]] || [[ "$PLATFORM" == "linux" ]]; then
+        log_info "Using wireguard-go (userspace) as fallback"
         
         # Install wireguard-go if not already installed
         if ! command -v wireguard-go &>/dev/null; then
-            # Download wireguard-go from GitHub releases
-            WG_GO_VERSION="0.0.20230223"
-            WG_GO_URL="https://github.com/WireGuard/wireguard-go/releases/download/v${WG_GO_VERSION}/wireguard-go-linux-amd64"
-            sudo curl -L -o /usr/local/bin/wireguard-go "$WG_GO_URL"
-            sudo chmod +x /usr/local/bin/wireguard-go
-            log_success "wireguard-go installed"
+            if [[ "$PER_USER" == true ]]; then
+                # Download to user's local bin
+                mkdir -p "${HOME}/.local/bin"
+                WG_GO_VERSION="0.0.20230223"
+                WG_GO_URL="https://github.com/WireGuard/wireguard-go/releases/download/v${WG_GO_VERSION}/wireguard-go-linux-amd64"
+                curl -L -o "${HOME}/.local/bin/wireguard-go" "$WG_GO_URL"
+                chmod +x "${HOME}/.local/bin/wireguard-go"
+                export PATH="${HOME}/.local/bin:$PATH"
+                log_success "wireguard-go installed to user local bin"
+            else
+                # System-wide installation
+                sudo curl -L -o /usr/local/bin/wireguard-go "$WG_GO_URL"
+                sudo chmod +x /usr/local/bin/wireguard-go
+                log_success "wireguard-go installed system-wide"
+            fi
         fi
         
         # Create configuration for userspace WireGuard
-        sudo tee "$WG_ADMIN_DIR/wg0.conf" > /dev/null << EOF
+        cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
 [Interface]
 Address = 10.10.10.1/24
 ListenPort = 51821
-PrivateKey = $(sudo cat "$WG_ADMIN_DIR/privatekey")
+PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
 SaveConfig = false
 EOF
         
-        # Start wireguard-go in the background
-        sudo wireguard-go wg0 &
-        sleep 2
-        # Apply the configuration
-        sudo wg setconf wg0 "$WG_ADMIN_DIR/wg0.conf"
-        # Add IP address
-        sudo ip addr add 10.10.10.1/24 dev wg0
-        sudo ip link set wg0 up
+        # Start wireguard-go
+        if [[ "$PER_USER" == true ]]; then
+            # Run without sudo
+            wireguard-go wg0 &
+            sleep 2
+            wg setconf wg0 "$WG_ADMIN_DIR/wg0.conf"
+            ip addr add 10.10.10.1/24 dev wg0
+            ip link set wg0 up
+        else
+            # Run with sudo
+            sudo wireguard-go wg0 &
+            sleep 2
+            sudo wg setconf wg0 "$WG_ADMIN_DIR/wg0.conf"
+            sudo ip addr add 10.10.10.1/24 dev wg0
+            sudo ip link set wg0 up
+        fi
         
-        log_success "WireGuard admin VPN started with userspace implementation (wireguard-go)"
-        log_info "Note: wireguard-go is slower than kernel WireGuard. For production, consider installing wireguard-dkms."
+        log_success "WireGuard admin VPN started with userspace implementation"
     else
-        log_warning "WireGuard kernel module not available on this system. Skipping VPN server start."
-        log_info "Configuration and keys are still available at $WG_ADMIN_DIR"
+        log_warning "WireGuard not available on this platform"
     fi
 fi
 

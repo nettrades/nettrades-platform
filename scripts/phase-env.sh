@@ -414,6 +414,33 @@ chmod 600 "$ENV_FILE"
 log_success ".env generated with secure secrets"
 
 # -----------------------------------------------------------------------------
+# After generating secrets, sync to Odoo DB
+# -----------------------------------------------------------------------------
+sync_secrets_to_odoo() {
+    local secrets=$(cat "$ENV_FILE" | grep -v '^#' | grep '=' | sed 's/^ *//;s/ *$//')
+    local odoo_url="http://odoo:8069"
+    
+    # Use Odoo's XML-RPC to sync secrets
+    echo "$secrets" | while IFS= read -r line; do
+        key=$(echo "$line" | cut -d'=' -f1)
+        value=$(echo "$line" | cut -d'=' -f2- | tr -d "'")
+        
+        # Sync to Odoo DB
+        curl -X POST "${odoo_url}/api/secrets" \
+            -H "Content-Type: application/json" \
+            -d "{\"key\":\"$key\",\"value\":\"$value\",\"description\":\"Synced from .env\"}"
+    done
+}
+
+# Call after generating all secrets
+sync_secrets_to_odoo
+
+
+
+
+
+
+# -----------------------------------------------------------------------------
 # Display important information (only in interactive mode, not auto)
 # -----------------------------------------------------------------------------
 if [[ "$AUTO" != true ]]; then

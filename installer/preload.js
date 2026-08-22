@@ -235,6 +235,27 @@ contextBridge.exposeInMainWorld('api', {
     close: () => ipcRenderer.send('window-close'),
 
     // ──────────────────────────────────────────────────────────────────────────
+	// System Check
+	// ──────────────────────────────────────────────────────────────────────────
+
+	systemCheck: () => ipcRenderer.invoke('system-check'),
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Credentials (Secrets)
+	// ──────────────────────────────────────────────────────────────────────────
+
+	getCredentials: () => ipcRenderer.invoke('get-credentials'),
+	getCredentialValue: (key) => ipcRenderer.invoke('get-credential-value', key),
+	rotateCredential: (key, newValue) => ipcRenderer.invoke('rotate-credential', key, newValue),
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Modular Installation
+	// ──────────────────────────────────────────────────────────────────────────
+
+    installModules: (modules) => ipcRenderer.invoke('install-modules', modules),
+
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Update Status
     // ──────────────────────────────────────────────────────────────────────────
 

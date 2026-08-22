@@ -4,3 +4,7 @@ access_nettrades_review_user,nettrades.review.user,model_nettrades_review,base.g
 access_nettrades_user_match_user,nettrades.user_match.user,model_nettrades_user_match,base.group_user,1,1,1,1
 access_nettrades_skill_user,nettrades.skill.user,model_nettrades_skill,base.group_user,1,1,1,1
 access_nettrades_field_user,nettrades.field.user,model_nettrades_field,base.group_user,1,1,1,1
+access_nettrades_secrets_user,nettrades.secrets.user,model_nettrades_secrets,nettrades_core.group_secrets_manager,1,1,1,1
+access_nettrades_secrets_audit_user,nettrades.secrets.audit.user,model_nettrades_secrets_audit,nettrades_core.group_secrets_manager,1,1,1,1
+access_nettrades_secrets_admin,nettrades.secrets.admin,model_nettrades_secrets,base.group_system,1,1,1,1
+access_nettrades_secrets_audit_admin,nettrades.secrets.audit.admin,model_nettrades_secrets_audit,base.group_system,1,1,1,1

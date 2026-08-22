@@ -67,12 +67,14 @@ echo -e "${GREEN}=============================================================${
 FORCE=false
 UPGRADE=false
 AUTO=false
+MODULES_LIST=""
 
 for arg in "$@"; do
     case $arg in
         --force) FORCE=true; shift ;;
         --upgrade) UPGRADE=true; shift ;;
         --auto) AUTO=true; shift ;;
+        --modules=*) MODULES_LIST="${arg#--modules=}"; shift ;;
     esac
 done
 
@@ -247,6 +249,12 @@ MODULES+=("nettrades_queue")
 MODULES=($(printf "%s\n" "${MODULES[@]}" | sort -u))
 
 log_info "Modules to install: ${MODULES[*]}"
+
+# If a specific module list is provided, override the default
+if [[ -n "$MODULES_LIST" ]]; then
+    IFS=',' read -ra MODULES <<< "$MODULES_LIST"
+    log_info "Using provided module list: ${MODULES[*]}"
+fi
 
 # -----------------------------------------------------------------------------
 # Install each module

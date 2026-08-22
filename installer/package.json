@@ -39,6 +39,7 @@
       "main.js",
       "preload.js",
       "index.html",
+      "modules.js",
       "build/**/*"
     ],
     "extraResources": [
@@ -62,11 +63,12 @@
       }
     ],
     "win": {
-      "target": "nsis",
+      "target": ["nsis", "portable"],
       "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
@@ -74,6 +76,9 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "license": "../LICENSE.txt"
+    },
+    "portable": {
+      "artifactName": "NETTRADES-Launcher-portable.exe"
     },
     "mac": {
       "target": "dmg",
@@ -83,7 +88,8 @@
     "linux": {
       "target": ["AppImage", "deb"],
       "icon": "build/icon.png",
-      "category": "Development"
+      "category": "Development",
+      "desktopName": "NETTRADES Launcher"
     },
     "deb": {
       "afterInstall": "scripts/postinstall.sh",

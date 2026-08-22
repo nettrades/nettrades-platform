@@ -1882,6 +1882,29 @@
                         <span>About</span>
                     </div>
                 </div>
+                <div class="nav-section">
+				    <div class="section-title">Tools</div>
+				    <div class="nav-item" data-tab="system-check">
+				        <span class="icon">🔍</span>
+				        <span>System Check</span>
+				        <span class="badge" id="system-check-badge">Check</span>
+				    </div>
+				    <div class="nav-item" data-tab="install-log">
+				        <span class="icon">📄</span>
+				        <span>Install Log</span>
+				        <span class="badge" id="log-badge">0</span>
+				    </div>
+				    <div class="nav-item" data-tab="credentials">
+				        <span class="icon">🔐</span>
+				        <span>Credentials</span>
+				        <span class="badge" id="credential-badge">Admin</span>
+				    </div>
+				    <div class="nav-item" data-tab="modules">
+				        <span class="icon">🧩</span>
+				        <span>Modules</span>
+				        <span class="badge" id="module-badge">0</span>
+				    </div>
+                </div>
             </nav>
 
             <!-- Content -->
@@ -2813,6 +2836,132 @@ You can:
                             <button class="btn btn-secondary" onclick="viewLogsDirectory()">📄 Open Logs Directory</button>
                         </div>
                     </div>
+                </div>
+
+                <!-- ============================================================
+				SYSTEM CHECK TAB
+				============================================================ -->
+				<div id="tab-system-check" class="tab-content">
+				    <div class="tab-header">
+				        <h2>🔍 System Check</h2>
+				        <button class="btn btn-secondary" onclick="runSystemCheck()">🔄 Re-check</button>
+				    </div>
+				    <div class="system-check-grid">
+				        <div class="check-item" id="check-wsl">
+				            <div class="check-icon">⏳</div>
+				            <div class="check-info">
+				                <div class="check-name">WSL2</div>
+				                <div class="check-desc">Windows Subsystem for Linux 2</div>
+				            </div>
+				            <div class="check-status">Checking...</div>
+				        </div>
+				        <div class="check-item" id="check-docker">
+				            <div class="check-icon">⏳</div>
+				            <div class="check-info">
+				                <div class="check-name">Docker Desktop</div>
+				                <div class="check-desc">Container runtime with WSL2 backend</div>
+				            </div>
+				            <div class="check-status">Checking...</div>
+				        </div>
+				        <div class="check-item" id="check-gpu">
+				            <div class="check-icon">⏳</div>
+				            <div class="check-info">
+				                <div class="check-name">GPU Drivers</div>
+				                <div class="check-desc">NVIDIA drivers with Container Toolkit</div>
+				            </div>
+				            <div class="check-status">Checking...</div>
+				        </div>
+				        <div class="check-item" id="check-python">
+				            <div class="check-icon">⏳</div>
+				            <div class="check-info">
+				                <div class="check-name">Python 3.10+</div>
+				                <div class="check-desc">Required for setup scripts</div>
+				            </div>
+				            <div class="check-status">Checking...</div>
+				        </div>
+				        <div class="check-item" id="check-node">
+				            <div class="check-icon">⏳</div>
+				            <div class="check-info">
+				                <div class="check-name">Node.js 20+</div>
+				                <div class="check-desc">Required for the launcher</div>
+				            </div>
+				            <div class="check-status">Checking...</div>
+				        </div>
+				    </div>
+				    <div id="system-check-summary" class="system-check-summary">
+				        <div class="summary-passed">✅ All checks passed</div>
+				    </div>
+				</div>
+
+				<!-- ============================================================
+				INSTALL LOG TAB
+				============================================================ -->
+				<div id="tab-install-log" class="tab-content">
+				    <div class="tab-header">
+				        <h2>📄 Installation Log</h2>
+				        <div class="log-controls">
+				            <button class="btn btn-secondary" onclick="clearInstallLog()">🗑️ Clear</button>
+				            <button class="btn btn-secondary" onclick="copyInstallLog()">📋 Copy</button>
+				            <button class="btn btn-secondary" onclick="saveInstallLog()">💾 Save</button>
+				            <button class="btn btn-secondary" onclick="toggleAutoScroll()">📌 Auto-scroll</button>
+				        </div>
+				    </div>
+				    <div id="install-log-output" class="install-log-output">
+				        <div class="log-placeholder">Waiting for installation output...</div>
+				    </div>
+				    <div class="log-stats">
+				        <span id="log-line-count">0 lines</span>
+				        <span id="log-error-count">0 errors</span>
+				        <span id="log-warning-count">0 warnings</span>
+				    </div>
+				</div>
+
+				<!-- ============================================================
+				CREDENTIALS TAB
+				============================================================ -->
+				<div id="tab-credentials" class="tab-content">
+				    <div class="tab-header">
+				        <h2>🔐 Admin Credentials</h2>
+				        <div>
+				            <button class="btn btn-secondary" onclick="refreshCredentials()">🔄 Refresh</button>
+				            <button class="btn btn-warning" onclick="rotateAllSecrets()">🔄 Rotate All</button>
+				        </div>
+				    </div>
+				    <div class="credential-list" id="credential-list">
+				        <div class="credential-empty">Loading credentials...</div>
+				    </div>
+				    <div class="security-notes">
+				        <h3>Security Notes</h3>
+				        <ul>
+				            <li>🔒 Credentials are encrypted at rest in the Odoo database</li>
+				            <li>👁️ Click the eye icon to reveal a password</li>
+				            <li>📋 Click the copy icon to copy to clipboard</li>
+				            <li>🔄 Click the rotate icon to generate a new password</li>
+				            <li>🛡️ Only Secrets Managers can view or rotate credentials</li>
+				        </ul>
+				    </div>
+				</div>
+
+				<!-- ============================================================
+				MODULES TAB
+				============================================================ -->
+				<div id="tab-modules" class="tab-content">
+				    <div class="tab-header">
+				        <h2>🧩 Modular Installation</h2>
+				        <div>
+				            <span class="count" id="selected-modules-count">0 selected</span>
+				            <button class="btn btn-primary" onclick="installSelectedModules()">🚀 Install Selected</button>
+				        </div>
+				    </div>
+				    <div class="module-grid" id="module-grid">
+				        <!-- Rendered by JavaScript -->
+				    </div>
+				    <div class="module-dependencies">
+				        <h3>Module Dependencies</h3>
+				        <div id="module-dependency-tree">
+				            <!-- Rendered by JavaScript -->
+				        </div>
+				    </div>
                 </div>
 
                 <!-- ============================================================

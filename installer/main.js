@@ -1936,6 +1936,213 @@ ipcMain.handle('save-server-url', (event, url) => {
     }
 });
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// System Check
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('system-check', async () => {
+    const checks = {
+        wsl: { name: 'WSL2', status: 'unknown', details: '' },
+        docker: { name: 'Docker', status: 'unknown', details: '' },
+        gpu: { name: 'GPU Drivers', status: 'unknown', details: '' },
+        python: { name: 'Python 3.10+', status: 'unknown', details: '' },
+        node: { name: 'Node.js 20+', status: 'unknown', details: '' },
+    };
+
+    // Check WSL2 (on Windows) or Linux
+    if (process.platform === 'win32') {
+        try {
+            const result = execSync('wsl --list --verbose', { encoding: 'utf8', stdio: 'pipe' });
+            checks.wsl.status = result.includes('Ubuntu') ? 'ok' : 'warning';
+            checks.wsl.details = result.includes('Ubuntu') ? 'Ubuntu distribution found' : 'No Ubuntu distribution found';
+        } catch (e) {
+            checks.wsl.status = 'error';
+            checks.wsl.details = 'WSL2 not installed or not configured';
+        }
+    } else {
+        // On Linux, WSL check is not applicable
+        checks.wsl.status = 'ok';
+        checks.wsl.details = 'Native Linux (no WSL needed)';
+    }
+
+    // Check Docker
+    try {
+        const result = execSync('docker info', { encoding: 'utf8', stdio: 'pipe' });
+        checks.docker.status = result.includes('Server Version') ? 'ok' : 'error';
+        checks.docker.details = result.includes('Server Version') ? 'Docker daemon is running' : 'Docker daemon not responding';
+    } catch (e) {
+        checks.docker.status = 'error';
+        checks.docker.details = 'Docker not installed or not running';
+    }
+
+    // Check GPU (nvidia-smi)
+    try {
+        const result = execSync('nvidia-smi', { encoding: 'utf8', stdio: 'pipe' });
+        checks.gpu.status = 'ok';
+        checks.gpu.details = 'NVIDIA GPU detected';
+    } catch (e) {
+        checks.gpu.status = 'warning';
+        checks.gpu.details = 'No NVIDIA GPU or nvidia-smi not found';
+    }
+
+    // Check Python
+    try {
+        const result = execSync('python3 --version', { encoding: 'utf8', stdio: 'pipe' });
+        const version = result.match(/\d+\.\d+/)?.[0];
+        if (version && parseFloat(version) >= 3.10) {
+            checks.python.status = 'ok';
+            checks.python.details = `Python ${version} found`;
+        } else {
+            checks.python.status = 'error';
+            checks.python.details = `Python ${version || 'unknown'} (need 3.10+)`;
+        }
+    } catch (e) {
+        checks.python.status = 'error';
+        checks.python.details = 'Python 3 not found';
+    }
+
+    // Check Node.js
+    try {
+        const result = execSync('node --version', { encoding: 'utf8', stdio: 'pipe' });
+        const version = result.match(/\d+\.\d+\.\d+/)?.[0];
+        if (version && parseFloat(version) >= 20.0) {
+            checks.node.status = 'ok';
+            checks.node.details = `Node.js ${version} found`;
+        } else {
+            checks.node.status = 'error';
+            checks.node.details = `Node.js ${version || 'unknown'} (need 20+)`;
+        }
+    } catch (e) {
+        checks.node.status = 'error';
+        checks.node.details = 'Node.js not found';
+    }
+
+    return checks;
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Credentials (Secrets)
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-credentials', async () => {
+    // Get the server URL
+    const serverUrl = await ipcMain.handle('get-server-url');
+    // Call Odoo API to get secret list (metadata only)
+    try {
+        const response = await fetch(`${serverUrl}:8069/api/secrets/list`, {
+            headers: {
+                'Authorization': `Bearer ${await getOdooAuthToken()}`
+            }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        } else {
+            return { success: false, error: 'Failed to fetch credentials' };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('get-credential-value', async (event, key) => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    try {
+        const response = await fetch(`${serverUrl}:8069/api/secrets/${key}`, {
+            headers: {
+                'Authorization': `Bearer ${await getOdooAuthToken()}`
+            }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return { success: true, value: data.value };
+        } else {
+            return { success: false, error: 'Failed to fetch credential' };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('rotate-credential', async (event, key, newValue) => {
+    const serverUrl = await ipcMain.handle('get-server-url');
+    try {
+        const response = await fetch(`${serverUrl}:8069/api/secrets/${key}/rotate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${await getOdooAuthToken()}`
+            },
+            body: JSON.stringify({ value: newValue })
+        });
+        if (response.ok) {
+            return { success: true };
+        } else {
+            const error = await response.json();
+            return { success: false, error: error.error };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modular Installation
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('install-modules', async (event, modules) => {
+    // Build the command to install only selected modules
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'install-modules.sh');
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: 'install-modules.sh not found' };
+    }
+
+    // Prepare module list as comma-separated
+    const moduleList = modules.join(',');
+    const cmd = `bash ${scriptPath} --force --auto --modules ${moduleList}`;
+
+    return new Promise((resolve) => {
+        const proc = spawn('bash', ['-c', cmd], {
+            cwd: PROJECT_ROOT,
+            env: { ...process.env, VIRTUAL_ENV: VENV_DIR }
+        });
+
+        let output = '';
+        proc.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('install-output', { type: 'stdout', data: text });
+        });
+
+        proc.stderr.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('install-output', { type: 'stderr', data: text });
+        });
+
+        proc.on('close', (code) => {
+            if (code === 0) {
+                resolve({ success: true, output });
+            } else {
+                resolve({ success: false, error: output || `Process exited with code ${code}` });
+            }
+        });
+    });
+});
+
+// Helper to get Odoo auth token (simplified; in production use proper OAuth)
+async function getOdooAuthToken() {
+    // In a real implementation, this would use OAuth or stored session
+    // For now, we use the admin password from .env
+    const envContent = fs.readFileSync(ENV_FILE, 'utf8');
+    const match = envContent.match(/^ADMIN_PASSWORD='([^']+)'/m);
+    const password = match ? match[1] : 'admin';
+    // Simulate a simple token (just for development)
+    return Buffer.from(`admin:${password}`).toString('base64');
+}
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Window Controls
 // ─────────────────────────────────────────────────────────────────────────────

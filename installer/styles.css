@@ -441,3 +441,177 @@ body {
     .hero-card h2 { font-size: 1.2rem; }
     .btn-hero { padding: 0.5rem 1rem; font-size: 0.9rem; }
 }
+
+/* ─── System Check ─── */
+.system-check-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0;
+}
+.check-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.check-icon { font-size: 20px; text-align: center; }
+.check-info .check-name { font-weight: 600; }
+.check-info .check-desc { font-size: 12px; color: var(--text-muted); }
+.check-status { font-size: 13px; }
+.check-status.ok { color: var(--success); }
+.check-status.warning { color: var(--warning); }
+.check-status.error { color: var(--danger); }
+.check-status.unknown { color: var(--text-muted); }
+.system-check-summary {
+    margin: 16px 0;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+}
+.summary-passed { color: var(--success); }
+.summary-warning { color: var(--warning); }
+
+/* ─── Install Log ─── */
+.install-log-output {
+    background: #0a0a0f;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #a5f3fc;
+    max-height: 500px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    min-height: 200px;
+}
+.log-placeholder { color: var(--text-dim); font-style: italic; }
+.log-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.log-stats {
+    display: flex;
+    gap: 20px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* ─── Credentials ─── */
+.credential-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0;
+}
+.credential-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    align-items: center;
+}
+.credential-key { font-weight: 600; }
+.credential-value span { font-family: monospace; font-size: 13px; }
+.credential-value .value-hidden { color: var(--text-muted); }
+.credential-value .value-visible { color: #28c840; }
+.credential-actions { display: flex; gap: 6px; }
+.credential-actions button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: 0.2s;
+}
+.credential-actions button:hover { background: rgba(255,255,255,0.05); color: #fff; }
+.credential-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+    grid-column: 1 / -1;
+}
+.credential-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+}
+.credential-error {
+    color: var(--danger);
+    padding: 12px;
+}
+.security-notes {
+    margin-top: 20px;
+    padding: 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.security-notes h3 { font-size: 14px; margin-bottom: 8px; }
+.security-notes ul { padding-left: 20px; }
+.security-notes li { margin-bottom: 4px; color: var(--text-muted); font-size: 13px; }
+
+/* ─── Modules ─── */
+.module-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+}
+.module-card {
+    display: grid;
+    grid-template-columns: 40px auto;
+    grid-template-rows: auto auto auto;
+    gap: 4px 12px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    align-items: start;
+}
+.module-card .module-check { grid-row: 1; grid-column: 1; align-self: center; }
+.module-card .module-icon { grid-row: 1; grid-column: 1; align-self: center; font-size: 24px; display: none; }
+.module-card .module-info { grid-row: 1; grid-column: 2; }
+.module-card .module-deps { grid-row: 2; grid-column: 2; }
+.module-card .module-actions { grid-row: 3; grid-column: 2; }
+.module-name { font-weight: 600; font-size: 14px; }
+.module-desc { font-size: 12px; color: var(--text-muted); margin: 2px 0; }
+.module-meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-dim); margin: 4px 0; }
+.module-features { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.feature-tag {
+    background: rgba(255,255,255,0.06);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    color: var(--text-muted);
+}
+.dep-tag {
+    background: rgba(74,138,255,0.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    color: #4a8aff;
+}
+.module-dependencies {
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.module-dependencies h3 { font-size: 14px; margin-bottom: 8px; }
+
+@media (max-width: 768px) {
+    .system-check-grid { grid-template-columns: 1fr; }
+    .module-grid { grid-template-columns: 1fr; }
+    .credential-item { grid-template-columns: 1fr; }
+}

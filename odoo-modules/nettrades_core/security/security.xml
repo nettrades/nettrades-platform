@@ -1,0 +1,30 @@
+# odoo-modules/nettrades_core/security/security.xml
+<odoo>
+    <data>
+        <!-- Existing groups -->
+        <record id="group_gpu_admin" model="res.groups">
+            <field name="name">GPU Administrator</field>
+            <field name="category_id" ref="base.module_category_hidden"/>
+            <field name="users" eval="[(4, ref('base.user_root'))]"/>
+        </record>
+        
+        <record id="group_secrets_manager" model="res.groups">
+            <field name="name">Secrets Manager</field>
+            <field name="category_id" ref="base.module_category_hidden"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_system'))]"/>
+            <field name="users" eval="[(4, ref('base.user_root'))]"/>
+        </record>
+        
+        <record id="group_node_discovery" model="res.groups">
+            <field name="name">Node Discovery</field>
+            <field name="category_id" ref="base.module_category_hidden"/>
+            <field name="users" eval="[(4, ref('base.user_root'))]"/>
+        </record>
+        
+        <record id="group_regular_user" model="res.groups">
+            <field name="name">Regular User</field>
+            <field name="category_id" ref="base.module_category_hidden"/>
+            <!-- Regular users can see UI but not secrets -->
+        </record>
+    </data>
+</odoo>

@@ -1331,6 +1331,244 @@ function escapeHtml(text) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// ─── System Check ───
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function runSystemCheck() {
+    const result = await window.api.systemCheck();
+    if (!result) return;
+
+    const items = ['wsl', 'docker', 'gpu', 'python', 'node'];
+    items.forEach(id => {
+        const check = result[id];
+        if (!check) return;
+        const element = document.getElementById(`check-${id}`);
+        const statusElement = element?.querySelector('.check-status');
+        const iconElement = element?.querySelector('.check-icon');
+        if (statusElement) {
+            const statusMap = {
+                'ok': '✅',
+                'warning': '⚠️',
+                'error': '❌',
+                'unknown': '⏳'
+            };
+            iconElement.textContent = statusMap[check.status] || '⏳';
+            statusElement.textContent = check.details || check.status;
+            statusElement.className = `check-status ${check.status}`;
+        }
+    });
+
+    // Update summary
+    const summary = document.getElementById('system-check-summary');
+    const allOk = items.every(id => result[id]?.status === 'ok');
+    if (allOk) {
+        summary.innerHTML = '<div class="summary-passed">✅ All checks passed. You are ready to install!</div>';
+    } else {
+        summary.innerHTML = `
+            <div class="summary-warning">⚠️ Some checks failed. Please fix the issues above before installing.</div>
+        `;
+    }
+}
+
+// ─── Credentials ───
+async function refreshCredentials() {
+    const result = await window.api.getCredentials();
+    if (!result.success) {
+        document.getElementById('credential-list').innerHTML = `
+            <div class="credential-error">Failed to load credentials: ${result.error}</div>
+        `;
+        return;
+    }
+
+    const list = document.getElementById('credential-list');
+    const secrets = result.secrets || [];
+    if (secrets.length === 0) {
+        list.innerHTML = '<div class="credential-empty">No credentials found. Run the setup first.</div>';
+        return;
+    }
+
+    list.innerHTML = secrets.map(sec => `
+        <div class="credential-item" data-key="${sec.key}">
+            <div class="credential-key">${sec.key}</div>
+            <div class="credential-value" id="cred-value-${sec.key}">
+                <span class="value-hidden">••••••••</span>
+            </div>
+            <div class="credential-actions">
+                <button onclick="toggleCredentialVisibility('${sec.key}')" title="Show/Hide">👁️</button>
+                <button onclick="copyCredential('${sec.key}')" title="Copy">📋</button>
+                <button onclick="rotateCredential('${sec.key}')" title="Rotate">🔄</button>
+            </div>
+            <div class="credential-meta">
+                <span>${sec.category || 'other'}</span>
+                <span>v${sec.version || 1}</span>
+                <span>${sec.updated_at || ''}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function toggleCredentialVisibility(key) {
+    const valueContainer = document.querySelector(`#cred-value-${key}`);
+    const span = valueContainer?.querySelector('span');
+    if (!span) return;
+
+    if (span.classList.contains('value-hidden')) {
+        // Fetch plaintext
+        const result = await window.api.getCredentialValue(key);
+        if (result.success) {
+            span.textContent = result.value;
+            span.classList.remove('value-hidden');
+            span.classList.add('value-visible');
+        } else {
+            showToast(`Failed to get credential: ${result.error}`, 'error');
+        }
+    } else {
+        span.textContent = '••••••••';
+        span.classList.add('value-hidden');
+        span.classList.remove('value-visible');
+    }
+}
+
+function copyCredential(key) {
+    const valueContainer = document.querySelector(`#cred-value-${key}`);
+    const span = valueContainer?.querySelector('span');
+    if (!span) return;
+
+    // If hidden, reveal first
+    if (span.classList.contains('value-hidden')) {
+        toggleCredentialVisibility(key);
+        // Wait a moment then copy
+        setTimeout(() => {
+            const text = span.textContent;
+            if (text !== '••••••••') {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('Copied to clipboard!', 'success');
+                });
+            }
+        }, 200);
+    } else {
+        const text = span.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Copied to clipboard!', 'success');
+        });
+    }
+}
+
+async function rotateCredential(key) {
+    const newValue = prompt(`Enter new value for ${key}:`);
+    if (!newValue) return;
+    if (!confirm(`Are you sure you want to rotate ${key}?`)) return;
+
+    const result = await window.api.rotateCredential(key, newValue);
+    if (result.success) {
+        showToast('Credential rotated successfully!', 'success');
+        refreshCredentials();
+    } else {
+        showToast(`Failed to rotate: ${result.error}`, 'error');
+    }
+}
+
+async function rotateAllSecrets() {
+    if (!confirm('This will rotate ALL secrets. Are you sure?')) return;
+    // TODO: Implement bulk rotation
+    showToast('Bulk rotation not yet implemented', 'warning');
+}
+
+// ─── Modules ───
+function renderModules() {
+    const grid = document.getElementById('module-grid');
+    const modules = window.modules || {};
+    let html = '';
+    let count = 0;
+
+    Object.keys(modules).forEach(id => {
+        const mod = modules[id];
+        if (!mod) return;
+        const isChecked = mod.required ? 'checked disabled' : '';
+        const isAdmin = mod.adminRequired ? ' (Admin Required)' : '';
+
+        html += `
+            <div class="module-card" data-module="${id}">
+                <div class="module-check">
+                    <input type="checkbox" id="mod-${id}" ${isChecked} data-module="${id}">
+                </div>
+                <div class="module-icon">${mod.icon || '📦'}</div>
+                <div class="module-info">
+                    <div class="module-name">${mod.name}${isAdmin}</div>
+                    <div class="module-desc">${mod.description}</div>
+                    <div class="module-meta">
+                        <span>${mod.size}</span>
+                        <span>${mod.time}</span>
+                    </div>
+                    <div class="module-features">
+                        ${mod.features.map(f => `<span class="feature-tag">${f}</span>`).join('')}
+                    </div>
+                </div>
+                <div class="module-deps">
+                    ${mod.dependencies.map(d => `<span class="dep-tag">${d}</span>`).join('')}
+                </div>
+            </div>
+        `;
+        count++;
+    });
+
+    grid.innerHTML = html;
+    document.getElementById('selected-modules-count').textContent = `${count} modules available`;
+
+    // Add event listeners
+    grid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', updateModuleSummary);
+    });
+}
+
+function updateModuleSummary() {
+    const selected = [];
+    document.querySelectorAll('#module-grid input[type="checkbox"]:checked').forEach(cb => {
+        if (!cb.disabled) {
+            selected.push(cb.dataset.module);
+        }
+    });
+    document.getElementById('selected-modules-count').textContent = `${selected.length} selected`;
+}
+
+async function installSelectedModules() {
+    const selected = [];
+    document.querySelectorAll('#module-grid input[type="checkbox"]:checked').forEach(cb => {
+        selected.push(cb.dataset.module);
+    });
+
+    if (selected.length === 0) {
+        showToast('Please select at least one module to install.', 'warning');
+        return;
+    }
+
+    // Check if any admin-required modules are selected
+    const adminModules = selected.filter(id => window.modules[id]?.adminRequired);
+    if (adminModules.length > 0) {
+        const confirmMsg = `The following modules require administrator privileges:\n${adminModules.map(id => `  - ${window.modules[id].name}`).join('\n')}\n\nDo you have admin rights?`;
+        if (!confirm(confirmMsg)) {
+            showToast('Installation cancelled. Admin rights required for these modules.', 'warning');
+            return;
+        }
+    }
+
+    // Switch to Install Log tab
+    switchTab('install-log');
+
+    // Clear previous log
+    document.getElementById('install-log-output').innerHTML = '';
+
+    // Install
+    const result = await window.api.installModules(selected);
+    if (result.success) {
+        showToast('Modules installed successfully!', 'success');
+    } else {
+        showToast(`Installation failed: ${result.error}`, 'error');
+    }
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Initialize
 // ──────────────────────────────────────────────────────────────────────────────
 

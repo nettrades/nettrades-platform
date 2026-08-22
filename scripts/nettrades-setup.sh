@@ -705,6 +705,7 @@ while [[ $# -gt 0 ]]; do
         --with-router) WITH_ROUTER=true; shift ;;
         --with-grove) WITH_GROVE=true; shift ;;
         --with-kai) WITH_KAI=true; shift ;;
+        --per-user) PER_USER=true; shift ;;
         --platform)
             PLATFORM_OVERRIDE="$2"
             shift 2
@@ -733,7 +734,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN VENV_DIR
+export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN VENV_DIR PER_USER
 
 # Set PLATFORM for phase scripts (override if --platform given)
 if [[ -n "$PLATFORM_OVERRIDE" ]]; then
