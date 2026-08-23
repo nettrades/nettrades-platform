@@ -48,6 +48,7 @@
 #   - FIXED: Runtime variables are now sourced from .env for each service.
 #   - ADDED: Tenant-aware runtime selection based on TENANT_TYPE from .env.
 #   - FIXED: Restarting LangGraph now uses a timeout and fallback to recreate.
+#   - ADDED: WITH_CUVS flag passed through (cuVS is a Python library, not a service).
 # =============================================================================
 
 set -euo pipefail
@@ -217,7 +218,8 @@ UPGRADE="${UPGRADE:-false}"
 ENVIRONMENT="${ENVIRONMENT:-development}"
 REGENERATE_SECRETS="${REGENERATE_SECRETS:-false}"
 RESET_DATA="${RESET_DATA:-false}"
-export FORCE
+WITH_CUVS="${WITH_CUVS:-false}"
+export FORCE WITH_CUVS
 
 # -----------------------------------------------------------------------------
 # Production Safety Check
@@ -1293,6 +1295,12 @@ if [[ "${WITH_FINETUNE:-false}" == "true" ]]; then
     else
         log_warning "docker-compose.finetune.yaml not found – skipping fine-tuning"
     fi
+fi
+
+# cuVS is a Python library installed in the venv, not a Docker service.
+# No additional Docker Compose file is needed.
+if [[ "${WITH_CUVS:-false}" == "true" ]]; then
+    log_info "RAPIDS cuVS is installed in the virtual environment and will be available for vector search."
 fi
 
 log_success "Docker Compose stack started"

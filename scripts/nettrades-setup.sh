@@ -33,6 +33,7 @@
 #   --with-grove        Deploy Grove observability platform
 #   --with-kai          Deploy KAI Scheduler for GPU scheduling (K8s)
 #   --with-router       Install and configure the bridge module for routing
+#   --with-cuvs         Install RAPIDS cuVS for GPU-accelerated vector search
 #   --domain=DOMAIN     Set domain name for external access (enables HTTPS)
 #   --platform          Override platform detection (linux, macos, wsl)
 #
@@ -48,6 +49,7 @@
 #   - Improved Python virtual environment creation to ensure ensurepip is available.
 #   - Added platform-based gVisor verification to skip on WSL reliably.
 #   - FIXED: Moved PLATFORM detection before AUTO-FIX PERMISSIONS block.
+#   - ADDED: --with-cuvs flag for RAPIDS cuVS installation.
 # =============================================================================
 
 set -euo pipefail
@@ -81,12 +83,12 @@ if [ "$PLATFORM" = "wsl" ]; then
         sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT"
         log_success "Permissions fixed."
     fi
-    
+
     # Ensure .env has correct permissions
     if [ -f "$PROJECT_ROOT/deploy/docker/.env" ]; then
         chmod 644 "$PROJECT_ROOT/deploy/docker/.env" 2>/dev/null || true
     fi
-    
+
     # Ensure docker.sock is accessible (add user to docker group)
     if ! groups | grep -q docker; then
         log_info "Adding user to docker group..."
@@ -134,6 +136,7 @@ WITH_FINETUNE=false
 WITH_GROVE=false
 WITH_KAI=false
 WITH_ROUTER=false
+WITH_CUVS=false
 DOMAIN=""
 PHASES_LIST=""
 PROFILE=""
@@ -184,6 +187,7 @@ ${YELLOW}OPTIONS (CLI):${NC}
     --with-grove          Deploy Grove observability platform (future scaling).
     --with-kai            Deploy KAI Scheduler for GPU scheduling (K8s).
     --with-router         Install and configure the bridge module for routing.
+    --with-cuvs           Install RAPIDS cuVS for GPU-accelerated vector search.
     --domain=DOMAIN       Set domain name for external access (enables HTTPS).
     --platform            Override platform detection (linux, macos, wsl).
 
@@ -194,6 +198,7 @@ ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh all --force            # Full re-deployment (keeps data)
     ./nettrades-setup.sh all --with-finetune    # Include fine-tuning packages
     ./nettrades-setup.sh all --with-router      # Include router bridge module
+    ./nettrades-setup.sh all --with-cuvs        # Include RAPIDS cuVS
     ./nettrades-setup.sh all --production --domain=ai.company.com  # External production
     ./nettrades-setup.sh k8s --with-kai         # Kubernetes with KAI Scheduler
     ./nettrades-setup.sh deploy --with-grove    # Deploy with Grove observability
@@ -280,6 +285,10 @@ run_interactive() {
     read -rp "Enable Router mode (bridge module for routing to other nodes)? (y/N): " router_yn
     [[ "$router_yn" =~ ^[Yy]$ ]] && WITH_ROUTER=true || WITH_ROUTER=false
 
+    echo ""
+    read -rp "Install RAPIDS cuVS for GPU-accelerated vector search (requires NVIDIA GPU)? (y/N): " cuvs_yn
+    [[ "$cuvs_yn" =~ ^[Yy]$ ]] && WITH_CUVS=true || WITH_CUVS=false
+
     # --- Determine phases ---
     case "$PROFILE" in
         dev) PHASES=(1) ;;
@@ -303,12 +312,13 @@ run_interactive() {
     echo "  With Grove: $WITH_GROVE"
     echo "  With KAI Scheduler: $WITH_KAI"
     echo "  With Router: $WITH_ROUTER"
+    echo "  With RAPIDS cuVS: $WITH_CUVS"
     echo "  Phases: ${PHASES[*]}"
     echo ""
     read -rp "Proceed with these settings? (y/N): " confirm
     [[ ! "$confirm" =~ ^[Yy]$ ]] && { log_info "Aborted."; exit 0; }
 
-    export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN
+    export FORCE UPGRADE AUTO ENVIRONMENT WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER WITH_CUVS DOMAIN
 }
 
 
@@ -618,6 +628,7 @@ setup_dev_environment() {
     local base_req="$PROJECT_ROOT/requirements-base.txt"
     local dev_req="$PROJECT_ROOT/requirements-dev.txt"
     local finetune_req="$PROJECT_ROOT/requirements-finetune.txt"
+    local cuvs_req="$PROJECT_ROOT/requirements-cuvs.txt"
 
     # Determine which requirements file to use for base
     local req_file="$dev_req"
@@ -671,6 +682,13 @@ setup_dev_environment() {
         log_info "Skipping fine-tuning packages (use --with-finetune or answer 'y' in interactive mode)."
     fi
 
+    # Install RAPIDS cuVS if requested (handled in phase-env.sh, but we also handle here for completeness)
+    # The main installation is done in phase-env.sh, but we pass the flag through.
+    # phase-env.sh will handle the actual installation.
+    if [[ "$WITH_CUVS" == true ]]; then
+        log_info "RAPIDS cuVS installation will be handled in Phase 1 (phase-env.sh)."
+    fi
+
     # NOTE: apt-mark hold python3-jwt removed – virtual environment provides isolation
     # NOTE: Odoo module installation has been moved to Phase 2/4.
 
@@ -705,6 +723,7 @@ while [[ $# -gt 0 ]]; do
         --with-router) WITH_ROUTER=true; shift ;;
         --with-grove) WITH_GROVE=true; shift ;;
         --with-kai) WITH_KAI=true; shift ;;
+        --with-cuvs) WITH_CUVS=true; shift ;;
         --per-user) PER_USER=true; shift ;;
         --platform)
             PLATFORM_OVERRIDE="$2"
@@ -734,7 +753,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN VENV_DIR PER_USER
+export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER WITH_CUVS DOMAIN VENV_DIR PER_USER
 
 # Set PLATFORM for phase scripts (override if --platform given)
 if [[ -n "$PLATFORM_OVERRIDE" ]]; then
@@ -970,6 +989,7 @@ log_info "Upgrade: $UPGRADE"
 log_info "Auto: $AUTO"
 log_info "With Fine-tuning: $WITH_FINETUNE"
 log_info "With Router: $WITH_ROUTER"
+log_info "With RAPIDS cuVS: $WITH_CUVS"
 log_info "Virtual Environment: $VENV_DIR"
 log_info "Platform: $PLATFORM"
 echo ""
@@ -1000,13 +1020,13 @@ for phase in "${PHASES[@]}"; do
             # Ensure VENV_DIR is available for phase-deploy.sh
             export VENV_DIR
             # Pass optional component flags to phase-deploy.sh
-            export WITH_GROVE WITH_KAI WITH_FINETUNE WITH_ROUTER DOMAIN
+            export WITH_GROVE WITH_KAI WITH_FINETUNE WITH_ROUTER WITH_CUVS DOMAIN
             bash "$SCRIPT_DIR/phase-deploy.sh"
             ;;
         3)
             log_header "Phase 3 — Kubernetes Scaling"
             export VENV_DIR
-            export WITH_GROVE WITH_KAI WITH_FINETUNE
+            export WITH_GROVE WITH_KAI WITH_FINETUNE WITH_CUVS
             bash "$SCRIPT_DIR/phase-k8s.sh"
             ;;
         4)

@@ -58,8 +58,26 @@ contextBridge.exposeInMainWorld('api', {
     // ──────────────────────────────────────────────────────────────────────────
     // Installation / Deployment
     // ──────────────────────────────────────────────────────────────────────────
+    // FIXED: Added withCuvs to runInstall options
+    // ──────────────────────────────────────────────────────────────────────────
 
-    runInstall: (options) => ipcRenderer.invoke('run-install', options),
+    runInstall: (options) => ipcRenderer.invoke('run-install', {
+        profile: options?.profile,
+        force: options?.force,
+        auto: options?.auto,
+        production: options?.production,
+        upgrade: options?.upgrade,
+        withFinetune: options?.withFinetune,
+        withGrove: options?.withGrove,
+        withKai: options?.withKai,
+        withRouter: options?.withRouter,
+        withCuvs: options?.withCuvs,   // <-- ADDED
+        domain: options?.domain,
+        phases: options?.phases,
+        resetData: options?.resetData,
+        tenantType: options?.tenantType,
+        tenantName: options?.tenantName,
+    }),
     cancelInstall: () => ipcRenderer.invoke('cancel-install'),
     getInstallStatus: () => ipcRenderer.invoke('get-install-status'),
     onInstallOutput: (callback) => {
@@ -212,12 +230,12 @@ contextBridge.exposeInMainWorld('api', {
     stopKAI: () => ipcRenderer.invoke('stop-kai'),
 
     // ──────────────────────────────────────────────────────────────────────────
-	// Developer Tools – Wine Installer
-	// ──────────────────────────────────────────────────────────────────────────
+    // Developer Tools – Wine Installer
+    // ──────────────────────────────────────────────────────────────────────────
 
-	installWine: () => ipcRenderer.invoke('install-wine'),
-	onWineOutput: (callback) => {
-	    ipcRenderer.on('wine-output', (event, data) => callback(data));
+    installWine: () => ipcRenderer.invoke('install-wine'),
+    onWineOutput: (callback) => {
+        ipcRenderer.on('wine-output', (event, data) => callback(data));
     },
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -235,25 +253,24 @@ contextBridge.exposeInMainWorld('api', {
     close: () => ipcRenderer.send('window-close'),
 
     // ──────────────────────────────────────────────────────────────────────────
-	// System Check
-	// ──────────────────────────────────────────────────────────────────────────
+    // System Check
+    // ──────────────────────────────────────────────────────────────────────────
 
-	systemCheck: () => ipcRenderer.invoke('system-check'),
+    systemCheck: () => ipcRenderer.invoke('system-check'),
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Credentials (Secrets)
-	// ──────────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────────
+    // Credentials (Secrets)
+    // ──────────────────────────────────────────────────────────────────────────
 
-	getCredentials: () => ipcRenderer.invoke('get-credentials'),
-	getCredentialValue: (key) => ipcRenderer.invoke('get-credential-value', key),
-	rotateCredential: (key, newValue) => ipcRenderer.invoke('rotate-credential', key, newValue),
+    getCredentials: () => ipcRenderer.invoke('get-credentials'),
+    getCredentialValue: (key) => ipcRenderer.invoke('get-credential-value', key),
+    rotateCredential: (key, newValue) => ipcRenderer.invoke('rotate-credential', key, newValue),
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Modular Installation
-	// ──────────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────────
+    // Modular Installation
+    // ──────────────────────────────────────────────────────────────────────────
 
     installModules: (modules) => ipcRenderer.invoke('install-modules', modules),
-
 
     // ──────────────────────────────────────────────────────────────────────────
     // Update Status

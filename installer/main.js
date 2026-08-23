@@ -546,6 +546,7 @@ ipcMain.handle('run-install', async (event, options) => {
         withGrove = false,
         withKai = false,
         withRouter = false,
+        withCuvs = false,
         domain = '',
         phases = null,
         resetData = false,
@@ -594,6 +595,7 @@ ipcMain.handle('run-install', async (event, options) => {
         if (withGrove) cmd += ' --with-grove';
         if (withKai) cmd += ' --with-kai';
         if (withRouter) cmd += ' --with-router';
+        if (withCuvs) cmd += ' --with-cuvs';
         if (domain) cmd += ` --domain=${domain}`;
 
         // Set environment variables for tenant type

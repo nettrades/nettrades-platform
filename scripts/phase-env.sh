@@ -33,6 +33,12 @@
 
 set -euo pipefail
 
+# -----------------------------------------------------------------------------
+# FIX: Set default for PER_USER to prevent "unbound variable" error
+# -----------------------------------------------------------------------------
+PER_USER="${PER_USER:-false}"
+export PER_USER
+
 # Set PROJECT_ROOT if not already set (for standalone execution)
 if [ -z "${PROJECT_ROOT:-}" ]; then
     PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -65,7 +71,8 @@ fi
 AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
 REGENERATE_SECRETS="${REGENERATE_SECRETS:-false}"
-export FORCE
+WITH_CUVS="${WITH_CUVS:-false}"
+export FORCE WITH_CUVS
 
 # -----------------------------------------------------------------------------
 # Production Safety Check
@@ -429,12 +436,12 @@ log_success ".env generated with secure secrets"
 sync_secrets_to_odoo() {
     local secrets=$(cat "$ENV_FILE" | grep -v '^#' | grep '=' | sed 's/^ *//;s/ *$//')
     local odoo_url="http://odoo:8069"
-    
+
     # Use Odoo's XML-RPC to sync secrets
     echo "$secrets" | while IFS= read -r line; do
         key=$(echo "$line" | cut -d'=' -f1)
         value=$(echo "$line" | cut -d'=' -f2- | tr -d "'")
-        
+
         # Sync to Odoo DB
         curl -X POST "${odoo_url}/api/secrets" \
             -H "Content-Type: application/json" \
@@ -445,10 +452,34 @@ sync_secrets_to_odoo() {
 # Call after generating all secrets
 sync_secrets_to_odoo
 
-
-
-
-
+# -----------------------------------------------------------------------------
+# Install RAPIDS cuVS if requested
+# -----------------------------------------------------------------------------
+if [[ "$WITH_CUVS" == true ]]; then
+    # Check for NVIDIA GPU
+    if command -v nvidia-smi &>/dev/null; then
+        log_step "NVIDIA GPU detected. Installing RAPIDS cuVS..."
+        local cuvs_req="$PROJECT_ROOT/requirements-cuvs.txt"
+        if [[ -f "$cuvs_req" ]]; then
+            if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
+                if ! uv pip install --verbose --index-url https://pypi.org/simple/ -r "$cuvs_req"; then
+                    log_error "uv cuVS installation failed. Falling back to pip."
+                    pip install --verbose -r "$cuvs_req" || { log_error "cuVS installation failed."; exit 1; }
+                fi
+            else
+                pip install --verbose -r "$cuvs_req" || { log_error "cuVS installation failed."; exit 1; }
+            fi
+            log_success "RAPIDS cuVS installed successfully."
+        else
+            log_warning "requirements-cuvs.txt not found – cuVS installation skipped."
+        fi
+    else
+        log_warning "No NVIDIA GPU detected. RAPIDS cuVS requires a GPU. Skipping installation."
+        log_info "To install cuVS, ensure an NVIDIA GPU with CUDA drivers is available."
+    fi
+else
+    log_info "Skipping RAPIDS cuVS (use --with-cuvs to enable)."
+fi
 
 # -----------------------------------------------------------------------------
 # Display important information (only in interactive mode, not auto)

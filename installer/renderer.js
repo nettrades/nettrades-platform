@@ -605,6 +605,7 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
     const withGrove = document.querySelector('input[name="module-grove"]')?.checked || false;
     const withKai = document.querySelector('input[name="module-kai"]')?.checked || false;
     const withRouter = document.querySelector('input[name="module-router"]')?.checked || false;
+    const withCuvs = document.querySelector('input[name="module-cuvs"]')?.checked || false;
 
     const domain = document.getElementById('domain-input')?.value || '';
 
@@ -628,6 +629,7 @@ document.getElementById('btn-install-start').addEventListener('click', async () 
         withGrove: withGrove,
         withKai: withKai,
         withRouter: withRouter,
+        withCuvs: withCuvs,
         domain: domain,
         phases: selectedPhases.length > 0 ? selectedPhases : null,
         resetData: false,
