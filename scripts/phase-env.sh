@@ -434,19 +434,23 @@ log_success ".env generated with secure secrets"
 # After generating secrets, sync to Odoo DB
 # -----------------------------------------------------------------------------
 sync_secrets_to_odoo() {
-    local secrets=$(cat "$ENV_FILE" | grep -v '^#' | grep '=' | sed 's/^ *//;s/ *$//')
-    local odoo_url="http://odoo:8069"
+    if curl -s --connect-timeout 2 http://odoo:8069 >/dev/null 2>&1; then  
+        local secrets=$(cat "$ENV_FILE" | grep -v '^#' | grep '=' | sed 's/^ *//;s/ *$//')
+        local odoo_url="http://odoo:8069"
 
-    # Use Odoo's XML-RPC to sync secrets
-    echo "$secrets" | while IFS= read -r line; do
-        key=$(echo "$line" | cut -d'=' -f1)
-        value=$(echo "$line" | cut -d'=' -f2- | tr -d "'")
+        # Use Odoo's XML-RPC to sync secrets
+        echo "$secrets" | while IFS= read -r line; do
+            key=$(echo "$line" | cut -d'=' -f1)
+            value=$(echo "$line" | cut -d'=' -f2- | tr -d "'")
 
-        # Sync to Odoo DB
-        curl -X POST "${odoo_url}/api/secrets" \
-            -H "Content-Type: application/json" \
-            -d "{\"key\":\"$key\",\"value\":\"$value\",\"description\":\"Synced from .env\"}"
-    done
+            # Sync to Odoo DB
+            curl -X POST "${odoo_url}/api/secrets" \
+                -H "Content-Type: application/json" \
+                -d "{\"key\":\"$key\",\"value\":\"$value\",\"description\":\"Synced from .env\"}"
+        done
+    else
+          log_info "Odoo not running yet – skipping secret sync."
+    fi
 }
 
 # Call after generating all secrets

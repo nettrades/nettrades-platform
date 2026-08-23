@@ -370,3 +370,71 @@ graph TD
     RETRY --> TRY
     FALLBACK --> END
 ```
+
+
+
+## 13. To Use cuVS in Your RAG Pipeline
+
+cuVS is a standalone vector search library designed to be the world's fastest, running on NVIDIA GPUs. 
+
+The most pragmatic and high-impact path is to use cuVS as a standalone service for your most latency-sensitive RAG queries. This approach allows you to keep the operational benefits of PostgreSQL while unlocking a ~27x performance boost for your most demanding vector searches.
+
+Therefore you can keep PostgreSQL + pgvector as your durable, authoritative data store and use cuVS as a high-performance "co-processor" for the most demanding search operations. At 10 million vectors, the GPU-accelerated library can be up to 30x faster.
+
+
+### How cuVS Works
+
+cuVS is a Python library that your LangGraph agents and RAG pipelines import and use directly:
+
+
+```python
+
+# Your Python code (e.g., in RAG pipeline)
+from cuvs.neighbors import cagra
+
+# cuVS runs GPU-accelerated vector search
+# No separate container needed – it uses the same GPU as vLLM
+
+```
+
+It:
+
+* Runs inside your existing Python virtual environment (.venv)
+
+* Uses the same GPU that vLLM/Dynamo is already using
+
+* Adds no new containers to manage
+
+* Has no separate service to start/stop
+
+
+To Test cuVS (After Deployment Completes)
+
+Once the deployment finishes, you can verify cuVS is installed:
+
+```bash
+
+cd /root/nettrades-platform
+source .venv/bin/activate
+python3 -c "from cuvs.neighbors import cagra; print('cuVS installed successfully!')"
+
+```
+
+Example integration with your existing LangGraph code:
+
+```python
+
+# In your RAG/retrieval code
+from cuvs.neighbors import cagra
+import numpy as np
+
+# Your embeddings (from your existing embedding model)
+embeddings = np.array([...])  # Your vectors
+
+# Build index on GPU
+index = cagra.Index.build(embeddings)
+
+# Search
+results = index.search(query_embedding, k=10)
+
+```
