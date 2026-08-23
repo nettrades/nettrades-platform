@@ -50,6 +50,16 @@ source "$SCRIPT_DIR/lib/common.sh"
 read_feature_flags
 
 # -----------------------------------------------------------------------------
+# Determine .env location based on PER_USER
+# -----------------------------------------------------------------------------
+if [[ "$PER_USER" == true ]]; then
+    ENV_FILE="$HOME/.nettrades/deploy/docker/.env"
+    mkdir -p "$(dirname "$ENV_FILE")"
+else
+    ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
+fi
+
+# -----------------------------------------------------------------------------
 # Parse arguments
 # -----------------------------------------------------------------------------
 AUTO="${AUTO:-false}"
