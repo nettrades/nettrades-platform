@@ -86,10 +86,16 @@
       "category": "public.app-category.developer-tools"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
-      "icon": "build/icon.png",
-      "category": "Development",
-      "desktopName": "NETTRADES Launcher"
+	  "target": ["AppImage", "deb"],
+	  "icon": "build/icon.png",
+	  "category": "Development",
+	  "desktop": {
+	    "entry": {
+	      "Name": "NETTRADES Launcher",
+	      "Comment": "Sovereign AI Control Centre"
+	    }
+	  },
+	  "maintainer": "NETTRADES Team <support@nettrades.ai>"
     },
     "deb": {
       "afterInstall": "scripts/postinstall.sh",

@@ -75,6 +75,11 @@ source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
+
+# Not detecting .phase-0-complete and .phase-1-complete in nettrades-platform after first run then runs it again. This manually checks if the path matches the actual location.
+log_info "PROJECT_ROOT = $PROJECT_ROOT"
+log_info "Marker file: $PROJECT_ROOT/.phase-0-complete"
+
 # -----------------------------------------------------------------------------
 # Detect WSL2
 # -----------------------------------------------------------------------------
@@ -889,15 +894,16 @@ fi
 # -----------------------------------------------------------------------------
 # 5. Run security hardening (if Phase 0 not completed)
 # -----------------------------------------------------------------------------
-if ! phase_completed 0; then
+# Check marker directly (bypass function if buggy)
+if [[ -f "$PROJECT_ROOT/.phase-0-complete" ]]; then
+    log_success "Phase 0 already completed – skipping hardening."
+else
     log_step "Phase 0 not completed – running security hardening..."
     if [[ -f "$SCRIPT_DIR/phase-system.sh" ]]; then
         bash "$SCRIPT_DIR/phase-system.sh"
     else
         log_warning "phase-system.sh not found – skipping hardening"
     fi
-else
-    log_success "Security hardening already applied (Phase 0)"
 fi
 
 # -----------------------------------------------------------------------------
@@ -1597,30 +1603,31 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Creating emergency access options..."
 
-# Create Odoo emergency user (existing)
+# Determine emergency directory based on user
+if [ "$EUID" -eq 0 ]; then
+    EMERGENCY_DIR="/root/emergency_access"
+else
+    EMERGENCY_DIR="$HOME/.nettrades/emergency"
+fi
+
+mkdir -p "$EMERGENCY_DIR"
 EMERGENCY_PASSWORD=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-24)
+
+# Insert with company_id = 1 (default company)
 docker compose exec -T postgres psql -U odoo -d odoo <<EOF
-INSERT INTO res_users (login, password, active, create_date, write_date)
-VALUES ('emergency', crypt('$EMERGENCY_PASSWORD', gen_salt('bf')), true, NOW(), NOW())
+INSERT INTO res_users (login, password, active, company_id, create_date, write_date)
+VALUES ('emergency', crypt('$EMERGENCY_PASSWORD', gen_salt('bf')), true, 1, NOW(), NOW())
 ON CONFLICT (login) DO NOTHING;
 EOF
 
-# Store in multiple locations for redundancy
-mkdir -p /root/emergency_access
-echo "ODOO_EMERGENCY_PASSWORD=$EMERGENCY_PASSWORD" > /root/emergency_access/credentials.txt
-chmod 600 /root/emergency_access/credentials.txt
+# Store credentials
+echo "ODOO_EMERGENCY_PASSWORD=$EMERGENCY_PASSWORD" > "$EMERGENCY_DIR/credentials.txt"
+chmod 600 "$EMERGENCY_DIR/credentials.txt"
 
-# Also store in home directory for per-user installations
-mkdir -p "$HOME/.nettrades/emergency"
-echo "ODOO_EMERGENCY_PASSWORD=$EMERGENCY_PASSWORD" > "$HOME/.nettrades/emergency/credentials.txt"
-chmod 600 "$HOME/.nettrades/emergency/credentials.txt"
+log_success "Emergency credentials stored in: $EMERGENCY_DIR/credentials.txt"
 
-log_success "Emergency credentials stored in:"
-log_info "  /root/emergency_access/credentials.txt"
-log_info "  ~/.nettrades/emergency/credentials.txt"
-
-# Create admin password reset script
-cat > /root/emergency_access/reset_admin_password.sh << 'EOF'
+# Create admin password reset script (also use EMERGENCY_DIR)
+cat > "$EMERGENCY_DIR/reset_admin_password.sh" << 'EOF'
 #!/bin/bash
 read -sp "Enter new admin password: " new_password
 docker compose exec -T postgres psql -U odoo -d odoo <<SQL
@@ -1629,8 +1636,8 @@ WHERE login = 'admin';
 SQL
 echo "Admin password updated successfully"
 EOF
-chmod +x /root/emergency_access/reset_admin_password.sh
-chmod 600 /root/emergency_access/reset_admin_password.sh
+chmod +x "$EMERGENCY_DIR/reset_admin_password.sh"
+chmod 600 "$EMERGENCY_DIR/reset_admin_password.sh"
 
 log_success "Emergency access configured:"
 echo ""
@@ -1638,9 +1645,9 @@ echo "============================================================"
 echo " EMERGENCY ACCESS OPTIONS"
 echo "============================================================"
 echo "1. Odoo Emergency User:      login='emergency'"
-echo "   Password: /root/emergency_access/credentials.txt"
+echo "   Password: $EMERGENCY_DIR/credentials.txt"
 echo "2. Rescue SSH:               ssh -p 2222 localhost (password auth)"
-echo "3. Admin Password Reset:     /root/emergency_access/reset_admin_password.sh"
+echo "3. Admin Password Reset:     $EMERGENCY_DIR/reset_admin_password.sh"
 echo "============================================================"
 
 # -----------------------------------------------------------------------------
