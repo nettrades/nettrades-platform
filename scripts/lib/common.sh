@@ -569,3 +569,63 @@ install_dependencies() {
     fi
     return 0
 }
+
+
+# =============================================================================
+# Emergency Access Functions (Hub-and-Spoke Security)
+# =============================================================================
+
+# Check if a login is a valid emergency user
+check_emergency_access() {
+    local login="$1"
+    local password="$2"
+    local result=$(docker compose exec -T postgres psql -U odoo -d odoo -t -c "
+        SELECT COUNT(*) FROM nettrades_emergency_users 
+        WHERE login='$login' 
+        AND password_hash = crypt('$password', password_hash)
+        AND valid_until > NOW();
+    " 2>/dev/null | tr -d ' ')
+    
+    if [[ "$result" == "1" ]]; then
+        # Update last_used timestamp
+        docker compose exec -T postgres psql -U odoo -d odoo -c "
+            UPDATE nettrades_emergency_users 
+            SET last_used = NOW() 
+            WHERE login='$login';
+        " 2>/dev/null
+        return 0
+    fi
+    return 1
+}
+
+# Log emergency access actions for audit
+log_emergency_action() {
+    local login="$1"
+    local action="$2"
+    local ip="${3:-unknown}"
+    
+    docker compose exec -T postgres psql -U odoo -d odoo -c "
+        INSERT INTO nettrades_emergency_audit (login, action, ip_address)
+        VALUES ('$login', '$action', '$ip');
+    " 2>/dev/null
+}
+
+# =============================================================================
+# Domain Validation
+# =============================================================================
+
+validate_domain() {
+    local domain="$1"
+    # Basic domain validation: must not be localhost, IP, or contain dangerous chars
+    if [[ -z "$domain" ]] || [[ "$domain" == "localhost" ]] || [[ "$domain" == "changeit" ]]; then
+        return 1
+    fi
+    if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        return 1
+    fi
+    # Allow subdomains and hyphens
+    if [[ "$domain" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$ ]]; then
+        return 0
+    fi
+    return 1
+}

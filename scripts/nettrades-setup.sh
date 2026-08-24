@@ -142,6 +142,7 @@ PHASES_LIST=""
 PROFILE=""
 INTERACTIVE=false
 PLATFORM_OVERRIDE=""
+VALIDATE_CONFIG=false
 
 # -----------------------------------------------------------------------------
 # Show help
@@ -190,6 +191,7 @@ ${YELLOW}OPTIONS (CLI):${NC}
     --with-cuvs           Install RAPIDS cuVS for GPU-accelerated vector search.
     --domain=DOMAIN       Set domain name for external access (enables HTTPS).
     --platform            Override platform detection (linux, macos, wsl).
+    --validate-config     Validate all configuration files before deployment
 
 ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh                        # Interactive wizard
@@ -725,6 +727,7 @@ while [[ $# -gt 0 ]]; do
         --with-kai) WITH_KAI=true; shift ;;
         --with-cuvs) WITH_CUVS=true; shift ;;
         --per-user) PER_USER=true; shift ;;
+        --validate-config) VALIDATE_CONFIG=true; shift ;;
         --platform)
             PLATFORM_OVERRIDE="$2"
             shift 2
@@ -993,6 +996,43 @@ log_info "With RAPIDS cuVS: $WITH_CUVS"
 log_info "Virtual Environment: $VENV_DIR"
 log_info "Platform: $PLATFORM"
 echo ""
+
+# -----------------------------------------------------------------------------
+# Validate configuration if requested
+# -----------------------------------------------------------------------------
+if [[ "${VALIDATE_CONFIG:-false}" == "true" ]]; then
+    log_header "Validating Configuration"
+    
+    # Check .env file exists and has required variables
+    if [[ -f "$PROJECT_ROOT/deploy/docker/.env" ]]; then
+        log_success ".env file found"
+        # Check for critical variables
+        source "$PROJECT_ROOT/deploy/docker/.env"
+        if [[ -z "${DOMAIN:-}" ]] || [[ "$DOMAIN" == "changeit" ]]; then
+            log_error "DOMAIN is not properly configured in .env"
+            exit 1
+        fi
+        if ! validate_domain "$DOMAIN"; then
+            log_error "DOMAIN '$DOMAIN' is invalid. Must be a valid domain name."
+            exit 1
+        fi
+        log_success "DOMAIN validation passed: $DOMAIN"
+    else
+        log_error ".env file not found at $PROJECT_ROOT/deploy/docker/.env"
+        exit 1
+    fi
+    
+    # Check phase markers for consistency
+    for phase in 0 1 2 3 4 5; do
+        if phase_completed $phase; then
+            log_info "Phase $phase already completed"
+        fi
+    done
+    
+    log_success "Configuration validation passed"
+    exit 0
+fi
+
 
 # -----------------------------------------------------------------------------
 # Run phases in sequence

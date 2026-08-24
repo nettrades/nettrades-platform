@@ -280,6 +280,8 @@ set -a
 source "$ENV_FILE"
 set +a
 
+EMERGENCY_ACCESS_DURATION="${EMERGENCY_ACCESS_DURATION:-4}"
+
 # -----------------------------------------------------------------------------
 # Determine tenant type for runtime selection
 # -----------------------------------------------------------------------------
@@ -1094,7 +1096,12 @@ datasources:
 EOF
 log_success "Grafana datasource provisioning created"
 
+# Install bcrypt in the virtual environment before generating Prometheus config
+ensure_bcrypt || log_warning "bcrypt installation failed – Prometheus will use plain-text passwords"
+
+# =============================================================================
 # Generate Prometheus web.yml with basic auth (using the password from .env)
+# =============================================================================
 
 log_step "Generating Prometheus web.yml with basic auth..."
 WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
@@ -1612,11 +1619,33 @@ fi
 
 mkdir -p "$EMERGENCY_DIR"
 EMERGENCY_PASSWORD=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-24)
+# Set a 4-hour validity window from now
+VALID_UNTIL=$(date -d "+${EMERGENCY_ACCESS_DURATION} hours" '+%Y-%m-%d %H:%M:%S')
 
-# Insert with company_id = 1 (default company)
+# Create dedicated table and audit log, then insert the emergency user
 docker compose exec -T postgres psql -U odoo -d odoo <<EOF
-INSERT INTO res_users (login, password, active, company_id, create_date, write_date)
-VALUES ('emergency', crypt('$EMERGENCY_PASSWORD', gen_salt('bf')), true, 1, NOW(), NOW())
+-- Create a dedicated table for emergency access
+CREATE TABLE IF NOT EXISTS nettrades_emergency_users (
+    id SERIAL PRIMARY KEY,
+    login VARCHAR(64) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    valid_until TIMESTAMP NOT NULL,
+    last_used TIMESTAMP
+);
+
+-- Create an audit log for emergency sessions
+CREATE TABLE IF NOT EXISTS nettrades_emergency_audit (
+    id SERIAL PRIMARY KEY,
+    login VARCHAR(64) NOT NULL,
+    action TEXT NOT NULL,
+    ip_address INET,
+    performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert the emergency user with a validity set in .env as EMERGENCY_ACCESS_DURATION
+INSERT INTO nettrades_emergency_users (login, password_hash, valid_until)
+VALUES ('emergency', crypt('$EMERGENCY_PASSWORD', gen_salt('bf')), '$VALID_UNTIL')
 ON CONFLICT (login) DO NOTHING;
 EOF
 
@@ -1625,6 +1654,7 @@ echo "ODOO_EMERGENCY_PASSWORD=$EMERGENCY_PASSWORD" > "$EMERGENCY_DIR/credentials
 chmod 600 "$EMERGENCY_DIR/credentials.txt"
 
 log_success "Emergency credentials stored in: $EMERGENCY_DIR/credentials.txt"
+log_info "Emergency user 'emergency' is valid for ${EMERGENCY_ACCESS_DURATION} hours (until: $VALID_UNTIL)"
 
 # Create admin password reset script (also use EMERGENCY_DIR)
 cat > "$EMERGENCY_DIR/reset_admin_password.sh" << 'EOF'
@@ -1646,6 +1676,7 @@ echo " EMERGENCY ACCESS OPTIONS"
 echo "============================================================"
 echo "1. Odoo Emergency User:      login='emergency'"
 echo "   Password: $EMERGENCY_DIR/credentials.txt"
+echo "   Valid until: $VALID_UNTIL"
 echo "2. Rescue SSH:               ssh -p 2222 localhost (password auth)"
 echo "3. Admin Password Reset:     $EMERGENCY_DIR/reset_admin_password.sh"
 echo "============================================================"

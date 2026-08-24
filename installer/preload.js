@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
     getModelsDir: () => ipcRenderer.invoke('get-models-dir'),
     getServerUrl: () => ipcRenderer.invoke('get-server-url'),
     saveServerUrl: (url) => ipcRenderer.invoke('save-server-url', url),
+    listEmergencyAudit: () => ipcRenderer.invoke('list-emergency-audit'),
 
     // ──────────────────────────────────────────────────────────────────────────
     // Platform Setup Status (NEW – for Quick Setup)
@@ -54,6 +55,14 @@ contextBridge.exposeInMainWorld('api', {
     // ──────────────────────────────────────────────────────────────────────────
 
     getFeatureFlags: () => ipcRenderer.invoke('get-feature-flags'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+	// Emergency Access Management
+	// ──────────────────────────────────────────────────────────────────────────
+
+	listEmergencyUsers: () => ipcRenderer.invoke('list-emergency-users'),
+	revokeEmergencyUser: (login) => ipcRenderer.invoke('revoke-emergency-user', login),
+    createEmergencyUser: (duration) => ipcRenderer.invoke('create-emergency-user', duration),
 
     // ──────────────────────────────────────────────────────────────────────────
     // Installation / Deployment

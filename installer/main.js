@@ -80,6 +80,23 @@ const ENV_FILE = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
 // Phase marker directory
 const PHASE_MARKER_DIR = PROJECT_ROOT;
 
+
+// -----------------------------------------------------------------------------
+// Helper: Execute a shell command and return stdout
+// -----------------------------------------------------------------------------
+function execCommand(command) {
+    return new Promise((resolve, reject) => {
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(stdout);
+            }
+        });
+    });
+}
+
+
 // -----------------------------------------------------------------------------
 // Tenant Types and Runtime Configuration
 // -----------------------------------------------------------------------------
@@ -526,6 +543,23 @@ ipcMain.handle('run-quick-setup', async (event) => {
         });
     });
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// List Emergency Audit
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('list-emergency-audit', async () => {
+    try {
+        const result = await execCommand(
+            `docker compose exec -T postgres psql -U odoo -d odoo -t -c "SELECT login, action, ip_address, performed_at FROM nettrades_emergency_audit ORDER BY performed_at DESC LIMIT 50;"`
+        );
+        return { success: true, data: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Installation / Deployment
@@ -2143,6 +2177,56 @@ async function getOdooAuthToken() {
     // Simulate a simple token (just for development)
     return Buffer.from(`admin:${password}`).toString('base64');
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Emergency Access Management (Hub-and-Spoke Security)
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('list-emergency-users', async () => {
+    try {
+        const result = await execCommand(
+            `docker compose exec -T postgres psql -U odoo -d odoo -t -c "SELECT login, valid_until, last_used FROM nettrades_emergency_users ORDER BY created_at DESC;"`
+        );
+        return { success: true, data: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('revoke-emergency-user', async (event, login) => {
+    try {
+        await execCommand(
+            `docker compose exec -T postgres psql -U odoo -d odoo -c "DELETE FROM nettrades_emergency_users WHERE login='${login}';"`
+        );
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('create-emergency-user', async (event, duration) => {
+    const password = generate_safe_password();
+    const validUntil = new Date(Date.now() + (duration || 4) * 3600000)
+        .toISOString()
+        .replace('T', ' ')
+        .slice(0, 19);
+
+    try {
+        await execCommand(
+            `docker compose exec -T postgres psql -U odoo -d odoo -c "
+                INSERT INTO nettrades_emergency_users (login, password_hash, valid_until)
+                VALUES ('emergency', crypt('${password}', gen_salt('bf')), '${validUntil}')
+                ON CONFLICT (login) DO UPDATE SET
+                    password_hash = crypt('${password}', gen_salt('bf')),
+                    valid_until = '${validUntil}';
+            "`
+        );
+        return { success: true, password, validUntil };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
 
 
 // ─────────────────────────────────────────────────────────────────────────────

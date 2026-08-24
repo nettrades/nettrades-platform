@@ -1814,6 +1814,10 @@
                         <span>GPUs</span>
                         <span class="badge" id="gpu-count">0</span>
                     </div>
+                    <div class="nav-item" data-tab="emergency">
+					    <span class="icon">🔐</span>
+					    <span>Emergency Access</span>
+                    </div>
                 </div>
                 <div class="nav-section">
                     <div class="section-title">Network</div>
@@ -2967,6 +2971,28 @@ You can:
 				            <!-- Rendered by JavaScript -->
 				        </div>
 				    </div>
+                </div>
+
+                <!-- ============================================================
+                EMERGENCY ACCESS USER
+                ============================================================ -->
+
+                <div id="tab-emergency" class="tab-content">
+				    <div class="dashboard-header">
+				        <h2>🔐 Emergency Access Management</h2>
+				        <div class="subtitle">Manage break-glass emergency users for Odoo</div>
+				    </div>
+				    <div style="margin-bottom: 1rem;">
+				        <button class="btn btn-primary" onclick="createEmergencyUser()">➕ Create Emergency User</button>
+				        <button class="btn btn-secondary" onclick="loadEmergencyUsers()">🔄 Refresh</button>
+				    </div>
+				    <div id="emergency-users-list">
+				        <p>Loading...</p>
+				    </div>
+				    <div style="margin-top: 24px;">
+					    <button class="btn btn-secondary" onclick="loadEmergencyAudit()">📋 View Audit Log</button>
+					    <div id="emergency-audit-list" style="margin-top: 12px;"></div>
+                    </div>
                 </div>
 
                 <!-- ============================================================

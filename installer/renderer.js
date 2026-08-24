@@ -66,6 +66,10 @@ function switchTab(tabName) {
 
     currentTab = tabName;
 
+    if (tabName === 'emergency') {
+        loadEmergencyUsers();
+    }
+
     if (tabName === 'dashboard') {
         updateDashboard();
         detectHardware();
@@ -96,6 +100,51 @@ async function loadPlatformInfo() {
         console.error('Failed to load platform info:', e);
     }
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Load Emergency Audit
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function loadEmergencyAudit() {
+    const container = document.getElementById('emergency-audit-list');
+    if (!container) return;
+    container.innerHTML = '<div class="spinner"></div> Loading audit log...';
+    try {
+        const result = await window.api.listEmergencyAudit();
+        if (result.success) {
+            const lines = result.data.split('\n').filter(l => l.trim());
+            if (lines.length === 0) {
+                container.innerHTML = '<p class="empty-state">No audit entries found.</p>';
+                return;
+            }
+            let html = `<table style="width:100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                <thead><tr>
+                    <th>Login</th>
+                    <th>Action</th>
+                    <th>IP Address</th>
+                    <th>Performed At</th>
+                </tr></thead><tbody>`;
+            for (const line of lines) {
+                const parts = line.split('|').map(s => s.trim());
+                if (parts.length >= 4) {
+                    html += `<tr>
+                        <td>${parts[0]}</td>
+                        <td>${parts[1]}</td>
+                        <td>${parts[2]}</td>
+                        <td>${parts[3]}</td>
+                    </tr>`;
+                }
+            }
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `<p class="error">Failed to load audit log: ${result.error}</p>`;
+        }
+    } catch (e) {
+        container.innerHTML = `<p class="error">Error: ${e.message}</p>`;
+    }
+}
+
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Server URL
@@ -1331,6 +1380,66 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ─── Emergency Access Management ───
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function loadEmergencyUsers() {
+    const container = document.getElementById('emergency-users-list');
+    if (!container) return;
+    container.innerHTML = '<div class="spinner"></div> Loading...';
+    try {
+        const result = await window.api.listEmergencyUsers();
+        if (result.success) {
+            // Assume result.data is a string with pipe-separated columns (login|valid_until|last_used)
+            const lines = result.data.split('\n').filter(l => l.trim());
+            if (lines.length === 0) {
+                container.innerHTML = '<p class="empty-state">No emergency users found.</p>';
+                return;
+            }
+            let html = `<table style="width:100%; border-collapse: collapse; text-align: left;">
+                <thead><tr>
+                    <th>Login</th>
+                    <th>Valid Until</th>
+                    <th>Last Used</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr></thead><tbody>`;
+            for (const line of lines) {
+                // Split by '|' (psql -t -c output)
+                const parts = line.split('|').map(s => s.trim());
+                if (parts.length >= 3) {
+                    const login = parts[0];
+                    const validUntil = parts[1];
+                    const lastUsed = parts[2] || 'Never';
+                    const isValid = new Date(validUntil) > new Date();
+                    const statusBadge = isValid ? '🟢 Valid' : '🔴 Expired';
+                    html += `<tr>
+                        <td><strong>${login}</strong></td>
+                        <td>${validUntil}</td>
+                        <td>${lastUsed}</td>
+                        <td><span style="color:${isValid ? '#28c840' : '#ff5f57'}">${statusBadge}</span></td>
+                        <td><button class="btn btn-danger" onclick="revokeEmergencyUser('${login}')" style="padding: 4px 12px; font-size: 12px;">Revoke</button></td>
+                    </tr>`;
+                }
+            }
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `<p class="error">Failed to load emergency users: ${result.error}</p>`;
+        }
+    } catch (e) {
+        container.innerHTML = `<p class="error">Error: ${e.message}</p>`;
+    }
+}
+
+// ─── Tab switching integration ───
+// Add a case to your existing switchTab function to load emergency users
+// when the "emergency" tab is activated.
+
+
 
 // ──────────────────────────────────────────────────────────────────────────────
 // ─── System Check ───
