@@ -1452,7 +1452,7 @@ ipcMain.handle('vpn-status', () => {
 
 ipcMain.handle('ask-someone', async (event, data) => {
     const { question, category, urgency, expertId } = data || {};
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     // Call the LangGraph Ask Someone agent
     try {
@@ -1495,7 +1495,7 @@ ipcMain.handle('ask-someone', async (event, data) => {
 
 ipcMain.handle('good-answer', async (event, data) => {
     const { question, answer, rating, userId } = data || {};
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     // Call the LangGraph Good Answer agent
     try {
@@ -1538,7 +1538,7 @@ ipcMain.handle('good-answer', async (event, data) => {
 
 ipcMain.handle('start-training', async (event, data) => {
     const { dataset, model, method, params } = data || {};
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/runs/stream`, {
@@ -1575,7 +1575,7 @@ ipcMain.handle('start-training', async (event, data) => {
 });
 
 ipcMain.handle('training-status', async () => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/training/status`);
@@ -1595,7 +1595,7 @@ ipcMain.handle('training-status', async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('list-agents', async () => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/agents/list`);
@@ -1611,7 +1611,7 @@ ipcMain.handle('list-agents', async () => {
 });
 
 ipcMain.handle('agent-status', async (event, agentId) => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/agents/${agentId}/status`);
@@ -1631,7 +1631,7 @@ ipcMain.handle('agent-status', async (event, agentId) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('list-queue', async () => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/queue/list`);
@@ -1647,7 +1647,7 @@ ipcMain.handle('list-queue', async () => {
 });
 
 ipcMain.handle('cancel-task', async (event, taskId) => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/queue/${taskId}/cancel`, {
@@ -1665,7 +1665,7 @@ ipcMain.handle('cancel-task', async (event, taskId) => {
 });
 
 ipcMain.handle('retry-task', async (event, taskId) => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/queue/${taskId}/retry`, {
@@ -1687,7 +1687,7 @@ ipcMain.handle('retry-task', async (event, taskId) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('marketplace-listings', async () => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/listings`);
@@ -1703,7 +1703,7 @@ ipcMain.handle('marketplace-listings', async () => {
 });
 
 ipcMain.handle('marketplace-list-gpu', async (event, data) => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/list`, {
@@ -1725,7 +1725,7 @@ ipcMain.handle('marketplace-list-gpu', async (event, data) => {
 });
 
 ipcMain.handle('marketplace-book-gpu', async (event, data) => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/book`, {
@@ -1759,7 +1759,7 @@ ipcMain.handle('get-discovered-nodes', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('system-health', async () => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
     const health = {
         services: {},
         gpus: [],
@@ -1806,7 +1806,7 @@ ipcMain.handle('system-health', async () => {
 
 ipcMain.handle('get-logs', async (event, options) => {
     const { service, lines = 100 } = options || {};
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/logs/${service}?lines=${lines}`);
@@ -1826,7 +1826,7 @@ ipcMain.handle('get-logs', async (event, options) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('get-alerts', async () => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/alerts`);
@@ -1842,7 +1842,7 @@ ipcMain.handle('get-alerts', async () => {
 });
 
 ipcMain.handle('get-notifications', async () => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/notifications`);
@@ -1858,7 +1858,7 @@ ipcMain.handle('get-notifications', async () => {
 });
 
 ipcMain.handle('mark-notification-read', async (event, notificationId) => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
 
     try {
         const response = await fetch(`${serverUrl}:8000/notifications/${notificationId}/read`, { method: 'POST' });
@@ -2063,7 +2063,7 @@ ipcMain.handle('system-check', async () => {
 
 ipcMain.handle('get-credentials', async () => {
     // Get the server URL
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
     // Call Odoo API to get secret list (metadata only)
     try {
         const response = await fetch(`${serverUrl}:8069/api/secrets/list`, {
@@ -2083,7 +2083,7 @@ ipcMain.handle('get-credentials', async () => {
 });
 
 ipcMain.handle('get-credential-value', async (event, key) => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
     try {
         const response = await fetch(`${serverUrl}:8069/api/secrets/${key}`, {
             headers: {
@@ -2102,7 +2102,7 @@ ipcMain.handle('get-credential-value', async (event, key) => {
 });
 
 ipcMain.handle('rotate-credential', async (event, key, newValue) => {
-    const serverUrl = await ipcMain.handle('get-server-url');
+    const serverUrl = await ipcMain.invoke('get-server-url');
     try {
         const response = await fetch(`${serverUrl}:8069/api/secrets/${key}/rotate`, {
             method: 'POST',
