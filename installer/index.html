@@ -1525,6 +1525,189 @@
             font-weight: 600;
         }
 
+
+        /* ─── Containers Grid ─── */
+		.containers-grid {
+		    display: grid;
+		    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		    gap: 16px;
+		    margin-top: 12px;
+		}
+
+		.container-card {
+		    background: rgba(255, 255, 255, 0.04);
+		    border: 1px solid rgba(255, 255, 255, 0.06);
+		    border-radius: 12px;
+		    padding: 16px 20px;
+		    transition: all 0.3s;
+		    position: relative;
+		}
+
+		.container-card:hover {
+		    background: rgba(255, 255, 255, 0.06);
+		    border-color: rgba(255, 255, 255, 0.12);
+		    transform: translateY(-2px);
+		}
+
+		.container-card .container-name {
+		    font-size: 16px;
+		    font-weight: 600;
+		    display: flex;
+		    align-items: center;
+		    gap: 10px;
+		}
+
+		.container-card .container-status {
+		    font-size: 12px;
+		    padding: 2px 12px;
+		    border-radius: 12px;
+		    font-weight: 500;
+		}
+
+		.container-card .container-status.running {
+		    background: rgba(40, 200, 64, 0.2);
+		    color: #28c840;
+		}
+
+		.container-card .container-status.exited {
+		    background: rgba(255, 95, 87, 0.2);
+		    color: #ff5f57;
+		}
+
+		.container-card .container-status.created {
+		    background: rgba(255, 189, 46, 0.2);
+		    color: #ffbd2e;
+		}
+
+		.container-card .container-status.paused {
+		    background: rgba(255, 149, 0, 0.2);
+		    color: #ff9500;
+		}
+
+		.container-card .container-status.restarting {
+		    background: rgba(255, 149, 0, 0.2);
+		    color: #ff9500;
+		    animation: pulse 1.5s infinite;
+		}
+
+		.container-card .container-status.healthy {
+		    background: rgba(40, 200, 64, 0.15);
+		    color: #28c840;
+		}
+
+		.container-card .container-status.unhealthy {
+		    background: rgba(255, 95, 87, 0.15);
+		    color: #ff5f57;
+		}
+
+		.container-card .container-details {
+		    font-size: 13px;
+		    color: #8a8a9a;
+		    margin-top: 4px;
+		}
+
+		.container-card .container-ports {
+		    font-size: 12px;
+		    color: #4a8aff;
+		    margin-top: 4px;
+		    font-family: monospace;
+		}
+
+		.container-card .container-actions {
+		    display: flex;
+		    gap: 8px;
+		    margin-top: 12px;
+		    flex-wrap: wrap;
+		}
+
+		.container-card .container-actions button {
+		    padding: 4px 14px;
+		    border: none;
+		    border-radius: 6px;
+		    font-size: 12px;
+		    font-weight: 500;
+		    cursor: pointer;
+		    transition: all 0.2s;
+		}
+
+		.container-card .container-actions button:hover {
+		    transform: translateY(-1px);
+		}
+
+		.container-card .container-actions .btn-start {
+		    background: rgba(40, 200, 64, 0.2);
+		    color: #28c840;
+		}
+		.container-card .container-actions .btn-start:hover {
+		    background: rgba(40, 200, 64, 0.3);
+		}
+
+		.container-card .container-actions .btn-stop {
+		    background: rgba(255, 95, 87, 0.2);
+		    color: #ff5f57;
+		}
+		.container-card .container-actions .btn-stop:hover {
+		    background: rgba(255, 95, 87, 0.3);
+		}
+
+		.container-card .container-actions .btn-restart {
+		    background: rgba(255, 189, 46, 0.2);
+		    color: #ffbd2e;
+		}
+		.container-card .container-actions .btn-restart:hover {
+		    background: rgba(255, 189, 46, 0.3);
+		}
+
+		.container-card .container-actions .btn-logs {
+		    background: rgba(74, 138, 255, 0.2);
+		    color: #4a8aff;
+		}
+		.container-card .container-actions .btn-logs:hover {
+		    background: rgba(74, 138, 255, 0.3);
+		}
+
+		.container-card .container-health {
+		    font-size: 11px;
+		    padding: 2px 10px;
+		    border-radius: 12px;
+		    margin-top: 6px;
+		    display: inline-block;
+		}
+
+		.container-card .container-health.healthy {
+		    color: #28c840;
+		}
+
+		.container-card .container-health.unhealthy {
+		    color: #ff5f57;
+		}
+
+		.container-card .container-health.starting {
+		    color: #ffbd2e;
+		}
+
+		.container-card .container-age {
+		    font-size: 11px;
+		    color: #6a6a7a;
+		    position: absolute;
+		    top: 16px;
+		    right: 20px;
+		}
+
+		.container-card .container-image {
+		    font-size: 11px;
+		    color: #6a6a7a;
+		    font-family: monospace;
+		    margin-top: 2px;
+		    word-break: break-all;
+		}
+
+		@media (max-width: 768px) {
+		    .containers-grid {
+		        grid-template-columns: 1fr;
+		    }
+        }
+
         /* ─── Hardware Detection ─── */
         .hardware-info {
             background: rgba(255, 255, 255, 0.04);
@@ -1861,6 +2044,11 @@
                     <div class="nav-item" data-tab="monitor">
                         <span class="icon">📈</span>
                         <span>Monitor</span>
+                    </div>
+                    <div class="nav-item" data-tab="containers">
+					    <span class="icon">🐳</span>
+					    <span>Containers</span>
+					    <span class="badge" id="container-count">0</span>
                     </div>
                     <div class="nav-item" data-tab="backup">
                         <span class="icon">💾</span>
@@ -2686,6 +2874,41 @@ You can:
                             <p>No active alerts</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- ============================================================
+				CONTAINERS TAB
+				============================================================ -->
+				<div id="tab-containers" class="tab-content">
+				    <div class="dashboard-header">
+				        <div>
+				            <h2>🐳 Container Management</h2>
+				            <div class="subtitle">Manage Docker containers running on this node</div>
+				        </div>
+				        <div>
+				            <button class="btn btn-secondary" onclick="refreshContainers()">🔄 Refresh</button>
+				            <button class="btn btn-secondary" onclick="toggleContainerAutoRefresh()">
+				                <span id="auto-refresh-toggle">⏸️ Pause</span>
+				            </button>
+				        </div>
+				    </div>
+
+				    <div class="container-controls" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+				        <button class="btn btn-success" onclick="startAllContainers()">▶️ Start All</button>
+				        <button class="btn btn-danger" onclick="stopAllContainers()">⏹️ Stop All</button>
+				        <button class="btn btn-warning" onclick="restartAllContainers()">🔄 Restart All</button>
+				        <span style="color: #6a6a7a; font-size: 13px; display: flex; align-items: center; margin-left: auto;">
+				            <span id="container-stats">0 containers</span>
+				        </span>
+				    </div>
+
+				    <div id="containers-list" class="containers-grid">
+				        <div class="empty-state">
+				            <div class="icon">🐳</div>
+				            <h3>Loading containers...</h3>
+				            <p>Fetching container status from Docker</p>
+				        </div>
+				    </div>
                 </div>
 
                 <!-- ============================================================

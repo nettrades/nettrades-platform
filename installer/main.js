@@ -1396,6 +1396,182 @@ ipcMain.handle('restore-backup', async (event, backupPath) => {
     });
 });
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Container Management (Docker)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Helper: Get container status using docker compose
+async function getContainerStatus() {
+    try {
+        const result = await execCommand(
+            `docker compose -f ${COMPOSE_FILE} ps --format json`
+        );
+        return JSON.parse(result);
+    } catch (error) {
+        // Fallback to docker ps if compose fails
+        const result = await execCommand(
+            `docker ps -a --format json`
+        );
+        return result.split('\n').filter(line => line.trim()).map(line => JSON.parse(line));
+    }
+}
+
+// List all containers
+ipcMain.handle('list-containers', async () => {
+    try {
+        // Use docker compose ps for detailed info
+        const cmd = `docker compose -f ${COMPOSE_FILE} ps --format json --all`;
+        const result = await execCommand(cmd);
+        if (!result || result.trim() === '') {
+            return { success: true, containers: [] };
+        }
+        // Parse JSON array
+        const containers = JSON.parse(result);
+        // Enhance with health status
+        for (const container of containers) {
+            // Get health status
+            try {
+                const healthCmd = `docker inspect ${container.Name || container.ID} --format '{{.State.Health.Status}}'`;
+                const health = await execCommand(healthCmd);
+                container.Health = health.trim() || 'none';
+            } catch (e) {
+                container.Health = 'none';
+            }
+            // Get age
+            try {
+                const ageCmd = `docker inspect ${container.Name || container.ID} --format '{{.Created}}'`;
+                const created = await execCommand(ageCmd);
+                const createdDate = new Date(created.trim());
+                container.Age = timeAgo(createdDate);
+            } catch (e) {
+                container.Age = 'unknown';
+            }
+            // Get image
+            try {
+                const imageCmd = `docker inspect ${container.Name || container.ID} --format '{{.Config.Image}}'`;
+                const image = await execCommand(imageCmd);
+                container.Image = image.trim() || 'unknown';
+            } catch (e) {
+                container.Image = 'unknown';
+            }
+        }
+        return { success: true, containers };
+    } catch (error) {
+        // Fallback: use docker ps
+        try {
+            const cmd = `docker ps -a --format json`;
+            const result = await execCommand(cmd);
+            if (!result || result.trim() === '') {
+                return { success: true, containers: [] };
+            }
+            const lines = result.split('\n').filter(line => line.trim());
+            const containers = lines.map(line => JSON.parse(line));
+            return { success: true, containers };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
+});
+
+// Start a container
+ipcMain.handle('start-container', async (event, containerId) => {
+    try {
+        const cmd = `docker compose -f ${COMPOSE_FILE} start ${containerId}`;
+        const result = await execCommand(cmd);
+        return { success: true, output: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Stop a container
+ipcMain.handle('stop-container', async (event, containerId) => {
+    try {
+        const cmd = `docker compose -f ${COMPOSE_FILE} stop ${containerId}`;
+        const result = await execCommand(cmd);
+        return { success: true, output: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Restart a container
+ipcMain.handle('restart-container', async (event, containerId) => {
+    try {
+        const cmd = `docker compose -f ${COMPOSE_FILE} restart ${containerId}`;
+        const result = await execCommand(cmd);
+        return { success: true, output: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Start all containers
+ipcMain.handle('start-all-containers', async () => {
+    try {
+        const cmd = `docker compose -f ${COMPOSE_FILE} up -d`;
+        const result = await execCommand(cmd);
+        return { success: true, output: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Stop all containers
+ipcMain.handle('stop-all-containers', async () => {
+    try {
+        const cmd = `docker compose -f ${COMPOSE_FILE} down`;
+        const result = await execCommand(cmd);
+        return { success: true, output: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Restart all containers
+ipcMain.handle('restart-all-containers', async () => {
+    try {
+        const cmd = `docker compose -f ${COMPOSE_FILE} restart`;
+        const result = await execCommand(cmd);
+        return { success: true, output: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Get container logs
+ipcMain.handle('container-logs', async (event, containerId, lines = 100) => {
+    try {
+        const cmd = `docker logs --tail ${lines} ${containerId}`;
+        const result = await execCommand(cmd);
+        return { success: true, logs: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Helper: Time ago formatter
+function timeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    const intervals = [
+        { label: 'year', seconds: 31536000 },
+        { label: 'month', seconds: 2592000 },
+        { label: 'day', seconds: 86400 },
+        { label: 'hour', seconds: 3600 },
+        { label: 'minute', seconds: 60 },
+        { label: 'second', seconds: 1 },
+    ];
+    for (const interval of intervals) {
+        const count = Math.floor(seconds / interval.seconds);
+        if (count >= 1) {
+            return `${count} ${interval.label}${count > 1 ? 's' : ''} ago`;
+        }
+    }
+    return 'just now';
+}
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // VPN Management (WireGuard)
 // ─────────────────────────────────────────────────────────────────────────────

@@ -65,6 +65,19 @@ contextBridge.exposeInMainWorld('api', {
     createEmergencyUser: (duration) => ipcRenderer.invoke('create-emergency-user', duration),
 
     // ──────────────────────────────────────────────────────────────────────────
+	// Container Management (Docker)
+	// ──────────────────────────────────────────────────────────────────────────
+
+	listContainers: () => ipcRenderer.invoke('list-containers'),
+	startContainer: (containerId) => ipcRenderer.invoke('start-container', containerId),
+	stopContainer: (containerId) => ipcRenderer.invoke('stop-container', containerId),
+	restartContainer: (containerId) => ipcRenderer.invoke('restart-container', containerId),
+	startAllContainers: () => ipcRenderer.invoke('start-all-containers'),
+	stopAllContainers: () => ipcRenderer.invoke('stop-all-containers'),
+	restartAllContainers: () => ipcRenderer.invoke('restart-all-containers'),
+    containerLogs: (containerId, lines) => ipcRenderer.invoke('container-logs', containerId, lines),
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Installation / Deployment
     // ──────────────────────────────────────────────────────────────────────────
     // FIXED: Added withCuvs to runInstall options

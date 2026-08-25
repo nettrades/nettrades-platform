@@ -84,6 +84,12 @@ function switchTab(tabName) {
         detectHardware();
         renderDeploymentCards();
     }
+    if (tabName === 'containers') {
+	    refreshContainers();
+	    if (autoRefreshContainers && !containerRefreshInterval) {
+	        containerRefreshInterval = setInterval(refreshContainers, 5000);
+	    }
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1435,6 +1441,276 @@ async function loadEmergencyUsers() {
     }
 }
 
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ─── Container Management ───
+// ──────────────────────────────────────────────────────────────────────────────
+
+let containerRefreshInterval = null;
+let autoRefreshContainers = true;
+
+async function refreshContainers() {
+    const container = document.getElementById('containers-list');
+    if (!container) return;
+
+    container.innerHTML = '<div class="spinner"></div> Loading containers...';
+
+    try {
+        const result = await window.api.listContainers();
+        if (result.success) {
+            const containers = result.containers || [];
+            document.getElementById('container-count').textContent = containers.length;
+            document.getElementById('container-stats').textContent =
+                `${containers.filter(c => c.State === 'running').length} running, ${containers.length} total`;
+
+            if (containers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🐳</div>
+                        <h3>No Containers Found</h3>
+                        <p>No containers are running on this node.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            for (const c of containers) {
+                const statusClass = getStatusClass(c.State);
+                const healthClass = getHealthClass(c.Health);
+                const statusDisplay = c.State.charAt(0).toUpperCase() + c.State.slice(1);
+
+                html += `
+                    <div class="container-card" data-id="${c.ID || c.Name}">
+                        <div class="container-age">${c.Age || 'N/A'}</div>
+                        <div class="container-name">
+                            ${c.Name || 'unnamed'}
+                            <span class="container-status ${statusClass}">${statusDisplay}</span>
+                        </div>
+                        <div class="container-image">📦 ${c.Image || 'unknown'}</div>
+                        <div class="container-details">
+                            ${c.Ports ? `<div class="container-ports">🔗 ${c.Ports}</div>` : ''}
+                            ${c.Health && c.Health !== 'none' ? `<span class="container-health ${healthClass}">❤️ ${c.Health}</span>` : ''}
+                        </div>
+                        <div class="container-actions">
+                            ${c.State !== 'running' && c.State !== 'restarting' ?
+                                `<button class="btn-start" onclick="startContainer('${c.ID || c.Name}')">▶️ Start</button>` :
+                                ''
+                            }
+                            ${c.State === 'running' || c.State === 'restarting' ?
+                                `<button class="btn-stop" onclick="stopContainer('${c.ID || c.Name}')">⏹️ Stop</button>` :
+                                ''
+                            }
+                            ${c.State === 'running' || c.State === 'restarting' ?
+                                `<button class="btn-restart" onclick="restartContainer('${c.ID || c.Name}')">🔄 Restart</button>` :
+                                ''
+                            }
+                            <button class="btn-logs" onclick="viewContainerLogs('${c.ID || c.Name}')">📄 Logs</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">❌</div>
+                    <h3>Failed to Load Containers</h3>
+                    <p>${result.error || 'Unknown error'}</p>
+                    <button class="btn btn-secondary" onclick="refreshContainers()" style="margin-top: 12px;">🔄 Retry</button>
+                </div>
+            `;
+        }
+    } catch (error) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">❌</div>
+                <h3>Error</h3>
+                <p>${error.message}</p>
+                <button class="btn btn-secondary" onclick="refreshContainers()" style="margin-top: 12px;">🔄 Retry</button>
+            </div>
+        `;
+    }
+}
+
+function getStatusClass(state) {
+    const map = {
+        'running': 'running',
+        'exited': 'exited',
+        'created': 'created',
+        'paused': 'paused',
+        'restarting': 'restarting',
+        'dead': 'exited',
+        'removing': 'restarting',
+    };
+    return map[state] || 'unknown';
+}
+
+function getHealthClass(health) {
+    const map = {
+        'healthy': 'healthy',
+        'unhealthy': 'unhealthy',
+        'starting': 'starting',
+        'none': 'healthy',
+    };
+    return map[health] || 'starting';
+}
+
+async function startContainer(containerId) {
+    if (!confirm(`Start container '${containerId}'?`)) return;
+    const result = await window.api.startContainer(containerId);
+    if (result.success) {
+        showToast(`Container '${containerId}' started`, 'success');
+        refreshContainers();
+    } else {
+        showToast(`Failed to start: ${result.error}`, 'error');
+    }
+}
+
+async function stopContainer(containerId) {
+    if (!confirm(`Stop container '${containerId}'?`)) return;
+    const result = await window.api.stopContainer(containerId);
+    if (result.success) {
+        showToast(`Container '${containerId}' stopped`, 'success');
+        refreshContainers();
+    } else {
+        showToast(`Failed to stop: ${result.error}`, 'error');
+    }
+}
+
+async function restartContainer(containerId) {
+    if (!confirm(`Restart container '${containerId}'?`)) return;
+    const result = await window.api.restartContainer(containerId);
+    if (result.success) {
+        showToast(`Container '${containerId}' restarted`, 'success');
+        refreshContainers();
+    } else {
+        showToast(`Failed to restart: ${result.error}`, 'error');
+    }
+}
+
+async function startAllContainers() {
+    if (!confirm('Start all containers?')) return;
+    const result = await window.api.startAllContainers();
+    if (result.success) {
+        showToast('All containers started', 'success');
+        refreshContainers();
+    } else {
+        showToast(`Failed to start all: ${result.error}`, 'error');
+    }
+}
+
+async function stopAllContainers() {
+    if (!confirm('Stop all containers? This will stop all services.')) return;
+    const result = await window.api.stopAllContainers();
+    if (result.success) {
+        showToast('All containers stopped', 'success');
+        refreshContainers();
+    } else {
+        showToast(`Failed to stop all: ${result.error}`, 'error');
+    }
+}
+
+async function restartAllContainers() {
+    if (!confirm('Restart all containers?')) return;
+    const result = await window.api.restartAllContainers();
+    if (result.success) {
+        showToast('All containers restarted', 'success');
+        refreshContainers();
+    } else {
+        showToast(`Failed to restart all: ${result.error}`, 'error');
+    }
+}
+
+async function viewContainerLogs(containerId) {
+    const result = await window.api.containerLogs(containerId, 100);
+    if (result.success) {
+        const modalContent = `
+            <h2 style="margin-bottom: 12px;">📄 Logs: ${containerId}</h2>
+            <div style="background: #0a0a0f; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: #a5f3fc;">
+                ${escapeHtml(result.logs || 'No logs available')}
+            </div>
+            <div style="margin-top: 12px; display: flex; gap: 12px;">
+                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                <button class="btn btn-secondary" onclick="copyLogs()">📋 Copy</button>
+                <button class="btn btn-secondary" onclick="refreshContainerLogs('${containerId}')">🔄 Refresh</button>
+            </div>
+        `;
+        showModal(modalContent);
+        // Store container ID for refresh
+        window._logContainerId = containerId;
+    } else {
+        showToast(`Failed to get logs: ${result.error}`, 'error');
+    }
+}
+
+async function refreshContainerLogs(containerId) {
+    const result = await window.api.containerLogs(containerId, 100);
+    if (result.success) {
+        const logContainer = document.querySelector('#modal-content div[style*="background: #0a0a0f;"]');
+        if (logContainer) {
+            logContainer.textContent = result.logs || 'No logs available';
+        }
+    }
+}
+
+function copyLogs() {
+    const logContainer = document.querySelector('#modal-content div[style*="background: #0a0a0f;"]');
+    if (logContainer) {
+        navigator.clipboard.writeText(logContainer.textContent).then(() => {
+            showToast('Logs copied to clipboard!', 'success');
+        }).catch(() => {
+            showToast('Failed to copy logs', 'error');
+        });
+    }
+}
+
+function toggleContainerAutoRefresh() {
+    autoRefreshContainers = !autoRefreshContainers;
+    const toggle = document.getElementById('auto-refresh-toggle');
+    if (autoRefreshContainers) {
+        toggle.textContent = '⏸️ Pause';
+        if (!containerRefreshInterval) {
+            containerRefreshInterval = setInterval(refreshContainers, 5000);
+        }
+        showToast('Auto-refresh enabled', 'info');
+    } else {
+        toggle.textContent = '▶️ Resume';
+        if (containerRefreshInterval) {
+            clearInterval(containerRefreshInterval);
+            containerRefreshInterval = null;
+        }
+        showToast('Auto-refresh paused', 'info');
+    }
+}
+
+// ─── Expose to window ───
+window.refreshContainers = refreshContainers;
+window.startContainer = startContainer;
+window.stopContainer = stopContainer;
+window.restartContainer = restartContainer;
+window.startAllContainers = startAllContainers;
+window.stopAllContainers = stopAllContainers;
+window.restartAllContainers = restartAllContainers;
+window.viewContainerLogs = viewContainerLogs;
+window.refreshContainerLogs = refreshContainerLogs;
+window.copyLogs = copyLogs;
+window.toggleContainerAutoRefresh = toggleContainerAutoRefresh;
+
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Clean up interval on window close
+// ──────────────────────────────────────────────────────────────────────────────
+window.addEventListener('beforeunload', () => {
+    if (containerRefreshInterval) {
+        clearInterval(containerRefreshInterval);
+        containerRefreshInterval = null;
+    }
+});
+
+
+
 // ─── Tab switching integration ───
 // Add a case to your existing switchTab function to load emergency users
 // when the "emergency" tab is activated.
@@ -1690,6 +1966,12 @@ async function init() {
     await updateDashboard();
     await loadBackupList();
     await detectHardware();
+
+    // Start container refresh
+    if (document.getElementById('tab-containers')) {
+        refreshContainers();
+        containerRefreshInterval = setInterval(refreshContainers, 5000);
+    }
 
     addActivity('Launcher started');
 
