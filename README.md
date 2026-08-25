@@ -428,6 +428,7 @@ The script launches an interactive wizard that lets you choose the profile and t
 ##### Fully automated deployment (recommended for first-time development users):
 
 ```bash
+
 ./scripts/nettrades-setup.sh all --force
 
 ```
@@ -473,7 +474,9 @@ You cannot run both on the same deployment. They represent different infrastruct
 ### Accessing Your Platform
 
 All the administration passwords are in the file:
+
 nettrades-platform\deploy\docker\.env 
+
 (The platform uses the .env and the docker-compose.xml file not the odoo.config file)
 
 Once the installation is complete find the passwords in the nettrades-platform/deploy/docker/.env file, open your browser and go to:
@@ -497,7 +500,9 @@ Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestrati
 
 
 #### ENVIRONMENTS
+
     --development   Development mode (no SSH hardening, firewall relaxed) [default]
+    
     --production    Production mode (SSH hardening, UFW, WireGuard, fail2ban)
     
 #### PROFILES (CLI)    
@@ -537,9 +542,13 @@ Key Point: KAI Scheduler CANNOT run on a single VM. It requires Kubernetes (Phas
 ⚠️ WARNING: DO NOT RUN --force ON PRODUCTION ENVIRONMENTS
 
 All Python scripts are run inside the venv virtual environment.
+
 Phase 1 creates the venv virtual environment and installs dependencies.
+
 If you use the format 
+
 --phases=0,1,2
+
 Make sure Phase 1 is always ran
 
 
@@ -563,6 +572,7 @@ You can specify a profile and options directly:
 | ./scripts/nettrades-setup.sh modules --upgrade  |  Upgrade the Odoo modules   |
 
 ```bash
+
 --all installs  Phase 0 → Phase 1 → Phase 2 → Phase 4 → Phase 5
 
 ```
@@ -576,14 +586,18 @@ Monitoring stack deployed
 If you wants to minimise resource usage and skip monitoring then you could still use the --phases option
 
 ```bash
+
 ./scripts/nettrades-setup.sh --phases=0,1,2,4
+
 ```
 
 
 Enterprise Production with kubernetes + grove + kai 
 
 ```bash
+
 ./scripts/nettrades-setup.sh --phases=0,1,2,4 --grove --kai
+
 ```
 KAI requires Phase 3 (Kubernetes)
 
@@ -592,7 +606,9 @@ KAI requires Phase 3 (Kubernetes)
 AI Startup (Full) single server with finetune
 
 ```bash
+
 ./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
+
 ```
 
 
@@ -615,6 +631,13 @@ So that if you rerun it without --force it does not override the previous phase.
 
 Use --force flag to re-run even if already completed
 
+
+If you want to reinstall everything on a development environment you could run the commands below -  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING
+
+# rm -f .phase-*-complete
+# ./scripts/nettrades-setup.sh all --force
+
+
 #### 🔑 Database Password Management
 
 During Phase 1, the script generates a random password for PostgreSQL. The password generator already removes special characters (+, /, =) to ensure compatibility with Odoo’s command-line tools.
@@ -635,9 +658,11 @@ Make sure you update the password in .env and restart Odoo if you do this.
 The all profile automatically installs all NETTRADES modules. If you need to install or upgrade them later, run:
 
 ```bash
+
 cd /root/nettrades-platform
 git pull origin dev-deployment1
 ./scripts/install-modules.sh --force
+
 ```
 
 
@@ -716,9 +741,6 @@ To build an installer/launcher for Windows in WSL run
 ```bash
 
 cd nettrades-platform
-
-# Only run the command below on development envioronments where you want to reinstall everything - NOT ON PRODUCTION
-# rm -f .phase-*-complete
 
 chmod +x scripts/*.sh
 chmod +x scripts/lib/*.sh
