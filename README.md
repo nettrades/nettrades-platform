@@ -28,12 +28,6 @@ PURPOSE:
 <h1 align="center">NETTRADES – SOVEREIGN AI IN A BOX</h1>
 
 <p align="center">
-  <!--
-  ============================================================================
-  BADGES – Social proof layer that increases perceived quality by 40%+.
-  Follows the pattern used by Kubernetes, Argo CD, and Odoo.
-  ============================================================================
-  -->
   <a href="https://github.com/nettrades/nettrades-platform/releases">
     <img src="https://img.shields.io/github/v/release/nettrades/nettrades-platform?sort=semver" alt="GitHub release (latest SemVer)">
   </a>
@@ -50,11 +44,11 @@ PURPOSE:
 
 <p align="center">
   <a href="#-key-features">Features</a> •
-  <a href="#-Architecture">Architecture</a> •
-  <a href="#-technology--stack">Tech Stack</a> •
-  <a href="#-quick--start">Quick Start</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-technology-stack">Tech Stack</a> •
+  <a href="#-quick-start">Quick Start</a> •
   <a href="#-documentation">Docs</a> •
-  <a href="#-community--support">Community</a> •
+  <a href="#-community-support">Community</a> •
   <a href="#-contributing">Contributing</a>
 </p>
 
@@ -78,38 +72,41 @@ PURPOSE:
 
 **Now they just install Ubuntu Linux on a computer and run the commands below and deploy the entire NETTRADES Sovereign AI Infrastructure in a few minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
-**Then use their spare GPUs to talk to their organisations data.** 
+**Then use their spare GPUs to talk to their organisations data.**
 
 ### Deploy in minutes, not months
 
 ```bash
 apt update && apt upgrade -y
 
-# Clone the repository
+# Clone the repository (use dev-deployment1 branch for latest development)
 cd /root
-git clone -b main https://github.com/nettrades/nettrades-platform.git
+git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
 cd nettrades-platform
 
 # Make the script executable
 chmod +x scripts/nettrades-setup.sh
 
 # Run the full deployment (automatic)
-sudo ./scripts/nettrades-setup.sh all --force
+./scripts/nettrades-setup.sh all --force
 
 ```
 
-See the **Accessing Your Platform** section below to login.
+See the Accessing Your Platform section below to login.
 
 For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
 
 So you may need to run:
+
 ```bash
+
 ssh-keygen -R ServerIPaddress
 ```
 
 to remove an old key if you have issues and then run:
 
 ```bash
+
 ssh -p 2222 root@ServerIPaddress
 ```
 
@@ -303,7 +300,7 @@ Step 3: Enable WSL Integration
 
 * Click "Apply & Restart" at the bottom
 
-Or ppen PowerShell as Administrator and run these command:
+Or open PowerShell as Administrator and run these command:
 
 ```powershell
 
@@ -330,6 +327,9 @@ Should output: Docker version 24.0.x, build xxxxx
 docker compose version
 ```
 
+After this point run the commands in WSL terminal window not in powershell
+If you run everything in WSL, the scripts/nettrades-setup.sh script may install docker in WSL by it self too. 
+
 ##### Operating System:
 
 - **Linux** (Ubuntu 22.04+) or **macOS** with Docker Desktop
@@ -344,35 +344,51 @@ Some of this will be installed by the installer
 > 💡 **Windows users**: must run the installer inside a WSL2 terminal (Ubuntu).
 
 
-### One-Click Installer
+### One-Click Local Installer
 
-The quickest way to get started is with the interactive installer:
+The quickest way to get started locally is with the interactive installer:
 
 #### 1. Clone the Repository
 
 In windows install WSL and the open the WSL.exe terminal window
 It could be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe
 And run the commands below.
-(If you want it in the C directory)
-In Linux you could run them in the terminal window
-E.g. clone it into the c drive
 
 ```bash
+
 apt update && apt upgrade -y
 # Clone the repository
-cd /root
 git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
+
+# Go into the nettrades-platform folder
 cd nettrades-platform
 
-# Make the script executable
+# Make the scripts executable
+chmod +x scripts/*.sh
+chmod +x scripts/lib/*.sh
+chmod +x installer/*.js
 chmod +x scripts/nettrades-setup.sh
 
 # Run the full deployment (automatic)
-sudo ./scripts/nettrades-setup.sh all --force
+./scripts/nettrades-setup.sh all --force
+
+# Then after half an hour when it has finished installing everything you could run the Launcher
+
+cd installer
+npm install
+npm run build:win   # on Windows with WSL
+# npm run build:mac   # on MAC for MAC
+# npm run build:linux # on Linux for Linux
+
+npm start
+
+# This will launch the NETTRADES PLATFORM
 
 ```
 
-See the Accessing Your Platform section below to login.
+Make the prefered selections when it prompts you.
+
+See the "Accessing Your Platform" section below to login.
 
 For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222. So you may need to run:
 
@@ -389,15 +405,6 @@ ssh -p 2222 root@ServerIPaddress
 to get a new key and reconnect
 
 
-On a windows machine with WSL, the deployment scripts will install dos2unix and run the commands below to convert all the files in the repository to have Linux line endings (\n)
-
-```bash
-sudo apt install dos2unix -y
-cd /mnt/c/nettrades-platform
-sudo ./scripts/fix-line-endings.sh --force
-```
-This will take about 10 minutes to run.
-
 Work on the dev-deployment1 branch not on the main branch
 
 Since the code has extensive comments and documentation you could use any AI model including Deepseek or GitHub codepilot to explain how the code work. 
@@ -413,7 +420,7 @@ Simply run the script without any arguments:
 
 ```bash
 
-sudo ./scripts/nettrades-setup.sh
+./scripts/nettrades-setup.sh
 
 ```
 The script launches an interactive wizard that lets you choose the profile and the options.
@@ -421,7 +428,7 @@ The script launches an interactive wizard that lets you choose the profile and t
 ##### Fully automated deployment (recommended for first-time development users):
 
 ```bash
-sudo ./scripts/nettrades-setup.sh all --force
+./scripts/nettrades-setup.sh all --force
 
 ```
 This will run all phases (system preparation, environment setup, deployment and module installation) with default settings.
@@ -469,7 +476,7 @@ All the administration passwords are in the file:
 nettrades-platform\deploy\docker\.env 
 (The platform uses the .env and the docker-compose.xml file not the odoo.config file)
 
-Once the installation is complete find the passwords in the nettrades-platform\deploy\dockernettrades-platform\deploy\docker\.env file, open your browser and go to:
+Once the installation is complete find the passwords in the nettrades-platform/deploy/docker/.env file, open your browser and go to:
 
 | Service | URL | Username | Password |
 |---------|-------------|---------|-------------|
@@ -518,6 +525,8 @@ Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestrati
 | `--with-finetune` | Install fine-tuning packages (torch, unsloth, axolotl) |
 | `--with-grove` | Deploy Grove observability platform (future scaling) |
 | `--with-kai` | Deploy KAI Scheduler for GPU scheduling (K8s) requires Phase 3 (Kubernetes)|
+| `--with-cuvs | Install RAPIDS cuVS for GPU-accelerated vector search (requires NVIDIA GPU) |
+| `--validate-config | Validate all configuration files before deployment |
 | `--platform` | Override platform detection (linux, macos, wsl) |
 | `--phases=0,1,2` | Run a custom list of phases (overrides profile) |
 | `--regenerate-secrets` | Regenerate all secrets in .env (⚠️ WARNING: use with caution, you will be locked out) |
@@ -540,16 +549,18 @@ You can specify a profile and options directly:
 
 | Command | Effect |
 |---------|-------------|
-| sudo ./nettrades-setup.sh                        |  Interactive wizard |
-| sudo ./nettrades-setup.sh deploy --auto          |  Automated single computer deployment (development/internal) |
-| sudo ./nettrades-setup.sh deploy --production    |  Deploy single computer with production hardening |
-| sudo ./nettrades-setup.sh all --force            |  Full re-deployment |
-| sudo ./nettrades-setup.sh all --with-finetune    |  Include fine-tuning packages |
-| sudo ./nettrades-setup.sh k8s --with-kai         |  Kubernetes with KAI Scheduler |
-| sudo ./nettrades-setup.sh deploy --with-grove    |  Deploy with Grove observability |
-| sudo ./scripts/nettrades-setup.sh dev 	   |  Development environment only on an existing development machine |
-| sudo ./scripts/nettrades-setup.sh modules   |  Install the Odoo modules (only do this after the development environment is set up   |
-| sudo ./scripts/nettrades-setup.sh modules --upgrade  |  Upgrade the Odoo modules   |
+| ./scripts/nettrades-setup.sh                        |  Interactive wizard |
+| ./scripts/nettrades-setup.sh deploy --auto          |  Automated single computer deployment (development/internal) |
+| ./scripts/nettrades-setup.sh deploy --production    |  Deploy single computer with production hardening |
+| ./scripts/nettrades-setup.sh all --force            |  Full re-deployment |
+| ./scripts/nettrades-setup.sh all --with-finetune    |  Include fine-tuning packages |
+| ./nettrades-setup.sh all --with-cuvs                |  Include RAPIDS cuVS for GPU-accelerated vector search |
+| ./nettrades-setup.sh all --validate-config          |  Validate configuration before deployment |
+| ./scripts/nettrades-setup.sh k8s --with-kai         |  Kubernetes with KAI Scheduler |
+| ./scripts/nettrades-setup.sh deploy --with-grove    |  Deploy with Grove observability |
+| ./scripts/nettrades-setup.sh dev 	   |  Development environment only on an existing development machine |
+| ./scripts/nettrades-setup.sh modules   |  Install the Odoo modules (only do this after the development environment is set up   |
+| ./scripts/nettrades-setup.sh modules --upgrade  |  Upgrade the Odoo modules   |
 
 ```bash
 --all installs  Phase 0 → Phase 1 → Phase 2 → Phase 4 → Phase 5
@@ -565,14 +576,14 @@ Monitoring stack deployed
 If you wants to minimise resource usage and skip monitoring then you could still use the --phases option
 
 ```bash
-sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4
+./scripts/nettrades-setup.sh --phases=0,1,2,4
 ```
 
 
 Enterprise Production with kubernetes + grove + kai 
 
 ```bash
-sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4 --grove --kai
+./scripts/nettrades-setup.sh --phases=0,1,2,4 --grove --kai
 ```
 KAI requires Phase 3 (Kubernetes)
 
@@ -581,7 +592,7 @@ KAI requires Phase 3 (Kubernetes)
 AI Startup (Full) single server with finetune
 
 ```bash
-sudo ./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
+./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
 ```
 
 
@@ -680,7 +691,7 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 Before making a release: Run
 
 ```bash
-cd /mnt/c/nettrades-platform
+cd nettrades-platform
 pip install pip-tools
 pip-compile requirements.in -o requirements-lock.txt
 pip-compile requirements-dev.in -o requirements-dev-lock.txt
@@ -703,8 +714,12 @@ You could build an installer/launcher for different environments
 To build an installer/launcher for Windows in WSL run
 
 ```bash
-cd /mnt/c/nettrades-platform
-rm -f .phase-*-complete
+
+cd nettrades-platform
+
+# Only run the command below on development envioronments where you want to reinstall everything - NOT ON PRODUCTION
+# rm -f .phase-*-complete
+
 chmod +x scripts/*.sh
 chmod +x scripts/lib/*.sh
 chmod +x installer/*.js
@@ -745,7 +760,7 @@ npm start
 * You are running Odoo outside Docker. In WSL terminal window run:
 
 ```bash
-cd /mnt/c/nettrades-platform/deploy/docker
+cd nettrades-platform/deploy/docker
 
 docker compose up -d
 ```
@@ -796,7 +811,7 @@ For more detailed information, see the docs/ folder.
 To read the logs on all servers in WSL terminal window run 
 
 ```bash
-cd /mnt/c/nettrades-platform/deploy/docker
+cd nettrades-platform/deploy/docker
 docker compose logs -f
 ```
 
@@ -804,7 +819,7 @@ docker compose logs -f
 
 To read the logs on specific servers in WSL terminal window run: 
 ```bash
-cd /mnt/c/nettrades-platform/deploy/docker
+cd nettrades-platform/deploy/docker
 docker compose logs -f odoo
 docker compose logs -f postgres
 docker compose logs -f langgraph
@@ -818,7 +833,7 @@ If you’re ready to scale to multiple nodes with Kubernetes, use:
 
 ./scripts/nettrades-setup.sh k8s --auto
 ```
-This requires a Proxmox host or open stack and pre-configured Talos images. For details, see `docs/operations/kubernetes-deployment.md`.
+This requires a Proxmox host or openstack and pre-configured Talos images. For details, see `docs/operations/kubernetes-deployment.md`.
 
 
 ### Troubleshooting a server
@@ -999,17 +1014,17 @@ NetTrades leverages NVIDIA Dynamo as the central orchestrator, vLLM for homogene
 
 ```
 +-------------------------------------------------------+
-|              NetTrades Core (LangGraph Agents)          |
-|                  Odoo ERP & Business Logic              |
+|              NetTrades Core (LangGraph Agents)        |
+|                  Odoo ERP & Business Logic            |
 +---------------------------+---------------------------+
                             | (HTTP/REST, localhost:8000)
                             ▼
 +-------------------------------------------------------+
-|           NVIDIA Dynamo Global Coordinator              |
-|  - OpenAI-compatible API gateway                        |
-|  - KV-cache aware smart router                         |
-|  - Global request queue & load balancing               |
-|  - Node health monitoring & failover                   |
+|           NVIDIA Dynamo Global Coordinator            |
+|  - OpenAI-compatible API gateway                      |
+|  - KV-cache aware smart router                        |
+|  - Global request queue & load balancing              |
+|  - Node health monitoring & failover                  |
 +---------------------------+---------------------------+
                             |
        (WireGuard VPN Mesh – encrypted overlay)
@@ -1317,13 +1332,13 @@ graph TB
 ├─────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                         │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌───────────┐   │
-│  │  🏠 HOME     │ │  💬 CHAT     │  │  🎮 MODELS    │  │  🌐 NETWORK  │  │  💰 MARKET │   │
+│  │    HOME     │  │   CHAT       │  │  MODELS      │  │   NETWORK    │  │   MARKET  │   │
 │  │  Dashboard  │  │  AI Chat     │  │  Library     │  │  Nodes/VPN   │  │  GPUs     │   │
 │  └─────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  └───────────┘   │
 │                                                                                         │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌───────────┐  │
-│  │  🎯 TRAIN    │  │  🤖 AGENTS    │  │  📋 QUEUE    │  │  📈 MONITOR  │  │  ⚙️ SETUP  │  │
-│  │  Fine-Tune   │  │  Manage      │  │  Tasks       │  │  Health      │  │  Deploy   │  │
+│  │    TRAIN     │  │    AGENTS    │  │   QUEUE      │  │   MONITOR    │  │   SETUP   │  │
+│  │  Fine-Tune   │  │    Manage    │  │   Tasks      │  │  Health      │  │  Deploy   │  │
 │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  └───────────┘  │
 │                                                                                         │
 └─────────────────────────────────────────────────────────────────────────────────────────┘

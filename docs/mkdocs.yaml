@@ -64,9 +64,6 @@ nav:
       - Core Models: developer/core-models.md
       - Style Guide: developer/style-guide.md
       - FAQ: developer/faq.md
-
-  - 🛠️ For Operators:
-      - Overview: developer/index.md
       - Quick Start: developer/quick-start.md
       - System Requirements: developer/system-requirements.md
       - Single VM Deployment: developer/single-vm-deployment.md

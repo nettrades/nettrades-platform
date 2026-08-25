@@ -9,8 +9,7 @@ Welcome to the NETTRADES.AI documentation!
 | **Try the platform without installing anything** | [Try It Now →](try-it-now.md) |
 | **Get started (any role)** | [Getting Started →](getting-started.md) |
 | **Use the platform** (as a company, freelancer, or job-seeker) | [User Guide →](user/index.md) |
-| **Develop or extend the platform** | [Developer Guide →](developer/index.md) |
-| **Deploy and run the platform** | [Operations Guide →](operations/index.md) |
+| **Develop or deploy** | [Developer Guide →](developer/index.md) |
 | **Contribute to the project** | [Governance →](governance/index.md) |
 | **Understand key terms** | [Glossary →](appendix/glossary.md) |
 
@@ -60,8 +59,7 @@ Organisations can decide to keep everything local or decide which types of reque
 | **👨‍💻 Job Seekers** | Find jobs, apply with one click, track applications |
 | **👨‍🔬 Experts** | Offer paid help, accept sessions, earn money |
 | **🔬 Researchers** | Post research projects, find partners, collaborate |
-| **👨‍💻 Developers** | Build custom agents, extend Odoo modules, contribute to the platform |
-| **⚙️ Operators** | Deploy, manage, and scale the platform |
+| **👨‍💻 Developers** | Build custom agents, extend Odoo modules, contribute to the platform. Deploy, manage, and scale the platform  |
 | **🏠 Home Users** | Chat with AI, run local models, earn passive income by sharing GPU |
 
 ---
@@ -95,12 +93,12 @@ Organisations can decide to keep everything local or decide which types of reque
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │ ┌────────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐ ┌─────────┐│
-│ │  🏠 HOME   │ │  💬 CHAT │ │ 🎮 MODELS │ │ 🌐 NETWORK │ │💰 MARKET││
+│ │  🏠 HOME    │ │  💬 CHAT │ │ 🎮 MODELS │ │ 🌐 NETWORK │ │💰 MARKET││
 │ │  Dashboard │ │  AI Chat │ │ Library  │ │ Nodes/VPN  │ │ GPUs    ││
 │ └────────────┘ └──────────┘ └──────────┘ └────────────┘ └─────────┘│
 │                                                                    │
 │ ┌──────────┐ ┌───────────┐ ┌─────────┐ ┌────────────┐ ┌───────────┐│
-│ │🎯 TRAIN │ │ 🤖 AGENTS │ │ 📋 QUEUE │ │ 📈 MONITOR │ │ ⚙️ SETUP  ││
+│ │🎯 TRAIN  │ │ 🤖 AGENTS │ │ 📋 QUEUE │ │ 📈 MONITOR │ │ ⚙️ SETUP  ││
 │ │Fine-Tune │ │ Manage    │ │ Tasks   │ │ Health     │ │ Deploy    ││
 │ └──────────┘ └───────────┘ └─────────┘ └────────────┘ └───────────┘│
 │                                                                    │
@@ -144,5 +142,4 @@ All communication is secured via WireGuard VPN, ensuring data never leaves the t
 
 - [Getting Started](getting-started.md) – Choose your path
 - [User Guide](user/index.md) – Full user documentation
-- [Developer Guide](developer/index.md) – Build and extend
-- [Operations Guide](operations/index.md) – Deploy and manage
+- [Developer and Operations Guide](developer/index.md) – Build and extend
