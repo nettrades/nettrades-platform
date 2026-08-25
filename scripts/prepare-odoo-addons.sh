@@ -16,6 +16,8 @@
 #   NEW: Validates that all view files referenced in module manifests exist,
 #        and creates placeholder files if they are missing (with a warning).
 #   FIXED: Validates PROJECT_ROOT to prevent duplicate path issues.
+#   FIXED: Uses realpath to ensure PROJECT_ROOT is always an absolute path,
+#          preventing path duplication when called from subdirectories.
 # =============================================================================
 
 set -euo pipefail
@@ -39,10 +41,22 @@ log_step() { echo -e "${BLUE}▶${NC} $1"; }
 # Paths
 # -----------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # =============================================================================
-# CRITICAL FIX: Validate PROJECT_ROOT to prevent duplicate path issues
+# CRITICAL FIX: Use realpath to get absolute path of PROJECT_ROOT
+# This prevents path duplication when the script is called from subdirectories
+# (e.g., deploy/docker/), which was causing modules to be copied to
+# deploy/docker/deploy/docker/odoo-modules instead of deploy/docker/odoo-modules.
+# =============================================================================
+if command -v realpath &>/dev/null; then
+    PROJECT_ROOT="$(realpath "$SCRIPT_DIR/..")"
+else
+    # Fallback for systems without realpath (e.g., some macOS versions)
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+fi
+
+# =============================================================================
+# Validate PROJECT_ROOT to prevent duplicate path issues
 # =============================================================================
 if [[ ! -d "$PROJECT_ROOT/scripts" ]]; then
     log_error "PROJECT_ROOT is incorrect: $PROJECT_ROOT"
