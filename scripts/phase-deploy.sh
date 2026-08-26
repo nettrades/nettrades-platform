@@ -179,7 +179,7 @@ configure_domain() {
     local domain="${DOMAIN:-}"
     local acme_file="$DEPLOY_DIR/traefik-data/acme.json"
 
-    if [[ -z "$domain" || "$domain" == "changeit" || "$domain" == "localhost" || "$domain" == "nettrades.ai" ]]; then
+    if [[ -z "$domain" || "$domain" == "changeit" || "$domain" == "localhost" || "$domain" == "nettrades.ai" || ! is_valid_domain_or_ip "$domain" ]]; then
         log_info "DOMAIN not configured or using default. Auto-detecting..."
         local public_ip=$(curl -s ifconfig.me 2>/dev/null || echo "")
         if [[ -n "$public_ip" ]]; then

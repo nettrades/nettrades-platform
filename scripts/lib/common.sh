@@ -127,6 +127,22 @@ confirm_force_production() {
 }
 
 # -----------------------------------------------------------------------------
+# Checks for a valid domain name or IP address, forcing auto-detection
+# -----------------------------------------------------------------------------
+
+is_valid_domain_or_ip() {
+    local domain="$1"
+    # Accept IPs (IPv4), localhost, and valid domain names with dots
+    if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$domain" == "localhost" ]]; then
+        return 0
+    fi
+    if [[ "$domain" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# -----------------------------------------------------------------------------
 # Docker & Kubernetes Tool Checks
 # -----------------------------------------------------------------------------
 check_docker() {
