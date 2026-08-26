@@ -322,10 +322,15 @@ safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"
 configure_domain_email() {
     # Detect primary IP address
     detect_ip() {
-        local ip=$(ip route get 1 2>/dev/null | awk '{print $NF;exit}')
-        if [[ -z "$ip" || "$ip" == "0" ]]; then
+        # Try multiple methods to get the primary IP
+        local ip=""
+        # 1. Get the IP of the default route interface
+        ip=$(ip -4 route get 1 2>/dev/null | awk '{print $NF;exit}' 2>/dev/null)
+        # 2. If that fails or looks like a number (metric), use hostname -I
+        if [[ -z "$ip" || "$ip" =~ ^[0-9]+$ ]]; then
             ip=$(hostname -I 2>/dev/null | awk '{print $1}')
         fi
+        # 3. Fallback to localhost
         [[ -z "$ip" ]] && ip="localhost"
         echo "$ip"
     }
