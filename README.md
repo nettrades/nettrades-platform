@@ -486,9 +486,9 @@ Once the installation is complete find the passwords in the nettrades-platform/d
 | Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
 | NVIDIA Dynamo API | http://YourDomainOrIP:8001/v1 or http://localhost:8001/v1 | (API Key) | DYNAMO_API_KEY in the .env file |
 | Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
-| Prometheus | http://YourDomainOrIP:9090 or http://YourDomainOrIP:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
-| NETTRADES-UI Chat | http://YourDomainOrIP:3002 or http://YourDomainOrIP:3002 | No login required yet | N/A  |
-| llama.cpp UI | http://YourDomainOrIP:8080 or http://YourDomainOrIP:8080 | No login required | PROMETHEUS_PASSWORD in the .env file  |
+| Prometheus | http://YourDomainOrIP:9090 or http://localhost:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
+| NETTRADES-UI Chat | http://YourDomainOrIP:3002 or http://localhost:3002 | No login required yet | N/A  |
+| llama.cpp UI | http://YourDomainOrIP:8080 or http://localhost:8080 | No login required | PROMETHEUS_PASSWORD in the .env file  |
 | Forgejo | http://YourDomainOrIP:3000 or http://localhost:3000 | Set in after installation | Set in after installation  |
 
 For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
@@ -633,14 +633,22 @@ Use --force flag to re-run even if already completed
 
 
 If you want to reinstall everything on a development environment you could run the commands below 
--  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING
+-  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING INCLUDING THE ADMIN LOGINS
 
 ```bash
 
-# rm -f .phase-*-complete
+# 1. Stop any running containers (optional but safe)
+# cd ~/nettrades-platform/deploy/docker && docker compose down
+
+# 2. Delete the existing .env and phase markers
+# cd ~/nettrades-platform
+# rm -f deploy/docker/.env .phase-*-complete
+
+# 3. Run the setup interactively (no --auto, so you can confirm settings)
 # ./scripts/nettrades-setup.sh all --force
 
 ```
+-  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING INCLUDING THE ADMIN LOGINS
 
 #### 🔑 Database Password Management
 
