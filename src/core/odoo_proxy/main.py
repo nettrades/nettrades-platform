@@ -32,8 +32,8 @@ import hmac
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from .auth import router as auth_router, init_auth
-from .mode import router as mode_router, init_mode
+from auth import router as auth_router, init_auth
+from mode import router as mode_router
 
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException, status

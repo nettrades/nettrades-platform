@@ -632,11 +632,15 @@ So that if you rerun it without --force it does not override the previous phase.
 Use --force flag to re-run even if already completed
 
 
-If you want to reinstall everything on a development environment you could run the commands below -  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING
+If you want to reinstall everything on a development environment you could run the commands below 
+-  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING
+
+```bash
 
 # rm -f .phase-*-complete
 # ./scripts/nettrades-setup.sh all --force
 
+```
 
 #### 🔑 Database Password Management
 
