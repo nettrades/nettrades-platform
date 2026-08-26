@@ -9,14 +9,18 @@ http {
         listen 80;
         server_name _;
 
+        # These placeholders are replaced by envsubst
+        set $landing_page "{DEFAULT_LANDING_PAGE}";
+        set $domain "{DOMAIN}";
+
+        if ($landing_page = "odoo") {
+            return 302 https://$domain/odoo;
+        }
+        if ($landing_page = "ui") {
+            return 302 http://$domain:3002;
+        }
+
         location / {
-            # Use the environment variable directly
-            if ($DEFAULT_LANDING_PAGE = "odoo") {
-                return 302 https://${DOMAIN}/odoo;
-            }
-            if ($DEFAULT_LANDING_PAGE = "ui") {
-                return 302 http://${DOMAIN}:3002;
-            }
             root   /usr/share/nginx/html;
             index  index.html;
             try_files $uri $uri/ /index.html;
