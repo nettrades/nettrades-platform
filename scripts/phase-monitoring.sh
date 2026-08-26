@@ -121,10 +121,14 @@ if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
     log_step "Configuring Grafana datasource..."
     # Wait for Grafana to be ready (using port 3001 as exposed in docker-compose.yaml)
     sleep 10
-    curl -X POST http://localhost:3001/api/datasources \
-        -H "Content-Type: application/json" \
-        -d '{"name":"Prometheus","type":"prometheus","url":"http://prometheus:9090","access":"proxy"}' \
-        2>/dev/null || log_warning "Failed to configure Grafana datasource"
+    # The datasource is already configured via provisioning (datasources.yaml).
+    # The API call below is redundant and may fail; we keep it commented for reference.
+    # curl -X POST http://localhost:3001/api/datasources \
+    #     -H "Content-Type: application/json" \
+    #     -d '{"name":"Prometheus","type":"prometheus","url":"http://prometheus:9090","access":"proxy"}' \
+    #     2>/dev/null || log_warning "Failed to configure Grafana datasource"
+    # Instead, we rely on the provisioning file.
+    log_success "Grafana datasource is provisioned via datasources.yaml"
 
     cd "$PROJECT_ROOT"
 fi
