@@ -27,6 +27,9 @@
 #   - FIXED: Added set -euo pipefail for stricter error handling.
 #   - FIXED: Added docker compose availability check.
 #   - FIXED: Added timeout protection for view file validation to prevent hanging.
+#   - FIXED: Increased validation timeout to 120s and added Odoo readiness wait.
+#   - CHANGED: Only nettrades_core is installed by default; other modules are
+#     commented out until they are fully fixed.
 # =============================================================================
 
 set -euo pipefail
@@ -152,14 +155,26 @@ log_success "Database connection verified."
 cd "$PROJECT_ROOT"
 
 # -----------------------------------------------------------------------------
-# NEW: Validate that all view files exist inside the container
-# This prevents the "FileNotFoundError" we saw in the logs.
-# FIXED: Added timeout protection to prevent hanging on WSL.
+# NEW: Wait for Odoo to become fully ready before module validation
 # -----------------------------------------------------------------------------
-log_info "Validating Odoo module files inside the container (timeout 60s)..."
+log_info "Waiting for Odoo to become fully ready (checking /web/health)..."
+for i in {1..30}; do
+    if curl -s -f -o /dev/null http://localhost:8069/web/health 2>/dev/null; then
+        log_success "Odoo is ready"
+        break
+    fi
+    sleep 2
+done
+
+# -----------------------------------------------------------------------------
+# Validate that all view files exist inside the container
+# This prevents the "FileNotFoundError" we saw in the logs.
+# FIXED: Increased timeout to 120s and added pre-wait.
+# -----------------------------------------------------------------------------
+log_info "Validating Odoo module files inside the container (timeout 120s)..."
 
 # Use timeout to prevent hanging if the container is slow to respond
-MODULE_DIRS=$(timeout 60s docker compose exec -T odoo find /mnt/extra-addons -maxdepth 1 -type d -name "nettrades_*" 2>/dev/null || echo "")
+MODULE_DIRS=$(timeout 120s docker compose exec -T odoo find /mnt/extra-addons -maxdepth 1 -type d -name "nettrades_*" 2>/dev/null || echo "")
 if [[ -z "$MODULE_DIRS" ]]; then
     log_warning "Module validation timed out or found no modules. Skipping validation."
 else
@@ -213,8 +228,40 @@ fi
 # Define modules based on feature flags
 # -----------------------------------------------------------------------------
 
-# TEMPORARY: Disable all modules for testing.
-MODULES=()
+# TEMPORARY: Only install nettrades_core; other modules are disabled until fixed.
+MODULES=("nettrades_core")
+
+# Uncomment the following block when you want to re-enable all modules
+# if [[ "${FEATURE_ASK_SOMEONE:-true}" == "true" ]]; then
+#     MODULES+=("nettrades_ask_someone")
+# fi
+# if [[ "${FEATURE_GOOD_ANSWER:-true}" == "true" ]]; then
+#     MODULES+=("nettrades_good_answer")
+# fi
+# if [[ "${FEATURE_GPU_MARKETPLACE:-false}" == "true" ]]; then
+#     MODULES+=("nettrades_gpu_admin")
+# fi
+# if [[ "${FEATURE_ROUTER:-false}" == "true" ]]; then
+#     MODULES+=("nettrades_bridge")
+#     MODULES+=("nettrades_llm_config")
+# fi
+# if [[ "${FEATURE_TRAINING:-false}" == "true" ]]; then
+#     MODULES+=("nettrades_data_collection")
+#     MODULES+=("nettrades_fairness")
+#     MODULES+=("nettrades_self_improving_config")
+# fi
+# if [[ "${FEATURE_ENTERPRISE:-false}" == "true" ]]; then
+#     MODULES+=("nettrades_job_matching")
+#     MODULES+=("nettrades_lead_scoring")
+#     MODULES+=("nettrades_proposals")
+#     MODULES+=("nettrades_research")
+#     MODULES+=("nettrades_onboarding")
+#     MODULES+=("nettrades_notifications")
+# fi
+# MODULES+=("nettrades_queue")
+
+# Remove duplicates (just in case)
+MODULES=($(printf "%s\n" "${MODULES[@]}" | sort -u))
 
 log_info "Modules to install: ${MODULES[*]}"
 
