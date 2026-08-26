@@ -484,13 +484,13 @@ if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
     mkdir -p "$MODELS_DIR"
 
     # Run the download script with the correct model and format
-    if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-1.5b --format gguf --dir "$MODELS_DIR"; then
+    if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-7b --format gguf --dir "$MODELS_DIR"; then
         log_success "GGUF model downloaded successfully to $MODELS_DIR"
     else
         log_warning "GGUF model download failed. Trying alternative source..."
         # Fallback: Try direct wget from ModelScope as a backup
-        MODEL_FILE="$MODELS_DIR/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
-        if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf" --progress=dot:giga; then
+        MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+        if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf" --progress=dot:giga; then
             log_success "GGUF model downloaded via fallback to $MODEL_FILE"
         else
             log_warning "GGUF model download failed. You may need to manually place a model in $MODELS_DIR."
@@ -499,17 +499,17 @@ if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
     fi
 
     # Validate the model file exists and is not corrupted (size check)
-    MODEL_FILE="$MODELS_DIR/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+    MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
     if [[ -f "$MODEL_FILE" ]]; then
         FILE_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
-        if [[ "$FILE_SIZE" -lt 500000000 ]]; then
+        if [[ "$FILE_SIZE" -lt 1000000000 ]]; then  # 7B model ~4GB, so check >1GB
             log_warning "Model file exists but is too small ($FILE_SIZE bytes). It may be corrupted."
             log_info "Attempting to re-download the model..."
             rm -f "$MODEL_FILE"
             # Retry download with direct wget
-            if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf" --progress=dot:giga; then
+            if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf" --progress=dot:giga; then
                 NEW_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
-                if [[ "$NEW_SIZE" -gt 500000000 ]]; then
+                if [[ "$NEW_SIZE" -gt 1000000000 ]]; then
                     log_success "Model re-downloaded successfully ($NEW_SIZE bytes)"
                 else
                     log_error "Re-downloaded file still too small. Please check the URL and disk space."
@@ -1838,20 +1838,24 @@ ensure_letsencrypt_certificate
 # -----------------------------------------------------------------------------
 # 16. Reset Grafana admin password (using correct syntax)
 # -----------------------------------------------------------------------------
+# In phase-deploy.sh, around the "Reset Grafana admin password" section:
 log_step "Resetting Grafana admin password..."
 if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
-    # Try the new 'grafana cli' command (preferred)
-    if docker exec grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
-        log_success "Grafana password reset successfully using 'grafana cli'"
-    else
-        # Fallback to old 'grafana-cli' (deprecated but may still work)
-        if docker exec grafana grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
-            log_success "Grafana password reset successfully using 'grafana-cli'"
-        else
-            log_warning "Could not reset Grafana password automatically."
-            log_info "Try: docker exec grafana grafana cli admin reset-admin-password $GRAFANA_PASSWORD"
+    # Wait for Grafana to be ready (health check)
+    for i in {1..30}; do
+        if curl -s -f -o /dev/null http://localhost:3001/api/health; then
+            break
         fi
-    fi
+        sleep 2
+    done
+    # Reset password with retries
+    for i in {1..5}; do
+        if docker exec grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
+            log_success "Grafana password reset successfully"
+            break
+        fi
+        sleep 3
+    done
 else
     log_warning "GRAFANA_PASSWORD not set – skipping password reset"
 fi
