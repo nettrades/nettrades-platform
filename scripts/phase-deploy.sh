@@ -282,6 +282,35 @@ set +a
 
 EMERGENCY_ACCESS_DURATION="${EMERGENCY_ACCESS_DURATION:-4}"
 
+
+# -----------------------------------------------------------------------------
+# Download HF model for Dynamo (if not already present)
+# -----------------------------------------------------------------------------
+download_hf_model_for_dynamo() {
+    local model_name="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
+    local model_dir="$MODELS_DIR/$model_name"
+    log_step "Ensuring HF model for Dynamo: $model_name"
+
+    if [[ -d "$model_dir" ]] && [[ -f "$model_dir/config.json" ]]; then
+        log_success "HF model already present at $model_dir"
+        return 0
+    fi
+
+    log_info "Downloading HF model $model_name from ModelScope mirror (no token required)..."
+    if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+        if bash "$SCRIPT_DIR/download-model.sh" --model "$model_name" --format hf --dir "$model_dir"; then
+            log_success "HF model downloaded to $model_dir"
+            return 0
+        else
+            log_warning "HF model download failed. Dynamo may not have a model."
+            return 1
+        fi
+    else
+        log_warning "download-model.sh not found – cannot download HF model."
+        return 1
+    fi
+}
+
 # -----------------------------------------------------------------------------
 # Determine tenant type for runtime selection
 # -----------------------------------------------------------------------------
@@ -1426,7 +1455,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 9. Wait for Dynamo to be ready and download models
+# Wait for Dynamo to be ready and download models
 # -----------------------------------------------------------------------------
 log_step "Waiting for Dynamo to be ready..."
 for i in {1..60}; do
@@ -1437,26 +1466,11 @@ for i in {1..60}; do
     sleep 2
 done
 
-# -----------------------------------------------------------------------------
-# Download a small model for Dynamo (if not already present)
-# -----------------------------------------------------------------------------
-log_step "Downloading a small model for Dynamo (if not already present)..."
-MODEL_NAME="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
-MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # Replace with your actual model server
-
-if [[ ! -d "$MODELS_DIR/$MODEL_NAME" ]]; then
-    log_info "Downloading $MODEL_NAME from local server..."
-    mkdir -p "$MODELS_DIR"
-    if curl -sL "$MODEL_URL/$MODEL_NAME.tar.gz" -o "$MODELS_DIR/$MODEL_NAME.tar.gz"; then
-        tar -xzf "$MODELS_DIR/$MODEL_NAME.tar.gz" -C "$MODELS_DIR"
-        rm "$MODELS_DIR/$MODEL_NAME.tar.gz"
-        echo "$MODEL_NAME" > "$MODELS_DIR/model_name.txt"
-        log_success "Model downloaded and extracted."
-    else
-        log_warning "Model download failed. You may need to manually place a model in $MODELS_DIR."
-    fi
-else
-    log_success "Model already present."
+# =============================================================================
+# Download HF model for Dynamo (only if Dynamo is expected to be primary)
+# =============================================================================
+if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
+    download_hf_model_for_dynamo || log_warning "HF model not available – will fallback to llama.cpp"
 fi
 
 # =============================================================================
@@ -1483,24 +1497,29 @@ for i in {1..30}; do
     sleep 2
 done
 
-log_step "Downloading a small model for Dynamo..."
-MODEL_NAME="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
-MODEL_URL="${MODEL_URL:-https://your-model-repo/models}"  # Replace with your actual model server URL
-
-if [[ ! -d "$MODELS_DIR/$MODEL_NAME" ]]; then
-    log_info "Downloading $MODEL_NAME from $MODEL_URL..."
-    mkdir -p "$MODELS_DIR"
-    if curl -sL "$MODEL_URL/$MODEL_NAME.tar.gz" -o "$MODELS_DIR/$MODEL_NAME.tar.gz"; then
-        tar -xzf "$MODELS_DIR/$MODEL_NAME.tar.gz" -C "$MODELS_DIR"
-        rm "$MODELS_DIR/$MODEL_NAME.tar.gz"
-        echo "$MODEL_NAME" > "$MODELS_DIR/model_name.txt"
-        log_success "Model downloaded and extracted."
-    else
-        log_warning "Model download failed. You may need to manually place a model in $MODELS_DIR."
-        log_info "The system will use llama.cpp as fallback."
-    fi
+# If Dynamo is not healthy and we have a model, attempt to register it (optional)
+if [[ "$DYNAMO_HEALTHY" == false ]]; then
+    log_warning "Dynamo is not responding. Will use llama.cpp fallback."
 else
-    log_success "Model already present: $MODEL_NAME"
+    # Check if Dynamo reports any models
+    MODEL_LIST=$(curl -s -H "Authorization: Bearer $DYNAMO_API_KEY" http://localhost:8001/v1/models)
+    if echo "$MODEL_LIST" | grep -q '"data":\[\]'; then
+        log_warning "Dynamo has no models registered."
+        # Try to restart Dynamo to trigger file discovery
+        log_info "Restarting Dynamo to pick up model files..."
+        docker compose restart dynamo
+        sleep 10
+        # Re-check after restart
+        MODEL_LIST=$(curl -s -H "Authorization: Bearer $DYNAMO_API_KEY" http://localhost:8001/v1/models)
+        if echo "$MODEL_LIST" | grep -q '"data":\[\]'; then
+            log_warning "Dynamo still has no models. Falling back to llama.cpp."
+            DYNAMO_HEALTHY=false
+        else
+            log_success "Dynamo now has models loaded after restart."
+        fi
+    else
+        log_success "Dynamo has models loaded."
+    fi
 fi
 
 # NOTE: The GGUF model for llama.cpp was downloaded earlier (before building images).
