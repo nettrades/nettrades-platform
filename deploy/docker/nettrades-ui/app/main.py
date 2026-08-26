@@ -137,16 +137,31 @@ async def get_odoo_proxy_client():
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Serve the main chat interface"""
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "app_name": APP_NAME,
-            "version": VERSION,
-            "domain": DOMAIN,
-            "auth_enabled": AUTH_ENABLED,
-        }
-    )
+    try:
+        template = templates.get_template("index.html")
+        content = template.render(
+            request=request,
+            app_name=APP_NAME,
+            version=VERSION,
+            domain=DOMAIN,
+            auth_enabled=AUTH_ENABLED,
+        )
+        return HTMLResponse(content=content)
+    except Exception as e:
+        logger.error(f"Template rendering error: {e}")
+        # Fallback to a simple page
+        html_content = """
+        <html>
+            <head><title>NETTRADES UI</title></head>
+            <body>
+                <h1>NETTRADES AI</h1>
+                <p>UI is temporarily unavailable. Please check back later.</p>
+                <p>Error: {}</p>
+            </body>
+        </html>
+        """.format(str(e))
+        return HTMLResponse(content=html_content)
+
 
 # -----------------------------------------------------------------------------
 # API Routes
