@@ -565,50 +565,33 @@ services:
   # authentication. If Dynamo is unavailable, requests are routed here.
   # =========================================================================
   llama-cpp:
-    image: ghcr.io/ggml-org/llama.cpp:server
-    container_name: llama-cpp
-    restart: unless-stopped
-    networks:
-      - internal
-    volumes:
-      - ./dynamo-data/models:/models  # Share models with Dynamo
-    environment:
-      - LLAMA_SERVER_HOST=0.0.0.0
-      - LLAMA_SERVER_PORT=8080
-      - LLAMA_SERVER_N_GPU_LAYERS=0   # CPU only; adjust for GPU
-    ports:
-      - "8080:8080"
-    # The command is generated dynamically via entrypoint script
-    # We use a shell entrypoint to select the correct model file
-    entrypoint: >
-      sh -c "
-        MODEL_FILE=''
-        if [ \"${MODEL_NAME}\" = 'deepseek-7b' ] || [ \"${MODEL_NAME}\" = '7b' ]; then
-          MODEL_FILE='/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf'
-        elif [ \"${MODEL_NAME}\" = 'deepseek-1.5b' ] || [ \"${MODEL_NAME}\" = '1.5b' ]; then
-          MODEL_FILE='/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf'
-        else
-          MODEL_FILE='/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf'
-        fi
-        if [ ! -f \"$MODEL_FILE\" ]; then
-          echo \"WARNING: Model file not found at $MODEL_FILE. Using fallback.\"
-          MODEL_FILE='/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf'
-        fi
-        exec /app/llama-server -m \"$MODEL_FILE\" --host 0.0.0.0 --port 8080 -ngl 0
-      "
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s  # Allow time for model loading
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: 3
+      image: ghcr.io/ggml-org/llama.cpp:server
+      container_name: llama-cpp
+      restart: unless-stopped
+      networks:
+        - internal
+      volumes:
+        - ./dynamo-data/models:/models  # Share models with Dynamo
+      environment:
+        - LLAMA_SERVER_MODEL=/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf
+        - LLAMA_SERVER_HOST=0.0.0.0
+        - LLAMA_SERVER_PORT=8080
+        - LLAMA_SERVER_N_GPU_LAYERS=0   # CPU only; adjust for GPU
+      ports:
+        - "8080:8080"
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+        start_period: 60s  # Allow time for model loading
+      security_opt:
+        - no-new-privileges:true
+      logging:
+        driver: json-file
+        options:
+          max-size: 10m
+          max-file: 3
 
   # =========================================================================
   # 13. SELF-IMPROVING SERVICE - Continuous Learning & Fine-Tuning
