@@ -334,7 +334,7 @@ configure_domain_email() {
     CURRENT_DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
     CURRENT_EMAIL=$(grep "^ADMIN_EMAIL=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
     # If DOMAIN is invalid (empty, placeholder, or not a valid domain/IP), we set it.
-    if [[ -z "$CURRENT_DOMAIN" || "$CURRENT_DOMAIN" == "changeit" || "$CURRENT_DOMAIN" == "nettrades.ai" || ! is_valid_domain_or_ip "$CURRENT_DOMAIN" ]]; then
+    if [[ -z "$CURRENT_DOMAIN" || "$CURRENT_DOMAIN" == "changeit" || "$CURRENT_DOMAIN" == "nettrades.ai" ]] || ! is_valid_domain_or_ip "$CURRENT_DOMAIN"; then
         DETECTED_IP=$(detect_ip)
 
         if [[ "$AUTO" == true ]]; then
