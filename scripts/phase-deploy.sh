@@ -11,7 +11,7 @@
 #
 #   It performs the following steps (in order):
 #   1. Create required directories.
-#   2. Download a small model (e.g., Qwen2.5-1.5B) from a local server (no HF token).
+#   2. Download a small model (e.g., deepseek-7b) from a local server (no HF token).
 #   3. Build custom Docker images (Odoo, LangGraph) if missing.
 #   4. Generate `init-db.sql` with all NETTRADES database tables.
 #   5. Run security hardening (if Phase 0 not completed).
@@ -37,7 +37,7 @@
 #   - Removed any SQL that modifies core Odoo tables (res_partner, etc.).
 #   - The init-db.sql now only creates nettrades_* tables.
 #   - Added platform detection for macOS-specific Docker volume handling.
-#   - Added domain auto‑detection and Let's Encrypt conditional logic.
+#   - Added domain auto-detection and Let's Encrypt conditional logic.
 #   - Added fallback creation of nginx.conf.template for redirector.
 #   - Added self-improving environment variables and container startup.
 #   - FIXED: Virtual environment is now MANDATORY – script fails if not found.
@@ -288,6 +288,24 @@ set -a
 source "$ENV_FILE"
 set +a
 
+
+# -----------------------------------------------------------------------------
+# Detect GPU and set runtime for Dynamo worker
+# -----------------------------------------------------------------------------
+GPU_VENDOR=$(detect_gpu_vendor 2>/dev/null || echo "none")
+if [[ "$GPU_VENDOR" == "nvidia" ]]; then
+    log_info "NVIDIA GPU detected. Setting RUNTIME_DYNAMO=nvidia in .env"
+    safe_sed_replace "$ENV_FILE" "RUNTIME_DYNAMO" "nvidia"
+    # Also ensure Docker has the NVIDIA runtime configured
+    if ! docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q '"nvidia"'; then
+        log_warning "NVIDIA runtime not registered in Docker. Please run Phase 0 again or configure manually."
+    fi
+else
+    log_info "No NVIDIA GPU detected – Dynamo worker will use CPU (runc)."
+fi
+
+
+
 EMERGENCY_ACCESS_DURATION="${EMERGENCY_ACCESS_DURATION:-4}"
 
 
@@ -296,11 +314,39 @@ EMERGENCY_ACCESS_DURATION="${EMERGENCY_ACCESS_DURATION:-4}"
 # -----------------------------------------------------------------------------
 if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
     log_step "Downloading HF model for Dynamo (vLLM) from ModelScope mirror..."
-    mkdir -p "$MODELS_DIR"
-    if bash "$SCRIPT_DIR/download-model.sh" --model "${MODEL_NAME:-deepseek-7b}" --format hf --dir "$MODELS_DIR"; then
+    mkdir -p "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
+    if bash "$SCRIPT_DIR/download-model.sh" --model "${MODEL_NAME:-deepseek-7b}" --format hf --dir "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"; then
         log_success "HF model downloaded to $MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
     else
         log_warning "HF model download failed. Dynamo worker will not start."
+    fi
+fi
+
+
+# -----------------------------------------------------------------------------
+# Ensure Dynamo model is in the correct location
+# -----------------------------------------------------------------------------
+if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
+    EXPECTED_MODEL_DIR="$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
+    if [[ -d "$EXPECTED_MODEL_DIR" ]] && [[ -f "$EXPECTED_MODEL_DIR/config.json" ]]; then
+        log_success "Dynamo model found at $EXPECTED_MODEL_DIR"
+    else
+        log_info "Searching for downloaded model..."
+        # Find config.json anywhere under MODELS_DIR
+        CONFIG_FILE=$(find "$MODELS_DIR" -name "config.json" -type f 2>/dev/null | head -1)
+        if [[ -n "$CONFIG_FILE" ]]; then
+            ACTUAL_MODEL_DIR=$(dirname "$CONFIG_FILE")
+            log_info "Found model at $ACTUAL_MODEL_DIR"
+            # If the expected directory does not exist, create a symlink
+            if [[ ! -e "$EXPECTED_MODEL_DIR" ]]; then
+                ln -s "$ACTUAL_MODEL_DIR" "$EXPECTED_MODEL_DIR"
+                log_success "Created symlink from $ACTUAL_MODEL_DIR to $EXPECTED_MODEL_DIR"
+            else
+                log_warning "Expected model directory exists but config.json not found. Please check manually."
+            fi
+        else
+            log_warning "No config.json found in $MODELS_DIR. Dynamo worker may fail."
+        fi
     fi
 fi
 

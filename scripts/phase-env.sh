@@ -221,13 +221,17 @@ read_password_with_retry() {
         read -s -p "Confirm password: " password2
         echo
 
+        # Trim any whitespace/newlines
+        password1=$(echo -n "$password1" | tr -d '\n\r')
+        password2=$(echo -n "$password2" | tr -d '\n\r')
+
         if [ "$password1" = "$password2" ] && [ -n "$password1" ]; then
-            # Validate alphanumeric only (no special chars, spaces, newlines)
+            # Validate alphanumeric only
             if [[ "$password1" =~ ^[a-zA-Z0-9]+$ ]]; then
                 echo "$password1"
                 return 0
             else
-                echo -e "${RED}❌ Password must contain only letters and numbers (no special characters). Please try again.${NC}"
+                echo -e "${RED}❌ Password must contain only letters and numbers. Please try again.${NC}"
                 attempts=$((attempts + 1))
                 continue
             fi
