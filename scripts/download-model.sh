@@ -9,6 +9,8 @@
 #               for both GGUF and HF formats.
 #   2026-08-03: Added retry logic with exponential backoff for GGUF downloads
 #               to improve resilience against transient network failures.
+#   2026-08-27: Fixed HF_MODELSCOPE_URL for deepseek-7b to point to the actual
+#               Hugging Face model repository (not the GGUF repo).
 # =============================================================================
 
 set -euo pipefail
@@ -56,15 +58,16 @@ case "$MODEL_NAME" in
         # ModelScope GGUF URL (no auth required)
         GGUF_URL="https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
         DEFAULT_FILE_GGUF="DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
-        # ModelScope HF format URL (no auth required)
-        HF_MODELSCOPE_URL="https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF.git"
+        # ModelScope HF format URL (no auth required) – the actual model repo
+        HF_MODELSCOPE_URL="https://www.modelscope.cn/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B.git"
         ;;
     deepseek-7b|7b)
         HF_REPO="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
-        # ModelScope GGUF URL (no auth required)
+        # ModelScope GGUF URL (no auth required) – used for llama.cpp fallback
         GGUF_URL="https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf"
         DEFAULT_FILE_GGUF="deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
-        HF_MODELSCOPE_URL="https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF.git"
+        # ModelScope HF format URL (no auth required) – the actual model repo
+        HF_MODELSCOPE_URL="https://www.modelscope.cn/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B.git"
         ;;
     *)
         echo "ERROR: Unknown model '$MODEL_NAME'. Available: deepseek-1.5b, deepseek-7b"

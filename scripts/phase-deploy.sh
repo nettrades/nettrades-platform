@@ -294,30 +294,15 @@ EMERGENCY_ACCESS_DURATION="${EMERGENCY_ACCESS_DURATION:-4}"
 # -----------------------------------------------------------------------------
 # Download HF model for Dynamo (if not already present)
 # -----------------------------------------------------------------------------
-download_hf_model_for_dynamo() {
-    local model_name="${MODEL_NAME:-Qwen2.5-1.5B-Instruct}"
-    local model_dir="$MODELS_DIR/$model_name"
-    log_step "Ensuring HF model for Dynamo: $model_name"
-
-    if [[ -d "$model_dir" ]] && [[ -f "$model_dir/config.json" ]]; then
-        log_success "HF model already present at $model_dir"
-        return 0
-    fi
-
-    log_info "Downloading HF model $model_name from ModelScope mirror (no token required)..."
-    if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-        if bash "$SCRIPT_DIR/download-model.sh" --model "$model_name" --format hf --dir "$model_dir"; then
-            log_success "HF model downloaded to $model_dir"
-            return 0
-        else
-            log_warning "HF model download failed. Dynamo may not have a model."
-            return 1
-        fi
+if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
+    log_step "Downloading HF model for Dynamo (vLLM) from ModelScope mirror..."
+    mkdir -p "$MODELS_DIR"
+    if bash "$SCRIPT_DIR/download-model.sh" --model "${MODEL_NAME:-deepseek-7b}" --format hf --dir "$MODELS_DIR"; then
+        log_success "HF model downloaded to $MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
     else
-        log_warning "download-model.sh not found – cannot download HF model."
-        return 1
+        log_warning "HF model download failed. Dynamo worker will not start."
     fi
-}
+fi
 
 # -----------------------------------------------------------------------------
 # Determine tenant type for runtime selection
@@ -1473,13 +1458,6 @@ for i in {1..60}; do
     fi
     sleep 2
 done
-
-# =============================================================================
-# Download HF model for Dynamo (only if Dynamo is expected to be primary)
-# =============================================================================
-if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
-    download_hf_model_for_dynamo || log_warning "HF model not available – will fallback to llama.cpp"
-fi
 
 # =============================================================================
 # 10. DYNAMO SETUP – Fully Automated, No Login Required

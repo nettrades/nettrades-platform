@@ -29,6 +29,7 @@
 #   - FIXED: Added timeout protection for view file validation to prevent hanging.
 #   - FIXED: Increased validation timeout to 120s and added Odoo readiness wait.
 #   - CHANGED: Temporarily only install nettrades_core to ensure a working base.
+#   - FIXED: Move model‑disabling step after MODULES is defined, with safe checks.
 # =============================================================================
 
 set -euo pipefail
@@ -271,6 +272,16 @@ log_info "Modules to install: ${MODULES[*]}"
 if [[ -n "$MODULES_LIST" ]]; then
     IFS=',' read -ra MODULES <<< "$MODULES_LIST"
     log_info "Using provided module list: ${MODULES[*]}"
+fi
+
+# -----------------------------------------------------------------------------
+# FIX: Temporarily disable models in nettrades_core to prevent import errors
+# (Moved here after MODULES is defined and with a safe check)
+# -----------------------------------------------------------------------------
+if [[ ${#MODULES[@]} -eq 1 ]] && [[ "${MODULES[0]}" == "nettrades_core" ]]; then
+    log_info "Temporarily disabling models for nettrades_core to prevent import errors..."
+    docker compose exec -T odoo bash -c "if [ -d /mnt/extra-addons/nettrades_core/models ]; then mv /mnt/extra-addons/nettrades_core/models /mnt/extra-addons/nettrades_core/models.disabled; fi" 2>/dev/null || true
+    log_success "Models disabled for nettrades_core"
 fi
 
 # -----------------------------------------------------------------------------

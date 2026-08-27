@@ -510,6 +510,55 @@ services:
         max-file: 3
 
   # =========================================================================
+  # 10a. NVIDIA DYNAMO WORKER – GPU Inference Engine (vLLM)
+  # =========================================================================
+  dynamo-worker:
+    image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.3.1
+    container_name: dynamo-worker
+    restart: unless-stopped
+    networks:
+      - internal
+    runtime: ${RUNTIME_DYNAMO:-}
+    volumes:
+      - ./dynamo-data/models:/models
+      - ./dynamo-data:/var/lib/dynamo
+    environment:
+      - VLLM_TARGET_DEVICE=cuda
+      - MODEL_NAME=${MODEL_NAME:-deepseek-7b}
+      - OPENAI_API_KEY=${DYNAMO_API_KEY}
+    command:
+      - "python3"
+      - "-m"
+      - "dynamo.vllm"
+      - "--model"
+      - "/models/${MODEL_NAME:-deepseek-7b}"
+      - "--discovery-backend"
+      - "file"
+      - "--kv-events-config"
+      - '{"enable_kv_cache_events": false}'
+      - "--tensor-parallel-size"
+      - "1"
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '4'
+    depends_on:
+      - dynamo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  # =========================================================================
   # 11. CPU-VLLM (Future) – Placeholder for CPU-optimised vLLM
   # =========================================================================
   # NVIDIA Dynamo now supports CPU-only vLLM container builds via PR #7139.

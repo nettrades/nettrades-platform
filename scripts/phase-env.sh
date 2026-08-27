@@ -207,6 +207,17 @@ generate_safe_api_key() {
 # =============================================================================
 # Password retry function – gives up to 5 attempts on mismatch or empty
 # =============================================================================
+echo ""
+echo -e "${YELLOW}Enter a PostgreSQL password for the 'odoo' user:${NC}"
+echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
+echo -e "${YELLOW}Password must contain only letters and numbers (no special characters).${NC}"
+
+# Use the retry function
+if ! POSTGRES_PASSWORD=$(read_password_with_retry "Password: "); then
+    log_error "Password entry failed. Exiting."
+    exit 1
+fi
+
 read_password_with_retry() {
     local prompt="$1"
     local password1=""
@@ -252,6 +263,7 @@ if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" == true ]]; then
     echo ""
     echo -e "${YELLOW}Enter a NEW PostgreSQL password for the 'odoo' user:${NC}"
     echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
+    echo -e "${YELLOW}Password must contain only letters and numbers (no special characters).${NC}"
     # Use the retry function for the regeneration case
     if ! POSTGRES_PASSWORD=$(read_password_with_retry "Password: "); then
         log_error "Password entry failed. Exiting."
@@ -266,6 +278,7 @@ else
     echo ""
     echo -e "${YELLOW}Enter a PostgreSQL password for the 'odoo' user:${NC}"
     echo -e "${YELLOW}(This password will be used for PostgreSQL, Odoo, and all services)${NC}"
+    echo -e "${YELLOW}Password must contain only letters and numbers (no special characters).${NC}"
     # Use the retry function for the interactive case
     if ! POSTGRES_PASSWORD=$(read_password_with_retry "Password: "); then
         log_error "Password entry failed. Exiting."
