@@ -11,6 +11,7 @@
 #               to improve resilience against transient network failures.
 #   2026-08-27: Fixed HF_MODELSCOPE_URL for deepseek-7b to point to the actual
 #               Hugging Face model repository (not the GGUF repo).
+#   2026-08-27: Added fallback to modelscope SDK and custom mirror.
 # =============================================================================
 
 set -euo pipefail
@@ -219,7 +220,7 @@ if [[ "$FORMAT" == "gguf" ]]; then
     fi
 
 elif [[ "$FORMAT" == "hf" ]]; then
-    # Hugging Face format (directory) - using ModelScope as primary source
+    # Hugging Face format (directory) - using multiple methods
     if [[ -z "$OUTPUT_DIR" ]]; then
         OUTPUT_DIR="./${HF_REPO##*/}"   # Default to repo name
     fi
@@ -231,44 +232,85 @@ elif [[ "$FORMAT" == "hf" ]]; then
         exit 0
     fi
 
-    echo "Downloading Hugging Face format model from ModelScope mirror..."
+    # -----------------------------------------------------------------
+    # METHOD 1: Git clone from ModelScope (no auth required)
+    # -----------------------------------------------------------------
+    echo "Downloading Hugging Face format model from ModelScope (git clone)..."
     echo "Source: $HF_MODELSCOPE_URL"
-    echo "Target directory: $OUTPUT_DIR"
+    echo "Target: $OUTPUT_DIR"
 
-    # Ensure git is available (needed for cloning)
+    # Ensure git is available
     ensure_git
 
-    # Clone from ModelScope (no authentication required)
     if git clone "$HF_MODELSCOPE_URL" "$OUTPUT_DIR" 2>/dev/null; then
-        echo "HF model downloaded successfully from ModelScope to $OUTPUT_DIR"
-    else
-        echo "WARNING: ModelScope clone failed. Trying Hugging Face as fallback..."
-        
-        # Fallback: Try Hugging Face with authentication check
-        ensure_hf_cli
-        
-        echo "Downloading from Hugging Face: $HF_REPO"
-        echo "Target directory: $OUTPUT_DIR"
-        
-        # Check if token exists
-        if [[ -f "$HOME/.cache/huggingface/token" ]] || hf auth token &>/dev/null; then
-            echo "Hugging Face authentication found. Downloading..."
-            hf download "$HF_REPO" --local-dir "$OUTPUT_DIR"
+        if [[ -f "$OUTPUT_DIR/config.json" ]]; then
+            echo "HF model downloaded successfully from ModelScope (git clone)."
+            exit 0
         else
-            echo "WARNING: No Hugging Face authentication found."
-            echo "Please run 'hf auth login' first or use --format gguf instead."
-            echo "For GGUF format, ModelScope mirror works without authentication."
-            exit 1
+            echo "WARNING: Git clone succeeded but config.json not found. Removing partial directory..."
+            rm -rf "$OUTPUT_DIR"
         fi
     fi
 
-    if [[ -f "$OUTPUT_DIR/config.json" ]]; then
-        echo "HF model downloaded successfully to $OUTPUT_DIR"
-    else
-        echo "ERROR: HF model download failed. No config.json found."
-        echo "Please ensure you have access to the model: $HF_REPO"
-        exit 1
+    # -----------------------------------------------------------------
+    # METHOD 2: modelscope SDK download (fallback)
+    # -----------------------------------------------------------------
+    echo "ModelScope git clone failed. Trying modelscope SDK..."
+    if ! python3 -c "import modelscope" 2>/dev/null; then
+        echo "Installing modelscope SDK..."
+        pip install modelscope -q
     fi
+
+    if python3 -c "from modelscope import snapshot_download; snapshot_download('$HF_REPO', cache_dir='$OUTPUT_DIR', local_dir='$OUTPUT_DIR')" 2>/dev/null; then
+        if [[ -f "$OUTPUT_DIR/config.json" ]]; then
+            echo "HF model downloaded successfully via modelscope SDK."
+            exit 0
+        else
+            echo "WARNING: modelscope SDK download completed but config.json not found."
+            rm -rf "$OUTPUT_DIR"
+        fi
+    fi
+
+    # -----------------------------------------------------------------
+    # METHOD 3: Hugging Face CLI (public model, no token required)
+    # -----------------------------------------------------------------
+    echo "ModelScope methods failed. Trying Hugging Face CLI..."
+    ensure_hf_cli
+
+    if hf download "$HF_REPO" --local-dir "$OUTPUT_DIR" 2>/dev/null; then
+        if [[ -f "$OUTPUT_DIR/config.json" ]]; then
+            echo "HF model downloaded successfully via Hugging Face CLI."
+            exit 0
+        else
+            echo "WARNING: Hugging Face CLI download completed but config.json not found."
+            rm -rf "$OUTPUT_DIR"
+        fi
+    fi
+
+    # -----------------------------------------------------------------
+    # METHOD 4: Custom mirror (via environment variable)
+    # -----------------------------------------------------------------
+    if [[ -n "${HF_MODEL_MIRROR:-}" ]]; then
+        echo "Trying custom mirror: $HF_MODEL_MIRROR"
+        if curl -L "$HF_MODEL_MIRROR" -o /tmp/model.tar.gz; then
+            tar -xzf /tmp/model.tar.gz -C "$OUTPUT_DIR" --strip-components=1
+            if [[ -f "$OUTPUT_DIR/config.json" ]]; then
+                echo "HF model downloaded successfully from custom mirror."
+                exit 0
+            else
+                echo "WARNING: Custom mirror download completed but config.json not found."
+                rm -rf "$OUTPUT_DIR"
+            fi
+        fi
+    fi
+
+    # -----------------------------------------------------------------
+    # All methods failed
+    # -----------------------------------------------------------------
+    echo "ERROR: All download methods failed. Please manually place the HF model in $OUTPUT_DIR"
+    echo "You can download it from: https://huggingface.co/$HF_REPO"
+    echo "Then place the contents in $OUTPUT_DIR"
+    exit 1
 
 else
     echo "ERROR: Unknown format '$FORMAT'. Use 'gguf' or 'hf'."
