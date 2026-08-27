@@ -25,7 +25,7 @@ PURPOSE:
   </picture>
 </p>
 
-<h1 align="center">NETTRADES – SOVEREIGN AI IN A BOX</h1>
+<h1 align="center">NETTRADES Sovereign AI Platform</h1>
 
 <p align="center">
   <a href="https://github.com/nettrades/nettrades-platform/releases">
@@ -74,25 +74,52 @@ PURPOSE:
 
 **Then use their spare GPUs to talk to their organisations data.**
 
+
+
+
+
 ### Deploy in minutes, not months
 
 ```bash
+# Update Ubuntu
 apt update && apt upgrade -y
 
 # Clone the repository (use dev-deployment1 branch for latest development)
 cd /root
 git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
+
+# Go into the nettrades-platform folder
 cd nettrades-platform
 
-# Make the script executable
+# Make the scripts executable
+chmod +x scripts/*.sh
+chmod +x scripts/lib/*.sh
+chmod +x installer/*.js
 chmod +x scripts/nettrades-setup.sh
 
-# Run the full deployment (automatic)
+# Run the full deployment when setting up a totally new development environment - NOT ON PRODUCTION
 ./scripts/nettrades-setup.sh all --force
+
+# You could run this with other options too, see the full instructions below
+# Make the prefered selections as it prompts you.
+# Then after half an hour when it has finished installing everything you could run the Launcher
+
+cd installer
+npm install
+# npm run build:win   # on Windows with WSL
+# npm run build:mac   # on MAC for MAC
+npm run build:linux # on Linux for Linux
+
+npm start
+
+# This will launch the NETTRADES Sovereign AI PLATFORM
 
 ```
 
-See the Accessing Your Platform section below to login.
+<img src="NETTRADESLauncher.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+See the "Accessing Your Platform" section below to login to the various applications.
 
 For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
 
@@ -101,6 +128,7 @@ So you may need to run:
 ```bash
 
 ssh-keygen -R ServerIPaddress
+
 ```
 
 to remove an old key if you have issues and then run:
@@ -108,6 +136,7 @@ to remove an old key if you have issues and then run:
 ```bash
 
 ssh -p 2222 root@ServerIPaddress
+
 ```
 
 to get a new keys and reconnect
@@ -116,19 +145,19 @@ to get a new keys and reconnect
 
 **Data sovereignty is the primary barrier to enterprise AI adoption.**
 
-- **Decision-makers** are increasingly concerned about complex international regulations that grant external authorities expansive powers over sensitive data held by foreign cloud providers.**
+- **Decision-makers** are increasingly concerned about complex international regulations that grant external authorities expansive powers over sensitive data held by foreign cloud providers.
 
-- **52.6% of AI decision-makers** cite data sovereignty and security as a top adoption barrier
+- **oVER 50% of AI decision-makers** cite data sovereignty and security as a top adoption barrier
 
 - **50% of enterprises** now view sovereign AI infrastructure as a major competitive differentiator
 
-**Get started immediately with local deployment.**
+**Get started immediately with your local sovereign deployment.**
 
 
 
 | Challenge| Reality |
 |---------|-------------|
-| **Data Privacy** | Transmitting internal data to public AI endpoints risks exposing corporate secrets, consumer data, and core intellectual property. |
+| **Data Privacy** | Transmitting internal data to public AI endpoints risks exposing corporate secrets, consumer data and core intellectual property. |
 | **Extraterritorial Jurisdiction** | Reliance on foreign-hosted cloud infrastructure leaves sensitive institutional data subject to external regulatory retrieval. |
 | **GPU Waste** | Enterprises buy $30,000+ GPUs but use them less than 20% of the time. |
 | **Vendor Lock-in** | Third-party AI service providers frequently modify operational pricing, usage limits, and model availability without notice. |
@@ -137,7 +166,7 @@ to get a new keys and reconnect
 
 ## The Solution
 
-**The NETTRADES Sovereign Platform deploys a complete, enterprise-grade AI engine entirely behind your corporate firewall in minutes, not months. It delivers local computational autonomy free from external cloud dependencies, unpredictable per-token pricing structures and structural legal exposure to foreign data-access legislation.**
+**The NETTRADES Sovereign AI Platform deploys a complete, enterprise-grade AI engine entirely behind your corporate firewall in minutes, not months. It delivers local computational autonomy free from external cloud dependencies, unpredictable per-token pricing structures and structural legal exposure to foreign data-access legislation.**
 
 
 ## Why Enterprises Choose NETTRADES
@@ -194,7 +223,7 @@ Admins can switch modes instantly from the Launcher dashboard. Changes take effe
 
 ## License
 
-The NETTRADES Platform is **dual-licensed**:
+The NETTRADES Sovereign AI Platform is **dual-licensed**:
 
 ### 1. AGPL-3.0 (Open Source)
 
@@ -253,7 +282,7 @@ This is the quick start guide for Developers. This guide will help you get the p
 
 ##### Minimum Requirements:
 
-* OS: Linux (Ubuntu 22.04+ recommended) or macOS with Docker Desktop.
+* OS: Linux (Ubuntu 22.04+ recommended) or macOS with Docker Desktop or Windows with WSL with Docker Desktop.
 
 * Hardware: Minimum 8 GB RAM (16 GB recommended), 50 GB free disk.
 
@@ -317,41 +346,37 @@ wsl --set-default-version 2
 Step 4: Verify Docker is Working in WSL
 
 Open your WSL terminal and run:
+
 ```bash
 
 docker --version
+
 ```
 Should output: Docker version 24.0.x, build xxxxx
+
 ```bash
 
 docker compose version
+
 ```
 
 After this point run the commands in WSL terminal window not in powershell
-If you run everything in WSL, the scripts/nettrades-setup.sh script may install docker in WSL by it self too. 
 
-##### Operating System:
+If you run everything in WSL, the scripts/nettrades-setup.sh script below will install docker in WSL by it self too. 
 
-- **Linux** (Ubuntu 22.04+) or **macOS** with Docker Desktop
-- **Windows** with Install and run in **WSL2** (Ubuntu 22.04+ recommended)
-- **Docker** and **Docker Compose** (installed automatically by the script if missing).
-- **Python 3.10+** and `pip` (installed automatically in Phase 0).
-- At least **8 GB RAM** (16 GB recommended) and **50 GB free disk**.
-- Optional: **NVIDIA GPU** with drivers for GPU acceleration.
-
-Some of this will be installed by the installer
-
-> 💡 **Windows users**: must run the installer inside a WSL2 terminal (Ubuntu).
+> 💡 **Windows users**: must run this script inside a WSL2 terminal (Ubuntu).
 
 
 ### One-Click Local Installer
 
 The quickest way to get started locally is with the interactive installer:
 
-#### 1. Clone the Repository
+#### Clone the Repository
 
-In windows install WSL and the open the WSL.exe terminal window
+In windows install WSL as shown above and the open the WSL.exe terminal window
+
 It could be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe
+
 And run the commands below.
 
 ```bash
@@ -369,9 +394,10 @@ chmod +x scripts/lib/*.sh
 chmod +x installer/*.js
 chmod +x scripts/nettrades-setup.sh
 
-# Run the full deployment (automatic)
+# Run the full deployment when setting up a totally new environment for development
 ./scripts/nettrades-setup.sh all --force
 
+# Make the prefered selections as it prompts you.
 # Then after half an hour when it has finished installing everything you could run the Launcher
 
 cd installer
@@ -382,11 +408,10 @@ npm run build:win   # on Windows with WSL
 
 npm start
 
-# This will launch the NETTRADES PLATFORM
+# This will launch the NETTRADES Sovereign AI PLATFORM
 
 ```
 
-Make the prefered selections when it prompts you.
 
 See the "Accessing Your Platform" section below to login.
 
@@ -407,15 +432,22 @@ to get a new key and reconnect
 
 Work on the dev-deployment1 branch not on the main branch
 
-Since the code has extensive comments and documentation you could use any AI model including Deepseek or GitHub codepilot to explain how the code work. 
+Since the code has extensive comments and documentation you could use any AI model including Deepseek or GitHub codepilot to explain how the code works. 
 First ask it to do an extensive code review, so that it loads the whole codebase into its context window and then it will be able to assist you with any further questions.
 
-#### 2. Choose Your Setup Path
+### nettrades-setup.sh options
 
-You have two main ways to run the installer:
+You have two main ways to run the installer: 
+
+* For a single-VM or Server 
+
+* For multiple server using Kubernetes.
+
+
 #### 🔹 Interactive Wizard (recommended for first-time users)
 
 ##### Run the interactive setup wizard
+
 Simply run the script without any arguments:
 
 ```bash
@@ -438,12 +470,13 @@ This will run all phases (system preparation, environment setup, deployment and 
 
 #### Usage
 
+```bash
     ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
     ./nettrades-setup.sh                       (Interactive wizard)
     ./nettrades-setup.sh --help                Shows  help.
+```
 
-
-#### Phases
+### Phases
 
 The installer executes phases in this order:
 
@@ -459,6 +492,8 @@ The installer executes phases in this order:
 All phases are idempotent – you can safely re-run the script to fix or upgrade your deployment.
 
 Phase 2 (Single-VM) and Phase 3 (Kubernetes) are mutually exclusive deployment models.
+
+The `all` setting is for a single-VM or Server.
 
 You cannot run both on the same deployment. They represent different infrastructure choices.
 
@@ -496,7 +531,40 @@ For detailed step-by-step instructions, see the [Full Documentation](docs/index.
 Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestration, model serving, admin console), you don't need to use Forgejo. It is provided for customers who want to self-host Git capabilities or want to use it for Git Actions to deloy Kubernetes cluster with Argo CD. They could uncomment it in the nettrades-platform\deploy\dockernettrades-platform\deploy\docker\docker-compose.yaml file if they need Forgejo
 
 
-#### 📦 Other Installation Options
+### Passwords And Configuration
+
+
+On the initial setup, the scripts in `nettrades-platform\scripts` take a copy the `nettrades-platform\deploy\docker\.env.example` file and create the `nettrades-platform\deploy\docker\.env` file and add all the configuration and the passwords in there. 
+
+The `nettrades-platform\deploy\docker\docker-compose.yaml` then uses configs from the `nettrades-platform\deploy\docker\.env` file to set up the containers.
+
+
+
+### Management Architecture
+
+The secrets are in the nettrades_secrets table in the Odoo database.
+
+A copy of the passwords is also in the nettrades-platform\deploy\docker\.env  file
+
+
+**Primary storage:** Odoo DB (encrypted, for UI visibility and rotation)
+
+**Runtime storage:** .env (decrypted once at startup, runtime uses this)
+
+**Synchronisation:** Automatic sync from Odoo DB to .env on credential update
+
+
+```mermaid
+
+graph LR
+    A[Launcher UI] --> B[Odoo API]
+    B --> C[(PostgreSQL)]
+    D[.env File] --> E[Services]
+    B --> D
+
+```
+
+### 📦 Other Installation Options
 
 
 #### ENVIRONMENTS
@@ -517,7 +585,7 @@ Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestrati
 | `monitoring` | Deploys Prometheus + Grafana (on existing stack) | Phase 5  | Any |
 | `all` | Full production deployment + modules (e.g. for production website) | Phases 0, 1, 2, 4, 5  | Any |
 
-#### ⚙️ Useful Options (CLI)
+### ⚙️ Useful Options (CLI)
 
 | Option | Effect |
 |---------|-------------|
@@ -552,7 +620,7 @@ If you use the format
 Make sure Phase 1 is always ran
 
 
-#### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
+### 🔹 Command-Line (CLI) Mode (for automation or advanced users)
 
 You can specify a profile and options directly:
 
@@ -650,7 +718,7 @@ If you want to reinstall everything on a development environment you could run t
 ```
 -  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING INCLUDING THE ADMIN LOGINS
 
-#### 🔑 Database Password Management
+### 🔑 Database Password Management
 
 During Phase 1, the script generates a random password for PostgreSQL. The password generator already removes special characters (+, /, =) to ensure compatibility with Odoo’s command-line tools.
 
@@ -665,7 +733,7 @@ Make sure you update the password in .env and restart Odoo if you do this.
 
 
 
-#### 📦 Installing Future Modules
+### 📦 Installing Future Modules
 
 The all profile automatically installs all NETTRADES modules. If you need to install or upgrade them later, run:
 
@@ -687,7 +755,7 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 * Search for each nettrades_* module and click Install.
 
 
-#### 🧰 Useful Commands
+### 🧰 Useful Commands
 
 
 | Action | Command |
@@ -699,7 +767,7 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 | Prepare Odoo addons (after adding new modules)	 | ./scripts/prepare-odoo-addons.sh --force |
 | Install modules via UI  | Odoo → Apps → Update Apps List → Install |
 
-#### 🐳 Docker Compose Notes
+### 🐳 Docker Compose Notes
 
 * All services are defined in deploy/docker/docker-compose.yaml.
 
@@ -712,7 +780,7 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 * gVisor is used for container isolation on CPU services (Odoo, LangGraph). GPU services (NVIDIA Dynamo) use the default runtime.
 
 
-#### 🛠️ Next Steps
+### 🛠️ Next Steps
 
 * Configure fairness – Settings → Technical → Fairness → Global Configuration
 
@@ -723,7 +791,7 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 * Import sample data (optional) – see docs/operations/import-demo-data.md
 
 
-#### Making A Release
+### Making A Release
 
 Before making a release: Run
 
@@ -744,7 +812,7 @@ pip-compile requirements-dev.in -o requirements-dev-lock.txt –generate-hashes
 ```
 
 
-#### Building the Installer/Launcher
+### Building the Installer/Launcher
 
 You could build an installer/launcher for different environments
 
@@ -767,7 +835,9 @@ npm run build:win   # on Windows with WSL
 npm start
 ```
 
-#### ❓ Troubleshooting
+### ❓ Troubleshooting
+
+For more information on [troubleshooting](docs/developer/troubleshooting.md) see the [troubleshooting](docs/developer/troubleshooting.md) section.
 
 
 ##### Odoo fails to start with “password authentication failed”
@@ -1357,9 +1427,10 @@ graph TB
 └───────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+
 ### NETTRADES LAUNCHER
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │                              NETTRADES LAUNCHER (Electron)                              │
 │                          Primary Interface – Steam-like Experience                      │
@@ -1395,6 +1466,43 @@ graph TB
 │                                                                                        │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+
+### Hub & Spoke With User Roles
+
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│             NETTRADES PLATFORM ECOSYSTEM (nettrades.ai)           │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                         GLOBAL HUB                          │  │
+│  │  • Central registry                                         │  │
+│  │  • Discovery coordination                                   │  │
+│  │  • Marketplace listings                                     │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                    │                              │
+│                                    ▼                              │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │               COMPANIES/ORGANISATIONS SUB-HUBS              │  │
+│  │                                                             │  │
+│  │  • Full NETTRADES stack (Odoo, Dynamo, etc.)                │  │
+│  │  • Admin manages with root/sudo                             │  │
+│  │  • WireGuard VPN server for secure internal communication   │  │
+│  │  • GPU node discovery and management                        │  │
+│  │  • User accounts (admin + regular users)                    │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│         │                    │                    │               │
+│         ▼                    ▼                    ▼               │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐            │
+│  │  Admin User │    │  Regular    │    │  GPU Node   │            │
+│  │  (Full      │    │  User       │    │  (Headless) │            │
+│  │  Access)    │    │  (Browser/  │    │             │            │
+│  └─────────────┘    │  Launcher)  │    │             │            │
+│                     └─────────────┘    └─────────────┘            │
+└───────────────────────────────────────────────────────────────────┘
+```
+
 
 
 ### Scaling Architecture
