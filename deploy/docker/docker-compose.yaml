@@ -379,7 +379,7 @@ services:
         if [ ! -f /usr/share/nginx/html/index.html ]; then
           echo '<html><body><h1>NETTRADES Platform</h1><p>Landing page not configured.</p></body></html>' > /usr/share/nginx/html/index.html
         fi
-        envsubst '{DOMAIN} {DEFAULT_LANDING_PAGE}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+        envsubst '\$DOMAIN \$DEFAULT_LANDING_PAGE' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
         nginx -g 'daemon off;'
       "
     networks:
@@ -510,55 +510,6 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 10a. NVIDIA DYNAMO WORKER – GPU Inference Engine (vLLM)
-  # =========================================================================
-  dynamo-worker:
-    image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.3.1
-    container_name: dynamo-worker
-    restart: unless-stopped
-    networks:
-      - internal
-    runtime: ${RUNTIME_DYNAMO:-}
-    volumes:
-      - ./dynamo-data/models:/models
-      - ./dynamo-data:/var/lib/dynamo
-    environment:
-      - VLLM_TARGET_DEVICE=cuda
-      - MODEL_NAME=${MODEL_NAME:-deepseek-7b}
-      - OPENAI_API_KEY=${DYNAMO_API_KEY}
-    command:
-      - "python3"
-      - "-m"
-      - "dynamo.vllm"
-      - "--model"
-      - "/models/${MODEL_NAME:-deepseek-7b}"
-      - "--discovery-backend"
-      - "file"
-      - "--kv-events-config"
-      - '{"enable_kv_cache_events": false}'
-      - "--tensor-parallel-size"
-      - "1"
-    deploy:
-      resources:
-        limits:
-          memory: 16G
-          cpus: '4'
-    depends_on:
-      - dynamo
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: 3
-
-  # =========================================================================
   # 11. CPU-VLLM (Future) – Placeholder for CPU-optimised vLLM
   # =========================================================================
   # NVIDIA Dynamo now supports CPU-only vLLM container builds via PR #7139.
@@ -620,13 +571,17 @@ services:
     networks:
       - internal
     volumes:
-      - ./dynamo-data/models:/models
+      - ./dynamo-data/models:/models  # Share models with Dynamo
+    environment:
+      - LLAMA_SERVER_MODEL=/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+      - LLAMA_SERVER_HOST=0.0.0.0
+      - LLAMA_SERVER_PORT=8080
+      - LLAMA_SERVER_N_GPU_LAYERS=0   # CPU only; adjust for GPU
     ports:
       - "8080:8080"
-    # Use command to explicitly load the model
     command:
       - "-m"
-      - "/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+      - "/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -638,7 +593,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s  # 7B model takes longer to load
+      start_period: 60s  # Allow time for model loading
     security_opt:
       - no-new-privileges:true
     logging:
