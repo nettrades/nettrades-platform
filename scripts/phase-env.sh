@@ -472,7 +472,7 @@ if [[ "$WITH_CUVS" == true ]]; then
     # Check for NVIDIA GPU
     if command -v nvidia-smi &>/dev/null; then
         log_step "NVIDIA GPU detected. Installing RAPIDS cuVS..."
-        local cuvs_req="$PROJECT_ROOT/requirements-cuvs.txt"
+        local cuvs_req="$PROJECT_ROOT/requirements/requirements-cuvs.txt"
         if [[ -f "$cuvs_req" ]]; then
             if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
                 if ! uv pip install --verbose --index-url https://pypi.org/simple/ -r "$cuvs_req"; then

@@ -542,7 +542,7 @@ install_pip_tools() {
 # Generate lock files from requirements.in files
 generate_lock_files() {
     log_step "Generating lock files..."
-    cd "$PROJECT_ROOT"
+    cd "$PROJECT_ROOT/requirements"
     if [[ -f "requirements.in" ]]; then
         if command -v pip-compile &>/dev/null; then
             pip-compile requirements.in -o requirements-lock.txt --generate-hashes

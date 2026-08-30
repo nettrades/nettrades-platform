@@ -627,10 +627,10 @@ setup_dev_environment() {
     fi
 
     # Define requirement files
-    local base_req="$PROJECT_ROOT/requirements-base.txt"
-    local dev_req="$PROJECT_ROOT/requirements-dev.txt"
-    local finetune_req="$PROJECT_ROOT/requirements-finetune.txt"
-    local cuvs_req="$PROJECT_ROOT/requirements-cuvs.txt"
+    local base_req="$PROJECT_ROOT/requirements/requirements-base.txt"
+    local dev_req="$PROJECT_ROOT/requirements/requirements-dev.txt"
+    local finetune_req="$PROJECT_ROOT/requirements/requirements-finetune.txt"
+    local cuvs_req="$PROJECT_ROOT/requirements/requirements-cuvs.txt"
 
     # Determine which requirements file to use for base
     local req_file="$dev_req"

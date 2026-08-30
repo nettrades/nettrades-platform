@@ -798,7 +798,7 @@ If the command-line tool fails (e.g., due to password issues), you can install t
 Before making a release: Run
 
 ```bash
-cd nettrades-platform
+cd nettrades-platform/requirements
 pip install pip-tools
 pip-compile requirements.in -o requirements-lock.txt
 pip-compile requirements-dev.in -o requirements-dev-lock.txt
@@ -809,8 +809,11 @@ and commit the lock file so that it uses specific versions of dependencies and t
 If you want to generate hashes for security (recommended), add --generate-hashes:
 
 ```bash
+
+cd nettrades-platform/requirements
 pip-compile requirements.in -o requirements-lock.txt --generate-hashes
 pip-compile requirements-dev.in -o requirements-dev-lock.txt –generate-hashes
+
 ```
 
 
@@ -835,6 +838,7 @@ npm run build:win   # on Windows with WSL
 # npm run build:mac   # on MAC for MAC
 # npm run build:linux # on Linux for Linux
 npm start
+
 ```
 
 ### ❓ Troubleshooting
