@@ -1087,6 +1087,66 @@ for phase in "${PHASES[@]}"; do
     esac
 done
 
+
+# =============================================================================
+# DETECTION MODE FUNCTION
+# =============================================================================
+
+detect_and_deploy() {
+    log_header "NETTRADES Environment Detection"
+    
+    # Check if running as root (hub mode often requires root)
+    local is_root=false
+    if [[ $EUID -eq 0 ]]; then
+        is_root=true
+    fi
+    
+    # Check for existing Odoo
+    local has_odoo=false
+    if command -v odoo &>/dev/null || ps aux | grep -v grep | grep -q "odoo"; then
+        has_odoo=true
+        log_info "Odoo detected on this machine"
+    fi
+    
+    # Check for sub-hub on network
+    local has_sub_hub=false
+    if command -v avahi-browse &>/dev/null; then
+        if avahi-browse -t _nettrades._tcp -r 2>/dev/null | grep -q "NETTRADES"; then
+            has_sub_hub=true
+            log_info "NETTRADES sub-hub detected on network"
+        fi
+    fi
+    
+    # Determine mode
+    if [[ "$has_sub_hub" == true ]]; then
+        log_info "Sub-hub exists on network. Installing as SPOKE."
+        export DEPLOYMENT_MODE="spoke"
+    elif [[ "$has_odoo" == true ]]; then
+        log_info "Odoo exists locally. Installing as ADDON."
+        export DEPLOYMENT_MODE="addon"
+    else
+        log_info "No Odoo or sub-hub found. Installing as HUB."
+        export DEPLOYMENT_MODE="hub"
+    fi
+    
+    # Run the appropriate deployment
+    case "$DEPLOYMENT_MODE" in
+        hub)
+            log_header "Deploying as HUB (Full Stack)"
+            bash "$SCRIPT_DIR/phase-deploy.sh"
+            ;;
+        spoke)
+            log_header "Deploying as SPOKE (Lightweight)"
+            bash "$SCRIPT_DIR/phase-deploy.sh" --spoke
+            ;;
+        addon)
+            log_header "Deploying as ADDON (Existing Odoo)"
+            bash "$SCRIPT_DIR/phase-deploy.sh" --addon
+            ;;
+    esac
+}
+
+
 echo ""
 log_header "Setup Complete!"
 echo ""
