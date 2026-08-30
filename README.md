@@ -118,7 +118,7 @@ npm start
 
 
 
-<img src="NETTRADESLauncher.jpg" alt="NETTRADES Launcher" width="100%">
+<img src="installer/NETTRADESLauncher.jpg" alt="NETTRADES Launcher" width="100%">
 
 
 See the "Accessing Your Platform" section below to login to the various applications.
