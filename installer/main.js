@@ -37,7 +37,7 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
-const { spawn, exec, execSync } = require('child_process'); // FIXED: added execSync
+const { spawn, exec, execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const https = require('https');
@@ -46,7 +46,7 @@ const crypto = require('crypto');
 // -----------------------------------------------------------------------------
 // Disable GPU acceleration to avoid rendering errors on WSL
 // -----------------------------------------------------------------------------
-app.disableHardwareAcceleration(); // FIXED: prevents SharedImage errors on WSL
+app.disableHardwareAcceleration(); // prevents SharedImage errors on WSL
 
 // -----------------------------------------------------------------------------
 // Global variables
@@ -166,6 +166,18 @@ function logSuccess(message) {
 }
 
 // -----------------------------------------------------------------------------
+// Helper: generate safe password (alphanumeric)
+// -----------------------------------------------------------------------------
+function generateSafePassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < 24; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+}
+
+// -----------------------------------------------------------------------------
 // Create the main window
 // -----------------------------------------------------------------------------
 
@@ -230,14 +242,12 @@ app.whenReady().then(() => {
 
     // Start node discovery
     startNodeDiscovery();
+    loadProxyUrlFromConfig();
 
     // Check for updates on startup
     setTimeout(() => {
         autoUpdater.checkForUpdates();
     }, 5000);
-
-    // Load saved proxy URL from config
-    loadProxyUrlFromConfig();
 });
 
 app.on('window-all-closed', () => {
@@ -492,16 +502,12 @@ function detectDeploymentMode() {
     let hasOdoo = false;
     try {
         const result = execSync('which odoo 2>/dev/null || echo ""', { encoding: 'utf8' });
-        if (result.trim()) {
-            hasOdoo = true;
-        }
+        if (result.trim()) hasOdoo = true;
     } catch (e) {}
     if (!hasOdoo) {
         try {
             const result = execSync('ps aux | grep -v grep | grep -q odoo', { encoding: 'utf8' });
-            if (result.trim()) {
-                hasOdoo = true;
-            }
+            if (result.trim()) hasOdoo = true;
         } catch (e) {}
     }
 
@@ -514,18 +520,14 @@ function detectDeploymentMode() {
         }
     }
 
-    if (subHubFound) {
-        return 'spoke';
-    } else if (hasOdoo) {
-        return 'addon';
-    } else {
-        return 'hub';
-    }
+    if (subHubFound) return 'spoke';
+    else if (hasOdoo) return 'addon';
+    else return 'hub';
 }
 
-// -----------------------------------------------------------------------------
-// IPC Handlers
-// -----------------------------------------------------------------------------
+// =============================================================================
+// IPC HANDLERS – All handlers are registered once
+// =============================================================================
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Platform & System
@@ -551,21 +553,13 @@ ipcMain.handle('get-platform', () => {
 ipcMain.handle('get-project-root', () => PROJECT_ROOT);
 ipcMain.handle('get-models-dir', () => MODELS_DIR);
 
-ipcMain.handle('is-platform-setup', () => {
-    return isPlatformSetup();
-});
+ipcMain.handle('is-platform-setup', () => isPlatformSetup());
 
-ipcMain.handle('get-deployment-mode', () => {
-    return detectDeploymentMode();
-});
+ipcMain.handle('get-deployment-mode', () => detectDeploymentMode());
 
-ipcMain.handle('get-proxy-url', () => {
-    return PROXY_URL;
-});
+ipcMain.handle('get-proxy-url', () => PROXY_URL);
 
-ipcMain.handle('get-enterprise-backend', () => {
-    return ENTERPRISE_BACKEND;
-});
+ipcMain.handle('get-enterprise-backend', () => ENTERPRISE_BACKEND);
 
 ipcMain.handle('set-enterprise-backend', (event, backend) => {
     const validBackends = ['odoo', 'salesforce', 'sap', 'oracle'];
@@ -586,12 +580,8 @@ ipcMain.handle('save-server-url', (event, url) => {
     return { success: false, error: 'No URL provided' };
 });
 
-ipcMain.handle('get-server-url', () => {
-    return PROXY_URL;
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
-// QUICK SETUP – One-click development environment setup
+// QUICK SETUP
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('run-quick-setup', async (event) => {
@@ -600,7 +590,6 @@ ipcMain.handle('run-quick-setup', async (event) => {
     }
 
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'nettrades-setup.sh');
-
     if (!fs.existsSync(scriptPath)) {
         return { success: false, error: `Setup script not found: ${scriptPath}` };
     }
@@ -628,7 +617,6 @@ ipcMain.handle('run-quick-setup', async (event) => {
             const text = data.toString();
             output += text;
             mainWindow?.webContents.send('install-output', { type: 'stdout', data: text });
-
             // Parse progress from phase names
             if (text.includes('Phase 0')) {
                 deploymentProgress = 10;
@@ -664,7 +652,6 @@ ipcMain.handle('run-quick-setup', async (event) => {
             installProcess = null;
             isDeploying = false;
             deploymentProgress = 100;
-
             if (code === 0) {
                 logSuccess('Quick setup completed successfully');
                 resolve({ success: true, output, alreadySetup });
@@ -844,7 +831,6 @@ ipcMain.handle('run-install', async (event, options) => {
             installProcess = null;
             isDeploying = false;
             deploymentProgress = 100;
-
             if (code === 0) {
                 logSuccess('Deployment completed successfully');
                 resolve({ success: true, output });
@@ -1360,9 +1346,7 @@ ipcMain.handle('detect-hardware', () => {
         exec('kubectl cluster-info 2>/dev/null', (error, stdout) => {
             k8sDetected = !error && stdout.length > 0;
         });
-    } catch (e) {
-        k8sDetected = false;
-    }
+    } catch (e) { k8sDetected = false; }
 
     // Check for Docker
     let dockerInstalled = false;
@@ -1370,11 +1354,9 @@ ipcMain.handle('detect-hardware', () => {
         exec('docker --version 2>/dev/null', (error, stdout) => {
             dockerInstalled = !error && stdout.length > 0;
         });
-    } catch (e) {
-        dockerInstalled = false;
-    }
+    } catch (e) { dockerInstalled = false; }
 
-    const result = {
+    return {
         gpus: gpus,
         gpuAvailable: gpus.length > 0,
         totalMemory: `${Math.round(totalMemory / 1024 / 1024 / 1024)} GB`,
@@ -1386,8 +1368,6 @@ ipcMain.handle('detect-hardware', () => {
         platform: process.platform,
         isWSL: process.platform === 'linux' && fs.existsSync('/proc/sys/fs/binfmt_misc/WSLInterop'),
     };
-
-    return result;
 });
 
 function detectGPUs() {
@@ -1437,13 +1417,9 @@ function detectGPUs() {
                         }
                     }
                 }
-            } catch (e) {
-                // rocminfo not available – skip AMD detection
-            }
-        }
+            } catch (e) { /* rocminfo not available – skip AMD detection */ }
 
-        // Intel GPU detection
-        if (platform === 'linux') {
+            // Intel GPU detection
             try {
                 const result = execSync('clinfo | grep -i "intel"', { encoding: 'utf8', stdio: 'pipe' });
                 if (result) {
@@ -1455,9 +1431,7 @@ function detectGPUs() {
                         computeCapability: 'unknown',
                     });
                 }
-            } catch (e) {
-                // clinfo not available – skip Intel detection
-            }
+            } catch (e) { /* clinfo not available – skip Intel detection */ }
         }
     } catch (error) {
         logError(`GPU detection error: ${error.message}`);
@@ -1814,28 +1788,16 @@ ipcMain.handle('vpn-status', () => {
 
 ipcMain.handle('ask-someone', async (event, data) => {
     const { question, category, urgency, expertId } = data || {};
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
-    // Call the LangGraph Ask Someone agent
+    // Call the LangGraph Good Answer agent
     try {
         const response = await fetch(`${serverUrl}:8000/runs/stream`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                input: {
-                    question,
-                    category,
-                    urgency,
-                    expert_id: expertId,
-                    action: 'ask_someone',
-                },
-                config: {
-                    configurable: {
-                        thread_id: crypto.randomUUID(),
-                    },
-                },
+                input: { question, category, urgency, expert_id: expertId, action: 'ask_someone' },
+                config: { configurable: { thread_id: crypto.randomUUID() } }
             }),
         });
 
@@ -1857,28 +1819,16 @@ ipcMain.handle('ask-someone', async (event, data) => {
 
 ipcMain.handle('good-answer', async (event, data) => {
     const { question, answer, rating, userId } = data || {};
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     // Call the LangGraph Good Answer agent
     try {
         const response = await fetch(`${serverUrl}:8000/runs/stream`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                input: {
-                    question,
-                    answer,
-                    rating,
-                    user_id: userId,
-                    action: 'good_answer',
-                },
-                config: {
-                    configurable: {
-                        thread_id: crypto.randomUUID(),
-                    },
-                },
+                input: { question, answer, rating, user_id: userId, action: 'good_answer' },
+                config: { configurable: { thread_id: crypto.randomUUID() } }
             }),
         });
 
@@ -1900,27 +1850,15 @@ ipcMain.handle('good-answer', async (event, data) => {
 
 ipcMain.handle('start-training', async (event, data) => {
     const { dataset, model, method, params } = data || {};
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/runs/stream`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                input: {
-                    dataset,
-                    model,
-                    method: method || 'unsloth',
-                    params: params || {},
-                    action: 'start_training',
-                },
-                config: {
-                    configurable: {
-                        thread_id: crypto.randomUUID(),
-                    },
-                },
+                input: { dataset, model, method: method || 'unsloth', params: params || {}, action: 'start_training' },
+                config: { configurable: { thread_id: crypto.randomUUID() } }
             }),
         });
 
@@ -1937,7 +1875,7 @@ ipcMain.handle('start-training', async (event, data) => {
 });
 
 ipcMain.handle('training-status', async () => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/training/status`);
@@ -1957,7 +1895,7 @@ ipcMain.handle('training-status', async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('list-agents', async () => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/agents/list`);
@@ -1973,7 +1911,7 @@ ipcMain.handle('list-agents', async () => {
 });
 
 ipcMain.handle('agent-status', async (event, agentId) => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/agents/${agentId}/status`);
@@ -1993,7 +1931,7 @@ ipcMain.handle('agent-status', async (event, agentId) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('list-queue', async () => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/queue/list`);
@@ -2009,12 +1947,10 @@ ipcMain.handle('list-queue', async () => {
 });
 
 ipcMain.handle('cancel-task', async (event, taskId) => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
-        const response = await fetch(`${serverUrl}:8000/queue/${taskId}/cancel`, {
-            method: 'POST',
-        });
+        const response = await fetch(`${serverUrl}:8000/queue/${taskId}/cancel`, { method: 'POST' });
         if (response.ok) {
             const result = await response.json();
             return { success: true, data: result };
@@ -2027,12 +1963,10 @@ ipcMain.handle('cancel-task', async (event, taskId) => {
 });
 
 ipcMain.handle('retry-task', async (event, taskId) => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
-        const response = await fetch(`${serverUrl}:8000/queue/${taskId}/retry`, {
-            method: 'POST',
-        });
+        const response = await fetch(`${serverUrl}:8000/queue/${taskId}/retry`, { method: 'POST' });
         if (response.ok) {
             const result = await response.json();
             return { success: true, data: result };
@@ -2049,7 +1983,7 @@ ipcMain.handle('retry-task', async (event, taskId) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('marketplace-listings', async () => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/listings`);
@@ -2065,14 +1999,12 @@ ipcMain.handle('marketplace-listings', async () => {
 });
 
 ipcMain.handle('marketplace-list-gpu', async (event, data) => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/list`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
         if (response.ok) {
@@ -2087,14 +2019,12 @@ ipcMain.handle('marketplace-list-gpu', async (event, data) => {
 });
 
 ipcMain.handle('marketplace-book-gpu', async (event, data) => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8090/api/v1/gpu/book`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
         if (response.ok) {
@@ -2121,37 +2051,26 @@ ipcMain.handle('get-discovered-nodes', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('system-health', async () => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
-    const health = {
-        services: {},
-        gpus: [],
-        models: [],
-        uptime: process.uptime(),
-    };
+    const serverUrl = await getServerUrlInternal();
+    const health = { services: {}, gpus: [], models: [], uptime: process.uptime() };
 
     // Check Odoo
     try {
         const response = await fetch(`${serverUrl}:8069/web/health`);
         health.services.odoo = response.ok ? 'healthy' : 'unhealthy';
-    } catch {
-        health.services.odoo = 'unhealthy';
-    }
+    } catch { health.services.odoo = 'unhealthy'; }
 
     // Check LangGraph
     try {
         const response = await fetch(`${serverUrl}:8000/health`);
         health.services.langgraph = response.ok ? 'healthy' : 'unhealthy';
-    } catch {
-        health.services.langgraph = 'unhealthy';
-    }
+    } catch { health.services.langgraph = 'unhealthy'; }
 
     // Check Dynamo
     try {
         const response = await fetch(`${serverUrl}:8001/v1/models`);
         health.services.dynamo = response.ok ? 'healthy' : 'unhealthy';
-    } catch {
-        health.services.dynamo = 'unhealthy';
-    }
+    } catch { health.services.dynamo = 'unhealthy'; }
 
     // Get GPU info
     health.gpus = detectGPUs();
@@ -2168,7 +2087,7 @@ ipcMain.handle('system-health', async () => {
 
 ipcMain.handle('get-logs', async (event, options) => {
     const { service, lines = 100 } = options || {};
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/logs/${service}?lines=${lines}`);
@@ -2188,7 +2107,7 @@ ipcMain.handle('get-logs', async (event, options) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('get-alerts', async () => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/alerts`);
@@ -2204,7 +2123,7 @@ ipcMain.handle('get-alerts', async () => {
 });
 
 ipcMain.handle('get-notifications', async () => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/notifications`);
@@ -2220,7 +2139,7 @@ ipcMain.handle('get-notifications', async () => {
 });
 
 ipcMain.handle('mark-notification-read', async (event, notificationId) => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
 
     try {
         const response = await fetch(`${serverUrl}:8000/notifications/${notificationId}/read`, { method: 'POST' });
@@ -2244,9 +2163,7 @@ ipcMain.handle('install-wine', async (event) => {
     try {
         execSync('wine --version', { stdio: 'ignore' });
         return { success: true, alreadyInstalled: true, message: 'Wine is already installed.' };
-    } catch (e) {
-        // Not installed, proceed
-    }
+    } catch (e) { /* Not installed, proceed */ }
 
     return new Promise((resolve) => {
         const commands = [
@@ -2254,15 +2171,10 @@ ipcMain.handle('install-wine', async (event) => {
             'sudo apt update',
             `sudo apt install -y wine wine64 wine32 libasound2t64 libasound2t64:i386 libnspr4 libnss3 libxss1 libatk-bridge2.0-0t64 libgtk-3-0t64 libgbm1 libnspr4:i386 libnss3:i386 libgtk-3-0t64:i386`
         ];
-
         const fullCmd = commands.join(' && ');
         logInfo(`Installing Wine with: ${fullCmd}`);
 
-        const proc = spawn('bash', ['-c', fullCmd], {
-            stdio: 'pipe',
-            shell: true,
-        });
-
+        const proc = spawn('bash', ['-c', fullCmd], { stdio: 'pipe', shell: true });
         let output = '';
 
         proc.stdout.on('data', (data) => {
@@ -2304,34 +2216,6 @@ ipcMain.handle('open-external', (event, url) => {
 
 ipcMain.handle('show-dialog', async (event, options) => {
     return dialog.showMessageBox(options);
-});
-
-ipcMain.handle('get-server-url', () => {
-    try {
-        const configPath = path.join(app.getPath('userData'), 'config.json');
-        if (fs.existsSync(configPath)) {
-            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            if (config.serverUrl) {
-                return config.serverUrl;
-            }
-        }
-    } catch (error) {
-        logError(`Error reading config: ${error.message}`);
-    }
-    return 'http://localhost';
-});
-
-ipcMain.handle('save-server-url', (event, url) => {
-    try {
-        const configPath = path.join(app.getPath('userData'), 'config.json');
-        const config = { serverUrl: url };
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-        logInfo(`Server URL saved: ${url}`);
-        return { success: true };
-    } catch (error) {
-        logError(`Error saving config: ${error.message}`);
-        return { success: false, error: error.message };
-    }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2446,17 +2330,15 @@ ipcMain.handle('system-check', async () => {
 
 ipcMain.handle('get-credentials', async () => {
     // Get the server URL
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
     // Call Odoo API to get secret list (metadata only)
     try {
         const response = await fetch(`${serverUrl}:8069/api/secrets/list`, {
-            headers: {
-                'Authorization': `Bearer ${await getOdooAuthToken()}`
-            }
+            headers: { 'Authorization': `Bearer ${await getOdooAuthToken()}` }
         });
         if (response.ok) {
             const data = await response.json();
-            return data;
+            return { success: true, data };
         } else {
             return { success: false, error: 'Failed to fetch credentials' };
         }
@@ -2466,12 +2348,10 @@ ipcMain.handle('get-credentials', async () => {
 });
 
 ipcMain.handle('get-credential-value', async (event, key) => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
     try {
         const response = await fetch(`${serverUrl}:8069/api/secrets/${key}`, {
-            headers: {
-                'Authorization': `Bearer ${await getOdooAuthToken()}`
-            }
+            headers: { 'Authorization': `Bearer ${await getOdooAuthToken()}` }
         });
         if (response.ok) {
             const data = await response.json();
@@ -2485,7 +2365,7 @@ ipcMain.handle('get-credential-value', async (event, key) => {
 });
 
 ipcMain.handle('rotate-credential', async (event, key, newValue) => {
-    const serverUrl = await ipcMain.invoke('get-server-url');
+    const serverUrl = await getServerUrlInternal();
     try {
         const response = await fetch(`${serverUrl}:8069/api/secrets/${key}/rotate`, {
             method: 'POST',
@@ -2561,8 +2441,24 @@ async function getOdooAuthToken() {
     return Buffer.from(`admin:${password}`).toString('base64');
 }
 
+// Helper to get internal server URL
+async function getServerUrlInternal() {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.proxyUrl) {
+                return config.proxyUrl;
+            }
+        }
+    } catch (error) {
+        logError(`Error reading config: ${error.message}`);
+    }
+    return 'http://localhost';
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Emergency Access Management (Hub-and-Spoke Security)
+// Emergency Access Management
 // ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('list-emergency-users', async () => {
@@ -2588,7 +2484,7 @@ ipcMain.handle('revoke-emergency-user', async (event, login) => {
 });
 
 ipcMain.handle('create-emergency-user', async (event, duration) => {
-    const password = generate_safe_password();
+    const password = generateSafePassword();
     const validUntil = new Date(Date.now() + (duration || 4) * 3600000)
         .toISOString()
         .replace('T', ' ')
@@ -2609,15 +2505,6 @@ ipcMain.handle('create-emergency-user', async (event, duration) => {
         return { success: false, error: error.message };
     }
 });
-
-function generate_safe_password() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let password = '';
-    for (let i = 0; i < 24; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Window Controls
@@ -2641,8 +2528,6 @@ ipcMain.handle('close-window', () => {
     if (mainWindow) mainWindow.close();
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Export
-// ─────────────────────────────────────────────────────────────────────────────
-
-module.exports = { app };
+// =============================================================================
+// End of main.js
+// =============================================================================
