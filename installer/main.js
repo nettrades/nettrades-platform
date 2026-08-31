@@ -27,6 +27,8 @@
 //   - Tenant type selection and runtime configuration
 //   - gVisor enablement for untrusted tenants
 //   - Developer Mode with Wine installer (NEW)
+//   - Hub/Spoke detection (NEW)
+//   - Universal Enterprise Proxy integration (NEW)
 //
 // USAGE:
 //   npm start
@@ -80,6 +82,11 @@ const ENV_FILE = path.join(PROJECT_ROOT, 'deploy', 'docker', '.env');
 // Phase marker directory
 const PHASE_MARKER_DIR = PROJECT_ROOT;
 
+// Proxy URL (can be overridden via environment or settings)
+let PROXY_URL = process.env.PROXY_URL || 'http://localhost:8080';
+
+// Enterprise backend (odoo, salesforce, sap, oracle)
+let ENTERPRISE_BACKEND = process.env.ENTERPRISE_BACKEND || 'odoo';
 
 // -----------------------------------------------------------------------------
 // Helper: Execute a shell command and return stdout
@@ -95,7 +102,6 @@ function execCommand(command) {
         });
     });
 }
-
 
 // -----------------------------------------------------------------------------
 // Tenant Types and Runtime Configuration
@@ -213,6 +219,8 @@ app.whenReady().then(() => {
     logInfo(`Platform: ${process.platform}`);
     logInfo(`Packaged: ${isPackaged}`);
     logInfo(`Compose file: ${COMPOSE_FILE}`);
+    logInfo(`Proxy URL: ${PROXY_URL}`);
+    logInfo(`Enterprise Backend: ${ENTERPRISE_BACKEND}`);
 
     // Check for virtual environment
     checkVirtualEnvironment();
@@ -227,6 +235,9 @@ app.whenReady().then(() => {
     setTimeout(() => {
         autoUpdater.checkForUpdates();
     }, 5000);
+
+    // Load saved proxy URL from config
+    loadProxyUrlFromConfig();
 });
 
 app.on('window-all-closed', () => {
@@ -240,6 +251,49 @@ app.on('activate', () => {
         createWindow();
     }
 });
+
+// -----------------------------------------------------------------------------
+// Proxy URL Config
+// -----------------------------------------------------------------------------
+
+function loadProxyUrlFromConfig() {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.proxyUrl) {
+                PROXY_URL = config.proxyUrl;
+                logInfo(`Loaded proxy URL from config: ${PROXY_URL}`);
+            }
+            if (config.enterpriseBackend) {
+                ENTERPRISE_BACKEND = config.enterpriseBackend;
+                logInfo(`Loaded enterprise backend from config: ${ENTERPRISE_BACKEND}`);
+            }
+        }
+    } catch (error) {
+        logError(`Error loading config: ${error.message}`);
+    }
+}
+
+function saveProxyUrlToConfig(url, backend) {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        let config = {};
+        if (fs.existsSync(configPath)) {
+            config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        }
+        config.proxyUrl = url || PROXY_URL;
+        if (backend) {
+            config.enterpriseBackend = backend;
+        }
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        logInfo(`Saved proxy URL to config: ${url || PROXY_URL}`);
+        return { success: true };
+    } catch (error) {
+        logError(`Error saving config: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Auto-Updater
@@ -371,6 +425,7 @@ function startNodeDiscovery() {
                 version: app.getVersion(),
                 platform: process.platform,
                 gpus: '0',
+                backend: ENTERPRISE_BACKEND,
             },
         });
         logInfo(`Broadcasting NETTRADES service on ${serverIP}:3002`);
@@ -423,6 +478,52 @@ function isPlatformSetup() {
 }
 
 // -----------------------------------------------------------------------------
+// Helper: Detect deployment mode (hub/spoke/addon)
+// -----------------------------------------------------------------------------
+
+function detectDeploymentMode() {
+    // Check for hub marker
+    const hubMarker = path.join(PROJECT_ROOT, '.nettrades_hub');
+    if (fs.existsSync(hubMarker)) {
+        return 'hub';
+    }
+
+    // Check for Odoo
+    let hasOdoo = false;
+    try {
+        const result = execSync('which odoo 2>/dev/null || echo ""', { encoding: 'utf8' });
+        if (result.trim()) {
+            hasOdoo = true;
+        }
+    } catch (e) {}
+    if (!hasOdoo) {
+        try {
+            const result = execSync('ps aux | grep -v grep | grep -q odoo', { encoding: 'utf8' });
+            if (result.trim()) {
+                hasOdoo = true;
+            }
+        } catch (e) {}
+    }
+
+    // Check for sub-hub on network (via mDNS cache)
+    let subHubFound = false;
+    for (const [id, node] of discoveredNodes) {
+        if (node.txt && node.txt.type === 'hub') {
+            subHubFound = true;
+            break;
+        }
+    }
+
+    if (subHubFound) {
+        return 'spoke';
+    } else if (hasOdoo) {
+        return 'addon';
+    } else {
+        return 'hub';
+    }
+}
+
+// -----------------------------------------------------------------------------
 // IPC Handlers
 // -----------------------------------------------------------------------------
 
@@ -441,6 +542,9 @@ ipcMain.handle('get-platform', () => {
         envFile: ENV_FILE,
         isPackaged: isPackaged,
         tenantTypes: Object.values(TENANT_TYPES),
+        proxyUrl: PROXY_URL,
+        backend: ENTERPRISE_BACKEND,
+        deploymentMode: detectDeploymentMode(),
     };
 });
 
@@ -449,6 +553,41 @@ ipcMain.handle('get-models-dir', () => MODELS_DIR);
 
 ipcMain.handle('is-platform-setup', () => {
     return isPlatformSetup();
+});
+
+ipcMain.handle('get-deployment-mode', () => {
+    return detectDeploymentMode();
+});
+
+ipcMain.handle('get-proxy-url', () => {
+    return PROXY_URL;
+});
+
+ipcMain.handle('get-enterprise-backend', () => {
+    return ENTERPRISE_BACKEND;
+});
+
+ipcMain.handle('set-enterprise-backend', (event, backend) => {
+    const validBackends = ['odoo', 'salesforce', 'sap', 'oracle'];
+    if (!validBackends.includes(backend)) {
+        return { success: false, error: `Invalid backend: ${backend}. Valid: ${validBackends.join(', ')}` };
+    }
+    ENTERPRISE_BACKEND = backend;
+    saveProxyUrlToConfig(PROXY_URL, backend);
+    return { success: true, backend: ENTERPRISE_BACKEND };
+});
+
+ipcMain.handle('save-server-url', (event, url) => {
+    if (url) {
+        PROXY_URL = url;
+        saveProxyUrlToConfig(url, ENTERPRISE_BACKEND);
+        return { success: true };
+    }
+    return { success: false, error: 'No URL provided' };
+});
+
+ipcMain.handle('get-server-url', () => {
+    return PROXY_URL;
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -544,7 +683,6 @@ ipcMain.handle('run-quick-setup', async (event) => {
     });
 });
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // List Emergency Audit
 // ─────────────────────────────────────────────────────────────────────────────
@@ -559,7 +697,6 @@ ipcMain.handle('list-emergency-audit', async () => {
         return { success: false, error: error.message };
     }
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Installation / Deployment
@@ -586,7 +723,20 @@ ipcMain.handle('run-install', async (event, options) => {
         resetData = false,
         tenantType = 'enterprise',
         tenantName = 'default',
+        backend = 'odoo',
+        proxyUrl = null,
     } = options || {};
+
+    // Update enterprise backend if provided
+    if (backend && ['odoo', 'salesforce', 'sap', 'oracle'].includes(backend)) {
+        ENTERPRISE_BACKEND = backend;
+    }
+
+    // Update proxy URL if provided
+    if (proxyUrl) {
+        PROXY_URL = proxyUrl;
+        saveProxyUrlToConfig(PROXY_URL, ENTERPRISE_BACKEND);
+    }
 
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'nettrades-setup.sh');
 
@@ -605,6 +755,24 @@ ipcMain.handle('run-install', async (event, options) => {
     const tenantResult = await ipcMain.handle('set-tenant-config', null, { tenantType, tenantName });
     if (!tenantResult.success) {
         return { success: false, error: `Failed to set tenant config: ${tenantResult.error}` };
+    }
+
+    // Set enterprise backend in .env
+    try {
+        let envContent = '';
+        if (fs.existsSync(ENV_FILE)) {
+            envContent = fs.readFileSync(ENV_FILE, 'utf8');
+        }
+        if (envContent.match(/^ENTERPRISE_BACKEND=/m)) {
+            envContent = envContent.replace(/^ENTERPRISE_BACKEND=\w+/m, `ENTERPRISE_BACKEND=${ENTERPRISE_BACKEND}`);
+        } else {
+            envContent += `\nENTERPRISE_BACKEND=${ENTERPRISE_BACKEND}\n`;
+        }
+        fs.writeFileSync(ENV_FILE, envContent, 'utf8');
+        logInfo(`Enterprise backend set to: ${ENTERPRISE_BACKEND}`);
+    } catch (error) {
+        logError(`Error setting enterprise backend: ${error.message}`);
+        return { success: false, error: `Failed to set enterprise backend: ${error.message}` };
     }
 
     return new Promise((resolve) => {
@@ -632,11 +800,17 @@ ipcMain.handle('run-install', async (event, options) => {
         if (withCuvs) cmd += ' --with-cuvs';
         if (domain) cmd += ` --domain=${domain}`;
 
-        // Set environment variables for tenant type
-        const env = { ...process.env, VIRTUAL_ENV: VENV_DIR, TENANT_TYPE: tenantType };
+        // Set environment variables for tenant type and backend
+        const env = {
+            ...process.env,
+            VIRTUAL_ENV: VENV_DIR,
+            TENANT_TYPE: tenantType,
+            ENTERPRISE_BACKEND: ENTERPRISE_BACKEND,
+        };
 
         logInfo(`Starting deployment: ${cmd}`);
         logInfo(`Tenant type: ${tenantType}`);
+        logInfo(`Enterprise backend: ${ENTERPRISE_BACKEND}`);
 
         installProcess = spawn('bash', ['-c', cmd], {
             cwd: PROJECT_ROOT,
@@ -717,9 +891,11 @@ ipcMain.handle('get-tenant-config', () => {
             const content = fs.readFileSync(ENV_FILE, 'utf8');
             const tenantType = content.match(/^TENANT_TYPE=(\w+)/m)?.[1] || 'enterprise';
             const tenantName = content.match(/^TENANT_NAME=(.+)/m)?.[1] || 'default';
+            const backend = content.match(/^ENTERPRISE_BACKEND=(\w+)/m)?.[1] || 'odoo';
             return {
                 tenantType,
                 tenantName,
+                backend,
                 runtimeConfig: RUNTIME_CONFIG[tenantType] || RUNTIME_CONFIG[TENANT_TYPES.ENTERPRISE]
             };
         }
@@ -729,12 +905,13 @@ ipcMain.handle('get-tenant-config', () => {
     return {
         tenantType: 'enterprise',
         tenantName: 'default',
+        backend: 'odoo',
         runtimeConfig: RUNTIME_CONFIG[TENANT_TYPES.ENTERPRISE]
     };
 });
 
 ipcMain.handle('set-tenant-config', async (event, config) => {
-    const { tenantType, tenantName } = config;
+    const { tenantType, tenantName, backend } = config;
 
     if (!Object.values(TENANT_TYPES).includes(tenantType)) {
         return { success: false, error: `Invalid tenant type: ${tenantType}` };
@@ -758,6 +935,12 @@ ipcMain.handle('set-tenant-config', async (event, config) => {
             content += `TENANT_NAME=${tenantName || 'default'}\n`;
         }
 
+        if (backend && content.match(/^ENTERPRISE_BACKEND=/m)) {
+            content = content.replace(/^ENTERPRISE_BACKEND=\w+/m, `ENTERPRISE_BACKEND=${backend}`);
+        } else if (backend) {
+            content += `ENTERPRISE_BACKEND=${backend}\n`;
+        }
+
         const runtime = RUNTIME_CONFIG[tenantType];
         const runtimeVars = [
             { key: 'RUNTIME_LANGGRAPH', value: runtime.langgraph },
@@ -775,6 +958,11 @@ ipcMain.handle('set-tenant-config', async (event, config) => {
 
         fs.writeFileSync(ENV_FILE, content, 'utf8');
         logSuccess(`Tenant configuration updated: ${tenantType} (${tenantName || 'default'})`);
+
+        if (backend) {
+            ENTERPRISE_BACKEND = backend;
+            saveProxyUrlToConfig(PROXY_URL, backend);
+        }
 
         return { success: true };
     } catch (error) {
@@ -1396,7 +1584,6 @@ ipcMain.handle('restore-backup', async (event, backupPath) => {
     });
 });
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Container Management (Docker)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1571,19 +1758,18 @@ function timeAgo(date) {
     return 'just now';
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // VPN Management (WireGuard)
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('vpn-add-peer', async (event, username) => {
-    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'add-wireguard-user.sh');
+ipcMain.handle('vpn-add-peer', async (event, username, ip) => {
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'wireguard-manager.sh');
     if (!fs.existsSync(scriptPath)) {
         return { success: false, error: `WireGuard script not found: ${scriptPath}` };
     }
 
     return new Promise((resolve) => {
-        const cmd = `bash ${scriptPath} ${username}`;
+        const cmd = `sudo ${scriptPath} add ${username} ${ip || ''}`;
         logInfo(`Adding WireGuard peer: ${username}`);
 
         exec(cmd, { cwd: PROJECT_ROOT }, (error, stdout, stderr) => {
@@ -1600,7 +1786,7 @@ ipcMain.handle('vpn-add-peer', async (event, username) => {
 
 ipcMain.handle('vpn-list-peers', () => {
     return new Promise((resolve) => {
-        exec('wg show', { cwd: PROJECT_ROOT }, (error, stdout) => {
+        exec('sudo wg show', { cwd: PROJECT_ROOT }, (error, stdout) => {
             if (error) {
                 resolve({ success: false, error: error.message });
             } else {
@@ -1612,7 +1798,7 @@ ipcMain.handle('vpn-list-peers', () => {
 
 ipcMain.handle('vpn-status', () => {
     return new Promise((resolve) => {
-        exec('wg show', { cwd: PROJECT_ROOT }, (error, stdout) => {
+        exec('sudo wg show', { cwd: PROJECT_ROOT }, (error, stdout) => {
             if (error) {
                 resolve({ running: false, error: error.message });
             } else {
@@ -2148,7 +2334,6 @@ ipcMain.handle('save-server-url', (event, url) => {
     }
 });
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // System Check
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2160,6 +2345,8 @@ ipcMain.handle('system-check', async () => {
         gpu: { name: 'GPU Drivers', status: 'unknown', details: '' },
         python: { name: 'Python 3.10+', status: 'unknown', details: '' },
         node: { name: 'Node.js 20+', status: 'unknown', details: '' },
+        backend: { name: 'Enterprise Backend', status: 'unknown', details: '' },
+        proxy: { name: 'Proxy URL', status: 'unknown', details: '' },
     };
 
     // Check WSL2 (on Windows) or Linux
@@ -2228,6 +2415,26 @@ ipcMain.handle('system-check', async () => {
     } catch (e) {
         checks.node.status = 'error';
         checks.node.details = 'Node.js not found';
+    }
+
+    // Check Enterprise Backend
+    try {
+        const backend = ENTERPRISE_BACKEND || 'odoo';
+        checks.backend.status = 'ok';
+        checks.backend.details = `Using ${backend} backend`;
+    } catch (e) {
+        checks.backend.status = 'warning';
+        checks.backend.details = 'Could not determine backend';
+    }
+
+    // Check Proxy URL
+    try {
+        const proxy = PROXY_URL || 'http://localhost:8080';
+        checks.proxy.status = 'ok';
+        checks.proxy.details = proxy;
+    } catch (e) {
+        checks.proxy.status = 'warning';
+        checks.proxy.details = 'Could not determine proxy URL';
     }
 
     return checks;
@@ -2354,7 +2561,6 @@ async function getOdooAuthToken() {
     return Buffer.from(`admin:${password}`).toString('base64');
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Emergency Access Management (Hub-and-Spoke Security)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2404,6 +2610,14 @@ ipcMain.handle('create-emergency-user', async (event, duration) => {
     }
 });
 
+function generate_safe_password() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < 24; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Window Controls

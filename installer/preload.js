@@ -17,6 +17,8 @@
 //   - Queue and task management APIs
 //   - Marketplace APIs
 //   - Backup and restore APIs
+//   - Universal Enterprise Proxy integration (NEW)
+//   - Hub/Spoke detection (NEW)
 // =============================================================================
 
 const { contextBridge, ipcRenderer, shell } = require('electron');
@@ -57,30 +59,42 @@ contextBridge.exposeInMainWorld('api', {
     getFeatureFlags: () => ipcRenderer.invoke('get-feature-flags'),
 
     // ──────────────────────────────────────────────────────────────────────────
-	// Emergency Access Management
-	// ──────────────────────────────────────────────────────────────────────────
+    // Deployment Mode Detection (NEW)
+    // ──────────────────────────────────────────────────────────────────────────
 
-	listEmergencyUsers: () => ipcRenderer.invoke('list-emergency-users'),
-	revokeEmergencyUser: (login) => ipcRenderer.invoke('revoke-emergency-user', login),
+    getDeploymentMode: () => ipcRenderer.invoke('get-deployment-mode'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Enterprise Backend (NEW)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    getEnterpriseBackend: () => ipcRenderer.invoke('get-enterprise-backend'),
+    setEnterpriseBackend: (backend) => ipcRenderer.invoke('set-enterprise-backend', backend),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Emergency Access Management
+    // ──────────────────────────────────────────────────────────────────────────
+
+    listEmergencyUsers: () => ipcRenderer.invoke('list-emergency-users'),
+    revokeEmergencyUser: (login) => ipcRenderer.invoke('revoke-emergency-user', login),
     createEmergencyUser: (duration) => ipcRenderer.invoke('create-emergency-user', duration),
 
     // ──────────────────────────────────────────────────────────────────────────
-	// Container Management (Docker)
-	// ──────────────────────────────────────────────────────────────────────────
+    // Container Management (Docker)
+    // ──────────────────────────────────────────────────────────────────────────
 
-	listContainers: () => ipcRenderer.invoke('list-containers'),
-	startContainer: (containerId) => ipcRenderer.invoke('start-container', containerId),
-	stopContainer: (containerId) => ipcRenderer.invoke('stop-container', containerId),
-	restartContainer: (containerId) => ipcRenderer.invoke('restart-container', containerId),
-	startAllContainers: () => ipcRenderer.invoke('start-all-containers'),
-	stopAllContainers: () => ipcRenderer.invoke('stop-all-containers'),
-	restartAllContainers: () => ipcRenderer.invoke('restart-all-containers'),
+    listContainers: () => ipcRenderer.invoke('list-containers'),
+    startContainer: (containerId) => ipcRenderer.invoke('start-container', containerId),
+    stopContainer: (containerId) => ipcRenderer.invoke('stop-container', containerId),
+    restartContainer: (containerId) => ipcRenderer.invoke('restart-container', containerId),
+    startAllContainers: () => ipcRenderer.invoke('start-all-containers'),
+    stopAllContainers: () => ipcRenderer.invoke('stop-all-containers'),
+    restartAllContainers: () => ipcRenderer.invoke('restart-all-containers'),
     containerLogs: (containerId, lines) => ipcRenderer.invoke('container-logs', containerId, lines),
 
     // ──────────────────────────────────────────────────────────────────────────
     // Installation / Deployment
-    // ──────────────────────────────────────────────────────────────────────────
-    // FIXED: Added withCuvs to runInstall options
+    // FIXED: Added withCuvs, backend, proxyUrl to runInstall options
     // ──────────────────────────────────────────────────────────────────────────
 
     runInstall: (options) => ipcRenderer.invoke('run-install', {
@@ -99,6 +113,8 @@ contextBridge.exposeInMainWorld('api', {
         resetData: options?.resetData,
         tenantType: options?.tenantType,
         tenantName: options?.tenantName,
+        backend: options?.backend,     // <-- NEW: enterprise backend selection
+        proxyUrl: options?.proxyUrl,   // <-- NEW: proxy URL override
     }),
     cancelInstall: () => ipcRenderer.invoke('cancel-install'),
     getInstallStatus: () => ipcRenderer.invoke('get-install-status'),
@@ -139,6 +155,7 @@ contextBridge.exposeInMainWorld('api', {
     // ──────────────────────────────────────────────────────────────────────────
 
     detectGpu: () => ipcRenderer.invoke('detect-gpu'),
+    detectHardware: () => ipcRenderer.invoke('detect-hardware'),
 
     // ──────────────────────────────────────────────────────────────────────────
     // "Ask Someone" Expert System
