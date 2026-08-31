@@ -571,6 +571,11 @@ ipcMain.handle('set-enterprise-backend', (event, backend) => {
     return { success: true, backend: ENTERPRISE_BACKEND };
 });
 
+// get-server-url handler
+ipcMain.handle('get-server-url', () => {
+    return PROXY_URL;
+});
+
 ipcMain.handle('save-server-url', (event, url) => {
     if (url) {
         PROXY_URL = url;

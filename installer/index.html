@@ -1552,9 +1552,9 @@
             });
             // Render the view if not already rendered
             const container = document.getElementById(`tab-${tabName}`);
-            if (container && container.textContent.trim() === 'Loading...') {
-                const renderFn = views[tabName] || views.dashboard;
+            if (container) {
                 container.innerHTML = '';
+                const renderFn = views[tabName] || views.dashboard;
                 container.appendChild(renderFn());
             }
             // Refresh data for specific tabs
