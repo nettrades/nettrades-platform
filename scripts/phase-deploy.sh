@@ -30,6 +30,12 @@
 #   - Detection of existing NETTRADES sub-hubs on the network.
 #   - Support for adding NETTRADES to existing Odoo installations.
 #   - All original deployment steps preserved for HUB mode.
+#
+#   UPDATES (2026-08):
+#   - Improved Hub/Spoke/Addon detection:
+#     * If --force and .env is missing, force HUB mode (fresh install).
+#     * If Odoo is running in a Docker container, treat as HUB (not ADDON).
+#   - All original deployment steps preserved for HUB mode.
 # =============================================================================
 
 set -euo pipefail
@@ -83,7 +89,7 @@ fi
 export IS_WSL
 
 # =============================================================================
-# HUB / SPOKE / ADDON DETECTION
+# HUB / SPOKE / ADDON DETECTION (IMPROVED)
 # =============================================================================
 DETECTION_MODE="${DETECTION_MODE:-auto}"  # auto, hub, spoke, addon
 
@@ -94,28 +100,65 @@ detect_environment() {
     local has_odoo=false
     local has_nettrades=false
     local sub_hub_found=false
+    local odoo_in_docker=false
 
-    # Check if Odoo is installed locally
+    # ---- Check if we should force HUB mode ----
+    # If FORCE is true and .env file does not exist, assume a fresh HUB install.
+    ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
+    if [[ "$FORCE" == true ]] && [[ ! -f "$ENV_FILE" ]]; then
+        log_info "Force mode with no .env – forcing HUB deployment."
+        DEPLOYMENT_MODE="hub"
+        log_success "Deployment mode: HUB (forced)"
+        export DEPLOYMENT_MODE
+        return
+    fi
+
+    # ---- Check if Odoo is installed locally (on the host) ----
     if command -v odoo &>/dev/null || ps aux | grep -v grep | grep -q "odoo"; then
         has_odoo=true
-        log_info "Odoo detected locally"
+        log_info "Odoo detected locally (process)"
     fi
 
-    # Check if Odoo port 8069 is open locally
+    # ---- Check if Odoo port 8069 is open ----
     if nc -z localhost 8069 2>/dev/null || curl -s --connect-timeout 2 http://localhost:8069 >/dev/null 2>&1; then
-        has_odoo=true
-        log_info "Odoo detected on port 8069"
+        # Check if the process listening on 8069 is a Docker container
+        if command -v docker &>/dev/null; then
+            # Find the container that exposes port 8069
+            CONTAINER_ID=$(docker ps --filter "publish=8069" --format "{{.ID}}" 2>/dev/null | head -1)
+            if [[ -n "$CONTAINER_ID" ]]; then
+                # Check if this container is part of the current compose project (by label)
+                PROJECT_NAME=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+                COMPOSE_PROJECT=$(docker inspect "$CONTAINER_ID" --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null)
+                if [[ "$COMPOSE_PROJECT" == "$PROJECT_NAME" ]]; then
+                    odoo_in_docker=true
+                    log_info "Odoo is running in a Docker container from the current compose project – not an external installation."
+                else
+                    # It's a Docker container but not from our project – treat as external.
+                    has_odoo=true
+                    log_info "Odoo detected on port 8069 (external Docker container)."
+                fi
+            else
+                # Port open but not a Docker container – could be a native service.
+                has_odoo=true
+                log_info "Odoo detected on port 8069 (native process)."
+            fi
+        else
+            # Docker not available – assume it's a native service.
+            has_odoo=true
+            log_info "Odoo detected on port 8069."
+        fi
     fi
 
-    # Check if NETTRADES tables exist in the database
+    # ---- Check if NETTRADES tables exist ----
     if [[ "$has_odoo" == true ]] && command -v psql &>/dev/null; then
-        if psql -U odoo -d odoo -t -c "SELECT 1 FROM information_schema.tables WHERE table_name='nettrades_users'" 2>/dev/null | grep -q 1; then
+        # Try to connect to the database (may need password)
+        if PGPASSWORD="$POSTGRES_PASSWORD" psql -h localhost -U odoo -d odoo -t -c "SELECT 1 FROM information_schema.tables WHERE table_name='nettrades_users'" 2>/dev/null | grep -q 1; then
             has_nettrades=true
             log_info "NETTRADES tables detected in Odoo database"
         fi
     fi
 
-    # Check for sub-hub on the network (mDNS)
+    # ---- Check for sub-hub on the network (mDNS) ----
     if command -v avahi-browse &>/dev/null; then
         if avahi-browse -t _nettrades._tcp -r 2>/dev/null | grep -q "NETTRADES"; then
             sub_hub_found=true
@@ -123,13 +166,13 @@ detect_environment() {
         fi
     fi
 
-    # Check for .nettrades_hub marker file
+    # ---- Check for .nettrades_hub marker file ----
     if [[ -f "$PROJECT_ROOT/.nettrades_hub" ]]; then
         is_hub=true
         log_info "Hub marker file found"
     fi
 
-    # Determine deployment mode
+    # ---- Determine deployment mode ----
     if [[ "$DETECTION_MODE" == "hub" ]] || [[ "$is_hub" == true ]]; then
         DEPLOYMENT_MODE="hub"
         log_success "Deployment mode: HUB"
@@ -142,9 +185,14 @@ detect_environment() {
     elif [[ "$has_odoo" == true ]] && [[ "$has_nettrades" == true ]]; then
         DEPLOYMENT_MODE="addon"
         log_success "Deployment mode: ADDON (Odoo + NETTRADES tables exist)"
-    elif [[ "$has_odoo" == true ]] && [[ "$has_nettrades" == false ]]; then
+    elif [[ "$has_odoo" == true ]] && [[ "$has_nettrades" == false ]] && [[ "$odoo_in_docker" == false ]]; then
+        # Odoo exists but no NETTRADES tables, and it's NOT a container from our stack – likely an external Odoo.
         DEPLOYMENT_MODE="addon"
-        log_success "Deployment mode: ADDON (Odoo exists, NETTRADES tables missing)"
+        log_success "Deployment mode: ADDON (external Odoo exists, NETTRADES tables missing)"
+    elif [[ "$has_odoo" == true ]] && [[ "$odoo_in_docker" == true ]]; then
+        # Odoo is in a container from our project, but no NETTRADES tables – treat as HUB (we are doing a fresh install).
+        DEPLOYMENT_MODE="hub"
+        log_success "Deployment mode: HUB (Odoo container from this project, fresh install)"
     else
         DEPLOYMENT_MODE="hub"
         log_success "Deployment mode: HUB (no Odoo or NETTRADES found)"
@@ -240,17 +288,20 @@ if [[ "$DEPLOYMENT_MODE" == "addon" ]]; then
         ODOO_PATH=$(which odoo)
     elif [[ -d "/usr/lib/python3/dist-packages/odoo" ]]; then
         ODOO_PATH="/usr/lib/python3/dist-packages/odoo"
+    elif [[ -d "/usr/local/lib/python3.12/dist-packages/odoo" ]]; then
+        ODOO_PATH="/usr/local/lib/python3.12/dist-packages/odoo"
     fi
 
     if [[ -z "$ODOO_PATH" ]]; then
-        log_error "Could not detect Odoo installation path"
+        log_error "Could not detect Odoo installation path. ADDON mode requires Odoo installed on the host."
+        log_info "If you want a full platform deployment, use HUB mode (remove existing containers or set FORCE_HUB=true)."
         exit 1
     fi
 
     log_info "Odoo installation found at: $ODOO_PATH"
 
     # Copy NETTRADES modules to Odoo addons path
-    ADDONS_PATH="/usr/lib/python3/dist-packages/odoo/addons"
+    ADDONS_PATH="$ODOO_PATH/addons"
     if [[ -d "$ADDONS_PATH" ]]; then
         log_step "Copying NETTRADES modules to Odoo addons..."
         cp -r "$PROJECT_ROOT/odoo-modules/nettrades_"* "$ADDONS_PATH/"

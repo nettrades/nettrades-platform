@@ -225,37 +225,37 @@ log_success "$MODULE_COUNT modules prepared in $TARGET"
 
 
 
-# =============================================================================
-# NEW: Strip UI from NETTRADES modules (headless mode)
-# =============================================================================
-#
-#strip_odoo_ui() {
-#    log_step "Stripping UI from NETTRADES modules (headless mode)..."
-#    
-#    for module_dir in "$TARGET"/nettrades_*/; do
-#        if [[ -d "$module_dir" ]]; then
-#            module_name="$(basename "$module_dir")"
-#            
-#            # Remove views directory
-#            if [[ -d "$module_dir/views" ]]; then
-#                rm -rf "$module_dir/views"
-#                log_info "  - Removed views/ from $module_name"
-#            fi
-#            
-#            # Clean manifest data section
-#            manifest="$module_dir/__manifest__.py"
-#            if [[ -f "$manifest" ]]; then
-#                # Remove all view references from the 'data' list
-#                sed -i "/'data':/,/]/d" "$manifest"
-#                # Add empty data section
-#                sed -i "/'depends'/a\    'data': [],  # STRIPPED - UI moved to Electron Launcher" "$manifest"
-#                log_info "  - Cleaned manifest for $module_name"
-#            fi
-#        fi
-#    done
-#    
-#    log_success "UI stripped from all NETTRADES modules"
-#}
-#
-## Call the function after copying modules
-#strip_odoo_ui
+ =============================================================================
+ NEW: Strip UI from NETTRADES modules (headless mode)
+ =============================================================================
+
+strip_odoo_ui() {
+    log_step "Stripping UI from NETTRADES modules (headless mode)..."
+    
+    for module_dir in "$TARGET"/nettrades_*/; do
+        if [[ -d "$module_dir" ]]; then
+            module_name="$(basename "$module_dir")"
+            
+            # Remove views directory
+            if [[ -d "$module_dir/views" ]]; then
+                rm -rf "$module_dir/views"
+                log_info "  - Removed views/ from $module_name"
+            fi
+            
+            # Clean manifest data section
+            manifest="$module_dir/__manifest__.py"
+            if [[ -f "$manifest" ]]; then
+                # Remove all view references from the 'data' list
+                sed -i "/'data':/,/]/d" "$manifest"
+                # Add empty data section
+                sed -i "/'depends'/a\    'data': [],  # STRIPPED - UI moved to Electron Launcher" "$manifest"
+                log_info "  - Cleaned manifest for $module_name"
+            fi
+        fi
+    done
+    
+    log_success "UI stripped from all NETTRADES modules"
+}
+
+# Call the function after copying modules
+strip_odoo_ui
