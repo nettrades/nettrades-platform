@@ -840,6 +840,52 @@ npm run build:win   # on Windows with WSL
 npm start
 
 ```
+### ❓  Installer/Launcher Detection Logic
+
+#### Hub, Sub-Hub, and Spoke Topology:
+
+* Hub (nettrades.ai): Central management, global marketplace, user accounts, billing, multi-tenant orchestration.
+
+* Sub-hubs (one per client company or network): Local policy, local LLM caching, local agent state, local GPU cluster management.
+
+* Spokes (per computer): End-user devices (workstations, Apple computers, Jetson Nanos, Linux Servers) that provide compute power for distributed inferencing.
+    
+The deployment scripts and the Launcher implement the following flow
+
+```mermaid
+
+flowchart TD
+    A[Start installation] --> B{Is there a NETTRADES sub‑hub on the network?}
+    B -- Yes --> C[Install as a Spoke node]
+    B -- No --> D{Is Odoo installed on this machine?}
+    D -- Yes --> E{Is Odoo already running?}
+    E -- Yes --> F[Add NETTRADES schema and modules to existing Odoo]
+    E -- No --> G[Ask user: install as new hub?]
+    D -- No --> H[Ask user: install as new hub?]
+    G --> I[Install full NETTRADES hub]
+    H --> I
+
+```
+#### Detection mechanisms:
+
+* mDNS / DNS-SD to discover other NETTRADES nodes.
+
+* Check for Odoo’s typical ports (8069, 8072) or attempt to connect to the Odoo database.
+
+* The Launcher can prompt the user if automatic detection fails.
+
+#### Spoke installation installs only:
+
+* WireGuard client to connect to the sub-hub.
+
+* Inference engine (llama.cpp / vLLM / Dynamo worker).
+
+* A minimal heartbeat agent (Python or Go) that registers itself with the sub-hub’s proxy and pulls inference jobs.
+
+* No PostgreSQL, no Odoo, no Redis, no LangGraph.
+
+The Nettrades Sovereign AI Platform has transaction control, error handling and state control with LanGraph, therefore when working with Odoo it relies on Odoo's ORM and database for transaction control. Since the agents' tools (odoo_tools.py) perform CRUD operations directly on Odoo, all transactional integrity is managed by Odoo's database. This provides ACID guarantees. But the Nettrades Sovereign AI Platform has its own nettrades_ tables to decouple from Odoo and make future upgrades easier. This also gives it the possibilty to couple with other enterprise systems in the future and maintain transaction control and error handling.  
+
 
 ### ❓ Troubleshooting
 
