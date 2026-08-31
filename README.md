@@ -66,7 +66,7 @@ PURPOSE:
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
-**Organisations could decide to keep everything local or they could decides which types of requests are processed locally and which types of requests are routed to remote providers or to a GPU market place, at peak time, based on the administrative settings set by the organisations administrator.**
+**Organisations could decide to keep everything local or they could decides which types of requests are processed locally and which types of requests are routed to remote providers or to a GPU market place, at peak time, based on the administrative settings, set by the organisations administrator.**
 
 **In the past, enterprises faced a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 
@@ -79,6 +79,9 @@ PURPOSE:
 
 
 ### Deploy in minutes, not months
+
+In a Ubuntu 22.04 or WSL terminal window run:
+
 
 ```bash
 # Update Ubuntu
@@ -105,7 +108,9 @@ chmod +x scripts/nettrades-setup.sh
 # Then after half an hour when it has finished installing everything you could run the Launcher
 
 cd installer
+
 npm install
+
 # npm run build:win   # on Windows with WSL
 # npm run build:mac   # on MAC for MAC
 npm run build:linux # on Linux for Linux
