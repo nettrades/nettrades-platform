@@ -3,19 +3,19 @@
 # FILE: scripts/phase-deploy.sh
 # =============================================================================
 # PURPOSE:
-#   Phase 2: Single-VM Docker deployment with NVIDIA Dynamo as the primary inference
-#   engine (includes vLLM), with automatic fallback to llama.cpp (CPU) if Dynamo
-#   cannot be fully automated.
-#   This script deploys the entire NETTRADES stack using Docker Compose.
-#   It is idempotent and safe to re-run.
+#   Phase 2: Single-VM Docker deployment with Hub/Spoke/Addon detection.
+#   This script detects the environment and deploys appropriately:
+#     - HUB   : Full NETTRADES stack (Odoo, Dynamo, LangGraph, etc.)
+#     - SPOKE : Lightweight agent only (no Odoo, no DB)
+#     - ADDON : Add NETTRADES to an existing Odoo installation
 #
-#   It performs the following steps (in order):
+#   When in HUB mode, it performs the full original deployment steps:
 #   1. Create required directories.
-#   2. Download a small model (e.g., deepseek-7b) from a local server (no HF token).
-#   3. Build custom Docker images (Odoo, LangGraph) if missing.
-#   4. Generate `init-db.sql` with all NETTRADES database tables.
+#   2. Download models from ModelScope mirror.
+#   3. Build custom Docker images (Odoo, LangGraph).
+#   4. Generate `init-db.sql` with all NETTRADES tables.
 #   5. Run security hardening (if Phase 0 not completed).
-#   6. Start PostgreSQL container and initialise the database (if empty).
+#   6. Start PostgreSQL and initialise the database.
 #   7. Build and start the full Docker Compose stack.
 #   8. Install all NETTRADES Odoo modules.
 #   9. Set up cron for daily backups.
@@ -23,39 +23,36 @@
 #   11. Ensure Let's Encrypt certificate.
 #   12. Display final status.
 #
-# USAGE:
-#   ./phase-deploy.sh [--auto] [--force] [--upgrade]
-#
-# INFERENCE BACKEND LOGIC:
-#   - Primary: NVIDIA Dynamo (GPU-accelerated)
-#   - Fallback: llama.cpp (CPU)
-#   - A background health check determines Dynamo availability.
-#   - LangGraph (via inference_tools.py) selects the healthy backend.
-#   - Odoo provides governance and model selection.
-#
 # UPDATES (2026-08):
-#   - Removed any SQL that modifies core Odoo tables (res_partner, etc.).
-#   - The init-db.sql now only creates nettrades_* tables.
-#   - Added platform detection for macOS-specific Docker volume handling.
-#   - Added domain auto-detection and Let's Encrypt conditional logic.
-#   - Added fallback creation of nginx.conf.template for redirector.
-#   - Added self-improving environment variables and container startup.
-#   - FIXED: Virtual environment is now MANDATORY – script fails if not found.
-#   - Added conditional Docker Compose file loading for Grove, KAI, fine-tuning.
-#   - Added WSL2 detection to disable gVisor (use default runc) for compatibility.
-#   - OPTIMISED: Only run dos2unix on .env if it contains CRLF characters.
-#   - IMPROVED: Database initialisation now always runs if core table missing.
-#   - FIXED: Runtime variables are now sourced from .env for each service.
-#   - ADDED: Tenant-aware runtime selection based on TENANT_TYPE from .env.
-#   - FIXED: Restarting LangGraph now uses a timeout and fallback to recreate.
-#   - ADDED: WITH_CUVS flag passed through (cuVS is a Python library, not a service).
+#   - Added Hub/Spoke/Addon detection logic.
+#   - Spoke nodes install only lightweight agent (no Odoo, no DB).
+#   - Detection of existing Odoo installations.
+#   - Detection of existing NETTRADES sub-hubs on the network.
+#   - Support for adding NETTRADES to existing Odoo installations.
+#   - All original deployment steps preserved for HUB mode.
 # =============================================================================
 
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# Network setup
-# The web network is used by Traefik (the reverse proxy) to route incoming traffic to services like Odoo.
+# Parse arguments early (so AUTO, FORCE, etc. are available)
+# -----------------------------------------------------------------------------
+AUTO="${AUTO:-false}"
+FORCE="${FORCE:-false}"
+UPGRADE="${UPGRADE:-false}"
+ENVIRONMENT="${ENVIRONMENT:-development}"
+REGENERATE_SECRETS="${REGENERATE_SECRETS:-false}"
+RESET_DATA="${RESET_DATA:-false}"
+WITH_CUVS="${WITH_CUVS:-false}"
+WITH_FINETUNE="${WITH_FINETUNE:-false}"
+WITH_GROVE="${WITH_GROVE:-false}"
+WITH_KAI="${WITH_KAI:-false}"
+WITH_ROUTER="${WITH_ROUTER:-false}"
+DOMAIN="${DOMAIN:-}"
+export FORCE WITH_CUVS WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN
+
+# -----------------------------------------------------------------------------
+# Network setup (needed for both hub and spoke)
 # -----------------------------------------------------------------------------
 if ! docker network ls --format '{{.Name}}' | grep -q "^web$"; then
     docker network create web
@@ -75,13 +72,8 @@ source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
-
-# Not detecting .phase-0-complete and .phase-1-complete in nettrades-platform after first run then runs it again. This manually checks if the path matches the actual location.
-log_info "PROJECT_ROOT = $PROJECT_ROOT"
-log_info "Marker file: $PROJECT_ROOT/.phase-0-complete"
-
 # -----------------------------------------------------------------------------
-# Detect WSL2
+# Detect WSL2 (needed later)
 # -----------------------------------------------------------------------------
 IS_WSL=false
 if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null; then
@@ -90,361 +82,498 @@ if grep -q Microsoft /proc/version 2>/dev/null || grep -q WSL /proc/sys/fs/binfm
 fi
 export IS_WSL
 
-# -----------------------------------------------------------------------------
-# Ensure VENV_DIR is available and activate the virtual environment
-# VIRTUAL ENVIRONMENT IS NOW MANDATORY – fail if not found
-# -----------------------------------------------------------------------------
-VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
-if [ -f "$VENV_DIR/bin/activate" ]; then
-    source "$VENV_DIR/bin/activate"
-    log_info "Activated Python virtual environment: $VENV_DIR"
-else
-    log_error "Virtual environment not found at $VENV_DIR"
-    log_info "Please run Phase 1 first: ./scripts/nettrades-setup.sh dev"
-    exit 1
-fi
+# =============================================================================
+# HUB / SPOKE / ADDON DETECTION
+# =============================================================================
+DETECTION_MODE="${DETECTION_MODE:-auto}"  # auto, hub, spoke, addon
 
-# -----------------------------------------------------------------------------
-# SAFE PASSWORD GENERATOR – only alphanumeric characters
-# This prevents .env parsing errors caused by '+', '/', '=', "'", etc.
-# -----------------------------------------------------------------------------
-generate_safe_password() {
-    # 24 alphanumeric characters (no special characters)
-    openssl rand -base64 24 | tr -d '+/=' | tr -d '\n' | cut -c1-24
-}
+detect_environment() {
+    log_step "Detecting deployment environment..."
 
-# -----------------------------------------------------------------------------
-# Helper: Wait for PostgreSQL to be ready by attempting a SQL query
-# This is more reliable than pg_isready because it confirms the database is
-# fully initialised and accepting connections.
-# -----------------------------------------------------------------------------
-wait_for_postgres() {
-    local retries=60
-    local delay=2
-    log_step "Waiting for PostgreSQL to become ready..."
-    for i in $(seq 1 $retries); do
-        # Use docker compose exec to avoid container name mismatches
-        if docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1" &>/dev/null; then
-            log_success "PostgreSQL is ready"
-            return 0
-        fi
-        if [ $((i % 10)) -eq 0 ]; then
-            log_info "Still waiting for PostgreSQL... ($i/$retries attempts)"
-        fi
-        sleep $delay
-    done
-    log_error "PostgreSQL did not become ready within $((retries * delay)) seconds"
-    log_info "Check PostgreSQL logs with: docker logs $(docker compose ps -q postgres) --tail 50"
-    return 1
-}
+    local is_hub=false
+    local has_odoo=false
+    local has_nettrades=false
+    local sub_hub_found=false
 
-# -----------------------------------------------------------------------------
-# Helper: Enable pgcrypto extension in PostgreSQL
-# -----------------------------------------------------------------------------
-enable_pgcrypto() {
-    log_step "Enabling pgcrypto extension in PostgreSQL..."
-    if docker compose exec -T postgres psql -U odoo -d odoo -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" 2>/dev/null; then
-        log_success "pgcrypto extension enabled"
-        return 0
-    else
-        log_warning "Could not enable pgcrypto – emergency user creation may fail"
-        return 1
+    # Check if Odoo is installed locally
+    if command -v odoo &>/dev/null || ps aux | grep -v grep | grep -q "odoo"; then
+        has_odoo=true
+        log_info "Odoo detected locally"
     fi
-}
 
-# -----------------------------------------------------------------------------
-# Helper: Install bcrypt inside the venv if missing
-# -----------------------------------------------------------------------------
-ensure_bcrypt() {
-    log_step "Ensuring bcrypt is available for Prometheus password hashing..."
-    if python3 -c "import bcrypt" 2>/dev/null; then
-        log_success "bcrypt already available"
-        return 0
-    else
-        log_info "bcrypt not found – installing via pip in the virtual environment..."
-        if "$VENV_DIR/bin/python" -m pip install bcrypt 2>/dev/null; then
-            log_success "bcrypt installed successfully"
-            return 0
-        else
-            log_warning "Could not install bcrypt. Fallback to plain-text passwords."
-            return 1
+    # Check if Odoo port 8069 is open locally
+    if nc -z localhost 8069 2>/dev/null || curl -s --connect-timeout 2 http://localhost:8069 >/dev/null 2>&1; then
+        has_odoo=true
+        log_info "Odoo detected on port 8069"
+    fi
+
+    # Check if NETTRADES tables exist in the database
+    if [[ "$has_odoo" == true ]] && command -v psql &>/dev/null; then
+        if psql -U odoo -d odoo -t -c "SELECT 1 FROM information_schema.tables WHERE table_name='nettrades_users'" 2>/dev/null | grep -q 1; then
+            has_nettrades=true
+            log_info "NETTRADES tables detected in Odoo database"
         fi
     fi
+
+    # Check for sub-hub on the network (mDNS)
+    if command -v avahi-browse &>/dev/null; then
+        if avahi-browse -t _nettrades._tcp -r 2>/dev/null | grep -q "NETTRADES"; then
+            sub_hub_found=true
+            log_info "NETTRADES sub-hub found on the network"
+        fi
+    fi
+
+    # Check for .nettrades_hub marker file
+    if [[ -f "$PROJECT_ROOT/.nettrades_hub" ]]; then
+        is_hub=true
+        log_info "Hub marker file found"
+    fi
+
+    # Determine deployment mode
+    if [[ "$DETECTION_MODE" == "hub" ]] || [[ "$is_hub" == true ]]; then
+        DEPLOYMENT_MODE="hub"
+        log_success "Deployment mode: HUB"
+    elif [[ "$DETECTION_MODE" == "spoke" ]]; then
+        DEPLOYMENT_MODE="spoke"
+        log_success "Deployment mode: SPOKE (forced)"
+    elif [[ "$sub_hub_found" == true ]]; then
+        DEPLOYMENT_MODE="spoke"
+        log_success "Deployment mode: SPOKE (sub-hub found on network)"
+    elif [[ "$has_odoo" == true ]] && [[ "$has_nettrades" == true ]]; then
+        DEPLOYMENT_MODE="addon"
+        log_success "Deployment mode: ADDON (Odoo + NETTRADES tables exist)"
+    elif [[ "$has_odoo" == true ]] && [[ "$has_nettrades" == false ]]; then
+        DEPLOYMENT_MODE="addon"
+        log_success "Deployment mode: ADDON (Odoo exists, NETTRADES tables missing)"
+    else
+        DEPLOYMENT_MODE="hub"
+        log_success "Deployment mode: HUB (no Odoo or NETTRADES found)"
+    fi
+
+    export DEPLOYMENT_MODE
 }
 
-# -----------------------------------------------------------------------------
-# DOMAIN CONFIGURATION & LET'S ENCRYPT SETUP
-# -----------------------------------------------------------------------------
-configure_domain() {
-    local domain="${DOMAIN:-}"
-    local acme_file="$DEPLOY_DIR/traefik-data/acme.json"
+# Run detection
+detect_environment
 
-    # Ensure the validation function exists (using declare -f is more reliable)
-    if ! declare -f is_valid_domain_or_ip >/dev/null 2>&1; then
-        echo "ERROR: is_valid_domain_or_ip function not found" >&2
+# -----------------------------------------------------------------------------
+# SPOKE DEPLOYMENT (Lightweight)
+# -----------------------------------------------------------------------------
+if [[ "$DEPLOYMENT_MODE" == "spoke" ]]; then
+    log_header "SPOKE Deployment - Lightweight Node"
+
+    # Find the sub-hub
+    SUB_HUB_IP=""
+    if command -v avahi-browse &>/dev/null; then
+        SUB_HUB_IP=$(avahi-browse -t _nettrades._tcp -r 2>/dev/null | grep -oP '(\d+\.\d+\.\d+\.\d+)' | head -1)
+    fi
+
+    if [[ -z "$SUB_HUB_IP" ]]; then
+        log_warning "Could not auto-detect sub-hub. Please specify SUB_HUB_IP in .env"
+        SUB_HUB_IP="${SUB_HUB_IP:-}"
+    fi
+
+    if [[ -z "$SUB_HUB_IP" ]]; then
+        log_error "No sub-hub IP found. Please set SUB_HUB_IP in .env or run as hub."
         exit 1
     fi
 
-    # Check if domain is invalid (empty, placeholder, or not a valid domain/IP)
-    # The function call must be outside [[ ]] to correctly evaluate its return code.
-    if [[ -z "$domain" || "$domain" == "changeit" || "$domain" == "localhost" || "$domain" == "nettrades.ai" ]] || ! is_valid_domain_or_ip "$domain"; then
-        log_info "DOMAIN not configured or using default. Auto-detecting..."
-        local public_ip=$(curl -s ifconfig.me 2>/dev/null || echo "")
-        if [[ -n "$public_ip" ]]; then
-            DOMAIN="$public_ip"
-            log_info "Using detected public IP: $DOMAIN"
-        else
-            DOMAIN="localhost"
-            log_info "Could not detect public IP. Using localhost."
-        fi
-        safe_sed_replace "$ENV_FILE" "DOMAIN" "$DOMAIN"
-        log_success "DOMAIN set to: $DOMAIN"
-    fi
+    log_info "Sub-hub IP: $SUB_HUB_IP"
 
-    if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$DOMAIN" == "localhost" ]]; then
-        log_warning "DOMAIN is an IP or localhost. Let's Encrypt cannot issue certificates."
-        log_info "Using self-signed certificate. Your browser will show a warning."
-        USE_LETSENCRYPT=false
-    else
-        if command -v dig &>/dev/null; then
-            if dig +short "$DOMAIN" | grep -q .; then
-                log_success "Domain $DOMAIN resolves to an IP address."
-                USE_LETSENCRYPT=true
-            else
-                log_warning "Domain $DOMAIN does not resolve. Using self-signed certificate."
-                USE_LETSENCRYPT=false
-            fi
-        else
-            # No DNS tools – assume domain is valid
-            USE_LETSENCRYPT=true
-        fi
-    fi
-    export DOMAIN USE_LETSENCRYPT
-}
+    # Install spoke agent
+    log_step "Installing spoke agent..."
 
-# -----------------------------------------------------------------------------
-# Parse arguments
-# -----------------------------------------------------------------------------
-AUTO="${AUTO:-false}"
-FORCE="${FORCE:-false}"
-UPGRADE="${UPGRADE:-false}"
-ENVIRONMENT="${ENVIRONMENT:-development}"
-REGENERATE_SECRETS="${REGENERATE_SECRETS:-false}"
-RESET_DATA="${RESET_DATA:-false}"
-WITH_CUVS="${WITH_CUVS:-false}"
-export FORCE WITH_CUVS
+    # Create spoke configuration
+    mkdir -p "$PROJECT_ROOT/spoke"
+    cat > "$PROJECT_ROOT/spoke/config.yaml" << EOF
+# NETTRADES Spoke Configuration
+sub_hub_url: http://${SUB_HUB_IP}:8080
+node_name: $(hostname)
+gpu_model: $(lspci | grep -i nvidia | head -1 | cut -d: -f3 | xargs || echo "unknown")
+vram_gb: $(nvidia-smi --query-gpu=memory.total --format=csv,noheader 2>/dev/null | head -1 | cut -d' ' -f1 || echo "0")
+heartbeat_interval: 10
+inference_engine: llama.cpp
+EOF
 
-# -----------------------------------------------------------------------------
-# Production Safety Check
-# -----------------------------------------------------------------------------
-confirm_force_production "2"
+    # Install spoke agent service
+    sudo cp "$PROJECT_ROOT/scripts/spoke-agent.py" /usr/local/bin/spoke-agent
+    sudo chmod +x /usr/local/bin/spoke-agent
 
-# -----------------------------------------------------------------------------
-# Phase marker
-# -----------------------------------------------------------------------------
-if phase_completed 2; then
-    log_warning "Phase 2 already completed. Use --force to re-run."
+    # Create systemd service
+    sudo cat > /etc/systemd/system/nettrades-spoke.service << EOF
+[Unit]
+Description=NETTRADES Spoke Agent
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$PROJECT_ROOT/spoke
+ExecStart=/usr/local/bin/spoke-agent --config $PROJECT_ROOT/spoke/config.yaml
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable nettrades-spoke.service
+    sudo systemctl start nettrades-spoke.service
+
+    log_success "Spoke agent installed and started"
+
+    log_success "Spoke deployment completed"
     exit 0
 fi
 
 # -----------------------------------------------------------------------------
-# Prerequisites
+# ADDON DEPLOYMENT (Add to existing Odoo)
 # -----------------------------------------------------------------------------
-if ! phase_completed 1; then
-    log_info "Phase 1 not completed. Running Phase 1 first..."
-    bash "$SCRIPT_DIR/phase-env.sh"
-fi
+if [[ "$DEPLOYMENT_MODE" == "addon" ]]; then
+    log_header "ADDON Deployment - Adding NETTRADES to Existing Odoo"
 
-check_docker || exit 1
-
-# -----------------------------------------------------------------------------
-# Set up paths
-# -----------------------------------------------------------------------------
-DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
-ENV_FILE="$DEPLOY_DIR/.env"
-COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yaml"
-DATA_DIR="$PROJECT_ROOT/data"
-LOGS_DIR="$PROJECT_ROOT/logs"
-DYNAMO_DATA_DIR="$DEPLOY_DIR/dynamo-data"
-MODELS_DIR="$DYNAMO_DATA_DIR/models"
-
-# Odoo data directory
-ODOO_DATA_DIR="$DEPLOY_DIR/odoo-data"
-
-if [[ ! -f "$ENV_FILE" ]]; then
-    log_error ".env not found. Please run Phase 1 first."
-    exit 1
-fi
-
-if [[ ! -f "$COMPOSE_FILE" ]]; then
-    log_error "docker-compose.yaml not found at $COMPOSE_FILE"
-    exit 1
-fi
-
-# -----------------------------------------------------------------------------
-# Source .env to get runtime configuration
-# -----------------------------------------------------------------------------
-set -a
-source "$ENV_FILE"
-set +a
-
-
-# -----------------------------------------------------------------------------
-# Detect GPU and set runtime for Dynamo worker
-# -----------------------------------------------------------------------------
-GPU_VENDOR=$(detect_gpu_vendor 2>/dev/null || echo "none")
-if [[ "$GPU_VENDOR" == "nvidia" ]]; then
-    log_info "NVIDIA GPU detected. Setting RUNTIME_DYNAMO=nvidia in .env"
-    safe_sed_replace "$ENV_FILE" "RUNTIME_DYNAMO" "nvidia"
-    # Also ensure Docker has the NVIDIA runtime configured
-    if ! docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q '"nvidia"'; then
-        log_warning "NVIDIA runtime not registered in Docker. Please run Phase 0 again or configure manually."
+    # Detect Odoo installation path
+    ODOO_PATH=""
+    if command -v odoo &>/dev/null; then
+        ODOO_PATH=$(which odoo)
+    elif [[ -d "/usr/lib/python3/dist-packages/odoo" ]]; then
+        ODOO_PATH="/usr/lib/python3/dist-packages/odoo"
     fi
-else
-    log_info "No NVIDIA GPU detected – Dynamo worker will use CPU (runc)."
-fi
 
-
-
-EMERGENCY_ACCESS_DURATION="${EMERGENCY_ACCESS_DURATION:-4}"
-
-
-# -----------------------------------------------------------------------------
-# Download HF model for Dynamo (if not already present)
-# -----------------------------------------------------------------------------
-if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
-    log_step "Downloading HF model for Dynamo (vLLM) from ModelScope mirror..."
-    mkdir -p "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
-    if bash "$SCRIPT_DIR/download-model.sh" --model "${MODEL_NAME:-deepseek-7b}" --format hf --dir "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"; then
-        log_success "HF model downloaded to $MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
-    else
-        log_warning "HF model download failed. Dynamo worker will not start."
+    if [[ -z "$ODOO_PATH" ]]; then
+        log_error "Could not detect Odoo installation path"
+        exit 1
     fi
-fi
 
+    log_info "Odoo installation found at: $ODOO_PATH"
 
-# -----------------------------------------------------------------------------
-# Ensure Dynamo model is in the correct location
-# -----------------------------------------------------------------------------
-if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
-    EXPECTED_MODEL_DIR="$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
-    if [[ -d "$EXPECTED_MODEL_DIR" ]] && [[ -f "$EXPECTED_MODEL_DIR/config.json" ]]; then
-        log_success "Dynamo model found at $EXPECTED_MODEL_DIR"
+    # Copy NETTRADES modules to Odoo addons path
+    ADDONS_PATH="/usr/lib/python3/dist-packages/odoo/addons"
+    if [[ -d "$ADDONS_PATH" ]]; then
+        log_step "Copying NETTRADES modules to Odoo addons..."
+        cp -r "$PROJECT_ROOT/odoo-modules/nettrades_"* "$ADDONS_PATH/"
+        log_success "Modules copied"
     else
-        log_info "Searching for downloaded model..."
-        # Find config.json anywhere under MODELS_DIR
-        CONFIG_FILE=$(find "$MODELS_DIR" -name "config.json" -type f 2>/dev/null | head -1)
-        if [[ -n "$CONFIG_FILE" ]]; then
-            ACTUAL_MODEL_DIR=$(dirname "$CONFIG_FILE")
-            log_info "Found model at $ACTUAL_MODEL_DIR"
-            # If the expected directory does not exist, create a symlink
-            if [[ ! -e "$EXPECTED_MODEL_DIR" ]]; then
-                ln -s "$ACTUAL_MODEL_DIR" "$EXPECTED_MODEL_DIR"
-                log_success "Created symlink from $ACTUAL_MODEL_DIR to $EXPECTED_MODEL_DIR"
-            else
-                log_warning "Expected model directory exists but config.json not found. Please check manually."
-            fi
+        log_error "Odoo addons path not found: $ADDONS_PATH"
+        exit 1
+    fi
+
+    # Create or update the database schema
+    log_step "Creating NETTRADES tables in existing Odoo database..."
+    DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
+    if [[ -f "$DEPLOY_DIR/init-db.sql" ]]; then
+        # Try to run SQL directly (requires password from .env)
+        if [[ -f "$DEPLOY_DIR/.env" ]]; then
+            source "$DEPLOY_DIR/.env"
+            PGPASSWORD="$POSTGRES_PASSWORD" psql -h localhost -U odoo -d odoo -f "$DEPLOY_DIR/init-db.sql" 2>/dev/null || {
+                log_warning "Could not execute SQL directly. Trying via Odoo module installation..."
+            }
         else
-            log_warning "No config.json found in $MODELS_DIR. Dynamo worker may fail."
+            log_warning ".env not found – skipping direct SQL"
         fi
     fi
+
+    # Install NETTRADES modules via Odoo
+    log_step "Installing NETTRADES Odoo modules..."
+    if command -v odoo &>/dev/null; then
+        sudo odoo -d odoo -i nettrades_core --stop-after-init --log-level=info || {
+            log_warning "Odoo module installation failed. Please install manually."
+        }
+    fi
+
+    log_success "Addon deployment completed"
+    exit 0
 fi
 
-# -----------------------------------------------------------------------------
-# Determine tenant type for runtime selection
-# -----------------------------------------------------------------------------
-TENANT_TYPE="${TENANT_TYPE:-enterprise}"
-log_info "Tenant type: $TENANT_TYPE"
-
-# -----------------------------------------------------------------------------
-# Runtime Selection - Tenant-Aware
-# -----------------------------------------------------------------------------
-# Based on Anthropic's approach: trusted orchestrator runs on runc,
-# untrusted agent execution runs on gVisor (runsc).
-#
-# Reference: Anthropic uses gVisor for agent sandboxing with egress
-# restricted to the API only.
 # =============================================================================
-#
-# Runtime decision logic:
-# 1. WSL: always use runc (gVisor has compatibility issues)
-# 2. GPU services (Dynamo): always use runc (gVisor GPU support is experimental)
-# 3. Database services (PostgreSQL, Valkey): always use runc (I/O performance)
-# 4. Untrusted AI agents (LangGraph, self-improving): use runsc if available
-# 5. Enterprise tenants: use runc for performance
+# HUB DEPLOYMENT – FULL ORIGINAL PHASE-DEPLOY LOGIC
+# =============================================================================
+# The following code is the original phase-deploy.sh, preserved in its entirety.
+# It runs only when DEPLOYMENT_MODE is "hub".
 # =============================================================================
 
-# Read runtime settings from .env (already sourced)
-# These are set in .env.example with appropriate defaults
-RUNTIME_ODOO="${RUNTIME_ODOO:-}"
-RUNTIME_LANGGRAPH="${RUNTIME_LANGGRAPH:-}"
-RUNTIME_SELF_IMPROVING="${RUNTIME_SELF_IMPROVING:-}"
-RUNTIME_UI="${RUNTIME_UI:-}"
-RUNTIME_DYNAMO="${RUNTIME_DYNAMO:-}"
-RUNTIME_POSTGRES="${RUNTIME_POSTGRES:-}"
-RUNTIME_VALKEY="${RUNTIME_VALKEY:-}"
+if [[ "$DEPLOYMENT_MODE" == "hub" ]]; then
+    log_header "HUB Deployment - Full NETTRADES Stack"
 
-# On WSL, force all runtimes to empty (use runc)
-if [ "$IS_WSL" = true ]; then
-    log_info "WSL2 detected – forcing all services to use runc runtime."
-    RUNTIME_ODOO=""
-    RUNTIME_LANGGRAPH=""
-    RUNTIME_SELF_IMPROVING=""
-    RUNTIME_UI=""
-    RUNTIME_DYNAMO=""
-    RUNTIME_POSTGRES=""
-    RUNTIME_VALKEY=""
-fi
-
-# For untrusted tenants, set appropriate runtimes if not explicitly configured
-if [ "$TENANT_TYPE" = "freelancer" ] || [ "$TENANT_TYPE" = "home" ]; then
-    log_info "Untrusted tenant type ($TENANT_TYPE) – enabling gVisor for AI agent services."
-    # Only set if not already configured in .env
-    if [ -z "$RUNTIME_LANGGRAPH" ]; then
-        RUNTIME_LANGGRAPH="runsc"
+    # -------------------------------------------------------------------------
+    # Phase marker and prerequisites
+    # -------------------------------------------------------------------------
+    if phase_completed 2 && [[ "$FORCE" != true ]]; then
+        log_warning "Phase 2 already completed. Use --force to re-run."
+        exit 0
     fi
-    if [ -z "$RUNTIME_SELF_IMPROVING" ]; then
-        RUNTIME_SELF_IMPROVING="runsc"
+
+    if ! phase_completed 1; then
+        log_info "Phase 1 not completed. Running Phase 1 first..."
+        bash "$SCRIPT_DIR/phase-env.sh"
     fi
-    if [ -z "$RUNTIME_UI" ]; then
-        RUNTIME_UI="runsc"
+
+    check_docker || exit 1
+
+    # -------------------------------------------------------------------------
+    # Set up paths
+    # -------------------------------------------------------------------------
+    DEPLOY_DIR="$PROJECT_ROOT/deploy/docker"
+    ENV_FILE="$DEPLOY_DIR/.env"
+    COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yaml"
+    DATA_DIR="$PROJECT_ROOT/data"
+    LOGS_DIR="$PROJECT_ROOT/logs"
+    DYNAMO_DATA_DIR="$DEPLOY_DIR/dynamo-data"
+    MODELS_DIR="$DYNAMO_DATA_DIR/models"
+    ODOO_DATA_DIR="$DEPLOY_DIR/odoo-data"
+
+    if [[ ! -f "$ENV_FILE" ]]; then
+        log_error ".env not found. Please run Phase 1 first."
+        exit 1
     fi
-    # Ensure GPU and database services stay on runc
-    RUNTIME_DYNAMO=""
-    RUNTIME_POSTGRES=""
-    RUNTIME_VALKEY=""
-fi
 
-# Export runtime variables for docker-compose
-export RUNTIME_ODOO
-export RUNTIME_LANGGRAPH
-export RUNTIME_SELF_IMPROVING
-export RUNTIME_UI
-export RUNTIME_DYNAMO
-export RUNTIME_POSTGRES
-export RUNTIME_VALKEY
+    if [[ ! -f "$COMPOSE_FILE" ]]; then
+        log_error "docker-compose.yaml not found at $COMPOSE_FILE"
+        exit 1
+    fi
 
-log_info "Runtime configuration:"
-log_info "  Odoo: ${RUNTIME_ODOO:-runc}"
-log_info "  LangGraph: ${RUNTIME_LANGGRAPH:-runc}"
-log_info "  Self-Improving: ${RUNTIME_SELF_IMPROVING:-runc}"
-log_info "  UI: ${RUNTIME_UI:-runc}"
-log_info "  Dynamo: ${RUNTIME_DYNAMO:-runc}"
-log_info "  PostgreSQL: ${RUNTIME_POSTGRES:-runc}"
-log_info "  Valkey: ${RUNTIME_VALKEY:-runc}"
+    # -------------------------------------------------------------------------
+    # Source .env to get runtime configuration
+    # -------------------------------------------------------------------------
+    set -a
+    source "$ENV_FILE"
+    set +a
 
-# -----------------------------------------------------------------------------
-# 1. Create required directories (including redirector landing page)
-# -----------------------------------------------------------------------------
-log_step "Creating required directories..."
-mkdir -p "$DATA_DIR/postgres" "$DATA_DIR/odoo" "$DATA_DIR/valkey" "$DATA_DIR/forgejo"
-mkdir -p "$DATA_DIR/prometheus" "$DATA_DIR/grafana" "$DATA_DIR/backups"
-mkdir -p "$DYNAMO_DATA_DIR" "$MODELS_DIR" "$LOGS_DIR" "$ODOO_DATA_DIR"
-mkdir -p "redirector/landing-page"
+    # -------------------------------------------------------------------------
+    # Ensure VENV_DIR is available and activate the virtual environment
+    # -------------------------------------------------------------------------
+    VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
+    if [ -f "$VENV_DIR/bin/activate" ]; then
+        source "$VENV_DIR/bin/activate"
+        log_info "Activated Python virtual environment: $VENV_DIR"
+    else
+        log_error "Virtual environment not found at $VENV_DIR"
+        log_info "Please run Phase 1 first: ./scripts/nettrades-setup.sh dev"
+        exit 1
+    fi
 
-# Create a default landing page if none exists
-if [[ ! -f "redirector/landing-page/index.html" ]]; then
-    cat > "redirector/landing-page/index.html" << 'EOF'
+    # -------------------------------------------------------------------------
+    # SAFE PASSWORD GENERATOR – only alphanumeric characters
+    # -------------------------------------------------------------------------
+    generate_safe_password() {
+        openssl rand -base64 24 | tr -d '+/=' | tr -d '\n' | cut -c1-24
+    }
+
+    # -------------------------------------------------------------------------
+    # Helper: Wait for PostgreSQL
+    # -------------------------------------------------------------------------
+    wait_for_postgres() {
+        local retries=60
+        local delay=2
+        log_step "Waiting for PostgreSQL to become ready..."
+        for i in $(seq 1 $retries); do
+            if docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1" &>/dev/null; then
+                log_success "PostgreSQL is ready"
+                return 0
+            fi
+            if [ $((i % 10)) -eq 0 ]; then
+                log_info "Still waiting for PostgreSQL... ($i/$retries attempts)"
+            fi
+            sleep $delay
+        done
+        log_error "PostgreSQL did not become ready within $((retries * delay)) seconds"
+        log_info "Check PostgreSQL logs with: docker logs $(docker compose ps -q postgres) --tail 50"
+        return 1
+    }
+
+    # -------------------------------------------------------------------------
+    # Helper: Enable pgcrypto
+    # -------------------------------------------------------------------------
+    enable_pgcrypto() {
+        log_step "Enabling pgcrypto extension in PostgreSQL..."
+        if docker compose exec -T postgres psql -U odoo -d odoo -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" 2>/dev/null; then
+            log_success "pgcrypto extension enabled"
+            return 0
+        else
+            log_warning "Could not enable pgcrypto – emergency user creation may fail"
+            return 1
+        fi
+    }
+
+    # -------------------------------------------------------------------------
+    # Helper: Install bcrypt
+    # -------------------------------------------------------------------------
+    ensure_bcrypt() {
+        log_step "Ensuring bcrypt is available for Prometheus password hashing..."
+        if python3 -c "import bcrypt" 2>/dev/null; then
+            log_success "bcrypt already available"
+            return 0
+        else
+            log_info "bcrypt not found – installing via pip in the virtual environment..."
+            if "$VENV_DIR/bin/python" -m pip install bcrypt 2>/dev/null; then
+                log_success "bcrypt installed successfully"
+                return 0
+            else
+                log_warning "Could not install bcrypt. Fallback to plain-text passwords."
+                return 1
+            fi
+        fi
+    }
+
+    # -----------------------------------------------------------------------------
+    # DOMAIN CONFIGURATION & LET'S ENCRYPT SETUP
+    # -----------------------------------------------------------------------------
+    configure_domain() {
+        local domain="${DOMAIN:-}"
+        local acme_file="$DEPLOY_DIR/traefik-data/acme.json"
+
+        if ! declare -f is_valid_domain_or_ip >/dev/null 2>&1; then
+            echo "ERROR: is_valid_domain_or_ip function not found" >&2
+            exit 1
+        fi
+
+        if [[ -z "$domain" || "$domain" == "changeit" || "$domain" == "localhost" || "$domain" == "nettrades.ai" ]] || ! is_valid_domain_or_ip "$domain"; then
+            log_info "DOMAIN not configured or using default. Auto-detecting..."
+            local public_ip=$(curl -s ifconfig.me 2>/dev/null || echo "")
+            if [[ -n "$public_ip" ]]; then
+                DOMAIN="$public_ip"
+                log_info "Using detected public IP: $DOMAIN"
+            else
+                DOMAIN="localhost"
+                log_info "Could not detect public IP. Using localhost."
+            fi
+            safe_sed_replace "$ENV_FILE" "DOMAIN" "$DOMAIN"
+            log_success "DOMAIN set to: $DOMAIN"
+        fi
+
+        if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$DOMAIN" == "localhost" ]]; then
+            log_warning "DOMAIN is an IP or localhost. Let's Encrypt cannot issue certificates."
+            log_info "Using self-signed certificate. Your browser will show a warning."
+            USE_LETSENCRYPT=false
+        else
+            if command -v dig &>/dev/null; then
+                if dig +short "$DOMAIN" | grep -q .; then
+                    log_success "Domain $DOMAIN resolves to an IP address."
+                    USE_LETSENCRYPT=true
+                else
+                    log_warning "Domain $DOMAIN does not resolve. Using self-signed certificate."
+                    USE_LETSENCRYPT=false
+                fi
+            else
+                # No DNS tools – assume domain is valid
+                USE_LETSENCRYPT=true
+            fi
+        fi
+        export DOMAIN USE_LETSENCRYPT
+    }
+
+    # -------------------------------------------------------------------------
+    # Production Safety Check (already done, but keep for consistency)
+    # -------------------------------------------------------------------------
+    confirm_force_production "2"
+
+    # -------------------------------------------------------------------------
+    # Download HF model for Dynamo (if not already present)
+    # -------------------------------------------------------------------------
+    if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
+        log_step "Downloading HF model for Dynamo (vLLM) from ModelScope mirror..."
+        mkdir -p "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
+        if bash "$SCRIPT_DIR/download-model.sh" --model "${MODEL_NAME:-deepseek-7b}" --format hf --dir "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"; then
+            log_success "HF model downloaded to $MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
+        else
+            log_warning "HF model download failed. Dynamo worker will not start."
+        fi
+    fi
+
+    # -------------------------------------------------------------------------
+    # Ensure Dynamo model is in the correct location
+    # -------------------------------------------------------------------------
+    if [[ "${INFERENCE_ENGINE:-auto}" == "auto" ]] || [[ "${INFERENCE_ENGINE:-auto}" == "dynamo" ]]; then
+        EXPECTED_MODEL_DIR="$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
+        if [[ -d "$EXPECTED_MODEL_DIR" ]] && [[ -f "$EXPECTED_MODEL_DIR/config.json" ]]; then
+            log_success "Dynamo model found at $EXPECTED_MODEL_DIR"
+        else
+            log_info "Searching for downloaded model..."
+            CONFIG_FILE=$(find "$MODELS_DIR" -name "config.json" -type f 2>/dev/null | head -1)
+            if [[ -n "$CONFIG_FILE" ]]; then
+                ACTUAL_MODEL_DIR=$(dirname "$CONFIG_FILE")
+                log_info "Found model at $ACTUAL_MODEL_DIR"
+                if [[ ! -e "$EXPECTED_MODEL_DIR" ]]; then
+                    ln -s "$ACTUAL_MODEL_DIR" "$EXPECTED_MODEL_DIR"
+                    log_success "Created symlink from $ACTUAL_MODEL_DIR to $EXPECTED_MODEL_DIR"
+                else
+                    log_warning "Expected model directory exists but config.json not found. Please check manually."
+                fi
+            else
+                log_warning "No config.json found in $MODELS_DIR. Dynamo worker may fail."
+            fi
+        fi
+    fi
+
+    # -------------------------------------------------------------------------
+    # Determine tenant type for runtime selection
+    # -------------------------------------------------------------------------
+    TENANT_TYPE="${TENANT_TYPE:-enterprise}"
+    log_info "Tenant type: $TENANT_TYPE"
+
+    # -------------------------------------------------------------------------
+    # Runtime Selection - Tenant-Aware
+    # -------------------------------------------------------------------------
+    RUNTIME_ODOO="${RUNTIME_ODOO:-}"
+    RUNTIME_LANGGRAPH="${RUNTIME_LANGGRAPH:-}"
+    RUNTIME_SELF_IMPROVING="${RUNTIME_SELF_IMPROVING:-}"
+    RUNTIME_UI="${RUNTIME_UI:-}"
+    RUNTIME_DYNAMO="${RUNTIME_DYNAMO:-}"
+    RUNTIME_POSTGRES="${RUNTIME_POSTGRES:-}"
+    RUNTIME_VALKEY="${RUNTIME_VALKEY:-}"
+
+    if [ "$IS_WSL" = true ]; then
+        log_info "WSL2 detected – forcing all services to use runc runtime."
+        RUNTIME_ODOO=""
+        RUNTIME_LANGGRAPH=""
+        RUNTIME_SELF_IMPROVING=""
+        RUNTIME_UI=""
+        RUNTIME_DYNAMO=""
+        RUNTIME_POSTGRES=""
+        RUNTIME_VALKEY=""
+    fi
+
+    if [ "$TENANT_TYPE" = "freelancer" ] || [ "$TENANT_TYPE" = "home" ]; then
+        log_info "Untrusted tenant type ($TENANT_TYPE) – enabling gVisor for AI agent services."
+        if [ -z "$RUNTIME_LANGGRAPH" ]; then
+            RUNTIME_LANGGRAPH="runsc"
+        fi
+        if [ -z "$RUNTIME_SELF_IMPROVING" ]; then
+            RUNTIME_SELF_IMPROVING="runsc"
+        fi
+        if [ -z "$RUNTIME_UI" ]; then
+            RUNTIME_UI="runsc"
+        fi
+        RUNTIME_DYNAMO=""
+        RUNTIME_POSTGRES=""
+        RUNTIME_VALKEY=""
+    fi
+
+    export RUNTIME_ODOO RUNTIME_LANGGRAPH RUNTIME_SELF_IMPROVING RUNTIME_UI \
+           RUNTIME_DYNAMO RUNTIME_POSTGRES RUNTIME_VALKEY
+
+    log_info "Runtime configuration:"
+    log_info "  Odoo: ${RUNTIME_ODOO:-runc}"
+    log_info "  LangGraph: ${RUNTIME_LANGGRAPH:-runc}"
+    log_info "  Self-Improving: ${RUNTIME_SELF_IMPROVING:-runc}"
+    log_info "  UI: ${RUNTIME_UI:-runc}"
+    log_info "  Dynamo: ${RUNTIME_DYNAMO:-runc}"
+    log_info "  PostgreSQL: ${RUNTIME_POSTGRES:-runc}"
+    log_info "  Valkey: ${RUNTIME_VALKEY:-runc}"
+
+    # -------------------------------------------------------------------------
+    # 1. Create required directories (including redirector landing page)
+    # -------------------------------------------------------------------------
+    log_step "Creating required directories..."
+    mkdir -p "$DATA_DIR/postgres" "$DATA_DIR/odoo" "$DATA_DIR/valkey" "$DATA_DIR/forgejo"
+    mkdir -p "$DATA_DIR/prometheus" "$DATA_DIR/grafana" "$DATA_DIR/backups"
+    mkdir -p "$DYNAMO_DATA_DIR" "$MODELS_DIR" "$LOGS_DIR" "$ODOO_DATA_DIR"
+    mkdir -p "redirector/landing-page"
+
+    if [[ ! -f "redirector/landing-page/index.html" ]]; then
+        cat > "redirector/landing-page/index.html" << 'EOF'
 <!DOCTYPE html>
 <html>
 <head><title>NETTRADES Platform</title></head>
@@ -455,20 +584,19 @@ if [[ ! -f "redirector/landing-page/index.html" ]]; then
 </body>
 </html>
 EOF
-    log_success "Default landing page created"
-fi
-log_success "Directories created"
+        log_success "Default landing page created"
+    fi
+    log_success "Directories created"
 
-# -----------------------------------------------------------------------------
-# Create redirector nginx.conf.template if missing
-# -----------------------------------------------------------------------------
-log_step "Ensuring redirector nginx.conf.template exists..."
-NGINX_TEMPLATE="$DEPLOY_DIR/redirector/nginx.conf.template"
-
-if [[ ! -f "$NGINX_TEMPLATE" ]]; then
-    log_info "nginx.conf.template not found. Creating default template..."
-    mkdir -p "$DEPLOY_DIR/redirector"
-    cat > "$NGINX_TEMPLATE" << 'EOF'
+    # -----------------------------------------------------------------------------
+    # Create redirector nginx.conf.template if missing
+    # -----------------------------------------------------------------------------
+    log_step "Ensuring redirector nginx.conf.template exists..."
+    NGINX_TEMPLATE="$DEPLOY_DIR/redirector/nginx.conf.template"
+    if [[ ! -f "$NGINX_TEMPLATE" ]]; then
+        log_info "nginx.conf.template not found. Creating default template..."
+        mkdir -p "$DEPLOY_DIR/redirector"
+        cat > "$NGINX_TEMPLATE" << 'EOF'
 events {
     worker_connections 1024;
 }
@@ -498,140 +626,125 @@ http {
     }
 }
 EOF
-    log_success "Created default nginx.conf.template"
-else
-    log_success "nginx.conf.template already exists"
-fi
-
-# =============================================================================
-# EARLY: Download GGUF model for llama.cpp fallback from ModelScope mirror
-# This ensures the CPU fallback engine has a model to load before the stack starts.
-# ModelScope mirrors work without authentication.
-# =============================================================================
-if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-    log_step "Downloading GGUF model for llama.cpp fallback from ModelScope mirror..."
-
-    # Ensure the models directory exists
-    mkdir -p "$MODELS_DIR"
-
-    # Run the download script with the correct model and format
-    if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-7b --format gguf --dir "$MODELS_DIR"; then
-        log_success "GGUF model downloaded successfully to $MODELS_DIR"
+        log_success "Created default nginx.conf.template"
     else
-        log_warning "GGUF model download failed. Trying alternative source..."
-        # Fallback: Try direct wget from ModelScope as a backup
-        MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
-        if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf" --progress=dot:giga; then
-            log_success "GGUF model downloaded via fallback to $MODEL_FILE"
-        else
-            log_warning "GGUF model download failed. You may need to manually place a model in $MODELS_DIR."
-            log_info "The system will still work but llama.cpp fallback will not be available."
-        fi
+        log_success "nginx.conf.template already exists"
     fi
 
-    # Validate the model file exists and is not corrupted (size check)
-    MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
-    if [[ -f "$MODEL_FILE" ]]; then
-        FILE_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
-        if [[ "$FILE_SIZE" -lt 1000000000 ]]; then  # 7B model ~4GB, so check >1GB
-            log_warning "Model file exists but is too small ($FILE_SIZE bytes). It may be corrupted."
-            log_info "Attempting to re-download the model..."
-            rm -f "$MODEL_FILE"
-            # Retry download with direct wget
+    # =============================================================================
+    # EARLY: Download GGUF model for llama.cpp fallback from ModelScope mirror
+    # =============================================================================
+    if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+        log_step "Downloading GGUF model for llama.cpp fallback from ModelScope mirror..."
+        mkdir -p "$MODELS_DIR"
+        if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-7b --format gguf --dir "$MODELS_DIR"; then
+            log_success "GGUF model downloaded successfully to $MODELS_DIR"
+        else
+            log_warning "GGUF model download failed. Trying alternative source..."
+            MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
             if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf" --progress=dot:giga; then
-                NEW_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
-                if [[ "$NEW_SIZE" -gt 1000000000 ]]; then
-                    log_success "Model re-downloaded successfully ($NEW_SIZE bytes)"
+                log_success "GGUF model downloaded via fallback to $MODEL_FILE"
+            else
+                log_warning "GGUF model download failed. You may need to manually place a model in $MODELS_DIR."
+            fi
+        fi
+
+        MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+        if [[ -f "$MODEL_FILE" ]]; then
+            FILE_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
+            if [[ "$FILE_SIZE" -lt 1000000000 ]]; then
+                log_warning "Model file exists but is too small ($FILE_SIZE bytes). It may be corrupted."
+                log_info "Attempting to re-download the model..."
+                rm -f "$MODEL_FILE"
+                if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf" --progress=dot:giga; then
+                    NEW_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
+                    if [[ "$NEW_SIZE" -gt 1000000000 ]]; then
+                        log_success "Model re-downloaded successfully ($NEW_SIZE bytes)"
+                    else
+                        log_error "Re-downloaded file still too small. Please check the URL and disk space."
+                    fi
                 else
-                    log_error "Re-downloaded file still too small. Please check the URL and disk space."
+                    log_error "Re-download failed. llama.cpp will not start."
                 fi
             else
-                log_error "Re-download failed. llama.cpp will not start."
+                log_success "Model file validated: $MODEL_FILE ($FILE_SIZE bytes)"
             fi
         else
-            log_success "Model file validated: $MODEL_FILE ($FILE_SIZE bytes)"
+            log_warning "Model file not found at $MODEL_FILE. llama.cpp will fail to start."
         fi
     else
-        log_warning "Model file not found at $MODEL_FILE. llama.cpp will fail to start."
+        log_warning "download-model.sh not found – skipping llama.cpp model download"
     fi
-else
-    log_warning "download-model.sh not found – skipping llama.cpp model download"
-fi
 
-# -----------------------------------------------------------------------------
-# Prepare Odoo addons
-# -----------------------------------------------------------------------------
-log_step "Preparing Odoo addons for build..."
-if [[ -f "$SCRIPT_DIR/prepare-odoo-addons.sh" ]]; then
-    if [[ "$FORCE" == true ]]; then
-        bash "$SCRIPT_DIR/prepare-odoo-addons.sh" --force
+    # -----------------------------------------------------------------------------
+    # Prepare Odoo addons
+    # -----------------------------------------------------------------------------
+    log_step "Preparing Odoo addons for build..."
+    if [[ -f "$SCRIPT_DIR/prepare-odoo-addons.sh" ]]; then
+        if [[ "$FORCE" == true ]]; then
+            bash "$SCRIPT_DIR/prepare-odoo-addons.sh" --force
+        else
+            bash "$SCRIPT_DIR/prepare-odoo-addons.sh"
+        fi
     else
-        bash "$SCRIPT_DIR/prepare-odoo-addons.sh"
+        log_warning "prepare-odoo-addons.sh not found – skipping addon preparation"
     fi
-else
-    log_warning "prepare-odoo-addons.sh not found – skipping addon preparation"
-fi
 
-# -----------------------------------------------------------------------------
-# Build custom Docker images
-# -----------------------------------------------------------------------------
-log_step "Building custom Docker images..."
+    # -----------------------------------------------------------------------------
+    # Build custom Docker images
+    # -----------------------------------------------------------------------------
+    log_step "Building custom Docker images..."
 
-# Odoo image - ALWAYS rebuild when --force is used to pick up module changes
-ODOO_DOCKERFILE="$DEPLOY_DIR/Dockerfile.odoo"
-if [[ -f "$ODOO_DOCKERFILE" ]]; then
-    if [[ "$FORCE" == true ]] || ! docker image inspect nettrades-odoo:latest &>/dev/null; then
-        log_info "Building Odoo image (force=$FORCE)..."
-        docker build -f "$ODOO_DOCKERFILE" -t nettrades-odoo:latest "$DEPLOY_DIR"
-        log_success "Odoo image built"
+    ODOO_DOCKERFILE="$DEPLOY_DIR/Dockerfile.odoo"
+    if [[ -f "$ODOO_DOCKERFILE" ]]; then
+        if [[ "$FORCE" == true ]] || ! docker image inspect nettrades-odoo:latest &>/dev/null; then
+            log_info "Building Odoo image (force=$FORCE)..."
+            docker build -f "$ODOO_DOCKERFILE" -t nettrades-odoo:latest "$DEPLOY_DIR"
+            log_success "Odoo image built"
+        else
+            log_success "Odoo image already exists (use --force to rebuild)"
+        fi
     else
-        log_success "Odoo image already exists (use --force to rebuild)"
+        log_warning "Dockerfile.odoo not found – skipping Odoo image build"
     fi
-else
-    log_warning "Dockerfile.odoo not found – skipping Odoo image build"
-fi
 
-# LangGraph image - rebuild if --force
-LANGGRAPH_DOCKERFILE="$PROJECT_ROOT/src/core/Dockerfile"
-if [[ -f "$LANGGRAPH_DOCKERFILE" ]]; then
-    if [[ "$FORCE" == true ]] || ! docker image inspect nettrades-langgraph:latest &>/dev/null; then
-        log_info "Building LangGraph image (force=$FORCE)..."
-        docker build -f "$LANGGRAPH_DOCKERFILE" -t nettrades-langgraph:latest "$PROJECT_ROOT/src/core"
-        log_success "LangGraph image built"
+    LANGGRAPH_DOCKERFILE="$PROJECT_ROOT/src/core/Dockerfile"
+    if [[ -f "$LANGGRAPH_DOCKERFILE" ]]; then
+        if [[ "$FORCE" == true ]] || ! docker image inspect nettrades-langgraph:latest &>/dev/null; then
+            log_info "Building LangGraph image (force=$FORCE)..."
+            docker build -f "$LANGGRAPH_DOCKERFILE" -t nettrades-langgraph:latest "$PROJECT_ROOT/src/core"
+            log_success "LangGraph image built"
+        else
+            log_success "LangGraph image already exists (use --force to rebuild)"
+        fi
     else
-        log_success "LangGraph image already exists (use --force to rebuild)"
+        log_warning "Dockerfile for LangGraph not found – skipping build"
     fi
-else
-    log_warning "Dockerfile for LangGraph not found – skipping build"
-fi
 
-# -----------------------------------------------------------------------------
-# Query the Odoo user UID from the built image
-# -----------------------------------------------------------------------------
-ODOO_UID=""
-if docker image inspect nettrades-odoo:latest &>/dev/null; then
-    ODOO_UID=$(docker run --rm nettrades-odoo:latest id -u odoo 2>/dev/null || echo "")
-fi
-if [[ -z "$ODOO_UID" ]]; then
-    log_warning "Could not determine Odoo UID from image. Falling back to UID 100."
-    ODOO_UID="100"
-fi
-log_info "Odoo user UID: $ODOO_UID"
+    # -----------------------------------------------------------------------------
+    # Query the Odoo user UID from the built image
+    # -----------------------------------------------------------------------------
+    ODOO_UID=""
+    if docker image inspect nettrades-odoo:latest &>/dev/null; then
+        ODOO_UID=$(docker run --rm nettrades-odoo:latest id -u odoo 2>/dev/null || echo "")
+    fi
+    if [[ -z "$ODOO_UID" ]]; then
+        log_warning "Could not determine Odoo UID from image. Falling back to UID 100."
+        ODOO_UID="100"
+    fi
+    log_info "Odoo user UID: $ODOO_UID"
 
-# -----------------------------------------------------------------------------
-# Ensure Odoo data directory exists and set correct permissions
-# -----------------------------------------------------------------------------
-mkdir -p "$ODOO_DATA_DIR"
-chown -R "$ODOO_UID:$ODOO_UID" "$ODOO_DATA_DIR" 2>/dev/null || true
-log_success "Odoo data directory permissions set to UID $ODOO_UID"
+    mkdir -p "$ODOO_DATA_DIR"
+    chown -R "$ODOO_UID:$ODOO_UID" "$ODOO_DATA_DIR" 2>/dev/null || true
+    log_success "Odoo data directory permissions set to UID $ODOO_UID"
 
-# -----------------------------------------------------------------------------
-# Generate init-db.sql with all NETTRADES tables
-# -----------------------------------------------------------------------------
-log_step "Generating init-db.sql with all NETTRADES tables..."
-INIT_SQL="$DEPLOY_DIR/init-db.sql"
-if [[ ! -f "$INIT_SQL" ]] || [[ "$FORCE" == true ]]; then
-    cat > "$INIT_SQL" << 'EOF'
+    # -----------------------------------------------------------------------------
+    # Generate init-db.sql with all NETTRADES tables
+    # -----------------------------------------------------------------------------
+    log_step "Generating init-db.sql with all NETTRADES tables..."
+    INIT_SQL="$DEPLOY_DIR/init-db.sql"
+    if [[ ! -f "$INIT_SQL" ]] || [[ "$FORCE" == true ]]; then
+        cat > "$INIT_SQL" << 'EOF'
 -- =============================================================================
 -- NETTRADES Database Initialisation Script
 -- =============================================================================
@@ -924,7 +1037,7 @@ CREATE TABLE IF NOT EXISTS nettrades_pwa_cache (
 CREATE TABLE IF NOT EXISTS nettrades_secrets (
     id SERIAL PRIMARY KEY,
     key VARCHAR(255) UNIQUE NOT NULL,
-    value BYTEA NOT NULL,  -- Encrypted with pgcrypto
+    value BYTEA NOT NULL,
     description TEXT,
     created_by VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -956,199 +1069,186 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON nettrades_notifications(
 CREATE INDEX IF NOT EXISTS idx_queue_tasks_status ON nettrades_queue_tasks(status);
 
 EOF
-    log_success "init-db.sql generated with all NETTRADES tables"
-else
-    log_success "init-db.sql already exists"
-fi
-
-# -----------------------------------------------------------------------------
-# 5. Run security hardening (if Phase 0 not completed)
-# -----------------------------------------------------------------------------
-# Check marker directly (bypass function if buggy)
-if [[ -f "$PROJECT_ROOT/.phase-0-complete" ]]; then
-    log_success "Phase 0 already completed – skipping hardening."
-else
-    log_step "Phase 0 not completed – running security hardening..."
-    if [[ -f "$SCRIPT_DIR/phase-system.sh" ]]; then
-        bash "$SCRIPT_DIR/phase-system.sh"
+        log_success "init-db.sql generated with all NETTRADES tables"
     else
-        log_warning "phase-system.sh not found – skipping hardening"
+        log_success "init-db.sql already exists"
     fi
-fi
 
-# -----------------------------------------------------------------------------
-# 6. Start PostgreSQL and initialise the database (if empty)
-# -----------------------------------------------------------------------------
-cd "$DEPLOY_DIR"
-log_step "Starting PostgreSQL container and initialising database..."
+    # -----------------------------------------------------------------------------
+    # 5. Run security hardening (if Phase 0 not completed)
+    # -----------------------------------------------------------------------------
+    if [[ -f "$PROJECT_ROOT/.phase-0-complete" ]]; then
+        log_success "Phase 0 already completed – skipping hardening."
+    else
+        log_step "Phase 0 not completed – running security hardening..."
+        if [[ -f "$SCRIPT_DIR/phase-system.sh" ]]; then
+            bash "$SCRIPT_DIR/phase-system.sh"
+        else
+            log_warning "phase-system.sh not found – skipping hardening"
+        fi
+    fi
 
-# Ensure .env has Unix line endings (fix Windows CRLF) – only if it contains CRLF
-if command -v dos2unix &>/dev/null && grep -q $'\r' "$ENV_FILE" 2>/dev/null; then
-    dos2unix "$ENV_FILE" 2>/dev/null || true
-    log_info "Converted .env to LF line endings"
-elif command -v dos2unix &>/dev/null; then
-    log_info ".env already has LF line endings – skipping dos2unix"
-fi
+    # -----------------------------------------------------------------------------
+    # 6. Start PostgreSQL and initialise the database (if empty)
+    # -----------------------------------------------------------------------------
+    cd "$DEPLOY_DIR"
+    log_step "Starting PostgreSQL container and initialising database..."
 
-# Source .env for environment variables (already done, but re-source to be safe)
-set -a
-source "$ENV_FILE"
-set +a
+    if command -v dos2unix &>/dev/null && grep -q $'\r' "$ENV_FILE" 2>/dev/null; then
+        dos2unix "$ENV_FILE" 2>/dev/null || true
+        log_info "Converted .env to LF line endings"
+    elif command -v dos2unix &>/dev/null; then
+        log_info ".env already has LF line endings – skipping dos2unix"
+    fi
 
-# --- Domain configuration (after .env is loaded) ---
-configure_domain
+    set -a
+    source "$ENV_FILE"
+    set +a
 
-# Check PostgreSQL password consistency
-check_postgres_password() {
-    local pg_container
-    pg_container=$(docker compose ps -q postgres 2>/dev/null)
-    if [[ -n "$pg_container" ]] && docker inspect -f '{{.State.Running}}' "$pg_container" 2>/dev/null | grep -q true; then
-        local actual_pass
-        actual_pass=$(docker exec "$pg_container" env | grep POSTGRES_PASSWORD | cut -d= -f2)
-        if [[ -n "$actual_pass" && "$actual_pass" != "$POSTGRES_PASSWORD" ]]; then
-            log_warning "PostgreSQL password mismatch."
-            log_warning "  .env password: $POSTGRES_PASSWORD"
-            log_warning "  Container password: $actual_pass"
-            if [[ "$FORCE" == true ]] || [[ "$AUTO" == true ]]; then
-                log_info "Updating .env to match the container's password."
-                safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$actual_pass"
-                export POSTGRES_PASSWORD="$actual_pass"
-            else
-                log_error "Please either set the correct password in .env or use --force to update .env."
-                exit 1
+    configure_domain
+
+    check_postgres_password() {
+        local pg_container
+        pg_container=$(docker compose ps -q postgres 2>/dev/null)
+        if [[ -n "$pg_container" ]] && docker inspect -f '{{.State.Running}}' "$pg_container" 2>/dev/null | grep -q true; then
+            local actual_pass
+            actual_pass=$(docker exec "$pg_container" env | grep POSTGRES_PASSWORD | cut -d= -f2)
+            if [[ -n "$actual_pass" && "$actual_pass" != "$POSTGRES_PASSWORD" ]]; then
+                log_warning "PostgreSQL password mismatch."
+                log_warning "  .env password: $POSTGRES_PASSWORD"
+                log_warning "  Container password: $actual_pass"
+                if [[ "$FORCE" == true ]] || [[ "$AUTO" == true ]]; then
+                    log_info "Updating .env to match the container's password."
+                    safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$actual_pass"
+                    export POSTGRES_PASSWORD="$actual_pass"
+                else
+                    log_error "Please either set the correct password in .env or use --force to update .env."
+                    exit 1
+                fi
             fi
         fi
-    fi
-}
+    }
+    check_postgres_password
 
-check_postgres_password
-
-# Preserve PostgreSQL password if container already exists
-POSTGRES_PRESERVED=false
-PG_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null)
-if [[ -n "$PG_CONTAINER" ]]; then
-    if docker inspect -f '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null | grep -q true; then
-        CURRENT_PG_PASS=$(docker exec "$PG_CONTAINER" env | grep POSTGRES_PASSWORD | cut -d= -f2)
-        if [[ -n "$CURRENT_PG_PASS" ]]; then
-            log_info "PostgreSQL container is running. Using its password: $CURRENT_PG_PASS"
-            safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$CURRENT_PG_PASS"
-            export POSTGRES_PASSWORD="$CURRENT_PG_PASS"
-            POSTGRES_PRESERVED=true
-        fi
-    else
-        log_info "PostgreSQL container exists but is not running. Skipping password preservation."
-    fi
-else
-    log_info "PostgreSQL container does not exist. Will generate password if weak."
-fi
-
-# Auto-generate strong secrets for all services (if missing or weak)
-generate_secret() {
-    generate_safe_password
-}
-
-SECRET_VARS=(
-    POSTGRES_PASSWORD
-    ADMIN_PASSWORD
-    FORGEJO_DB_PASSWORD
-    FORGEJO_SECRET_KEY
-    GRAFANA_PASSWORD
-    PROMETHEUS_PASSWORD
-    LANGGRAPH_API_KEY
-    ODOO_API_KEY
-    PROXY_API_KEY
-)
-
-if [[ ! -f "$ENV_FILE" ]] || [[ "$REGENERATE_SECRETS" == true ]]; then
-    if [[ "$REGENERATE_SECRETS" == true ]]; then
-        log_warning "Regenerating secrets in .env (this will break running services!)."
-        BACKUP_ENV="${ENV_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
-        cp "$ENV_FILE" "$BACKUP_ENV"
-        log_info "Backed up .env to $BACKUP_ENV"
-    fi
-
-    for VAR in "${SECRET_VARS[@]}"; do
-        if [[ "$VAR" == "POSTGRES_PASSWORD" ]] && [[ "$POSTGRES_PRESERVED" == true ]]; then
-            log_info "POSTGRES_PASSWORD preserved from container – skipping regeneration."
-            continue
-        fi
-
-        if grep -q "^${VAR}=" "$ENV_FILE"; then
-            CURRENT_VALUE=$(grep "^${VAR}=" "$ENV_FILE" | cut -d'=' -f2-)
-            if [[ -z "$CURRENT_VALUE" || "$CURRENT_VALUE" == "changeit" ]]; then
-                NEW_VALUE=$(generate_secret)
-                safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
-                log_info "Regenerated ${VAR} (was weak)"
-                export "${VAR}=${NEW_VALUE}"
-            else
-                export "${VAR}=${CURRENT_VALUE}"
+    POSTGRES_PRESERVED=false
+    PG_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null)
+    if [[ -n "$PG_CONTAINER" ]]; then
+        if docker inspect -f '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null | grep -q true; then
+            CURRENT_PG_PASS=$(docker exec "$PG_CONTAINER" env | grep POSTGRES_PASSWORD | cut -d= -f2)
+            if [[ -n "$CURRENT_PG_PASS" ]]; then
+                log_info "PostgreSQL container is running. Using its password: $CURRENT_PG_PASS"
+                safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$CURRENT_PG_PASS"
+                export POSTGRES_PASSWORD="$CURRENT_PG_PASS"
+                POSTGRES_PRESERVED=true
             fi
         else
-            NEW_VALUE=$(generate_secret)
-            safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
-            log_info "Generated ${VAR}"
-            export "${VAR}=${NEW_VALUE}"
+            log_info "PostgreSQL container exists but is not running. Skipping password preservation."
         fi
-    done
-
-    # Ensure ODOO_API_KEY and PROXY_API_KEY are identical
-    ODOO_API_KEY=$(grep "^ODOO_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
-    PROXY_API_KEY=$(grep "^PROXY_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
-    if [[ "$ODOO_API_KEY" != "$PROXY_API_KEY" ]]; then
-        NEW_KEY=$(generate_secret)
-        safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$NEW_KEY"
-        safe_sed_replace "$ENV_FILE" "PROXY_API_KEY" "$NEW_KEY"
-        export ODOO_API_KEY="${NEW_KEY}"
-        export PROXY_API_KEY="${NEW_KEY}"
-        log_info "Synchronised ODOO_API_KEY and PROXY_API_KEY"
+    else
+        log_info "PostgreSQL container does not exist. Will generate password if weak."
     fi
-fi
 
-# =============================================================================
-# NEW: Set Self-Improving Environment Variables
-# =============================================================================
-log_step "Setting self-improving environment variables..."
+    generate_secret() {
+        generate_safe_password
+    }
 
-if ! grep -q "^THRESHOLD_EPISODES=" "$ENV_FILE"; then
-    safe_sed_replace "$ENV_FILE" "THRESHOLD_EPISODES" "50"
-    log_info "Set THRESHOLD_EPISODES=50"
-fi
+    SECRET_VARS=(
+        POSTGRES_PASSWORD
+        ADMIN_PASSWORD
+        FORGEJO_DB_PASSWORD
+        FORGEJO_SECRET_KEY
+        GRAFANA_PASSWORD
+        PROMETHEUS_PASSWORD
+        LANGGRAPH_API_KEY
+        ODOO_API_KEY
+        PROXY_API_KEY
+    )
 
-if ! grep -q "^THRESHOLD_QUALITY=" "$ENV_FILE"; then
-    safe_sed_replace "$ENV_FILE" "THRESHOLD_QUALITY" "7.0"
-    log_info "Set THRESHOLD_QUALITY=7.0"
-fi
+    if [[ ! -f "$ENV_FILE" ]] || [[ "$REGENERATE_SECRETS" == true ]]; then
+        if [[ "$REGENERATE_SECRETS" == true ]]; then
+            log_warning "Regenerating secrets in .env (this will break running services!)."
+            BACKUP_ENV="${ENV_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+            cp "$ENV_FILE" "$BACKUP_ENV"
+            log_info "Backed up .env to $BACKUP_ENV"
+        fi
 
-if ! grep -q "^FINE_TUNE_MODEL=" "$ENV_FILE"; then
-    safe_sed_replace "$ENV_FILE" "FINE_TUNE_MODEL" "deepseek-1.5b"
-    log_info "Set FINE_TUNE_MODEL=deepseek-1.5b"
-fi
+        for VAR in "${SECRET_VARS[@]}"; do
+            if [[ "$VAR" == "POSTGRES_PASSWORD" ]] && [[ "$POSTGRES_PRESERVED" == true ]]; then
+                log_info "POSTGRES_PASSWORD preserved from container – skipping regeneration."
+                continue
+            fi
 
-if ! grep -q "^FINE_TUNE_METHOD=" "$ENV_FILE"; then
-    safe_sed_replace "$ENV_FILE" "FINE_TUNE_METHOD" "unsloth"
-    log_info "Set FINE_TUNE_METHOD=unsloth"
-fi
+            if grep -q "^${VAR}=" "$ENV_FILE"; then
+                CURRENT_VALUE=$(grep "^${VAR}=" "$ENV_FILE" | cut -d'=' -f2-)
+                if [[ -z "$CURRENT_VALUE" || "$CURRENT_VALUE" == "changeit" ]]; then
+                    NEW_VALUE=$(generate_secret)
+                    safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
+                    log_info "Regenerated ${VAR} (was weak)"
+                    export "${VAR}=${NEW_VALUE}"
+                else
+                    export "${VAR}=${CURRENT_VALUE}"
+                fi
+            else
+                NEW_VALUE=$(generate_secret)
+                safe_sed_replace "$ENV_FILE" "$VAR" "$NEW_VALUE"
+                log_info "Generated ${VAR}"
+                export "${VAR}=${NEW_VALUE}"
+            fi
+        done
 
-# -----------------------------------------------------------------------------
-# Generate Grafana datasource provisioning file (using the Prometheus password)
-# -----------------------------------------------------------------------------
-log_step "Generating Grafana datasource provisioning..."
-GRAFANA_DATASOURCES_DIR="$DEPLOY_DIR/grafana-datasources"
-GRAFANA_DATASOURCES_FILE="$GRAFANA_DATASOURCES_DIR/datasources.yaml"
-PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
+        ODOO_API_KEY=$(grep "^ODOO_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
+        PROXY_API_KEY=$(grep "^PROXY_API_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
+        if [[ "$ODOO_API_KEY" != "$PROXY_API_KEY" ]]; then
+            NEW_KEY=$(generate_secret)
+            safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$NEW_KEY"
+            safe_sed_replace "$ENV_FILE" "PROXY_API_KEY" "$NEW_KEY"
+            export ODOO_API_KEY="${NEW_KEY}"
+            export PROXY_API_KEY="${NEW_KEY}"
+            log_info "Synchronised ODOO_API_KEY and PROXY_API_KEY"
+        fi
+    fi
 
-mkdir -p "$GRAFANA_DATASOURCES_DIR"
+    # =============================================================================
+    # Set Self-Improving Environment Variables
+    # =============================================================================
+    log_step "Setting self-improving environment variables..."
 
-if [[ -f "$GRAFANA_DATASOURCES_FILE" ]]; then
-    BACKUP_DS="${GRAFANA_DATASOURCES_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
-    cp "$GRAFANA_DATASOURCES_FILE" "$BACKUP_DS"
-    log_info "Backed up existing datasources.yaml to $BACKUP_DS"
-fi
+    if ! grep -q "^THRESHOLD_EPISODES=" "$ENV_FILE"; then
+        safe_sed_replace "$ENV_FILE" "THRESHOLD_EPISODES" "50"
+        log_info "Set THRESHOLD_EPISODES=50"
+    fi
 
-cat > "$GRAFANA_DATASOURCES_FILE" << EOF
-# =============================================================================
-# Grafana Datasource Provisioning
-# =============================================================================
+    if ! grep -q "^THRESHOLD_QUALITY=" "$ENV_FILE"; then
+        safe_sed_replace "$ENV_FILE" "THRESHOLD_QUALITY" "7.0"
+        log_info "Set THRESHOLD_QUALITY=7.0"
+    fi
+
+    if ! grep -q "^FINE_TUNE_MODEL=" "$ENV_FILE"; then
+        safe_sed_replace "$ENV_FILE" "FINE_TUNE_MODEL" "deepseek-1.5b"
+        log_info "Set FINE_TUNE_MODEL=deepseek-1.5b"
+    fi
+
+    if ! grep -q "^FINE_TUNE_METHOD=" "$ENV_FILE"; then
+        safe_sed_replace "$ENV_FILE" "FINE_TUNE_METHOD" "unsloth"
+        log_info "Set FINE_TUNE_METHOD=unsloth"
+    fi
+
+    # -----------------------------------------------------------------------------
+    # Generate Grafana datasource provisioning
+    # -----------------------------------------------------------------------------
+    log_step "Generating Grafana datasource provisioning..."
+    GRAFANA_DATASOURCES_DIR="$DEPLOY_DIR/grafana-datasources"
+    GRAFANA_DATASOURCES_FILE="$GRAFANA_DATASOURCES_DIR/datasources.yaml"
+    PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
+    mkdir -p "$GRAFANA_DATASOURCES_DIR"
+
+    if [[ -f "$GRAFANA_DATASOURCES_FILE" ]]; then
+        BACKUP_DS="${GRAFANA_DATASOURCES_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
+        cp "$GRAFANA_DATASOURCES_FILE" "$BACKUP_DS"
+        log_info "Backed up existing datasources.yaml to $BACKUP_DS"
+    fi
+
+    cat > "$GRAFANA_DATASOURCES_FILE" << EOF
 apiVersion: 1
 datasources:
   - name: Prometheus
@@ -1162,520 +1262,476 @@ datasources:
     isDefault: true
     editable: false
 EOF
-log_success "Grafana datasource provisioning created"
+    log_success "Grafana datasource provisioning created"
 
-# Install bcrypt in the virtual environment before generating Prometheus config
-ensure_bcrypt || log_warning "bcrypt installation failed – Prometheus will use plain-text passwords"
+    ensure_bcrypt || log_warning "bcrypt installation failed – Prometheus will use plain-text passwords"
 
-# =============================================================================
-# Generate Prometheus web.yml with basic auth (using the password from .env)
-# =============================================================================
+    # =============================================================================
+    # Generate Prometheus web.yml with basic auth
+    # =============================================================================
+    log_step "Generating Prometheus web.yml with basic auth..."
+    WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
+    WEB_CONFIG_FILE="$WEB_CONFIG_DIR/web.yml"
+    PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
 
-log_step "Generating Prometheus web.yml with basic auth..."
-WEB_CONFIG_DIR="$DEPLOY_DIR/prometheus"
-WEB_CONFIG_FILE="$WEB_CONFIG_DIR/web.yml"
-PROMETHEUS_PASSWORD="${PROMETHEUS_PASSWORD:-admin}"
+    if [[ -d "$WEB_CONFIG_FILE" ]]; then
+        rm -rf "$WEB_CONFIG_FILE"
+    fi
 
-if [[ -d "$WEB_CONFIG_FILE" ]]; then
-    rm -rf "$WEB_CONFIG_FILE"
-fi
+    mkdir -p "$WEB_CONFIG_DIR"
 
-mkdir -p "$WEB_CONFIG_DIR"
+    HASH=""
+    if python3 -c "import bcrypt" 2>/dev/null; then
+        HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PROMETHEUS_PASSWORD'.encode(), bcrypt.gensalt()).decode())")
+    else
+        log_warning "bcrypt not available – using plain-text password (INSECURE)."
+        HASH="$PROMETHEUS_PASSWORD"
+    fi
 
-# Generate hash using Python (with fallback)
-HASH=""
-if python3 -c "import bcrypt" 2>/dev/null; then
-    HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PROMETHEUS_PASSWORD'.encode(), bcrypt.gensalt()).decode())")
-else
-    log_warning "bcrypt not available – using plain-text password (INSECURE)."
-    HASH="$PROMETHEUS_PASSWORD"
-fi
-
-cat > "$WEB_CONFIG_FILE" << EOF
+    cat > "$WEB_CONFIG_FILE" << EOF
 basic_auth_users:
     admin: '$HASH'
 EOF
 
-if [[ "$HASH" == "$PROMETHEUS_PASSWORD" ]]; then
-    log_warning "bcrypt not available in Python – using plain-text password (INSECURE)."
-    cat > "$WEB_CONFIG_FILE" << EOF
+    if [[ "$HASH" == "$PROMETHEUS_PASSWORD" ]]; then
+        log_warning "bcrypt not available in Python – using plain-text password (INSECURE)."
+        cat > "$WEB_CONFIG_FILE" << EOF
 # WARNING: No bcrypt – basic auth uses plain text!
 basic_auth_users:
     admin: '$PROMETHEUS_PASSWORD'
 EOF
-else
-    log_success "Prometheus web.yml generated with bcrypt hash"
-fi
-
-# Determine if we should remove the Dynamo volume (only if --reset-data)
-REMOVE_VOLUME=false
-if [[ "$RESET_DATA" == true ]]; then
-    if [[ "$AUTO" == true ]]; then
-        REMOVE_VOLUME=true
-        log_info "Auto mode: will remove dynamo_data volume without prompt."
     else
-        echo ""
-        echo -e "${YELLOW}WARNING: You are about to DELETE ALL Dynamo data (models, configurations).${NC}"
-        echo "This action is irreversible."
-        read -rp "Are you sure you want to remove the dynamo_data volume? (y/N): " confirm
-        if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            REMOVE_VOLUME=true
-        else
-            log_info "Skipping volume removal."
-        fi
-    fi
-fi
-
-# Handle orphans (only if --force)
-if [[ "$FORCE" == true ]]; then
-    log_info "Force mode – recreating containers..."
-
-    REMOVE_ORPHANS=""
-    if [[ "$AUTO" == true ]]; then
-        REMOVE_ORPHANS="--remove-orphans"
-        log_info "Auto mode: removing orphans without prompt."
-    else
-        echo ""
-        echo -e "${YELLOW}Do you want to remove orphan containers (containers that were part of this NETTRADES stack but are no longer defined in the compose file)?${NC}"
-        echo "This will NOT affect other containers running on this server from different projects."
-        read -rp "Remove orphans? (y/N): " confirm_orphans
-        if [[ "$confirm_orphans" =~ ^[Yy]$ ]]; then
-            REMOVE_ORPHANS="--remove-orphans"
-        else
-            REMOVE_ORPHANS=""
-        fi
+        log_success "Prometheus web.yml generated with bcrypt hash"
     fi
 
+    REMOVE_VOLUME=false
     if [[ "$RESET_DATA" == true ]]; then
-        docker compose down $REMOVE_ORPHANS -v
-        log_info "Removed all containers and volumes (--reset-data)"
-    else
-        docker compose down $REMOVE_ORPHANS
-        log_info "Removed containers (data preserved)"
-    fi
-
-    if [[ "$REMOVE_VOLUME" == true ]] && [[ "$RESET_DATA" != true ]]; then
-        if docker volume ls -q | grep -q "dynamo_data"; then
-            docker volume rm dynamo_data 2>/dev/null || true
-            log_info "Removed dynamo_data volume"
+        if [[ "$AUTO" == true ]]; then
+            REMOVE_VOLUME=true
+            log_info "Auto mode: will remove dynamo_data volume without prompt."
         else
-            log_info "dynamo_data volume not found"
+            echo ""
+            echo -e "${YELLOW}WARNING: You are about to DELETE ALL Dynamo data (models, configurations).${NC}"
+            echo "This action is irreversible."
+            read -rp "Are you sure you want to remove the dynamo_data volume? (y/N): " confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                REMOVE_VOLUME=true
+            else
+                log_info "Skipping volume removal."
+            fi
         fi
     fi
-fi
 
-# --- Start PostgreSQL only and initialise database ---
-log_info "Starting PostgreSQL..."
-docker compose up -d postgres
-
-wait_for_postgres || {
-    log_error "PostgreSQL failed to become ready. Cannot initialise database."
-    exit 1
-}
-
-# -----------------------------------------------------------------------------
-# Check if database is already initialised – but we always force init if core table missing
-# -----------------------------------------------------------------------------
-DB_INITIALISED=false
-# Check if the core Odoo table 'ir_module_module' exists
-if docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
-    DB_INITIALISED=true
-fi
-
-# Also check if the database has any tables at all
-TABLE_COUNT=$(docker compose exec -T postgres psql -U odoo -d odoo -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | tr -d ' ')
-
-if [ "$DB_INITIALISED" = false ] || [ "$TABLE_COUNT" -lt 10 ] || [[ "$FORCE" == true ]]; then
-    log_info "Database not properly initialised or --force used. Running full initialisation..."
-
-    # Drop and recreate database if it exists and we're forcing
     if [[ "$FORCE" == true ]]; then
-        log_info "Force mode: dropping and recreating database..."
-        docker compose exec -T postgres dropdb -U odoo odoo 2>/dev/null || true
-        docker compose exec -T postgres createdb -U odoo odoo
+        log_info "Force mode – recreating containers..."
+
+        REMOVE_ORPHANS=""
+        if [[ "$AUTO" == true ]]; then
+            REMOVE_ORPHANS="--remove-orphans"
+            log_info "Auto mode: removing orphans without prompt."
+        else
+            echo ""
+            echo -e "${YELLOW}Do you want to remove orphan containers (containers that were part of this NETTRADES stack but are no longer defined in the compose file)?${NC}"
+            echo "This will NOT affect other containers running on this server from different projects."
+            read -rp "Remove orphans? (y/N): " confirm_orphans
+            if [[ "$confirm_orphans" =~ ^[Yy]$ ]]; then
+                REMOVE_ORPHANS="--remove-orphans"
+            else
+                REMOVE_ORPHANS=""
+            fi
+        fi
+
+        if [[ "$RESET_DATA" == true ]]; then
+            docker compose down $REMOVE_ORPHANS -v
+            log_info "Removed all containers and volumes (--reset-data)"
+        else
+            docker compose down $REMOVE_ORPHANS
+            log_info "Removed containers (data preserved)"
+        fi
+
+        if [[ "$REMOVE_VOLUME" == true ]] && [[ "$RESET_DATA" != true ]]; then
+            if docker volume ls -q | grep -q "dynamo_data"; then
+                docker volume rm dynamo_data 2>/dev/null || true
+                log_info "Removed dynamo_data volume"
+            else
+                log_info "dynamo_data volume not found"
+            fi
+        fi
     fi
 
-    # Apply init-db.sql (idempotent – creates tables if they don't exist)
-    if [[ -f "$INIT_SQL" ]]; then
-        docker compose exec -T postgres psql -U odoo odoo < "$INIT_SQL" || {
-            log_warning "Database initialisation may have already been done."
-        }
+    # --- Start PostgreSQL and initialise ---
+    log_info "Starting PostgreSQL..."
+    docker compose up -d postgres
+
+    wait_for_postgres || {
+        log_error "PostgreSQL failed to become ready. Cannot initialise database."
+        exit 1
+    }
+
+    DB_INITIALISED=false
+    if docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
+        DB_INITIALISED=true
+    fi
+
+    TABLE_COUNT=$(docker compose exec -T postgres psql -U odoo -d odoo -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | tr -d ' ')
+
+    if [ "$DB_INITIALISED" = false ] || [ "$TABLE_COUNT" -lt 10 ] || [[ "$FORCE" == true ]]; then
+        log_info "Database not properly initialised or --force used. Running full initialisation..."
+
+        if [[ "$FORCE" == true ]]; then
+            log_info "Force mode: dropping and recreating database..."
+            docker compose exec -T postgres dropdb -U odoo odoo 2>/dev/null || true
+            docker compose exec -T postgres createdb -U odoo odoo
+        fi
+
+        if [[ -f "$INIT_SQL" ]]; then
+            docker compose exec -T postgres psql -U odoo odoo < "$INIT_SQL" || {
+                log_warning "Database initialisation may have already been done."
+            }
+        else
+            log_error "init-db.sql not found!"
+            exit 1
+        fi
+
+        log_info "Installing base modules..."
+        docker compose run --rm \
+            -e PGHOST=postgres \
+            -e PGPORT=5432 \
+            -e PGUSER=odoo \
+            -e PGPASSWORD="$POSTGRES_PASSWORD" \
+            -e PGDATABASE=odoo \
+            odoo odoo -d odoo \
+            --db_host=postgres \
+            --db_port=5432 \
+            --db_user=odoo \
+            --db_password="$POSTGRES_PASSWORD" \
+            -i base --stop-after-init --log-level=info
+        log_success "Base modules installed"
     else
-        log_error "init-db.sql not found!"
+        log_success "Database already initialised – skipping init."
+    fi
+
+    enable_pgcrypto || true
+
+    # -----------------------------------------------------------------------------
+    # 7. Build and start the full Docker Compose stack (with retry)
+    # -----------------------------------------------------------------------------
+    log_step "Building and starting Docker Compose stack (with retries)..."
+
+    RUNTIME_ODOO="${RUNTIME_ODOO:-}" \
+    RUNTIME_LANGGRAPH="${RUNTIME_LANGGRAPH:-}" \
+    RUNTIME_SELF_IMPROVING="${RUNTIME_SELF_IMPROVING:-}" \
+    RUNTIME_UI="${RUNTIME_UI:-}" \
+    RUNTIME_DYNAMO="${RUNTIME_DYNAMO:-}" \
+    RUNTIME_POSTGRES="${RUNTIME_POSTGRES:-}" \
+    RUNTIME_VALKEY="${RUNTIME_VALKEY:-}" \
+    docker compose up -d --build
+
+    if [[ "${WITH_GROVE:-false}" == "true" ]]; then
+        log_info "Starting Grove observability stack..."
+        if [[ -f "$DEPLOY_DIR/docker-compose.grove.yaml" ]]; then
+            docker compose -f docker-compose.yaml -f docker-compose.grove.yaml up -d grove loki tempo
+            log_success "Grove stack started"
+        else
+            log_warning "docker-compose.grove.yaml not found – skipping Grove"
+        fi
+    fi
+
+    if [[ "${WITH_KAI:-false}" == "true" ]]; then
+        log_info "Starting KAI Scheduler..."
+        if [[ -f "$DEPLOY_DIR/docker-compose.kai.yaml" ]]; then
+            docker compose -f docker-compose.yaml -f docker-compose.kai.yaml up -d kai-scheduler
+            log_success "KAI Scheduler started"
+        else
+            log_warning "docker-compose.kai.yaml not found – skipping KAI Scheduler"
+        fi
+    fi
+
+    if [[ "${WITH_FINETUNE:-false}" == "true" ]]; then
+        log_info "Starting fine-tuning workers..."
+        if [[ -f "$DEPLOY_DIR/docker-compose.finetune.yaml" ]]; then
+            docker compose -f docker-compose.yaml -f docker-compose.finetune.yaml up -d training-worker
+            log_success "Fine-tuning workers started"
+        else
+            log_warning "docker-compose.finetune.yaml not found – skipping fine-tuning"
+        fi
+    fi
+
+    if [[ "${WITH_CUVS:-false}" == "true" ]]; then
+        log_info "RAPIDS cuVS is installed in the virtual environment and will be available for vector search."
+    fi
+
+    log_success "Docker Compose stack started"
+
+    # -----------------------------------------------------------------------------
+    # 8. Validate deployment
+    # -----------------------------------------------------------------------------
+    validate_deployment() {
+        local max_retries=120
+        local attempt=1
+        local odoo_ready=false
+        local langgraph_ready=false
+
+        log_step "Validating deployment health..."
+
+        log_info "Waiting for Odoo to become ready (this may take 2-3 minutes on first install)..."
+        for i in {1..90}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8069 2>/dev/null)
+            if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "302" || "$HTTP_CODE" == "303" ]]; then
+                odoo_ready=true
+                log_success "Odoo is ready (HTTP $HTTP_CODE)"
+                break
+            fi
+            if [ $((i % 10)) -eq 0 ]; then
+                log_info "Still waiting for Odoo... ($i/90 attempts) - HTTP $HTTP_CODE"
+            fi
+            sleep 2
+        done
+
+        if [ "$odoo_ready" != true ]; then
+            log_error "Odoo failed to become ready within 3 minutes."
+            log_info "Check Odoo logs with: docker logs odoo --tail 50"
+            return 1
+        fi
+
+        log_info "Waiting for LangGraph to become ready..."
+        while [[ $attempt -le $max_retries ]]; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null | grep -q "200"; then
+                langgraph_ready=true
+                log_success "LangGraph is healthy"
+                break
+            else
+                if [ $((attempt % 10)) -eq 0 ]; then
+                    log_info "Still waiting for LangGraph... ($attempt/$max_retries attempts)"
+                fi
+            fi
+            log_info "Waiting for services to be ready... ($attempt/$max_retries)"
+            sleep 2
+            attempt=$((attempt + 1))
+        done
+
+        if [ "$langgraph_ready" != true ]; then
+            log_error "LangGraph failed to become ready within $((max_retries * 2)) seconds."
+            log_info "Check LangGraph logs with: docker logs langgraph-server --tail 50"
+            return 1
+        fi
+
+        log_info "Waiting for NETTRADES UI to become ready..."
+        local ui_ready=false
+        for i in {1..60}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:3002/ 2>/dev/null | grep -q "200"; then
+                ui_ready=true
+                log_success "NETTRADES UI is ready"
+                break
+            fi
+            sleep 2
+        done
+        if [ "$ui_ready" != true ]; then
+            log_warning "NETTRADES UI did not become ready within 2 minutes. Check logs."
+        else
+            log_success "NETTRADES UI is healthy"
+        fi
+
+        if [[ "${WITH_GROVE:-false}" == "true" ]]; then
+            log_info "Checking Grove health..."
+            for i in {1..30}; do
+                if curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/health 2>/dev/null | grep -q "200"; then
+                    log_success "Grove is healthy"
+                    break
+                fi
+                sleep 2
+            done
+        fi
+
+        if [[ "${WITH_KAI:-false}" == "true" ]]; then
+            log_info "Checking KAI Scheduler health..."
+            for i in {1..30}; do
+                if curl -s -o /dev/null -w "%{http_code}" http://localhost:9091/health 2>/dev/null | grep -q "200"; then
+                    log_success "KAI Scheduler is healthy"
+                    break
+                fi
+                sleep 2
+            done
+        fi
+
+        log_success "All services are healthy"
+        return 0
+    }
+
+    if validate_deployment; then
+        log_success "Deployment validation passed"
+    else
+        log_error "Deployment validation failed. Check logs."
         exit 1
     fi
 
-    # Install the base module (and all its dependencies)
-    log_info "Installing base modules..."
-    docker compose run --rm \
-      -e PGHOST=postgres \
-      -e PGPORT=5432 \
-      -e PGUSER=odoo \
-      -e PGPASSWORD="$POSTGRES_PASSWORD" \
-      -e PGDATABASE=odoo \
-      odoo odoo -d odoo \
-      --db_host=postgres \
-      --db_port=5432 \
-      --db_user=odoo \
-      --db_password="$POSTGRES_PASSWORD" \
-      -i base --stop-after-init --log-level=info
-    log_success "Base modules installed"
-else
-    log_success "Database already initialised – skipping init."
-fi
-
-enable_pgcrypto || true
-
-# -----------------------------------------------------------------------------
-# 7. Build and start the full Docker Compose stack (with retry)
-# -----------------------------------------------------------------------------
-log_step "Building and starting Docker Compose stack (with retries)..."
-
-# The runtime variables are already exported from the .env file and overridden
-# for WSL/untrusted tenants above. We pass them to docker compose via the
-# environment, which will interpolate ${RUNTIME_*} variables in the compose file.
-
-# Pass all runtime variables explicitly to the compose command
-RUNTIME_ODOO="${RUNTIME_ODOO:-}" \
-RUNTIME_LANGGRAPH="${RUNTIME_LANGGRAPH:-}" \
-RUNTIME_SELF_IMPROVING="${RUNTIME_SELF_IMPROVING:-}" \
-RUNTIME_UI="${RUNTIME_UI:-}" \
-RUNTIME_DYNAMO="${RUNTIME_DYNAMO:-}" \
-RUNTIME_POSTGRES="${RUNTIME_POSTGRES:-}" \
-RUNTIME_VALKEY="${RUNTIME_VALKEY:-}" \
-docker compose up -d --build
-
-# If Grove is enabled, start it
-if [[ "${WITH_GROVE:-false}" == "true" ]]; then
-    log_info "Starting Grove observability stack..."
-    if [[ -f "$DEPLOY_DIR/docker-compose.grove.yaml" ]]; then
-        docker compose -f docker-compose.yaml -f docker-compose.grove.yaml up -d grove loki tempo
-        log_success "Grove stack started"
-    else
-        log_warning "docker-compose.grove.yaml not found – skipping Grove"
-    fi
-fi
-
-# If KAI Scheduler is enabled, start it
-if [[ "${WITH_KAI:-false}" == "true" ]]; then
-    log_info "Starting KAI Scheduler..."
-    if [[ -f "$DEPLOY_DIR/docker-compose.kai.yaml" ]]; then
-        docker compose -f docker-compose.yaml -f docker-compose.kai.yaml up -d kai-scheduler
-        log_success "KAI Scheduler started"
-    else
-        log_warning "docker-compose.kai.yaml not found – skipping KAI Scheduler"
-    fi
-fi
-
-# If fine-tuning is enabled, start training workers
-if [[ "${WITH_FINETUNE:-false}" == "true" ]]; then
-    log_info "Starting fine-tuning workers..."
-    if [[ -f "$DEPLOY_DIR/docker-compose.finetune.yaml" ]]; then
-        docker compose -f docker-compose.yaml -f docker-compose.finetune.yaml up -d training-worker
-        log_success "Fine-tuning workers started"
-    else
-        log_warning "docker-compose.finetune.yaml not found – skipping fine-tuning"
-    fi
-fi
-
-# cuVS is a Python library installed in the venv, not a Docker service.
-# No additional Docker Compose file is needed.
-if [[ "${WITH_CUVS:-false}" == "true" ]]; then
-    log_info "RAPIDS cuVS is installed in the virtual environment and will be available for vector search."
-fi
-
-log_success "Docker Compose stack started"
-
-# -----------------------------------------------------------------------------
-# 8. Validate deployment
-# -----------------------------------------------------------------------------
-validate_deployment() {
-    local max_retries=120                   # 120 * 2 = 240 seconds (4 minutes)
-    local attempt=1
-    local odoo_ready=false
-    local langgraph_ready=false
-
-    log_step "Validating deployment health..."
-
-    # Wait for Odoo with improved logging of HTTP status
-    log_info "Waiting for Odoo to become ready (this may take 2-3 minutes on first install)..."
-    for i in {1..90}; do
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8069 2>/dev/null)
-        if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "302" || "$HTTP_CODE" == "303" ]]; then
-            odoo_ready=true
-            log_success "Odoo is ready (HTTP $HTTP_CODE)"
-            break
-        fi
-        if [ $((i % 10)) -eq 0 ]; then
-            log_info "Still waiting for Odoo... ($i/90 attempts) - HTTP $HTTP_CODE"
-        fi
-        sleep 2
-    done
-
-    if [ "$odoo_ready" != true ]; then
-        log_error "Odoo failed to become ready within 3 minutes."
-        log_info "Check Odoo logs with: docker logs odoo --tail 50"
-        return 1
-    fi
-
-    # Wait for LangGraph
-    log_info "Waiting for LangGraph to become ready..."
-    while [[ $attempt -le $max_retries ]]; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null | grep -q "200"; then
-            langgraph_ready=true
-            log_success "LangGraph is healthy"
-            break
-        else
-            if [ $((attempt % 10)) -eq 0 ]; then
-                log_info "Still waiting for LangGraph... ($attempt/$max_retries attempts)"
-            fi
-        fi
-        log_info "Waiting for services to be ready... ($attempt/$max_retries)"
-        sleep 2
-        attempt=$((attempt + 1))
-    done
-
-    if [ "$langgraph_ready" != true ]; then
-        log_error "LangGraph failed to become ready within $((max_retries * 2)) seconds."
-        log_info "Check LangGraph logs with: docker logs langgraph-server --tail 50"
-        return 1
-    fi
-
-    # Wait for NETTRADES UI (on port 3002)
-    log_info "Waiting for NETTRADES UI to become ready..."
-    local ui_ready=false
+    # -----------------------------------------------------------------------------
+    # Wait for Dynamo to be ready
+    # -----------------------------------------------------------------------------
+    log_step "Waiting for Dynamo to be ready..."
     for i in {1..60}; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:3002/ 2>/dev/null | grep -q "200"; then
-            ui_ready=true
-            log_success "NETTRADES UI is ready"
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models | grep -q "200"; then
+            log_success "Dynamo is ready"
             break
         fi
         sleep 2
     done
-    if [ "$ui_ready" != true ]; then
-        log_warning "NETTRADES UI did not become ready within 2 minutes. Check logs."
+
+    # =============================================================================
+    # 10. DYNAMO SETUP
+    # =============================================================================
+    log_step "Configuring NVIDIA Dynamo..."
+
+    if [[ -z "${DYNAMO_API_KEY:-}" ]]; then
+        DYNAMO_API_KEY=$(generate_safe_password)
+        safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
+        export DYNAMO_API_KEY
+        log_info "Generated DYNAMO_API_KEY and updated .env"
+    fi
+
+    log_step "Waiting for Dynamo to be ready..."
+    DYNAMO_HEALTHY=false
+    for i in {1..30}; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
+            -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
+            DYNAMO_HEALTHY=true
+            log_success "Dynamo is ready"
+            break
+        fi
+        sleep 2
+    done
+
+    if [[ "$DYNAMO_HEALTHY" == false ]]; then
+        log_warning "Dynamo is not responding. Will use llama.cpp fallback."
     else
-        log_success "NETTRADES UI is healthy"
-    fi
-
-    # If Grove was started, check it
-    if [[ "${WITH_GROVE:-false}" == "true" ]]; then
-        log_info "Checking Grove health..."
-        for i in {1..30}; do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/health 2>/dev/null | grep -q "200"; then
-                log_success "Grove is healthy"
-                break
-            fi
-            sleep 2
-        done
-    fi
-
-    # If KAI Scheduler was started, check it
-    if [[ "${WITH_KAI:-false}" == "true" ]]; then
-        log_info "Checking KAI Scheduler health..."
-        for i in {1..30}; do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:9091/health 2>/dev/null | grep -q "200"; then
-                log_success "KAI Scheduler is healthy"
-                break
-            fi
-            sleep 2
-        done
-    fi
-
-    log_success "All services are healthy"
-    return 0
-}
-
-if validate_deployment; then
-    log_success "Deployment validation passed"
-else
-    log_error "Deployment validation failed. Check logs."
-    exit 1
-fi
-
-# -----------------------------------------------------------------------------
-# Wait for Dynamo to be ready and download models
-# -----------------------------------------------------------------------------
-log_step "Waiting for Dynamo to be ready..."
-for i in {1..60}; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models | grep -q "200"; then
-        log_success "Dynamo is ready"
-        break
-    fi
-    sleep 2
-done
-
-# =============================================================================
-# 10. DYNAMO SETUP – Fully Automated, No Login Required
-# =============================================================================
-log_step "Configuring NVIDIA Dynamo..."
-
-if [[ -z "${DYNAMO_API_KEY:-}" ]]; then
-    DYNAMO_API_KEY=$(generate_safe_password)
-    safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
-    export DYNAMO_API_KEY
-    log_info "Generated DYNAMO_API_KEY and updated .env"
-fi
-
-log_step "Waiting for Dynamo to be ready..."
-DYNAMO_HEALTHY=false
-for i in {1..30}; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
-        -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
-        DYNAMO_HEALTHY=true
-        log_success "Dynamo is ready"
-        break
-    fi
-    sleep 2
-done
-
-# If Dynamo is not healthy and we have a model, attempt to register it (optional)
-if [[ "$DYNAMO_HEALTHY" == false ]]; then
-    log_warning "Dynamo is not responding. Will use llama.cpp fallback."
-else
-    # Check if Dynamo reports any models
-    MODEL_LIST=$(curl -s -H "Authorization: Bearer $DYNAMO_API_KEY" http://localhost:8001/v1/models)
-    if echo "$MODEL_LIST" | grep -q '"data":\[\]'; then
-        log_warning "Dynamo has no models registered."
-        # Try to restart Dynamo to trigger file discovery
-        log_info "Restarting Dynamo to pick up model files..."
-        docker compose restart dynamo
-        sleep 10
-        # Re-check after restart
         MODEL_LIST=$(curl -s -H "Authorization: Bearer $DYNAMO_API_KEY" http://localhost:8001/v1/models)
         if echo "$MODEL_LIST" | grep -q '"data":\[\]'; then
-            log_warning "Dynamo still has no models. Falling back to llama.cpp."
-            DYNAMO_HEALTHY=false
+            log_warning "Dynamo has no models registered."
+            log_info "Restarting Dynamo to pick up model files..."
+            docker compose restart dynamo
+            sleep 10
+            MODEL_LIST=$(curl -s -H "Authorization: Bearer $DYNAMO_API_KEY" http://localhost:8001/v1/models)
+            if echo "$MODEL_LIST" | grep -q '"data":\[\]'; then
+                log_warning "Dynamo still has no models. Falling back to llama.cpp."
+                DYNAMO_HEALTHY=false
+            else
+                log_success "Dynamo now has models loaded after restart."
+            fi
         else
-            log_success "Dynamo now has models loaded after restart."
+            log_success "Dynamo has models loaded."
         fi
+    fi
+
+    # -----------------------------------------------------------------------------
+    # Determine inference backend
+    # -----------------------------------------------------------------------------
+    log_step "Determining inference backend..."
+
+    if [[ "$DYNAMO_HEALTHY" == true ]]; then
+        log_success "Dynamo is healthy. Using Dynamo as the primary inference backend."
+        LLM_BASE_URL="http://dynamo:8000/v1"
+        OPENAI_API_KEY="$DYNAMO_API_KEY"
     else
-        log_success "Dynamo has models loaded."
+        log_warning "Dynamo not available or not ready. Falling back to llama.cpp (CPU)."
+        LLM_BASE_URL="http://llama-cpp:8080/v1"
+        OPENAI_API_KEY="dummy"
     fi
-fi
 
-# NOTE: The GGUF model for llama.cpp was downloaded earlier (before building images).
-# The container will use that model if available.
+    safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
+    safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
+    safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
+    log_success ".env updated with inference backend settings"
 
-# -----------------------------------------------------------------------------
-# Determine inference backend
-# -----------------------------------------------------------------------------
-log_step "Determining inference backend..."
+    log_step "Restarting LangGraph to apply new inference settings..."
 
-if [[ "$DYNAMO_HEALTHY" == true ]]; then
-    log_success "Dynamo is healthy. Using Dynamo as the primary inference backend."
-    LLM_BASE_URL="http://dynamo:8000/v1"
-    OPENAI_API_KEY="$DYNAMO_API_KEY"
-else
-    log_warning "Dynamo not available or not ready. Falling back to llama.cpp (CPU)."
-    LLM_BASE_URL="http://llama-cpp:8080/v1"
-    OPENAI_API_KEY="dummy"
-fi
-
-safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
-safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
-safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
-log_success ".env updated with inference backend settings"
-
-log_step "Restarting LangGraph to apply new inference settings..."
-
-# -----------------------------------------------------------------
-# FIX: Robust restart of langgraph-server with timeout and fallback
-# -----------------------------------------------------------------
-if ! timeout 120s docker compose restart langgraph-server; then
-    log_warning "Timeout or failure restarting langgraph-server. Attempting to recreate..."
-    docker compose stop langgraph-server
-    docker compose rm -f langgraph-server
-    docker compose up -d langgraph-server
-    log_info "LangGraph container recreated."
-else
-    log_success "LangGraph restarted successfully."
-fi
-
-# Wait a moment for LangGraph to settle
-sleep 5
-
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
-       -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
-    log_success "Dynamo is healthy. Using Dynamo as the primary inference backend."
-    LLM_BASE_URL="http://dynamo:8000/v1"
-    OPENAI_API_KEY="$DYNAMO_API_KEY"
-else
-    log_warning "Dynamo not available or not ready. Falling back to llama.cpp (CPU)."
-    LLM_BASE_URL="http://llama-cpp:8080/v1"
-    OPENAI_API_KEY="dummy"
-fi
-
-log_step "Updating .env with inference backend settings..."
-safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
-safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
-log_success ".env updated"
-
-log_step "Restarting LangGraph..."
-# Use the same robust method again
-if ! timeout 120s docker compose restart langgraph-server; then
-    log_warning "Timeout or failure restarting langgraph-server. Attempting to recreate..."
-    docker compose stop langgraph-server
-    docker compose rm -f langgraph-server
-    docker compose up -d langgraph-server
-    log_info "LangGraph container recreated."
-else
-    log_success "LangGraph restarted successfully."
-fi
-
-# -----------------------------------------------------------------------------
-# 11. Install NETTRADES Odoo modules
-# -----------------------------------------------------------------------------
-log_step "Installing NETTRADES Odoo modules..."
-
-log_info "Waiting for Odoo to be ready..."
-for i in {1..30}; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
-        log_success "Odoo is ready"
-        break
+    if ! timeout 120s docker compose restart langgraph-server; then
+        log_warning "Timeout or failure restarting langgraph-server. Attempting to recreate..."
+        docker compose stop langgraph-server
+        docker compose rm -f langgraph-server
+        docker compose up -d langgraph-server
+        log_info "LangGraph container recreated."
+    else
+        log_success "LangGraph restarted successfully."
     fi
-    sleep 2
-done
 
-log_info "Testing database connection..."
-if ! docker compose exec -T odoo odoo -d odoo --db_host=postgres --db_port=5432 --db_user=odoo --db_password="$POSTGRES_PASSWORD" --stop-after-init --log-level=error 2>/dev/null; then
-    log_error "Odoo cannot connect to PostgreSQL. Please check the password."
-    log_error "Current .env password: $POSTGRES_PASSWORD"
-    log_error "Try: docker compose exec odoo odoo -d odoo --db_host=postgres --db_user=odoo --db_password=... --stop-after-init"
-    exit 1
-fi
+    sleep 5
 
-if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
+           -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
+        log_success "Dynamo is healthy. Using Dynamo as the primary inference backend."
+        LLM_BASE_URL="http://dynamo:8000/v1"
+        OPENAI_API_KEY="$DYNAMO_API_KEY"
+    else
+        log_warning "Dynamo not available or not ready. Falling back to llama.cpp (CPU)."
+        LLM_BASE_URL="http://llama-cpp:8080/v1"
+        OPENAI_API_KEY="dummy"
+    fi
+
+    log_step "Updating .env with inference backend settings..."
+    safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
+    safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
+    log_success ".env updated"
+
+    log_step "Restarting LangGraph..."
+    if ! timeout 120s docker compose restart langgraph-server; then
+        log_warning "Timeout or failure restarting langgraph-server. Attempting to recreate..."
+        docker compose stop langgraph-server
+        docker compose rm -f langgraph-server
+        docker compose up -d langgraph-server
+        log_info "LangGraph container recreated."
+    else
+        log_success "LangGraph restarted successfully."
+    fi
+
+    # -----------------------------------------------------------------------------
+    # 11. Install NETTRADES Odoo modules
+    # -----------------------------------------------------------------------------
     log_step "Installing NETTRADES Odoo modules..."
-    ARGS=""
-    [[ "$FORCE" == true ]] && ARGS="$ARGS --force"
-    [[ "$UPGRADE" == true ]] && ARGS="$ARGS --upgrade"
-    [[ "$AUTO" == true ]] && ARGS="$ARGS --auto"
-    bash "$SCRIPT_DIR/install-modules.sh" $ARGS
-else
-    log_warning "install-modules.sh not found – skipping module installation"
-fi
 
-# -----------------------------------------------------------------------------
-# 12. Create emergency Odoo user and multiple fallback options
-# -----------------------------------------------------------------------------
-log_step "Creating emergency access options..."
+    log_info "Waiting for Odoo to be ready..."
+    for i in {1..30}; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
+            log_success "Odoo is ready"
+            break
+        fi
+        sleep 2
+    done
 
-# Determine emergency directory based on user
-if [ "$EUID" -eq 0 ]; then
-    EMERGENCY_DIR="/root/emergency_access"
-else
-    EMERGENCY_DIR="$HOME/.nettrades/emergency"
-fi
+    log_info "Testing database connection..."
+    if ! docker compose exec -T odoo odoo -d odoo --db_host=postgres --db_port=5432 --db_user=odoo --db_password="$POSTGRES_PASSWORD" --stop-after-init --log-level=error 2>/dev/null; then
+        log_error "Odoo cannot connect to PostgreSQL. Please check the password."
+        log_error "Current .env password: $POSTGRES_PASSWORD"
+        log_error "Try: docker compose exec odoo odoo -d odoo --db_host=postgres --db_user=odoo --db_password=... --stop-after-init"
+        exit 1
+    fi
 
-mkdir -p "$EMERGENCY_DIR"
-EMERGENCY_PASSWORD=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-24)
-# Set a 4-hour validity window from now
-VALID_UNTIL=$(date -d "+${EMERGENCY_ACCESS_DURATION} hours" '+%Y-%m-%d %H:%M:%S')
+    if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
+        log_step "Installing NETTRADES Odoo modules..."
+        ARGS=""
+        [[ "$FORCE" == true ]] && ARGS="$ARGS --force"
+        [[ "$UPGRADE" == true ]] && ARGS="$ARGS --upgrade"
+        [[ "$AUTO" == true ]] && ARGS="$ARGS --auto"
+        bash "$SCRIPT_DIR/install-modules.sh" $ARGS
+    else
+        log_warning "install-modules.sh not found – skipping module installation"
+    fi
 
-# Create dedicated table and audit log, then insert the emergency user
-docker compose exec -T postgres psql -U odoo -d odoo <<EOF
--- Create a dedicated table for emergency access
+    # -----------------------------------------------------------------------------
+    # 12. Create emergency Odoo user and multiple fallback options
+    # -----------------------------------------------------------------------------
+    log_step "Creating emergency access options..."
+
+    if [ "$EUID" -eq 0 ]; then
+        EMERGENCY_DIR="/root/emergency_access"
+    else
+        EMERGENCY_DIR="$HOME/.nettrades/emergency"
+    fi
+
+    mkdir -p "$EMERGENCY_DIR"
+    EMERGENCY_PASSWORD=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-24)
+    VALID_UNTIL=$(date -d "+${EMERGENCY_ACCESS_DURATION} hours" '+%Y-%m-%d %H:%M:%S')
+
+    docker compose exec -T postgres psql -U odoo -d odoo <<EOF
 CREATE TABLE IF NOT EXISTS nettrades_emergency_users (
     id SERIAL PRIMARY KEY,
     login VARCHAR(64) UNIQUE NOT NULL,
@@ -1685,7 +1741,6 @@ CREATE TABLE IF NOT EXISTS nettrades_emergency_users (
     last_used TIMESTAMP
 );
 
--- Create an audit log for emergency sessions
 CREATE TABLE IF NOT EXISTS nettrades_emergency_audit (
     id SERIAL PRIMARY KEY,
     login VARCHAR(64) NOT NULL,
@@ -1694,21 +1749,18 @@ CREATE TABLE IF NOT EXISTS nettrades_emergency_audit (
     performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert the emergency user with a validity set in .env as EMERGENCY_ACCESS_DURATION
 INSERT INTO nettrades_emergency_users (login, password_hash, valid_until)
 VALUES ('emergency', crypt('$EMERGENCY_PASSWORD', gen_salt('bf')), '$VALID_UNTIL')
 ON CONFLICT (login) DO NOTHING;
 EOF
 
-# Store credentials
-echo "ODOO_EMERGENCY_PASSWORD=$EMERGENCY_PASSWORD" > "$EMERGENCY_DIR/credentials.txt"
-chmod 600 "$EMERGENCY_DIR/credentials.txt"
+    echo "ODOO_EMERGENCY_PASSWORD=$EMERGENCY_PASSWORD" > "$EMERGENCY_DIR/credentials.txt"
+    chmod 600 "$EMERGENCY_DIR/credentials.txt"
 
-log_success "Emergency credentials stored in: $EMERGENCY_DIR/credentials.txt"
-log_info "Emergency user 'emergency' is valid for ${EMERGENCY_ACCESS_DURATION} hours (until: $VALID_UNTIL)"
+    log_success "Emergency credentials stored in: $EMERGENCY_DIR/credentials.txt"
+    log_info "Emergency user 'emergency' is valid for ${EMERGENCY_ACCESS_DURATION} hours (until: $VALID_UNTIL)"
 
-# Create admin password reset script (also use EMERGENCY_DIR)
-cat > "$EMERGENCY_DIR/reset_admin_password.sh" << 'EOF'
+    cat > "$EMERGENCY_DIR/reset_admin_password.sh" << 'EOF'
 #!/bin/bash
 read -sp "Enter new admin password: " new_password
 docker compose exec -T postgres psql -U odoo -d odoo <<SQL
@@ -1717,223 +1769,220 @@ WHERE login = 'admin';
 SQL
 echo "Admin password updated successfully"
 EOF
-chmod +x "$EMERGENCY_DIR/reset_admin_password.sh"
-chmod 600 "$EMERGENCY_DIR/reset_admin_password.sh"
+    chmod +x "$EMERGENCY_DIR/reset_admin_password.sh"
+    chmod 600 "$EMERGENCY_DIR/reset_admin_password.sh"
 
-log_success "Emergency access configured:"
-echo ""
-echo "============================================================"
-echo " EMERGENCY ACCESS OPTIONS"
-echo "============================================================"
-echo "1. Odoo Emergency User:      login='emergency'"
-echo "   Password: $EMERGENCY_DIR/credentials.txt"
-echo "   Valid until: $VALID_UNTIL"
-echo "2. Rescue SSH:               ssh -p 2222 localhost (password auth)"
-echo "3. Admin Password Reset:     $EMERGENCY_DIR/reset_admin_password.sh"
-echo "============================================================"
+    log_success "Emergency access configured:"
+    echo ""
+    echo "============================================================"
+    echo " EMERGENCY ACCESS OPTIONS"
+    echo "============================================================"
+    echo "1. Odoo Emergency User:      login='emergency'"
+    echo "   Password: $EMERGENCY_DIR/credentials.txt"
+    echo "   Valid until: $VALID_UNTIL"
+    echo "2. Rescue SSH:               ssh -p 2222 localhost (password auth)"
+    echo "3. Admin Password Reset:     $EMERGENCY_DIR/reset_admin_password.sh"
+    echo "============================================================"
 
-# -----------------------------------------------------------------------------
-# 13. Set up cron for daily backups
-# -----------------------------------------------------------------------------
-log_step "Setting up cron for daily backups..."
+    # -----------------------------------------------------------------------------
+    # 13. Set up cron for daily backups
+    # -----------------------------------------------------------------------------
+    log_step "Setting up cron for daily backups..."
 
-BACKUP_SCRIPT="$DEPLOY_DIR/backup.sh"
-if [[ -f "$BACKUP_SCRIPT" ]]; then
-    if command -v crontab &>/dev/null; then
-        (crontab -l 2>/dev/null | grep -v "$BACKUP_SCRIPT" || echo "") > /tmp/cron.tmp
-        echo "0 2 * * * $BACKUP_SCRIPT >> $LOGS_DIR/backup.log 2>&1" >> /tmp/cron.tmp
-        crontab /tmp/cron.tmp
-        rm /tmp/cron.tmp
-        log_success "Cron backup scheduled at 2 AM daily"
+    BACKUP_SCRIPT="$DEPLOY_DIR/backup.sh"
+    if [[ -f "$BACKUP_SCRIPT" ]]; then
+        if command -v crontab &>/dev/null; then
+            (crontab -l 2>/dev/null | grep -v "$BACKUP_SCRIPT" || echo "") > /tmp/cron.tmp
+            echo "0 2 * * * $BACKUP_SCRIPT >> $LOGS_DIR/backup.log 2>&1" >> /tmp/cron.tmp
+            crontab /tmp/cron.tmp
+            rm /tmp/cron.tmp
+            log_success "Cron backup scheduled at 2 AM daily"
+        else
+            log_warning "crontab not found – skipping cron setup"
+        fi
     else
-        log_warning "crontab not found – skipping cron setup"
+        log_warning "backup.sh not found – skipping cron setup"
     fi
-else
-    log_warning "backup.sh not found – skipping cron setup"
-fi
 
-# -----------------------------------------------------------------------------
-# 14. Final health checks
-# -----------------------------------------------------------------------------
-log_step "Verifying service health..."
-sleep 10
+    # -----------------------------------------------------------------------------
+    # 14. Final health checks
+    # -----------------------------------------------------------------------------
+    log_step "Verifying service health..."
+    sleep 10
 
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
-    log_success "Odoo is healthy"
-else
-    log_warning "Odoo health check failed – please check logs"
-fi
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8069 | grep -q "200\|302"; then
+        log_success "Odoo is healthy"
+    else
+        log_warning "Odoo health check failed – please check logs"
+    fi
 
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
-    log_success "LangGraph is healthy"
-else
-    log_warning "LangGraph health check failed – please check logs"
-fi
-
-if docker compose exec -T postgres pg_isready -U odoo &>/dev/null; then
-    log_success "PostgreSQL is healthy"
-else
-    log_warning "PostgreSQL health check failed – please check logs"
-fi
-
-log_step "Waiting for LangGraph Server to be ready..."
-for i in {1..30}; do
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
-        log_success "LangGraph Server is ready"
-        break
-    fi
-    sleep 2
-done
-
-# NOTE: agent-chat-ui and copilotkit-frontend have been replaced by NETTRADES-UI.
-# The health check for the frontend is now handled inside validate_deployment.
-
-# =============================================================================
-# 15. Ensure Let's Encrypt certificate
-# =============================================================================
-ensure_letsencrypt_certificate() {
-    local domain="${DOMAIN:-nettrades.ai}"
-    local acme_file="$DEPLOY_DIR/traefik-data/acme.json"
-    local max_attempts=6
-    local attempt=1
-
-    log_step "Ensuring Let's Encrypt certificate for domain: $domain"
-
-    if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$domain" == "localhost" ]]; then
-        log_warning "DOMAIN is an IP or localhost – Let's Encrypt cannot issue certificates."
-        log_info "Using self-signed certificate. Your browser will show a warning."
-        log_info "To use Let's Encrypt, set DOMAIN to a valid domain name with DNS resolution."
-        return 0
+        log_success "LangGraph is healthy"
+    else
+        log_warning "LangGraph health check failed – please check logs"
     fi
 
-    if [[ "${USE_LETSENCRYPT:-true}" == "false" ]]; then
-        log_info "Let's Encrypt disabled. Using self-signed certificate."
-        return 0
+    if docker compose exec -T postgres pg_isready -U odoo &>/dev/null; then
+        log_success "PostgreSQL is healthy"
+    else
+        log_warning "PostgreSQL health check failed – please check logs"
     fi
 
-    if [[ -f "$acme_file" ]] && grep -q '"Certificate"' "$acme_file"; then
-        log_success "Certificate already exists in $acme_file"
-        expire_date=$(grep -o '"notAfter":"[^"]*"' "$acme_file" | head -1 | cut -d'"' -f4 | cut -d'T' -f1)
-        if [[ -n "$expire_date" ]]; then
-            log_info "Certificate expires on: $expire_date"
-        fi
-        return 0
-    fi
-
-    log_info "Certificate not found or invalid. Triggering certificate request..."
-    mkdir -p "$DEPLOY_DIR/traefik-data"
-    chmod 755 "$DEPLOY_DIR/traefik-data"
-
-    if [[ -f "$acme_file" ]]; then
-        sudo rm -f "$acme_file"
-        log_info "Removed old acme.json"
-    fi
-
-    docker compose restart traefik
-
-    while [[ $attempt -le $max_attempts ]]; do
-        log_info "Checking for certificate (attempt $attempt/$max_attempts)..."
-        sleep 15
-
-        if [[ -f "$acme_file" ]] && grep -q '"Certificate"' "$acme_file"; then
-            log_success "Certificate successfully obtained!"
-            docker compose restart traefik
-            return 0
-        fi
-
-        if docker compose logs traefik 2>/dev/null | grep -q "acme: error"; then
-            log_error "ACME error detected. Check Traefik logs for details."
-            log_info "Common issues: domain not resolving, port 80 blocked, rate limiting."
-            log_info "You may need to accept the self-signed certificate in your browser for now."
-            break
-        fi
-
-        attempt=$((attempt + 1))
-    done
-
-    log_warning "Certificate could not be obtained after $max_attempts attempts."
-    log_warning "The site will still work with the self-signed certificate, but your browser will show a warning."
-    log_info "You can manually force a renewal by running:"
-    echo "  cd $DEPLOY_DIR && sudo rm -f traefik-data/acme.json && docker compose restart traefik"
-}
-
-ensure_letsencrypt_certificate
-
-# -----------------------------------------------------------------------------
-# 16. Reset Grafana admin password (using correct syntax)
-# -----------------------------------------------------------------------------
-# In phase-deploy.sh, around the "Reset Grafana admin password" section:
-log_step "Resetting Grafana admin password..."
-if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
-    # Wait for Grafana to be ready (health check)
+    log_step "Waiting for LangGraph Server to be ready..."
     for i in {1..30}; do
-        if curl -s -f -o /dev/null http://localhost:3001/api/health; then
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
+            log_success "LangGraph Server is ready"
             break
         fi
         sleep 2
     done
-    # Reset password with retries
-    for i in {1..5}; do
-        if docker exec grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
-            log_success "Grafana password reset successfully"
-            break
+
+    # =============================================================================
+    # 15. Ensure Let's Encrypt certificate
+    # =============================================================================
+    ensure_letsencrypt_certificate() {
+        local domain="${DOMAIN:-nettrades.ai}"
+        local acme_file="$DEPLOY_DIR/traefik-data/acme.json"
+        local max_attempts=6
+        local attempt=1
+
+        log_step "Ensuring Let's Encrypt certificate for domain: $domain"
+
+        if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$domain" == "localhost" ]]; then
+            log_warning "DOMAIN is an IP or localhost – Let's Encrypt cannot issue certificates."
+            log_info "Using self-signed certificate. Your browser will show a warning."
+            log_info "To use Let's Encrypt, set DOMAIN to a valid domain name with DNS resolution."
+            return 0
         fi
-        sleep 3
-    done
-else
-    log_warning "GRAFANA_PASSWORD not set – skipping password reset"
-fi
 
-# -----------------------------------------------------------------------------
-# 17. Start Self-Improving Service
-# -----------------------------------------------------------------------------
-log_step "Starting self-improving service..."
-if docker compose ps -q self-improving &>/dev/null; then
-    # Ensure the self-improving container is running (it may have been started with the main stack)
-    docker compose up -d self-improving
-    log_success "Self-improving service started"
-else
-    log_warning "Self-improving service not defined in docker-compose.yaml – skipping"
-fi
+        if [[ "${USE_LETSENCRYPT:-true}" == "false" ]]; then
+            log_info "Let's Encrypt disabled. Using self-signed certificate."
+            return 0
+        fi
 
-# -----------------------------------------------------------------------------
-# 18. Display final status
-# -----------------------------------------------------------------------------
-cd "$PROJECT_ROOT"
-mark_phase_complete 2
-touch /tmp/nettrades-phase2-completed
+        if [[ -f "$acme_file" ]] && grep -q '"Certificate"' "$acme_file"; then
+            log_success "Certificate already exists in $acme_file"
+            expire_date=$(grep -o '"notAfter":"[^"]*"' "$acme_file" | head -1 | cut -d'"' -f4 | cut -d'T' -f1)
+            if [[ -n "$expire_date" ]]; then
+                log_info "Certificate expires on: $expire_date"
+            fi
+            return 0
+        fi
 
-log_success "Phase 2 completed – Docker stack deployed with all modules"
-echo ""
-echo "============================================================"
-echo " NETTRADES Platform is now running!"
-echo "============================================================"
-echo ""
-docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-echo ""
-echo "Access the services:"
-echo "  Frontend (UI): http://localhost:3002 (or http://nettrades.ai:3002)"
-echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
-if [[ "${WITH_GROVE:-false}" == "true" ]]; then
-    echo "  Grove:     http://localhost:8081  (observability dashboard)"
-    echo "  Loki:      http://localhost:3100  (logs)"
-    echo "  Tempo:     http://localhost:3200  (traces)"
-fi
-if [[ "${WITH_KAI:-false}" == "true" ]]; then
-    echo "  KAI Scheduler: http://localhost:9091  (GPU scheduling)"
-fi
-echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"
-echo "  Prometheus: http://localhost:9090 (admin / password in .env PROMETHEUS_PASSWORD)"
-echo "  Dynamo:    http://localhost:8001  (primary inference, API key in .env DYNAMO_API_KEY)"
-echo "  llama.cpp: http://localhost:8080  (fallback inference, includes built-in UI)"
-if [[ "${WITH_FINETUNE:-false}" == "true" ]]; then
-    echo "  Training Worker: http://localhost:8002  (fine-tuning API)"
-fi
-echo ""
-echo "Emergency Odoo user: emergency (password in /root/emergency_password.txt)"
-echo "Use this if you get locked out of admin."
-if [[ "$ENVIRONMENT" == "production" ]]; then
+        log_info "Certificate not found or invalid. Triggering certificate request..."
+        mkdir -p "$DEPLOY_DIR/traefik-data"
+        chmod 755 "$DEPLOY_DIR/traefik-data"
+
+        if [[ -f "$acme_file" ]]; then
+            sudo rm -f "$acme_file"
+            log_info "Removed old acme.json"
+        fi
+
+        docker compose restart traefik
+
+        while [[ $attempt -le $max_attempts ]]; do
+            log_info "Checking for certificate (attempt $attempt/$max_attempts)..."
+            sleep 15
+
+            if [[ -f "$acme_file" ]] && grep -q '"Certificate"' "$acme_file"; then
+                log_success "Certificate successfully obtained!"
+                docker compose restart traefik
+                return 0
+            fi
+
+            if docker compose logs traefik 2>/dev/null | grep -q "acme: error"; then
+                log_error "ACME error detected. Check Traefik logs for details."
+                log_info "Common issues: domain not resolving, port 80 blocked, rate limiting."
+                log_info "You may need to accept the self-signed certificate in your browser for now."
+                break
+            fi
+
+            attempt=$((attempt + 1))
+        done
+
+        log_warning "Certificate could not be obtained after $max_attempts attempts."
+        log_warning "The site will still work with the self-signed certificate, but your browser will show a warning."
+        log_info "You can manually force a renewal by running:"
+        echo "  cd $DEPLOY_DIR && sudo rm -f traefik-data/acme.json && docker compose restart traefik"
+    }
+
+    ensure_letsencrypt_certificate
+
+    # -----------------------------------------------------------------------------
+    # 16. Reset Grafana admin password
+    # -----------------------------------------------------------------------------
+    log_step "Resetting Grafana admin password..."
+    if [[ -n "${GRAFANA_PASSWORD:-}" ]]; then
+        for i in {1..30}; do
+            if curl -s -f -o /dev/null http://localhost:3001/api/health; then
+                break
+            fi
+            sleep 2
+        done
+        for i in {1..5}; do
+            if docker exec grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" &>/dev/null; then
+                log_success "Grafana password reset successfully"
+                break
+            fi
+            sleep 3
+        done
+    else
+        log_warning "GRAFANA_PASSWORD not set – skipping password reset"
+    fi
+
+    # -----------------------------------------------------------------------------
+    # 17. Start Self-Improving Service
+    # -----------------------------------------------------------------------------
+    log_step "Starting self-improving service..."
+    if docker compose ps -q self-improving &>/dev/null; then
+        docker compose up -d self-improving
+        log_success "Self-improving service started"
+    else
+        log_warning "Self-improving service not defined in docker-compose.yaml – skipping"
+    fi
+
+    # -----------------------------------------------------------------------------
+    # 18. Display final status
+    # -----------------------------------------------------------------------------
+    cd "$PROJECT_ROOT"
+    mark_phase_complete 2
+    touch /tmp/nettrades-phase2-completed
+
+    log_success "Phase 2 completed – Docker stack deployed with all modules"
     echo ""
-    echo "Production mode: SSH is key-only on port 22. Use port 2222 for password auth."
-    echo "SSH keys are stored in: $PROJECT_ROOT/ssh-keys/"
-fi
+    echo "============================================================"
+    echo " NETTRADES Platform is now running!"
+    echo "============================================================"
+    echo ""
+    docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+    echo ""
+    echo "Access the services:"
+    echo "  Frontend (UI): http://localhost:3002 (or http://nettrades.ai:3002)"
+    echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
+    if [[ "${WITH_GROVE:-false}" == "true" ]]; then
+        echo "  Grove:     http://localhost:8081  (observability dashboard)"
+        echo "  Loki:      http://localhost:3100  (logs)"
+        echo "  Tempo:     http://localhost:3200  (traces)"
+    fi
+    if [[ "${WITH_KAI:-false}" == "true" ]]; then
+        echo "  KAI Scheduler: http://localhost:9091  (GPU scheduling)"
+    fi
+    echo "  Grafana:   http://localhost:3001  (admin / password in .env GRAFANA_PASSWORD)"
+    echo "  Prometheus: http://localhost:9090 (admin / password in .env PROMETHEUS_PASSWORD)"
+    echo "  Dynamo:    http://localhost:8001  (primary inference, API key in .env DYNAMO_API_KEY)"
+    echo "  llama.cpp: http://localhost:8080  (fallback inference, includes built-in UI)"
+    if [[ "${WITH_FINETUNE:-false}" == "true" ]]; then
+        echo "  Training Worker: http://localhost:8002  (fine-tuning API)"
+    fi
+    echo ""
+    echo "Emergency Odoo user: emergency (password in /root/emergency_password.txt)"
+    echo "Use this if you get locked out of admin."
+    if [[ "$ENVIRONMENT" == "production" ]]; then
+        echo ""
+        echo "Production mode: SSH is key-only on port 22. Use port 2222 for password auth."
+        echo "SSH keys are stored in: $PROJECT_ROOT/ssh-keys/"
+    fi
+
+fi # end of HUB mode
+
+# End of script
