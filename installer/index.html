@@ -1409,12 +1409,11 @@
                 }
             } catch (e) { console.error('Failed to check platform setup:', e); }
 
-            // Load initial data – do NOT block on VPN status
+            // Load initial data – do NOT call refreshVPN() on startup to avoid sudo prompt
             await refreshModels();
             await refreshGPUs();
             await refreshContainers();
-            // Non-blocking VPN status check – prevents sudo hang
-            refreshVPN().catch(() => console.warn('VPN status check failed (sudo may be required)'));
+            // VPN status is loaded only when the VPN tab is opened (see switchTab).
 
             // Setup IPC listeners
             setupIpcListeners();
