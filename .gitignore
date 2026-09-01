@@ -197,4 +197,24 @@ installer/build/
 !installer/build/icon.png
 !installer/build/icon.ico
 
+# -----------------------------------------------------------------------------
+# Any stray launcher binaries copied elsewhere
+# -----------------------------------------------------------------------------
+deploy/docker/electron/
+deploy/docker/nettrades-launcher*/
+deploy/docker/*.exe
+deploy/docker/*.AppImage
+deploy/docker/*.deb
+deploy/docker/*.dmg
+
+# -----------------------------------------------------------------------------
+# Standard binary/archive exclusions
+# -----------------------------------------------------------------------------
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.deb
+*.tar.gz
+*.zip
 
