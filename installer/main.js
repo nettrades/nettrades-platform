@@ -675,6 +675,106 @@ ipcMain.handle('run-quick-setup', async (event) => {
     });
 });
 
+
+// =============================================================================
+// GPU Node Management (local registration)
+// =============================================================================
+
+// In-memory store for GPU nodes and jobs (for development)
+let gpuNodes = [];
+let inferenceJobs = [];
+let jobIdCounter = 0;
+
+ipcMain.handle('proxy-get-gpu-nodes', () => {
+    // Return local GPU nodes (from file or memory)
+    return { success: true, data: gpuNodes };
+});
+
+ipcMain.handle('proxy-register-gpu-node', (event, nodeData) => {
+    // Add a new GPU node
+    const newNode = {
+        id: `gpu-${Date.now()}`,
+        ...nodeData,
+        status: nodeData.status || 'available',
+        registeredAt: new Date().toISOString(),
+        last_heartbeat: new Date().toISOString(),
+    };
+    gpuNodes.push(newNode);
+    logInfo(`GPU node registered: ${newNode.name}`);
+    return { success: true, data: newNode };
+});
+
+ipcMain.handle('proxy-create-job', (event, jobData) => {
+    // Create a new inference job
+    const job = {
+        id: `job-${++jobIdCounter}`,
+        ...jobData,
+        status: 'pending',
+        created: new Date().toISOString(),
+        result: null,
+    };
+    inferenceJobs.push(job);
+    logInfo(`Job created: ${job.id}`);
+    // Simulate job processing (in a real system, this would trigger an agent)
+    setTimeout(() => {
+        const j = inferenceJobs.find(j => j.id === job.id);
+        if (j) {
+            j.status = 'completed';
+            j.result = `Processed prompt: ${jobData.prompt || ''}`;
+            logInfo(`Job ${job.id} completed`);
+        }
+    }, 2000);
+    return { success: true, data: job };
+});
+
+ipcMain.handle('proxy-get-job', (event, jobId) => {
+    const job = inferenceJobs.find(j => j.id === jobId);
+    if (job) {
+        return { success: true, data: job };
+    }
+    return { success: false, error: 'Job not found' };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VPN Remove Peer
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('vpn-remove-peer', async (event, username) => {
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'wireguard-manager.sh');
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `WireGuard script not found: ${scriptPath}` };
+    }
+    return new Promise((resolve) => {
+        const cmd = `sudo ${scriptPath} remove ${username}`;
+        logInfo(`Removing WireGuard peer: ${username}`);
+        exec(cmd, { cwd: PROJECT_ROOT }, (error, stdout, stderr) => {
+            if (error) {
+                logError(`WireGuard peer removal failed: ${stderr}`);
+                resolve({ success: false, error: stderr || error.message });
+            } else {
+                logSuccess(`WireGuard peer removed: ${username}`);
+                resolve({ success: true, output: stdout });
+            }
+        });
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Platform Status (combines Docker status and service health)
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-platform-status', async () => {
+    // Get Docker compose status
+    const dockerStatus = await getDockerStatus();
+    // Get system health
+    const health = await ipcMain.handle('system-health');
+    return {
+        running: dockerStatus.running,
+        services: dockerStatus.services || [],
+        health: health.services || {},
+    };
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // List Emergency Audit
 // ─────────────────────────────────────────────────────────────────────────────

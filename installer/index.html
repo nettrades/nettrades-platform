@@ -154,6 +154,11 @@
             background: rgba(10, 10, 15, 0.5);
         }
 
+        /* ─── Tabs ─── */
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
         /* ─── Common Components ─── */
         .btn {
             padding: 8px 20px;
@@ -1317,6 +1322,11 @@
         </div>
     </div>
 
+    <script src="modules.js"></script>
+    <script>
+      window.modules = require('./modules.js').MODULES;
+    </script>
+
     <script>
         // =========================================================================
         // NETTRADES Launcher – Full Renderer Logic
@@ -1351,6 +1361,11 @@
             deploymentMode: 'hub',
             version: '1.0.0',
             logs: '',
+            isPlatformSetup: false,
+            selectedProfile: null,
+            selectedPhases: [],
+            selectedTenantType: 'enterprise',
+            isInstalling: false,
         };
 
         // ─── DOM Ready ───
@@ -2639,6 +2654,7 @@
 
         // ─── Refresh Functions ───
         function refreshDashboard() {
+            // Use getPlatformStatus from preload (get-platform-status handler)
             window.api.getPlatformStatus().then((status) => {
                 const dot = document.getElementById('platform-status-dot');
                 const text = document.getElementById('platform-status-text');
@@ -2677,6 +2693,7 @@
 
         async function refreshGPUs() {
             try {
+                // Use proxyGetGpuNodes handler
                 const result = await window.api.proxyGetGpuNodes();
                 if (result && result.success) {
                     state.gpuNodes = result.data || [];
@@ -2959,7 +2976,7 @@
 
         window.downloadModel = async function(name, type) {
             try {
-                const result = await window.api.proxyDownloadModel(name, type);
+                const result = await window.api.downloadModel({ model: name, format: type });
                 if (result.success) {
                     showToast(`✅ Download started for ${name}`, 'success');
                     await refreshModels();
@@ -3001,6 +3018,7 @@
             const vram = parseInt(document.getElementById('register-gpu-vram').value) || 0;
             const price = parseFloat(document.getElementById('register-gpu-price').value) || 0;
             if (!name || !model || !vram || !price) { showToast('Please fill in all fields', 'error'); return; }
+            // Use proxyRegisterGpuNode
             const result = await window.api.proxyRegisterGpuNode({ name: name || 'GPU Node', gpu_model: model || 'Unknown', vram_gb: vram, price_per_hour: price, status: 'available' });
             if (result.success) { closeModal(); await refreshGPUs(); showToast('GPU registered successfully!', 'success'); }
             else { showToast(`Failed to register GPU: ${result.error}`, 'error'); }
@@ -3028,14 +3046,15 @@
             const name = document.getElementById('vpn-peer-name').value.trim();
             const ip = document.getElementById('vpn-peer-ip').value.trim();
             if (!name) { showToast('Please enter a peer name', 'error'); return; }
-            const result = await window.api.wireguardAddPeer(name, ip || undefined);
+            const result = await window.api.vpnAddPeer(name, ip || undefined);
             if (result.success) { closeModal(); await refreshVPN(); showToast(`Peer ${name} added successfully!`, 'success'); }
             else { showToast(`Failed to add peer: ${result.error}`, 'error'); }
         };
 
         window.removeVPNPeer = async function(name) {
             if (!confirm(`Remove peer '${name}'?`)) return;
-            const result = await window.api.wireguardRemovePeer(name);
+            // Use vpnRemovePeer (preload exposes it)
+            const result = await window.api.vpnRemovePeer(name);
             if (result.success) { await refreshVPN(); showToast(`Peer ${name} removed`, 'info'); }
             else { showToast(`Failed to remove peer: ${result.error}`, 'error'); }
         };

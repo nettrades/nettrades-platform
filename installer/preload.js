@@ -138,6 +138,12 @@ contextBridge.exposeInMainWorld('api', {
     },
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Platform status
+    // ──────────────────────────────────────────────────────────────────────────
+
+    getPlatformStatus: () => ipcRenderer.invoke('get-platform-status'),
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Model Management
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -156,6 +162,15 @@ contextBridge.exposeInMainWorld('api', {
 
     detectGpu: () => ipcRenderer.invoke('detect-gpu'),
     detectHardware: () => ipcRenderer.invoke('detect-hardware'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // GPU management (local registration and job handling)
+    // ──────────────────────────────────────────────────────────────────────────
+
+	proxyGetGpuNodes: () => ipcRenderer.invoke('proxy-get-gpu-nodes'),
+	proxyRegisterGpuNode: (data) => ipcRenderer.invoke('proxy-register-gpu-node', data),
+	proxyCreateJob: (jobData) => ipcRenderer.invoke('proxy-create-job', jobData),
+    proxyGetJob: (jobId) => ipcRenderer.invoke('proxy-get-job', jobId),
 
     // ──────────────────────────────────────────────────────────────────────────
     // "Ask Someone" Expert System
@@ -218,6 +233,12 @@ contextBridge.exposeInMainWorld('api', {
     vpnAddPeer: (username, ip) => ipcRenderer.invoke('vpn-add-peer', username, ip),
     vpnListPeers: () => ipcRenderer.invoke('vpn-list-peers'),
     vpnStatus: () => ipcRenderer.invoke('vpn-status'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // VPN removal
+    // ──────────────────────────────────────────────────────────────────────────
+
+    vpnRemovePeer: (username) => ipcRenderer.invoke('vpn-remove-peer', username),
 
     // ──────────────────────────────────────────────────────────────────────────
     // System Health & Monitoring
