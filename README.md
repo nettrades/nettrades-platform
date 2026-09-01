@@ -85,10 +85,9 @@ In a Ubuntu 22.04 or WSL terminal window run:
 
 ```bash
 # Update Ubuntu
-apt update && apt upgrade -y
+# apt update && apt upgrade -y
 
 # Clone the repository (use dev-deployment1 branch for latest development)
-cd /root
 git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
 
 # Go into the nettrades-platform folder
@@ -707,7 +706,8 @@ So that if you rerun it without --force it does not override the previous phase.
 Use --force flag to re-run even if already completed
 
 
-If you want to reinstall everything on a development environment you could run the commands below 
+### If you want to reinstall everything on a development environment you could run the commands below 
+
 -  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING INCLUDING THE ADMIN LOGINS
 
 ```bash
