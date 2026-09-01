@@ -200,8 +200,8 @@ installer/build/
 # -----------------------------------------------------------------------------
 # Any stray launcher binaries copied elsewhere
 # -----------------------------------------------------------------------------
-deploy/docker/electron/
-deploy/docker/nettrades-launcher*/
+deploy/docker/electron
+deploy/docker/nettrades-launcher*
 deploy/docker/*.exe
 deploy/docker/*.AppImage
 deploy/docker/*.deb
@@ -217,4 +217,3 @@ deploy/docker/*.dmg
 *.deb
 *.tar.gz
 *.zip
-
