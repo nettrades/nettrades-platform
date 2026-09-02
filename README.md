@@ -127,6 +127,10 @@ npm start
 
 See the "Accessing Your Platform" section below to login to the various applications.
 
+In WSL on a windows machine the files will be in the filder:
+
+\\wsl.localhost\Ubuntu-24.04\home\owner\nettrades-platform
+
 For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222
 
 So you may need to run:
