@@ -53,11 +53,6 @@
             -webkit-app-region: no-drag;
         }
 
-        .title-bar .logo img {
-            height: 24px;
-            width: auto;
-        }
-
         .title-bar .logo span {
             font-size: 14px;
             font-weight: 600;
@@ -367,6 +362,7 @@
         .node-card .node-status.offline { background: #6a6a7a; }
 
         /* ─── Chat Interface ─── */
+        .chat-container { display: flex; flex-direction: column; height: 100%; }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -407,15 +403,8 @@
             letter-spacing: 0.5px;
         }
 
-        .chat-message.user .role {
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .chat-message .content {
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-        }
+        .chat-message.user .role { color: rgba(255, 255, 255, 0.6); }
+        .chat-message .content { font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
 
         .chat-input-container {
             display: flex;
@@ -442,14 +431,8 @@
             transition: border-color 0.3s;
         }
 
-        .chat-input-container textarea:focus {
-            border-color: #4a8aff;
-        }
-
-        .chat-input-container textarea::placeholder {
-            color: #4a4a5a;
-        }
-
+        .chat-input-container textarea:focus { border-color: #4a8aff; }
+        .chat-input-container textarea::placeholder { color: #4a4a5a; }
         .chat-input-container button {
             padding: 10px 24px;
             border: none;
@@ -463,15 +446,8 @@
             white-space: nowrap;
         }
 
-        .chat-input-container button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(74, 138, 255, 0.3);
-        }
-
-        .chat-input-container button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+        .chat-input-container button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(74, 138, 255, 0.3); }
+        .chat-input-container button:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .chat-controls {
             display: flex;
