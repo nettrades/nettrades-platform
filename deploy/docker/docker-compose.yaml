@@ -737,31 +737,31 @@ services:
         max-file: 3
 
   # =============================================================================
-  # WIREGUARD - Admin VPN Server
+  # WIREGUARD - Internal VPN for Microservices
   # =============================================================================
-  # The WireGuard server provides secure VPN access for administrators.
-  # It uses the same configuration as the existing setup scripts.
+  # This WireGuard instance provides secure communication between platform
+  # microservices. It uses a different port (51820) than the Admin VPN (51821)
+  # and a separate subnet (10.10.11.0/24) to avoid routing conflicts.
   # =============================================================================
-  wireguard:
+  wireguard-internal:
     image: linuxserver/wireguard
-    container_name: wireguard
+    container_name: wireguard-internal
     cap_add:
       - NET_ADMIN
-      # - SYS_MODULE
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=UTC
       - SERVERURL=${DOMAIN}
-      - SERVERPORT=51821
+      - SERVERPORT=${WG_INTERNAL_PORT:-51820}
       - PEERS=1
       - PEERDNS=8.8.8.8
-      - INTERNAL_SUBNET=10.10.10.0/24
+      - INTERNAL_SUBNET=${WG_INTERNAL_SUBNET:-10.0.0.0/16}
     volumes:
-      - /etc/wireguard:/config
+      - /etc/wireguard-internal:/config
       - /lib/modules:/lib/modules:ro
     ports:
-      - "51821:51821/udp"
+      - "${WG_INTERNAL_PORT:-51820}:${WG_INTERNAL_PORT:-51820}/udp"
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1
       - net.ipv4.ip_forward=1
