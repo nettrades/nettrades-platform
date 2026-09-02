@@ -62,7 +62,7 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform
 
-**The Nettrades Platform builds the Sovereign AI Infrastructure of any organisation, using its spare GPU capacity.**
+**The Nettrades Platform builds the entire Sovereign AI Infrastructure of any organisation, using its spare GPU capacity.**
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
@@ -890,6 +890,17 @@ flowchart TD
 * No PostgreSQL, no Odoo, no Redis, no LangGraph.
 
 The Nettrades Sovereign AI Platform has transaction control, error handling and state control with LanGraph, therefore when working with Odoo it relies on Odoo's ORM and database for transaction control. Since the agents' tools (odoo_tools.py) perform CRUD operations directly on Odoo, all transactional integrity is managed by Odoo's database. This provides ACID guarantees. But the Nettrades Sovereign AI Platform has its own nettrades_ tables to decouple from Odoo and make future upgrades easier. This also gives it the possibilty to couple with other enterprise systems in the future and maintain transaction control and error handling.  
+
+
+#### WireGuard
+
+There are two [WireGuard](docs/developer/wireguard.md) VPNs used in the NETTRADES platform:
+
+* 'Admin VPN' – for secure administrative SSH access.
+
+* 'Internal WireGuard'  – For internal encrypted machine-to-machine communication between the different microservices that make up the NETTRADES platform (e.g., Odoo, LangGraph, Dynamo).
+    
+
 
 
 ### ❓ Troubleshooting
