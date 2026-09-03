@@ -904,7 +904,10 @@ There are two [WireGuard](docs/developer/wireguard.md) VPNs used in the NETTRADE
 
 * 'Internal WireGuard'  – For internal encrypted machine-to-machine communication between the different microservices that make up the NETTRADES platform (e.g., Odoo, LangGraph, Dynamo).
     
-
+| VPN | Port | Subnet |Purpose |Who Uses It |
+|--------|---------|--------------|--------------|--------------|
+| `Admin VPN` | 51821 | 10.10.10.0/24 | Secure SSH access for administrators| Secure SSH access for administrators|
+| `Internal WireGuard` | 51820 | 10.0.0.0/16 | Service-to-service encryption | Microservices (LangGraph, NVIDIA dynamo, etc.) |
 
 
 ### ❓ Troubleshooting
