@@ -189,6 +189,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.api.showWindow?.();
 });
 
+window.modules = window.MODULES || {};
+
 // ─── Feature Flags ───
 function applyFeatureFlags(flags) {
     const map = {
@@ -1356,17 +1358,20 @@ async function refreshModels() {
     } catch (e) { console.error('Failed to refresh models:', e); }
 }
 
+
+// GPU Auto-Discovery UI Integration
+// GPU tab will show:
+//    Local GPUs – automatically detected (no registration needed).
+//    Network GPUs – discovered via mDNS (no registration needed).
+//    Marketplace GPUs – from Odoo (with prices, shown if registered).
+// The "Register GPU" button will only be used for manually adding external GPUs (e.g., a GPU from another network or a cloud GPU).
 async function refreshGPUs() {
     try {
-        // Use detectHardware to get local GPUs, and marketplaceListings for available nodes
+        // 1. Local GPUs (always works)
         const hardware = await window.api.detectHardware();
         const localGpus = (hardware && hardware.gpus) || [];
-        // Also get marketplace listings
-        const marketResult = await window.api.marketplaceListings();
-        const marketGpus = (marketResult.success && marketResult.data) || [];
-        // Combine: local GPUs are shown as available, market GPUs as available for booking
-        const combined = localGpus.map(g => ({
-            id: `local-${g.index}`,
+        const localNodes = localGpus.map(g => ({
+            id: `local-${g.index || Date.now()}`,
             name: g.name || 'Local GPU',
             gpu_model: g.name || 'Unknown',
             vram_gb: g.memory ? parseInt(g.memory) : 0,
@@ -1374,19 +1379,52 @@ async function refreshGPUs() {
             price_per_hour: 0,
             last_heartbeat: new Date().toISOString(),
         }));
-        // Market GPUs
-        const marketNodes = marketGpus.map(m => ({
-            id: `market-${m.id}`,
-            name: m.name || 'Market GPU',
-            gpu_model: m.model || 'Unknown',
-            vram_gb: m.vram || 0,
-            status: m.available ? 'available' : 'in-use',
-            price_per_hour: m.price || 0,
+
+        // 2. Network nodes (via mDNS)
+        const discovered = await window.api.getDiscoveredNodes();
+        const networkNodes = discovered.map(n => ({
+            id: `network-${n.name}`,
+            name: n.name || 'Network Node',
+            gpu_model: n.txt?.gpu || 'Unknown',
+            vram_gb: parseInt(n.txt?.vram) || 0,
+            status: 'available',
+            price_per_hour: 0,
             last_heartbeat: new Date().toISOString(),
         }));
-        state.gpuNodes = [...combined, ...marketNodes];
-        document.getElementById('gpu-count').textContent = state.gpuNodes.length;
-        document.getElementById('dashboard-gpu-count').textContent = state.gpuNodes.filter(n => n.status === 'available').length;
+
+        // 3. Marketplace GPUs (if Odoo modules are installed)
+        let marketNodes = [];
+        try {
+            const marketResult = await window.api.marketplaceListings();
+            if (marketResult.success && marketResult.data) {
+                marketNodes = marketResult.data.map(m => ({
+                    id: `market-${m.id}`,
+                    name: m.name || 'Market GPU',
+                    gpu_model: m.model || 'Unknown',
+                    vram_gb: m.vram || 0,
+                    status: m.available ? 'available' : 'in-use',
+                    price_per_hour: m.price || 0,
+                    last_heartbeat: new Date().toISOString(),
+                }));
+            }
+        } catch (e) {
+            // Marketplace unavailable - just use local + network
+            console.log('Marketplace not available, using local + network GPUs');
+        }
+
+        // Combine all
+        state.gpuNodes = [...localNodes, ...networkNodes, ...marketNodes];
+
+        // Update UI badges
+        const gpuCount = document.getElementById('gpu-count');
+        if (gpuCount) gpuCount.textContent = state.gpuNodes.length;
+
+        const dashboardGpuCount = document.getElementById('dashboard-gpu-count');
+        if (dashboardGpuCount) {
+            dashboardGpuCount.textContent = state.gpuNodes.filter(n => n.status === 'available').length;
+        }
+
+        // Re-render GPU tab if active
         if (state.currentView === 'gpus') {
             const container = document.getElementById('tab-gpus');
             if (container) {
@@ -1394,7 +1432,9 @@ async function refreshGPUs() {
                 container.appendChild(views.gpus());
             }
         }
-    } catch (e) { console.error('Failed to refresh GPUs:', e); }
+    } catch (e) {
+        console.error('Failed to refresh GPUs:', e);
+    }
 }
 
 async function discoverNodes() {

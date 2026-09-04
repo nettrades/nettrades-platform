@@ -113,6 +113,10 @@ const DEPENDENCY_MAP = {
     'node-agent': ['core']
 };
 
+// =============================================================================
+// Helper functions
+// =============================================================================
+
 function getModule(id) {
     return MODULES[id] || null;
 }
@@ -137,13 +141,34 @@ function getModuleTime(id) {
     return MODULES[id]?.time || 'Unknown';
 }
 
-module.exports = {
-    MODULES,
-    DEPENDENCY_MAP,
-    getModule,
-    getModuleDependencies,
-    getInstallableModules,
-    isAdminRequired,
-    getModuleSize,
-    getModuleTime
-};
+// =============================================================================
+// Browser compatibility - expose to window for use in renderer
+// =============================================================================
+
+if (typeof window !== 'undefined') {
+    window.MODULES = MODULES;
+    window.DEPENDENCY_MAP = DEPENDENCY_MAP;
+    window.getModule = getModule;
+    window.getModuleDependencies = getModuleDependencies;
+    window.getInstallableModules = getInstallableModules;
+    window.isAdminRequired = isAdminRequired;
+    window.getModuleSize = getModuleSize;
+    window.getModuleTime = getModuleTime;
+}
+
+// =============================================================================
+// Node.js compatibility - for use with require()
+// =============================================================================
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        MODULES,
+        DEPENDENCY_MAP,
+        getModule,
+        getModuleDependencies,
+        getInstallableModules,
+        isAdminRequired,
+        getModuleSize,
+        getModuleTime
+    };
+}
