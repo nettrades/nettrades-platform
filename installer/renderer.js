@@ -36,6 +36,41 @@ let state = {
     isInstalling: false,
 };
 
+
+// ─── Safe DOM Helpers ───
+// These functions prevent "Cannot set properties of null" errors
+// by checking if the element exists before modifying it.
+
+function safeSetText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function safeSetDisplay(id, display) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = display;
+}
+
+function safeSetInnerHTML(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+}
+
+function safeSetValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+}
+
+function safeAddClass(id, className) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add(className);
+}
+
+function safeRemoveClass(id, className) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove(className);
+}
+
 // ─── DOM Ready ───
 document.addEventListener('DOMContentLoaded', async () => {
     // Get platform info
@@ -46,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.backend = platform.backend || 'odoo';
         state.deploymentMode = platform.deploymentMode || 'hub';
         state.version = platform.version || '1.0.0';
-        document.getElementById('app-version').textContent = `v${state.version}`;
+        safeSetText('app-version', state.version);
         updateBackendIndicator(state.backend);
         updateDeploymentModeBadge(state.deploymentMode);
         document.getElementById('settings-server-url').value = state.proxyUrl;
@@ -1346,8 +1381,8 @@ async function refreshModels() {
     try {
         const models = await window.api.listModels();
         state.models = models || [];
-        document.getElementById('model-count').textContent = state.models.length;
-        document.getElementById('dashboard-model-count').textContent = state.models.length;
+        safeSetText('model-count', state.models.length);
+        safeSetText('dashboard-model-count', state.models.length);
         if (state.currentView === 'models') {
             const container = document.getElementById('tab-models');
             if (container) {
@@ -1415,14 +1450,9 @@ async function refreshGPUs() {
         // Combine all
         state.gpuNodes = [...localNodes, ...networkNodes, ...marketNodes];
 
-        // Update UI badges
-        const gpuCount = document.getElementById('gpu-count');
-        if (gpuCount) gpuCount.textContent = state.gpuNodes.length;
-
-        const dashboardGpuCount = document.getElementById('dashboard-gpu-count');
-        if (dashboardGpuCount) {
-            dashboardGpuCount.textContent = state.gpuNodes.filter(n => n.status === 'available').length;
-        }
+        // Update UI badges using safe helpers
+        safeSetText('gpu-count', state.gpuNodes.length);
+        safeSetText('dashboard-gpu-count', state.gpuNodes.filter(n => n.status === 'available').length);
 
         // Re-render GPU tab if active
         if (state.currentView === 'gpus') {
@@ -1441,7 +1471,7 @@ async function discoverNodes() {
     try {
         const discovered = await window.api.getDiscoveredNodes();
         state.nodes = discovered || [];
-        document.getElementById('node-count').textContent = state.nodes.length;
+        safeSetText('node-count', state.nodes.length);
         document.getElementById('node-count-display').textContent = `${state.nodes.length} nodes discovered`;
         document.getElementById('dashboard-node-count').textContent = state.nodes.length;
         if (state.currentView === 'nodes') {
@@ -1580,8 +1610,8 @@ async function refreshContainers() {
         const result = await window.api.listContainers();
         if (result.success) {
             state.containers = result.containers || [];
-            document.getElementById('container-count').textContent = state.containers.length;
-            document.getElementById('container-stats').textContent = `${state.containers.length} containers`;
+            safeSetText('container-count', state.containers.length);
+            safeSetText('container-stats', `${state.containers.length} containers`);
             if (state.currentView === 'containers') {
                 const container = document.getElementById('tab-containers');
                 if (container) {
@@ -2334,8 +2364,8 @@ window.detectHardware = async function() {
     if (finetuneCheckbox && hasLargeGPU) finetuneCheckbox.checked = true;
     const kaiCheckbox = document.querySelector('input[name="module-kai"]');
     if (kaiCheckbox && !hardware.k8sDetected) { kaiCheckbox.disabled = true; kaiCheckbox.parentElement.title = 'Requires Kubernetes cluster'; }
-    document.getElementById('gpu-count').textContent = hardware.gpus.length;
-    document.getElementById('dashboard-gpu-count').textContent = hardware.gpus.length;
+    safeSetText('gpu-count', hardware.gpus.length);  // ✅ Fixed - removed the incorrect second call
+    safeSetText('dashboard-gpu-count', hardware.gpus.length);
 };
 
 // ─── Modals ───
