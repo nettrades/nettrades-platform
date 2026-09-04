@@ -864,7 +864,7 @@ The deployment scripts and the Launcher implement the following flow
 ```mermaid
 
 flowchart TD
-    A[Start installation] --> B{Is there a NETTRADES sub‑hub on the network?}
+    A[Start installation] --> B{Is there a NETTRADES sub-hub on the network?}
     B -- Yes --> C[Install as a Spoke node]
     B -- No --> D{Is Odoo installed on this machine?}
     D -- Yes --> E{Is Odoo already running?}
@@ -1464,7 +1464,7 @@ graph TB
                                           │                                     │
                                           ▼                                     │
 ┌───────────────────────────────────────────────────────────────────────┐       │
-│                          CLIENT COMPANY (Spoke)                       │       │
+│                          CLIENT COMPANY (Sub Hub)                       │       │
 │                                                                       │       │
 │ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ │       │
 │ │   ODOO    │ │ LANGGRAPH │ │ DYNAMO    │ │ LLAMA.CPP │ │ POSTGRES  │ │       │
@@ -1487,7 +1487,7 @@ graph TB
                                                                                 │
                                                                                 ▼
 ┌───────────────────────────────────────────────────────────────────────────────────────┐
-│                          OR HOME USER (Mini Spoke)                                    │
+│                          OR HOME USER (Spoke)                                    │
 │                                                                                       │
 │  ┌────────────────────────────────────────────────────────────────────────────────┐   │
 │  │                         NETTRADES LAUNCHER                                     │   │
@@ -1543,7 +1543,7 @@ graph TB
 ```
 
 
-### Hub & Spoke With User Roles
+### Hub, Sub-Hub With User Roles
 
 ```text
 ┌───────────────────────────────────────────────────────────────────┐
