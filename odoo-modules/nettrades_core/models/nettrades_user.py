@@ -12,16 +12,22 @@
 # RELATIONSHIPS:
 #   - partner_id -> res.partner (the Odoo partner record)
 #   - review_ids -> nettrades.review (reviews received by this user)
+#   - company_id -> res.company (related field from partner for security rules)
 #
 # KEY FIELDS:
 #   - karma, karma_score, reputation, wallet_address, is_verified, is_online, etc.
+#   - company_id: Related field for tenant isolation (FIXED: added for security rules)
 #
 # UPDATES (2026-08):
 #   - Created from former res_partner.py extensions.
-#   - All NetTrades-specific fields are now here.
 #   - Added review_ids field to fix @depends error.
 #   - Added karma_score field (alias for karma, used in views).
 #   - Added is_active field for soft deletion / activation.
+#
+# UPDATES (2026-09):
+#   - FIXED: Added company_id as a related field to support security rules
+#   - FIXED: Security rules now correctly reference user.company_id
+#   - FIXED: Added proper indexes for performance
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -50,7 +56,24 @@ class NettradesUser(models.Model):
     )
 
     # =========================================================================
-    # 2. NetTrades-Specific Fields
+    # 2. Company Field for Tenant Isolation (FIXED)
+    # =========================================================================
+    # This field is critical for the security rules in nettrades_security.xml.
+    # It is a related field that pulls the company from the linked partner.
+    # store=True ensures it's available in database for efficient queries.
+    # =========================================================================
+
+    company_id = fields.Many2one(
+        'res.company',
+        string='Company',
+        related='partner_id.company_id',
+        store=True,
+        index=True,
+        help="Company of the linked partner. Used for tenant isolation in security rules."
+    )
+
+    # =========================================================================
+    # 3. NetTrades-Specific Fields
     # =========================================================================
 
     username = fields.Char(
@@ -165,7 +188,7 @@ class NettradesUser(models.Model):
     )
 
     # =========================================================================
-    # 3. One2many Relations
+    # 4. One2many Relations
     # =========================================================================
 
     review_ids = fields.One2many(
@@ -176,7 +199,7 @@ class NettradesUser(models.Model):
     )
 
     # =========================================================================
-    # 4. Computed Fields
+    # 5. Computed Fields
     # =========================================================================
 
     @api.depends('karma')
@@ -195,7 +218,7 @@ class NettradesUser(models.Model):
             user.reputation_score = (user.karma / 100.0) * 0.7 + (avg_review / 5.0) * 0.3
 
     # =========================================================================
-    # 5. Constraints
+    # 6. Constraints
     # =========================================================================
 
     @api.constrains('karma')
@@ -213,7 +236,7 @@ class NettradesUser(models.Model):
                 raise ValidationError(_("Karma Score cannot be negative."))
 
     # =========================================================================
-    # 6. Helper Methods
+    # 7. Helper Methods
     # =========================================================================
 
     @api.model
