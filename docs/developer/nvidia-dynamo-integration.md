@@ -79,7 +79,7 @@ The dynamo-frontend container is lightweight and does not require CUDA or backen
 
 ##  🧠 Intelligent Routing with Dynamo
 
-* KV-Cache Awareness: Dynamo maintains a global index of which node holds which prompt context. When a follow-up request arrives (e.g., from a LangGraph agent), Dynamo routes it to the node that already processed the earlier part, avoiding re‑computation and cutting TTFT by up to 50%.
+* KV-Cache Awareness: Dynamo maintains a global index of which node holds which prompt context. When a follow-up request arrives (e.g., from a LangGraph agent), Dynamo routes it to the node that already processed the earlier part, avoiding re-computation and cutting TTFT by up to 50%.
 
 ( Capability-Based Scheduling: Nodes self-declare capabilities (e.g., tier_1_gpu, tier_3_cpu, supports_tool_calling, etc.). Dynamo routes:
 
