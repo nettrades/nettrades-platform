@@ -228,45 +228,60 @@ fi
 # Define modules based on feature flags
 # -----------------------------------------------------------------------------
 
-# TEMPORARY: Only install nettrades_core at first to ensure a working base.
-# This avoids hangs caused by other modules that may have dependency issues.
-MODULES=("nettrades_core")
+# Correct dependency order: core first, then modules that depend on it
+MODULES=(
+    "nettrades_core"
+    "nettrades_gpu_admin"
+    "nettrades_bridge"
+    "nettrades_ask_someone"
+    "nettrades_good_answer"
+    "nettrades_llm_config"
+    "nettrades_loop"
+    "nettrades_notifications"
+    "nettrades_fairness"
+    "nettrades_data_collection"
+    "nettrades_queue"
+    "nettrades_self_improving_config"
+)
 
-# Uncomment the following block when you want to install all modules.
- MODULES=("nettrades_core")  # core is always installed
- 
- if [[ "${FEATURE_ASK_SOMEONE:-true}" == "true" ]]; then
-     MODULES+=("nettrades_ask_someone")
- fi
- if [[ "${FEATURE_GOOD_ANSWER:-true}" == "true" ]]; then
-     MODULES+=("nettrades_good_answer")
- fi
- if [[ "${FEATURE_GPU_MARKETPLACE:-false}" == "true" ]]; then
-     MODULES+=("nettrades_gpu_admin")
- fi
- if [[ "${FEATURE_ROUTER:-false}" == "true" ]]; then
-     MODULES+=("nettrades_bridge")
-     MODULES+=("nettrades_llm_config")
- fi
- if [[ "${FEATURE_TRAINING:-false}" == "true" ]]; then
-     MODULES+=("nettrades_data_collection")
-     MODULES+=("nettrades_fairness")
-     MODULES+=("nettrades_self_improving_config")
- fi
- if [[ "${FEATURE_ENTERPRISE:-false}" == "true" ]]; then
-     MODULES+=("nettrades_job_matching")
-     MODULES+=("nettrades_lead_scoring")
-     MODULES+=("nettrades_proposals")
-     MODULES+=("nettrades_research")
-     MODULES+=("nettrades_onboarding")
-     MODULES+=("nettrades_notifications")
- fi
- MODULES+=("nettrades_queue")
- 
- # Remove duplicates (just in case)
- MODULES=($(printf "%s\n" "${MODULES[@]}" | sort -u))
+#MODULES=("nettrades_core")
+#
+## Uncomment the following block when you want to install all modules.
+# MODULES=("nettrades_core")  # core is always installed
+# 
+# if [[ "${FEATURE_ASK_SOMEONE:-true}" == "true" ]]; then
+#     MODULES+=("nettrades_ask_someone")
+# fi
+# if [[ "${FEATURE_GOOD_ANSWER:-true}" == "true" ]]; then
+#     MODULES+=("nettrades_good_answer")
+# fi
+# if [[ "${FEATURE_GPU_MARKETPLACE:-false}" == "true" ]]; then
+#     MODULES+=("nettrades_gpu_admin")
+# fi
+# if [[ "${FEATURE_ROUTER:-false}" == "true" ]]; then
+#     MODULES+=("nettrades_bridge")
+#     MODULES+=("nettrades_llm_config")
+# fi
+# if [[ "${FEATURE_TRAINING:-false}" == "true" ]]; then
+#     MODULES+=("nettrades_data_collection")
+#     MODULES+=("nettrades_fairness")
+#     MODULES+=("nettrades_self_improving_config")
+# fi
+# if [[ "${FEATURE_ENTERPRISE:-false}" == "true" ]]; then
+#     MODULES+=("nettrades_job_matching")
+#     MODULES+=("nettrades_lead_scoring")
+#     MODULES+=("nettrades_proposals")
+#     MODULES+=("nettrades_research")
+#     MODULES+=("nettrades_onboarding")
+#     MODULES+=("nettrades_notifications")
+# fi
+# MODULES+=("nettrades_queue")
+# 
+# # Remove duplicates (just in case)
+# MODULES=($(printf "%s\n" "${MODULES[@]}" | sort -u))
+#
+#log_info "Modules to install: ${MODULES[*]}"
 
-log_info "Modules to install: ${MODULES[*]}"
 
 # If a specific module list is provided, override the default
 if [[ -n "$MODULES_LIST" ]]; then
