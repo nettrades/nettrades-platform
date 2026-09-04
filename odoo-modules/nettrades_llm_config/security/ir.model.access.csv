@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_nettrades_llm_config_user,nettrades.llm.config.user,model_nettrades_llm_config,base.group_user,1,0,0,0
+access_nettrades_llm_config_manager,nettrades.llm.config.manager,model_nettrades_llm_config,base.group_system,1,1,1,1
+access_nettrades_llm_provider_user,nettrades.llm.provider.user,model_nettrades_llm_provider,base.group_user,1,0,0,0
+access_nettrades_llm_provider_manager,nettrades.llm.provider.manager,model_nettrades_llm_provider,base.group_system,1,1,1,1
