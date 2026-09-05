@@ -20,6 +20,10 @@
 #          preventing path duplication when called from subdirectories.
 #   FIXED (2026-08): Removed an uncommented separator line that caused a
 #          shell error. All comment lines now start with '#'.
+#   FIXED (2026-09): Corrected HTML entity corruption (&amp;&gt; → >, &amp;&amp; → &&)
+#          that was causing syntax errors in the script.
+#   FIXED (2026-09): Respects PROJECT_ROOT environment variable if already set,
+#          allowing the caller to override the detected root.
 # =============================================================================
 
 set -euo pipefail
@@ -45,16 +49,23 @@ log_step() { echo -e "${BLUE}▶${NC} $1"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # =============================================================================
-# CRITICAL FIX: Use realpath to get absolute path of PROJECT_ROOT
-# This prevents path duplication when the script is called from subdirectories
-# (e.g., deploy/docker/), which was causing modules to be copied to
-# deploy/docker/deploy/docker/odoo-modules instead of deploy/docker/odoo-modules.
+# CRITICAL FIX: Respect PROJECT_ROOT if already set in environment.
+# This allows the caller (e.g., phase-deploy.sh) to specify the correct root,
+# preventing path duplication issues when the script is called from subdirectories.
 # =============================================================================
-if command -v realpath &>/dev/null; then
-    PROJECT_ROOT="$(realpath "$SCRIPT_DIR/..")"
+if [[ -n "${PROJECT_ROOT:-}" ]]; then
+    # Use the provided PROJECT_ROOT
+    PROJECT_ROOT="$(realpath "$PROJECT_ROOT" 2>/dev/null || echo "$PROJECT_ROOT")"
+    log_info "Using PROJECT_ROOT from environment: $PROJECT_ROOT"
 else
-    # Fallback for systems without realpath (e.g., some macOS versions)
-    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+    # Compute PROJECT_ROOT from SCRIPT_DIR
+    if command -v realpath >/dev/null 2>&1; then
+        PROJECT_ROOT="$(realpath "$SCRIPT_DIR/..")"
+    else
+        # Fallback for systems without realpath
+        PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+    fi
+    log_info "Computed PROJECT_ROOT: $PROJECT_ROOT"
 fi
 
 # =============================================================================
@@ -64,7 +75,7 @@ if [[ ! -d "$PROJECT_ROOT/scripts" ]]; then
     log_error "PROJECT_ROOT is incorrect: $PROJECT_ROOT"
     log_error "Expected to find scripts/ directory at $PROJECT_ROOT/scripts"
     log_error "This usually happens when the script is run from the wrong directory."
-    log_error "Please run this script from the project root or use absolute paths."
+    log_error "Please run this script from the project root or set PROJECT_ROOT correctly."
     exit 1
 fi
 log_success "PROJECT_ROOT validated: $PROJECT_ROOT"
@@ -212,7 +223,7 @@ log_success "View file validation complete"
 # NEW: Convert line endings to LF for all text files in Odoo modules
 # -----------------------------------------------------------------------------
 log_step "Converting line endings to LF in Odoo modules..."
-if command -v dos2unix &>/dev/null; then
+if command -v dos2unix >/dev/null 2>&1; then
     find "$TARGET" -type f \( -name "*.py" -o -name "*.xml" -o -name "*.csv" -o -name "*.txt" -o -name "*.conf" -o -name "*.js" -o -name "*.css" -o -name "*.html" \) -exec dos2unix -q {} \;
     log_success "All text files in Odoo modules converted to LF"
 else

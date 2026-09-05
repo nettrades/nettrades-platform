@@ -732,6 +732,8 @@ EOF
     # -----------------------------------------------------------------------------
     log_step "Preparing Odoo addons for build..."
     if [[ -f "$SCRIPT_DIR/prepare-odoo-addons.sh" ]]; then
+        # Export PROJECT_ROOT so the child script uses the correct root
+        export PROJECT_ROOT
         if [[ "$FORCE" == true ]]; then
             bash "$SCRIPT_DIR/prepare-odoo-addons.sh" --force
         else
