@@ -5,7 +5,6 @@ def migrate(cr, version):
     Migration script to move data from core Odoo tables to new NetTrades tables.
     FIXED: Creates the tables if they don't exist, then inserts data.
     """
-
     # -------------------------------------------------------------------------
     # 1. Ensure nettrades_user table exists
     # -------------------------------------------------------------------------
@@ -13,6 +12,7 @@ def migrate(cr, version):
         CREATE TABLE IF NOT EXISTS nettrades_user (
             id SERIAL PRIMARY KEY,
             partner_id INTEGER NOT NULL UNIQUE,
+            company_id INTEGER,
             username VARCHAR,
             wallet_address VARCHAR,
             karma INTEGER DEFAULT 100,
@@ -37,7 +37,7 @@ def migrate(cr, version):
         );
     """)
 
-    # Add foreign key constraint if not already present (optional)
+    # Add foreign key constraint for partner_id
     cr.execute("""
         DO $$
         BEGIN
@@ -48,6 +48,21 @@ def migrate(cr, version):
                 ALTER TABLE nettrades_user
                 ADD CONSTRAINT nettrades_user_partner_id_fkey
                 FOREIGN KEY (partner_id) REFERENCES res_partner(id) ON DELETE CASCADE;
+            END IF;
+        END $$;
+    """)
+
+    # Add foreign key constraint for company_id (optional, if you want to enforce it)
+    cr.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE constraint_name = 'nettrades_user_company_id_fkey'
+            ) THEN
+                ALTER TABLE nettrades_user
+                ADD CONSTRAINT nettrades_user_company_id_fkey
+                FOREIGN KEY (company_id) REFERENCES res_company(id) ON DELETE SET NULL;
             END IF;
         END $$;
     """)
@@ -68,7 +83,7 @@ def migrate(cr, version):
         );
     """)
 
-    # Add foreign key constraint if not already present
+    # Add foreign key constraint for partner_id
     cr.execute("""
         DO $$
         BEGIN
@@ -89,6 +104,7 @@ def migrate(cr, version):
     cr.execute("""
         INSERT INTO nettrades_user (
             partner_id,
+            company_id,
             username,
             karma_score,
             reputation_score,
@@ -100,6 +116,7 @@ def migrate(cr, version):
         )
         SELECT
             id,
+            company_id,
             email,
             COALESCE(nettrades_karma, 0),
             COALESCE(nettrades_reputation, 0.0),
@@ -109,9 +126,9 @@ def migrate(cr, version):
             create_date,
             write_date
         FROM res_partner
-        WHERE nettrades_karma IS NOT NULL
-           OR nettrades_reputation IS NOT NULL
-        ON CONFLICT (partner_id) DO UPDATE SET
+        WHERE nettrades_karma IS NOT NULL OR nettrades_reputation IS NOT NULL
+        ON CONFLICT (partner_id) DO UPDATE
+        SET
             karma_score = EXCLUDED.karma_score,
             reputation_score = EXCLUDED.reputation_score
     """)
@@ -139,9 +156,9 @@ def migrate(cr, version):
             write_date
         FROM res_partner
         WHERE is_company = TRUE
-          AND (nettrades_industry IS NOT NULL
-            OR nettrades_website IS NOT NULL)
-        ON CONFLICT (partner_id) DO UPDATE SET
+          AND (nettrades_industry IS NOT NULL OR nettrades_website IS NOT NULL)
+        ON CONFLICT (partner_id) DO UPDATE
+        SET
             industry = EXCLUDED.industry,
             website = EXCLUDED.website
     """)

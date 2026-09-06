@@ -22,6 +22,7 @@
 #   - Added review_ids field to fix @depends error.
 #   - Added karma_score field (alias for karma, used in views).
 #   - Added is_active field for soft deletion / activation.
+#   - Added company_id field for tenant isolation.
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -47,6 +48,14 @@ class NettradesUser(models.Model):
         required=True,
         ondelete='cascade',
         help="Link to the Odoo partner record"
+    )
+
+    company_id = fields.Many2one(
+        'res.company',
+        related='partner_id.company_id',
+        string='Company',
+        store=True,
+        help="Company of the linked partner (for tenant isolation)."
     )
 
     # =========================================================================
