@@ -1166,12 +1166,14 @@ EOF
         if [[ -n "$pg_container" ]] && docker inspect -f '{{.State.Running}}' "$pg_container" 2>/dev/null | grep -q true; then
             local actual_pass
             actual_pass=$(docker exec "$pg_container" env | grep POSTGRES_PASSWORD | cut -d= -f2)
+            # TRIM whitespace and newlines
+            actual_pass=$(echo -n "$actual_pass" | tr -d '\n\r')
             if [[ -n "$actual_pass" && "$actual_pass" != "$POSTGRES_PASSWORD" ]]; then
                 log_warning "PostgreSQL password mismatch."
                 log_warning "  .env password: $POSTGRES_PASSWORD"
                 log_warning "  Container password: $actual_pass"
                 if [[ "$FORCE" == true ]] || [[ "$AUTO" == true ]]; then
-                    log_info "Updating .env to match the container's password."
+                    log_info "Updating .env to match the container's password (trimmed)."
                     safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$actual_pass"
                     export POSTGRES_PASSWORD="$actual_pass"
                 else
@@ -1188,6 +1190,8 @@ EOF
     if [[ -n "$PG_CONTAINER" ]]; then
         if docker inspect -f '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null | grep -q true; then
             CURRENT_PG_PASS=$(docker exec "$PG_CONTAINER" env | grep POSTGRES_PASSWORD | cut -d= -f2)
+            # TRIM whitespace and newlines
+            CURRENT_PG_PASS=$(echo -n "$CURRENT_PG_PASS" | tr -d '\n\r')
             if [[ -n "$CURRENT_PG_PASS" ]]; then
                 log_info "PostgreSQL container is running. Using its password: $CURRENT_PG_PASS"
                 safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$CURRENT_PG_PASS"
