@@ -480,7 +480,7 @@ services:
       - dynamo_data:/var/lib/dynamo
     environment:
       - OPENAI_API_KEY=${DYNAMO_API_KEY}
-    # - MODEL_PATH=/models/${MODEL_NAME:-Qwen2.5-1.5B-Instruct}
+      - MODEL_PATH=${MODEL_NAME}
       - DYNAMO_LOG_LEVEL=info
     # Frontend command with file-based discovery (no etcd needed)
     entrypoint: ["python3", "-m", "dynamo.frontend"]
@@ -573,7 +573,7 @@ services:
     volumes:
       - ./dynamo-data/models:/models  # Share models with Dynamo
     environment:
-      - LLAMA_SERVER_MODEL=/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf
+      - LLAMA_SERVER_MODEL=/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf
       - LLAMA_SERVER_HOST=0.0.0.0
       - LLAMA_SERVER_PORT=8080
       - LLAMA_SERVER_N_GPU_LAYERS=0   # CPU only; adjust for GPU
@@ -581,7 +581,7 @@ services:
       - "8080:8080"
     command:
       - "-m"
-      - "/models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+      - "/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -624,7 +624,7 @@ services:
       - ODOO_API_KEY=${ODOO_API_KEY}
       - THRESHOLD_EPISODES=50
       - THRESHOLD_QUALITY=7.0
-      - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-1.5b}
+      - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-7b}
       - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
     volumes:
       - ./dynamo-data/models:/models
