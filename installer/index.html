@@ -1227,6 +1227,63 @@
             50% { opacity: 0.5; }
         }
 
+        /* ─── WSL Status Banner ─── */
+        .wsl-banner {
+            background: rgba(74, 138, 255, 0.1);
+            border: 1px solid rgba(74, 138, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .wsl-banner .wsl-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .wsl-banner .wsl-status .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .wsl-banner .wsl-status .dot.green { background: #28c840; }
+        .wsl-banner .wsl-status .dot.yellow { background: #ffbd2e; }
+        .wsl-banner .wsl-status .dot.red { background: #ff5f57; }
+        .wsl-banner .wsl-status .status-text { font-size: 14px; }
+        .wsl-banner .wsl-actions { display: flex; gap: 8px; }
+        .wsl-banner .wsl-actions .btn-sm { padding: 4px 14px; font-size: 12px; border-radius: 6px; }
+
+        /* ─── Mode Selector ─── */
+        .mode-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .mode-selector .mode-btn {
+            padding: 8px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: transparent;
+            color: #8a8a9a;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .mode-selector .mode-btn:hover { border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+        .mode-selector .mode-btn.active {
+            border-color: #4a8aff;
+            background: rgba(74, 138, 255, 0.15);
+            color: #4a8aff;
+        }
+        .mode-selector .mode-btn .mode-icon { margin-right: 6px; }
+
         /* ─── Responsive ─── */
         @media (max-width: 768px) {
             .sidebar { width: 60px; }
@@ -1248,6 +1305,8 @@
             .deployment-cards { grid-template-columns: 1fr; }
             .tenant-options { grid-template-columns: 1fr; }
             .tenant-details .form-row { grid-template-columns: 1fr; }
+            .wsl-banner { flex-direction: column; align-items: stretch; }
+            .mode-selector { flex-direction: column; }
         }
     </style>
 </head>
@@ -1348,10 +1407,6 @@
 
     <script src="modules.js"></script>
     <script>
-	  window.modules = window.MODULES || {};  // instead of require
-    </script>
-
-    <script>
         // =========================================================================
         // NETTRADES Launcher – Full Renderer Logic
         // =========================================================================
@@ -1390,41 +1445,39 @@
             selectedPhases: [],
             selectedTenantType: 'enterprise',
             isInstalling: false,
+            wslStatus: { installed: false, distro: false },
+            mode: 'hub', // 'hub', 'spoke', 'development'
         };
 
-
         // ─── Safe DOM Helpers ───
-		// These functions prevent "Cannot set properties of null" errors
-		// by checking if the element exists before modifying it.
+        function safeSetText(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
 
-		function safeSetText(id, value) {
-		    const el = document.getElementById(id);
-		    if (el) el.textContent = value;
-		}
+        function safeSetDisplay(id, display) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = display;
+        }
 
-		function safeSetDisplay(id, display) {
-		    const el = document.getElementById(id);
-		    if (el) el.style.display = display;
-		}
+        function safeSetInnerHTML(id, html) {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        }
 
-		function safeSetInnerHTML(id, html) {
-		    const el = document.getElementById(id);
-		    if (el) el.innerHTML = html;
-		}
+        function safeSetValue(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.value = value;
+        }
 
-		function safeSetValue(id, value) {
-		    const el = document.getElementById(id);
-		    if (el) el.value = value;
-		}
+        function safeAddClass(id, className) {
+            const el = document.getElementById(id);
+            if (el) el.classList.add(className);
+        }
 
-		function safeAddClass(id, className) {
-		    const el = document.getElementById(id);
-		    if (el) el.classList.add(className);
-		}
-
-		function safeRemoveClass(id, className) {
-		    const el = document.getElementById(id);
-		    if (el) el.classList.remove(className);
+        function safeRemoveClass(id, className) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove(className);
         }
 
         // ─── DOM Ready ───
@@ -1442,6 +1495,11 @@
                 updateDeploymentModeBadge(state.deploymentMode);
                 document.getElementById('settings-server-url').value = state.proxyUrl;
             } catch (e) { console.error('Failed to get platform:', e); }
+
+            // Check WSL status (Windows only)
+            if (state.platform && state.platform.os === 'win32') {
+                await checkWSLStatus();
+            }
 
             // Get feature flags
             try {
@@ -1467,6 +1525,7 @@
                 if (mode) {
                     state.deploymentMode = mode;
                     updateDeploymentModeBadge(mode);
+                    state.mode = mode;
                 }
             } catch (e) { console.error('Failed to get deployment mode:', e); }
 
@@ -1483,11 +1542,10 @@
                 }
             } catch (e) { console.error('Failed to check platform setup:', e); }
 
-            // Load initial data – do NOT call refreshVPN() on startup to avoid sudo prompt
+            // Load initial data
             await refreshModels();
             await refreshGPUs();
             await refreshContainers();
-            // VPN status is loaded only when the VPN tab is opened (see switchTab).
 
             // Setup IPC listeners
             setupIpcListeners();
@@ -1539,6 +1597,20 @@
             document.getElementById('deploy-tenant-btn')?.addEventListener('click', deployWithTenantConfig);
             document.getElementById('btn-quick-setup')?.addEventListener('click', runQuickSetup);
 
+            // WSL Install button
+            document.getElementById('btn-install-wsl')?.addEventListener('click', installWSL);
+            document.getElementById('btn-install-ubuntu')?.addEventListener('click', installUbuntu);
+
+            // Mode selector
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.mode = btn.dataset.mode;
+                    updateModeUI(state.mode);
+                });
+            });
+
             const backendSelect = document.getElementById('settings-enterprise-backend');
             if (backendSelect) {
                 backendSelect.addEventListener('change', saveEnterpriseBackend);
@@ -1580,6 +1652,93 @@
             window.api.showWindow?.();
         });
 
+        // ─── WSL Status Check ───
+        async function checkWSLStatus() {
+            try {
+                const installed = await window.api.checkWSL();
+                const distro = await window.api.checkWSLDistro();
+                state.wslStatus.installed = installed;
+                state.wslStatus.distro = distro;
+                updateWSLBanner();
+            } catch (e) {
+                console.error('Failed to check WSL status:', e);
+                state.wslStatus.installed = false;
+                state.wslStatus.distro = false;
+                updateWSLBanner();
+            }
+        }
+
+        function updateWSLBanner() {
+            const banner = document.getElementById('wsl-banner');
+            if (!banner) return;
+            const dot = banner.querySelector('.dot');
+            const statusText = banner.querySelector('.status-text');
+            const actions = banner.querySelector('.wsl-actions');
+
+            if (state.wslStatus.installed && state.wslStatus.distro) {
+                dot.className = 'dot green';
+                statusText.textContent = '✅ WSL2 with Ubuntu 24.04 is ready';
+                actions.innerHTML = `<button class="btn btn-sm btn-primary" onclick="openWSLTerminal()">Open WSL</button>`;
+            } else if (state.wslStatus.installed && !state.wslStatus.distro) {
+                dot.className = 'dot yellow';
+                statusText.textContent = '⚠️ WSL2 installed, but Ubuntu 24.04 is missing';
+                actions.innerHTML = `<button class="btn btn-sm btn-primary" id="btn-install-ubuntu" onclick="installUbuntu()">Install Ubuntu</button>`;
+            } else {
+                dot.className = 'dot red';
+                statusText.textContent = '❌ WSL2 is not installed';
+                actions.innerHTML = `<button class="btn btn-sm btn-primary" id="btn-install-wsl" onclick="installWSL()">Install WSL2</button>`;
+            }
+        }
+
+        // ─── WSL Installation Functions ───
+        async function installWSL() {
+            showModal(`
+                <h2 style="margin-bottom:12px;">🔧 Install WSL2</h2>
+                <p>This will install Windows Subsystem for Linux 2 (WSL2) with Ubuntu 24.04.</p>
+                <p style="color:#ffbd2e;margin:12px 0;"><strong>⚠️ Administrator privileges required.</strong></p>
+                <p>You will be prompted for administrator password during installation.</p>
+                <div style="display:flex;gap:12px;margin-top:16px;">
+                    <button class="btn btn-primary" onclick="confirmInstallWSL()">Install WSL2</button>
+                    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                </div>
+            `);
+        }
+
+        async function confirmInstallWSL() {
+            closeModal();
+            showToast('Installing WSL2... This may take several minutes.', 'info');
+            try {
+                const result = await window.api.installWSL();
+                if (result.success) {
+                    showToast('✅ WSL2 installed successfully! Please restart your computer.', 'success');
+                    await checkWSLStatus();
+                } else {
+                    showToast(`❌ WSL2 installation failed: ${result.error}`, 'error');
+                }
+            } catch (e) {
+                showToast(`❌ WSL2 installation failed: ${e.message}`, 'error');
+            }
+        }
+
+        async function installUbuntu() {
+            showToast('Installing Ubuntu 24.04... This may take several minutes.', 'info');
+            try {
+                const result = await window.api.installUbuntu();
+                if (result.success) {
+                    showToast('✅ Ubuntu 24.04 installed successfully!', 'success');
+                    await checkWSLStatus();
+                } else {
+                    showToast(`❌ Ubuntu installation failed: ${result.error}`, 'error');
+                }
+            } catch (e) {
+                showToast(`❌ Ubuntu installation failed: ${e.message}`, 'error');
+            }
+        }
+
+        async function openWSLTerminal() {
+            await window.api.openWSLTerminal();
+        }
+
         // ─── Feature Flags ───
         function applyFeatureFlags(flags) {
             const map = {
@@ -1612,6 +1771,31 @@
             badge.textContent = labels[mode] || mode;
             badge.className = `deployment-mode-badge ${mode}`;
             badge.style.display = 'inline-block';
+        }
+
+        // ─── Mode UI ───
+        function updateModeUI(mode) {
+            const deployStep2 = document.getElementById('deploy-step-2');
+            const deployStep3 = document.getElementById('deploy-step-3');
+            const tenantSection = document.querySelector('.tenant-section');
+
+            if (mode === 'spoke') {
+                // Spoke mode: lightweight, no admin required
+                if (deployStep2) deployStep2.style.display = 'none';
+                if (deployStep3) deployStep3.style.display = 'none';
+                if (tenantSection) tenantSection.style.display = 'none';
+                showToast('🔄 Spoke mode selected – lightweight agent installation (no admin required)', 'info');
+            } else if (mode === 'hub') {
+                // Hub/Sub-Hub mode: full stack
+                if (deployStep2) deployStep2.style.display = 'block';
+                if (tenantSection) tenantSection.style.display = 'block';
+                showToast('🌐 Hub mode selected – full stack deployment (admin required)', 'info');
+            } else if (mode === 'development') {
+                // Development mode
+                if (deployStep2) deployStep2.style.display = 'block';
+                if (tenantSection) tenantSection.style.display = 'block';
+                showToast('🛠️ Development mode selected – setup development environment', 'info');
+            }
         }
 
         // ─── Tab Switching ───
@@ -1660,6 +1844,41 @@
         // ─── Dashboard ───
         views.dashboard = function() {
             const container = document.createElement('div');
+
+            // WSL Status Banner (Windows only)
+            if (state.platform && state.platform.os === 'win32') {
+                const banner = document.createElement('div');
+                banner.id = 'wsl-banner';
+                banner.className = 'wsl-banner';
+                banner.innerHTML = `
+                    <div class="wsl-status">
+                        <span class="dot ${state.wslStatus.installed && state.wslStatus.distro ? 'green' : state.wslStatus.installed ? 'yellow' : 'red'}"></span>
+                        <span class="status-text">${state.wslStatus.installed && state.wslStatus.distro ? '✅ WSL2 with Ubuntu 24.04 is ready' : state.wslStatus.installed ? '⚠️ WSL2 installed, but Ubuntu 24.04 is missing' : '❌ WSL2 is not installed'}</span>
+                    </div>
+                    <div class="wsl-actions">
+                        ${state.wslStatus.installed && state.wslStatus.distro ? `<button class="btn btn-sm btn-primary" onclick="openWSLTerminal()">Open WSL</button>` :
+                        state.wslStatus.installed && !state.wslStatus.distro ? `<button class="btn btn-sm btn-primary" onclick="installUbuntu()">Install Ubuntu</button>` :
+                        `<button class="btn btn-sm btn-primary" onclick="installWSL()">Install WSL2</button>`}
+                    </div>
+                `;
+                container.appendChild(banner);
+            }
+
+            // Mode Selector
+            const modeSelector = document.createElement('div');
+            modeSelector.className = 'mode-selector';
+            modeSelector.innerHTML = `
+                <button class="mode-btn ${state.mode === 'hub' ? 'active' : ''}" data-mode="hub">
+                    <span class="mode-icon">🌐</span> Hub
+                </button>
+                <button class="mode-btn ${state.mode === 'spoke' ? 'active' : ''}" data-mode="spoke">
+                    <span class="mode-icon">🔄</span> Spoke
+                </button>
+                <button class="mode-btn ${state.mode === 'development' ? 'active' : ''}" data-mode="development">
+                    <span class="mode-icon">🛠️</span> Development
+                </button>
+            `;
+            container.appendChild(modeSelector);
 
             // Stats
             const statsGrid = document.createElement('div');
@@ -1719,6 +1938,16 @@
                 <p style="color:#6a7f9a;font-size:13px;">${state.jobs.length > 0 ? state.jobs.slice(0, 5).map(j => `${j.type}: ${j.status}`).join('<br>') : 'No recent activity'}</p>
             `;
             container.appendChild(activity);
+
+            // Bind mode selector events
+            container.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    container.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.mode = btn.dataset.mode;
+                    updateModeUI(state.mode);
+                });
+            });
 
             return container;
         };
@@ -2346,6 +2575,20 @@
                         <div class="subtitle">One-click deployment with profile selection</div>
                     </div>
                 </div>
+
+                <!-- Mode Selection -->
+                <div class="mode-selector">
+                    <button class="mode-btn ${state.mode === 'hub' ? 'active' : ''}" data-mode="hub">
+                        <span class="mode-icon">🌐</span> Hub (Full Stack)
+                    </button>
+                    <button class="mode-btn ${state.mode === 'spoke' ? 'active' : ''}" data-mode="spoke">
+                        <span class="mode-icon">🔄</span> Spoke (Lightweight)
+                    </button>
+                    <button class="mode-btn ${state.mode === 'development' ? 'active' : ''}" data-mode="development">
+                        <span class="mode-icon">🛠️</span> Development
+                    </button>
+                </div>
+
                 <div id="deploy-step-1">
                     <h3 style="margin-bottom:12px;">Step 1: Choose Your Deployment Type</h3>
                     <div id="deployment-cards" class="deployment-cards"></div>
@@ -2358,6 +2601,7 @@
                         <button class="btn btn-primary" id="btn-deploy-next" disabled>Next →</button>
                     </div>
                 </div>
+
                 <div id="deploy-step-2" style="display:none;">
                     <h3 style="margin-bottom:12px;">Step 2: Select Optional Modules</h3>
                     <div class="module-options" style="margin:16px 0;padding:16px;background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(255,255,255,0.06);">
@@ -2496,6 +2740,7 @@
                         </div>
                     </div>
                 </div>
+
                 <div id="deploy-step-3" style="display:none;">
                     <h3 style="margin-bottom:12px;">Installing...</h3>
                     <div id="install-status-badge" class="status-badge status-unknown" style="padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;background:rgba(255,149,0,0.2);color:#ff9500;">⏳ Installing...</div>
@@ -2511,11 +2756,23 @@
                     </div>
                 </div>
             `;
+
             // Render cards and phase picker after DOM
             setTimeout(() => {
                 renderDeploymentCards();
                 renderPhasePicker();
+
+                // Bind mode selector events
+                container.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        container.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        state.mode = btn.dataset.mode;
+                        updateModeUI(state.mode);
+                    });
+                });
             }, 50);
+
             return container;
         };
 
@@ -2716,7 +2973,6 @@
 
         // ─── Refresh Functions ───
         function refreshDashboard() {
-            // Use getPlatformStatus from preload (get-platform-status handler)
             window.api.getPlatformStatus().then((status) => {
                 const dot = document.getElementById('platform-status-dot');
                 const text = document.getElementById('platform-status-text');
@@ -2736,109 +2992,96 @@
         }
 
         async function refreshModels() {
-		    try {
-		        const models = await window.api.listModels();
-		        state.models = models || [];
-		        safeSetText('model-count', state.models.length);
-		        safeSetText('dashboard-model-count', state.models.length);  // ✅ Fixed missing )
-		        if (state.currentView === 'models') {
-		            const container = document.getElementById('tab-models');
-		            if (container) {
-		                container.innerHTML = '';
-		                container.appendChild(views.models());
-		            }
-		        }
-		    } catch (e) { console.error('Failed to refresh models:', e); }
+            try {
+                const models = await window.api.listModels();
+                state.models = models || [];
+                safeSetText('model-count', state.models.length);
+                safeSetText('dashboard-model-count', state.models.length);
+                if (state.currentView === 'models') {
+                    const container = document.getElementById('tab-models');
+                    if (container) {
+                        container.innerHTML = '';
+                        container.appendChild(views.models());
+                    }
+                }
+            } catch (e) { console.error('Failed to refresh models:', e); }
         }
 
-        // GPU Auto-Discovery UI Integration
-		// GPU tab will show:
-		//    Local GPUs – automatically detected (no registration needed).
-		//    Network GPUs – discovered via mDNS (no registration needed).
-		//    Marketplace GPUs – from Odoo (with prices, shown if registered).
-		// The "Register GPU" button will only be used for manually adding external GPUs (e.g., a GPU from another network or a cloud GPU).
-		async function refreshGPUs() {
-		    try {
-		        // 1. Local GPUs (always works)
-		        const hardware = await window.api.detectHardware();
-		        const localGpus = (hardware && hardware.gpus) || [];
-		        const localNodes = localGpus.map(g => ({
-		            id: `local-${g.index || Date.now()}`,
-		            name: g.name || 'Local GPU',
-		            gpu_model: g.name || 'Unknown',
-		            vram_gb: g.memory ? parseInt(g.memory) : 0,
-		            status: 'available',
-		            price_per_hour: 0,
-		            last_heartbeat: new Date().toISOString(),
-		        }));
+        async function refreshGPUs() {
+            try {
+                const hardware = await window.api.detectHardware();
+                const localGpus = (hardware && hardware.gpus) || [];
+                const localNodes = localGpus.map(g => ({
+                    id: `local-${g.index || Date.now()}`,
+                    name: g.name || 'Local GPU',
+                    gpu_model: g.name || 'Unknown',
+                    vram_gb: g.memory ? parseInt(g.memory) : 0,
+                    status: 'available',
+                    price_per_hour: 0,
+                    last_heartbeat: new Date().toISOString(),
+                }));
 
-		        // 2. Network nodes (via mDNS)
-		        const discovered = await window.api.getDiscoveredNodes();
-		        const networkNodes = discovered.map(n => ({
-		            id: `network-${n.name}`,
-		            name: n.name || 'Network Node',
-		            gpu_model: n.txt?.gpu || 'Unknown',
-		            vram_gb: parseInt(n.txt?.vram) || 0,
-		            status: 'available',
-		            price_per_hour: 0,
-		            last_heartbeat: new Date().toISOString(),
-		        }));
+                const discovered = await window.api.getDiscoveredNodes();
+                const networkNodes = discovered.map(n => ({
+                    id: `network-${n.name}`,
+                    name: n.name || 'Network Node',
+                    gpu_model: n.txt?.gpu || 'Unknown',
+                    vram_gb: parseInt(n.txt?.vram) || 0,
+                    status: 'available',
+                    price_per_hour: 0,
+                    last_heartbeat: new Date().toISOString(),
+                }));
 
-		        // 3. Marketplace GPUs (if Odoo modules are installed)
-		        let marketNodes = [];
-		        try {
-		            const marketResult = await window.api.marketplaceListings();
-		            if (marketResult.success && marketResult.data) {
-		                marketNodes = marketResult.data.map(m => ({
-		                    id: `market-${m.id}`,
-		                    name: m.name || 'Market GPU',
-		                    gpu_model: m.model || 'Unknown',
-		                    vram_gb: m.vram || 0,
-		                    status: m.available ? 'available' : 'in-use',
-		                    price_per_hour: m.price || 0,
-		                    last_heartbeat: new Date().toISOString(),
-		                }));
-		            }
-		        } catch (e) {
-		            // Marketplace unavailable - just use local + network
-		            console.log('Marketplace not available, using local + network GPUs');
-		        }
+                let marketNodes = [];
+                try {
+                    const marketResult = await window.api.marketplaceListings();
+                    if (marketResult.success && marketResult.data) {
+                        marketNodes = marketResult.data.map(m => ({
+                            id: `market-${m.id}`,
+                            name: m.name || 'Market GPU',
+                            gpu_model: m.model || 'Unknown',
+                            vram_gb: m.vram || 0,
+                            status: m.available ? 'available' : 'in-use',
+                            price_per_hour: m.price || 0,
+                            last_heartbeat: new Date().toISOString(),
+                        }));
+                    }
+                } catch (e) {
+                    console.log('Marketplace not available, using local + network GPUs');
+                }
 
-		        // Combine all
-		        state.gpuNodes = [...localNodes, ...networkNodes, ...marketNodes];
+                state.gpuNodes = [...localNodes, ...networkNodes, ...marketNodes];
 
-		        // Update UI badges using safe helpers
-		        safeSetText('gpu-count', state.gpuNodes.length);
-		        safeSetText('dashboard-gpu-count', state.gpuNodes.filter(n => n.status === 'available').length);
+                safeSetText('gpu-count', state.gpuNodes.length);
+                safeSetText('dashboard-gpu-count', state.gpuNodes.filter(n => n.status === 'available').length);
 
-		        // Re-render GPU tab if active
-		        if (state.currentView === 'gpus') {
-		            const container = document.getElementById('tab-gpus');
-		            if (container) {
-		                container.innerHTML = '';
-		                container.appendChild(views.gpus());
-		            }
-		        }
-		    } catch (e) {
-		        console.error('Failed to refresh GPUs:', e);
-		    }
+                if (state.currentView === 'gpus') {
+                    const container = document.getElementById('tab-gpus');
+                    if (container) {
+                        container.innerHTML = '';
+                        container.appendChild(views.gpus());
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to refresh GPUs:', e);
+            }
         }
 
         async function discoverNodes() {
-		    try {
-		        const discovered = await window.api.getDiscoveredNodes();
-		        state.nodes = discovered || [];
-		        safeSetText('node-count', state.nodes.length);
-		        safeSetText('node-count-display', `${state.nodes.length} nodes discovered`);
-		        safeSetText('dashboard-node-count', state.nodes.length);
-		        if (state.currentView === 'nodes') {
-		            const container = document.getElementById('tab-nodes');
-		            if (container) {
-		                container.innerHTML = '';
-		                container.appendChild(views.nodes());
-		            }
-		        }
-		    } catch (e) { console.error('Failed to discover nodes:', e); }
+            try {
+                const discovered = await window.api.getDiscoveredNodes();
+                state.nodes = discovered || [];
+                safeSetText('node-count', state.nodes.length);
+                safeSetText('node-count-display', `${state.nodes.length} nodes discovered`);
+                safeSetText('dashboard-node-count', state.nodes.length);
+                if (state.currentView === 'nodes') {
+                    const container = document.getElementById('tab-nodes');
+                    if (container) {
+                        container.innerHTML = '';
+                        container.appendChild(views.nodes());
+                    }
+                }
+            } catch (e) { console.error('Failed to discover nodes:', e); }
         }
 
         async function refreshVPN() {
@@ -2963,21 +3206,21 @@
         }
 
         async function refreshContainers() {
-		    try {
-		        const result = await window.api.listContainers();
-		        if (result.success) {
-		            state.containers = result.containers || [];
-		            safeSetText('container-count', state.containers.length);
-		            safeSetText('container-stats', `${state.containers.length} containers`);  // ✅ Fixed
-		            if (state.currentView === 'containers') {
-		                const container = document.getElementById('tab-containers');
-		                if (container) {
-		                    container.innerHTML = '';
-		                    container.appendChild(views.containers());
-		                }
-		            }
-		        }
-		    } catch (e) { console.error('Failed to refresh containers:', e); }
+            try {
+                const result = await window.api.listContainers();
+                if (result.success) {
+                    state.containers = result.containers || [];
+                    safeSetText('container-count', state.containers.length);
+                    safeSetText('container-stats', `${state.containers.length} containers`);
+                    if (state.currentView === 'containers') {
+                        const container = document.getElementById('tab-containers');
+                        if (container) {
+                            container.innerHTML = '';
+                            container.appendChild(views.containers());
+                        }
+                    }
+                }
+            } catch (e) { console.error('Failed to refresh containers:', e); }
         }
 
         async function refreshCredentials() {
@@ -3132,7 +3375,6 @@
             const vram = parseInt(document.getElementById('register-gpu-vram').value) || 0;
             const price = parseFloat(document.getElementById('register-gpu-price').value) || 0;
             if (!name || !model || !vram || !price) { showToast('Please fill in all fields', 'error'); return; }
-            // Use proxyRegisterGpuNode
             const result = await window.api.proxyRegisterGpuNode({ name: name || 'GPU Node', gpu_model: model || 'Unknown', vram_gb: vram, price_per_hour: price, status: 'available' });
             if (result.success) { closeModal(); await refreshGPUs(); showToast('GPU registered successfully!', 'success'); }
             else { showToast(`Failed to register GPU: ${result.error}`, 'error'); }
@@ -3167,7 +3409,6 @@
 
         window.removeVPNPeer = async function(name) {
             if (!confirm(`Remove peer '${name}'?`)) return;
-            // Use vpnRemovePeer (preload exposes it)
             const result = await window.api.vpnRemovePeer(name);
             if (result.success) { await refreshVPN(); showToast(`Peer ${name} removed`, 'info'); }
             else { showToast(`Failed to remove peer: ${result.error}`, 'error'); }
@@ -3503,6 +3744,7 @@
                     tenantName,
                     backend: state.enterpriseBackend,
                     proxyUrl: state.proxyUrl,
+                    mode: state.mode,
                 };
                 document.getElementById('deploy-step-2').style.display = 'none';
                 document.getElementById('deploy-step-3').style.display = 'block';
@@ -3668,6 +3910,7 @@
                 tenantName: document.getElementById('tenant-name')?.value || 'default',
                 backend: state.enterpriseBackend,
                 proxyUrl: state.proxyUrl,
+                mode: state.mode,
             };
             document.getElementById('deploy-step-2').style.display = 'none';
             document.getElementById('deploy-step-3').style.display = 'block';
@@ -3695,28 +3938,28 @@
 
         // ─── Hardware Detection ───
         window.detectHardware = async function() {
-		    const hardware = await window.api.detectHardware();
-		    const container = document.getElementById('hardware-info');
-		    if (!container) return;
-		    let html = '';
-		    if (hardware.gpuAvailable && hardware.gpus.length > 0) {
-		        const gpuSummary = hardware.gpus.map(g => `✅ ${g.name} (${g.memoryTotal} VRAM)`).join('<br>');
-		        html += `<div class="hardware-item success">${gpuSummary}</div>`;
-		    } else {
-		        html += `<div class="hardware-item warning">⚠️ No GPU detected (CPU mode only)</div>`;
-		    }
-		    html += `<div class="hardware-item">💾 ${hardware.totalMemory} RAM</div>`;
-		    html += `<div class="hardware-item">🖥️ ${hardware.cpuCores} cores</div>`;
-		    html += hardware.k8sDetected ? `<div class="hardware-item success">☸️ Kubernetes cluster detected</div>` : `<div class="hardware-item warning">⚠️ No Kubernetes cluster detected</div>`;
-		    html += hardware.dockerInstalled ? `<div class="hardware-item success">🐳 Docker installed</div>` : `<div class="hardware-item error">❌ Docker not installed</div>`;
-		    container.innerHTML = html;
-		    const hasLargeGPU = hardware.gpus.some(g => { const match = g.memoryTotal?.match(/(\d+)/); if (match) return parseInt(match[1]) > 16000; return false; });
-		    const finetuneCheckbox = document.querySelector('input[name="module-finetune"]');
-		    if (finetuneCheckbox && hasLargeGPU) finetuneCheckbox.checked = true;
-		    const kaiCheckbox = document.querySelector('input[name="module-kai"]');
-		    if (kaiCheckbox && !hardware.k8sDetected) { kaiCheckbox.disabled = true; kaiCheckbox.parentElement.title = 'Requires Kubernetes cluster'; }
-		    safeSetText('gpu-count', hardware.gpus.length);  // ✅ Fixed - removed the incorrect second call
-		    safeSetText('dashboard-gpu-count', hardware.gpus.length);
+            const hardware = await window.api.detectHardware();
+            const container = document.getElementById('hardware-info');
+            if (!container) return;
+            let html = '';
+            if (hardware.gpuAvailable && hardware.gpus.length > 0) {
+                const gpuSummary = hardware.gpus.map(g => `✅ ${g.name} (${g.memoryTotal} VRAM)`).join('<br>');
+                html += `<div class="hardware-item success">${gpuSummary}</div>`;
+            } else {
+                html += `<div class="hardware-item warning">⚠️ No GPU detected (CPU mode only)</div>`;
+            }
+            html += `<div class="hardware-item">💾 ${hardware.totalMemory} RAM</div>`;
+            html += `<div class="hardware-item">🖥️ ${hardware.cpuCores} cores</div>`;
+            html += hardware.k8sDetected ? `<div class="hardware-item success">☸️ Kubernetes cluster detected</div>` : `<div class="hardware-item warning">⚠️ No Kubernetes cluster detected</div>`;
+            html += hardware.dockerInstalled ? `<div class="hardware-item success">🐳 Docker installed</div>` : `<div class="hardware-item error">❌ Docker not installed</div>`;
+            container.innerHTML = html;
+            const hasLargeGPU = hardware.gpus.some(g => { const match = g.memoryTotal?.match(/(\d+)/); if (match) return parseInt(match[1]) > 16000; return false; });
+            const finetuneCheckbox = document.querySelector('input[name="module-finetune"]');
+            if (finetuneCheckbox && hasLargeGPU) finetuneCheckbox.checked = true;
+            const kaiCheckbox = document.querySelector('input[name="module-kai"]');
+            if (kaiCheckbox && !hardware.k8sDetected) { kaiCheckbox.disabled = true; kaiCheckbox.parentElement.title = 'Requires Kubernetes cluster'; }
+            safeSetText('gpu-count', hardware.gpus.length);
+            safeSetText('dashboard-gpu-count', hardware.gpus.length);
         };
 
         // ─── Modals ───
@@ -3887,7 +4130,6 @@
         window.renderModules = renderModules;
 
         // ─── Show the window if not already visible ───
-        // The window is already shown by main process, but this ensures it if any issue.
         if (window.api.showWindow) {
             window.api.showWindow();
         }
