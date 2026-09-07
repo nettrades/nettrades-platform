@@ -1504,14 +1504,15 @@ EOF
         fi
     fi
 
+    # The main "docker compose up -d --build" command it will not start self-improving because it now uses profile
+    # Self-improving can be started with "docker compose --profile finetune up -d self-improving"
+
     if [[ "${WITH_FINETUNE:-false}" == "true" ]]; then
-        log_info "Starting fine-tuning workers..."
-        if [[ -f "$DEPLOY_DIR/docker-compose.finetune.yaml" ]]; then
-            docker compose -f docker-compose.yaml -f docker-compose.finetune.yaml up -d training-worker
-            log_success "Fine-tuning workers started"
-        else
-            log_warning "docker-compose.finetune.yaml not found – skipping fine-tuning"
-        fi
+        log_info "Starting fine-tuning service (--with-finetune enabled)..."
+        docker compose --profile finetune up -d self-improving
+        log_success "Fine-tuning service started"
+    else
+        log_info "Fine-tuning disabled. Use --with-finetune to enable."
     fi
 
     if [[ "${WITH_CUVS:-false}" == "true" ]]; then
