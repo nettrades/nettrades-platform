@@ -77,10 +77,63 @@ PURPOSE:
 
 
 
-
 ### Deploy in minutes, not months
 
-In a Ubuntu 22.04 or WSL terminal window run:
+It is recommended to install The NETTRADES Sovereign AI Platform on a Ubuntu 24.04 machine but if you have a Windows machine, first enable WSL2 and then install Ubuntu 24.04
+
+Run Powershell as an administrator to enable WSL:
+
+```bash
+PS C:\WINDOWS\system32> Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
+
+PS C:\WINDOWS\system32> Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+
+PS C:\WINDOWS\system32> wsl --set-default-version 2
+
+PS C:\WINDOWS\system32> wsl --update
+
+```
+
+
+Now restarted the computer and then run Powershell as an administrator to install Ubuntu 24.04 run:
+
+```bash
+
+PS C:\WINDOWS\system32> wsl --install -d Ubuntu-24.04
+
+```
+
+and set the password:
+
+You will see this:
+
+```bash
+
+PS C:\WINDOWS\system32> wsl --install -d Ubuntu-24.04
+Downloading: Ubuntu 24.04 LTS
+Installing: Ubuntu 24.04 LTS
+Distribution successfully installed. It can be launched via 'wsl.exe -d Ubuntu-24.04'
+Launching Ubuntu-24.04...
+Provisioning the new WSL instance Ubuntu-24.04
+This might take a while...
+Create a default Unix user account: owner
+New password:
+Retype new password:
+passwd: password updated successfully
+To run a command as administrator (user "root"), use "sudo <command>".
+See "man sudo_root" for details.
+
+```
+
+Now go to Start and open the WSL.exe 
+
+(It may also be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe)
+
+Now you have Ubuntu 24.04
+
+After this point run the commands in WSL terminal window not in powershell
+
+Then in a Ubuntu 24.04 or WSL terminal window run:
 
 
 ```bash
@@ -110,15 +163,20 @@ cd installer
 
 npm install
 
-# npm run build:win   # on Windows with WSL
+npm run build:win   # on Windows with WSL
 # npm run build:mac   # on MAC for MAC
-npm run build:linux # on Linux for Linux
+# npm run build:linux # on Linux for Linux
 
 npm start
 
 # This will launch the NETTRADES Sovereign AI PLATFORM
 
 ```
+
+### One-Click NETTRADES Launcher
+
+The quickest way to learn to use the NETTRADES Sovereign AI Platform is to play around with the NETTRADES Launcher on a development machine:
+
 
 
 
@@ -127,7 +185,7 @@ npm start
 
 See the "Accessing Your Platform" section below to login to the various applications.
 
-In WSL on a windows machine the files will be in the filder:
+In WSL on a windows machine the files will be in the folder:
 
 \\wsl.localhost\Ubuntu-24.04\home\owner\nettrades-platform
 
@@ -150,6 +208,10 @@ ssh -p 2222 root@ServerIPaddress
 ```
 
 to get a new keys and reconnect
+
+
+Work on the dev-deployment1 branch not on the main branch
+
 
 ### The Problem
 
@@ -292,7 +354,7 @@ This is the quick start guide for Developers. This guide will help you get the p
 
 ##### Minimum Requirements:
 
-* OS: Linux (Ubuntu 22.04+ recommended) or macOS with Docker Desktop or Windows with WSL with Docker Desktop.
+* OS: Linux (Ubuntu 24.04 recommended) or macOS with Docker Desktop or Windows with WSL with Docker Desktop.
 
 * Hardware: Minimum 8 GB RAM (16 GB recommended), 50 GB free disk.
 
@@ -300,147 +362,7 @@ This is the quick start guide for Developers. This guide will help you get the p
 
 * Internet connection (to download models and images)
 
-Idealy use Ubuntu Linux but if you have to use Windows, make sure that you install Docker Desktop and integrate it with WSL2 
 
-Install and Configure Docker for WSL 2
-
-Step 1: Install Docker Desktop for Windows
-
-* Download Docker Desktop: Go to docker.com/products/docker-desktop
-
-* Download the Windows installer (Docker Desktop for Windows)
-
-* Run the installer and follow the setup wizard
-
-* Restart your computer when prompted
-
-Step 2: Open Docker Desktop Settings
-
-* Open Docker Desktop (click the whale icon in your system tray)
-
-* Click the gear icon (⚙️) in the top-right corner to open Settings
-
-Step 3: Enable WSL Integration
-
-* In the Settings window, go to General and tick "Start Docker Desktp when you sign in to your computer" 
-(unless you remember to start Docker Desktop every time you use the nettrades-platform for development) 
-
-* Choose container terminal - Integrated
-
-* Choose how to run Docker container - WSL2 then click Apply
-
-* In the Settings window, go to Resources → WSL Integration
-
-* Make sure the following are enabled:
-
-** "Enable integration with my default WSL distro"
-
-** "Ubuntu" (or whatever your WSL distro is called)
-
-* Click "Apply & Restart" at the bottom
-
-Or open PowerShell as Administrator and run these command:
-
-```powershell
-
-Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
-
-# Restart when prompted
-Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
-
-# Restart again
-wsl --set-default-version 2
-
-```
-
-Step 4: Verify Docker is Working in WSL
-
-Open your WSL terminal and run:
-
-```bash
-
-docker --version
-
-```
-Should output: Docker version 24.0.x, build xxxxx
-
-```bash
-
-docker compose version
-
-```
-
-After this point run the commands in WSL terminal window not in powershell
-
-If you run everything in WSL, the scripts/nettrades-setup.sh script below will install docker in WSL by it self too. 
-
-> 💡 **Windows users**: must run this script inside a WSL2 terminal (Ubuntu).
-
-
-### One-Click Local Installer
-
-The quickest way to get started locally is with the interactive installer:
-
-#### Clone the Repository
-
-In windows install WSL as shown above and the open the WSL.exe terminal window
-
-It could be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe
-
-And run the commands below.
-
-```bash
-
-apt update && apt upgrade -y
-# Clone the repository
-git clone -b dev-deployment1 https://github.com/nettrades/nettrades-platform.git
-
-# Go into the nettrades-platform folder
-cd nettrades-platform
-
-# Make the scripts executable
-chmod +x scripts/*.sh
-chmod +x scripts/lib/*.sh
-chmod +x installer/*.js
-chmod +x scripts/nettrades-setup.sh
-
-# Run the full deployment when setting up a totally new environment for development
-./scripts/nettrades-setup.sh all --force
-
-# Make the prefered selections as it prompts you.
-# Then after half an hour when it has finished installing everything you could run the Launcher
-
-cd installer
-npm install
-npm run build:win   # on Windows with WSL
-# npm run build:mac   # on MAC for MAC
-# npm run build:linux # on Linux for Linux
-
-npm start
-
-# This will launch the NETTRADES Sovereign AI PLATFORM
-
-```
-
-
-See the "Accessing Your Platform" section below to login.
-
-For security, on a server the scripts block the default SSH port 22 and allow SSH access over port 2222. So you may need to run:
-
-```bash
-ssh-keygen -R ServerIPaddress
-```
-
-to remove an old key if you have issues and then run:
-
-```bash
-ssh -p 2222 root@ServerIPaddress
-```
-
-to get a new key and reconnect
-
-
-Work on the dev-deployment1 branch not on the main branch
 
 Since the code has extensive comments and documentation you could use any AI model including Deepseek or GitHub codepilot to explain how the code works. 
 First ask it to do an extensive code review, so that it loads the whole codebase into its context window and then it will be able to assist you with any further questions.
@@ -681,15 +603,6 @@ KAI requires Phase 3 (Kubernetes)
 
 
 
-AI Startup (Full) single server with finetune
-
-```bash
-
-./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
-
-```
-
-
 
 After each phase is completed the following files are created:
 
@@ -710,7 +623,7 @@ So that if you rerun it without --force it does not override the previous phase.
 Use --force flag to re-run even if already completed
 
 
-### If you want to reinstall everything on a development environment you could run the commands below 
+### If you want to REINSTALL everything on a development environment you could run the commands below 
 
 -  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING INCLUDING THE ADMIN LOGINS
 
@@ -728,6 +641,48 @@ Use --force flag to re-run even if already completed
 
 ```
 -  DO NOT USE THIS ON PRODUCTION - IT WILL OVER WRITE EVERYTHING INCLUDING THE ADMIN LOGINS
+
+
+#### Finetuning
+
+The Docker-compose.yaml file uses the official, pre-built Unsloth image
+
+AI Startup (Full) single server with finetune
+
+```bash
+
+./scripts/nettrades-setup.sh --phases=0,1,2,4,5 --finetune 
+
+```
+
+Or you could run
+
+```bash
+
+./nettrades-setup.sh all --with-finetune
+
+```
+
+It could also start finetuning with: 
+
+```bash
+
+docker compose --profile finetune up -d self-improving
+
+```
+
+
+Default installation: ./nettrades-setup.sh all --force (or the launcher's default) does not enable fine-tuning. This keeps the platform lightweight and fast for most users.
+
+On-demand activation: Users can enable fine-tuning later via the launcher, which will start the self-improving container (pulling the official Unsloth image) without rebuilding anything.
+
+In the deploy tab of the launcher, there is a checkbox:
+
+    Fine-Tuning (Unsloth/Axolotl) – Train and fine-tune models on your GPUs.
+
+When checked, the launcher passes --with-finetune to the installation script. This is already wired up in main.js (run-install handler) and works correctly.
+
+
 
 ### 🔑 Database Password Management
 
