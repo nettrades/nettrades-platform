@@ -90,10 +90,16 @@ if [ "$PLATFORM" = "wsl" ]; then
     fi
 
     # Ensure docker.sock is accessible (add user to docker group)
+
     if ! groups | grep -q docker; then
         log_info "Adding user to docker group..."
+        # Ensure the docker group exists
+        if ! getent group docker >/dev/null; then
+            log_info "Docker group not found. Creating it..."
+            sudo groupadd docker
+        fi
         sudo usermod -aG docker $(whoami)
-        log_warning "Docker group membership updated. Please log out and back in for this to take effect."
+        log_warning "Docker group membership added. Please log out and back in, or run 'newgrp docker' to apply changes."
     fi
 fi
 
