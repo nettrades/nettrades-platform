@@ -711,16 +711,19 @@ else
     fi
 fi
 
-# Generate keys if missing
+# Generate keys if missing – using sudo for ALL file operations
 if [[ ! -f "$WG_ADMIN_DIR/privatekey" ]]; then
     if [[ "$PER_USER" == true ]]; then
+        # Per-user mode: files in home directory (no sudo needed)
         wg genkey | tee "$WG_ADMIN_DIR/privatekey" | wg pubkey > "$WG_ADMIN_DIR/publickey"
     else
-        # Create files with proper permissions
-        sudo touch "$WG_ADMIN_DIR/privatekey" "$WG_ADMIN_DIR/publickey"
+        # System mode: use sudo for everything
+        sudo mkdir -p "$WG_ADMIN_DIR"
+        sudo chmod 755 "$WG_ADMIN_DIR"
+        # Generate keys using sudo tee and sudo bash to avoid redirection issues
+        sudo bash -c "wg genkey | tee $WG_ADMIN_DIR/privatekey > /dev/null"
+        sudo bash -c "wg pubkey < $WG_ADMIN_DIR/privatekey | tee $WG_ADMIN_DIR/publickey > /dev/null"
         sudo chmod 600 "$WG_ADMIN_DIR/privatekey" "$WG_ADMIN_DIR/publickey"
-        sudo wg genkey | sudo tee "$WG_ADMIN_DIR/privatekey" > /dev/null
-        sudo wg pubkey < "$WG_ADMIN_DIR/privatekey" | sudo tee "$WG_ADMIN_DIR/publickey" > /dev/null
     fi
     log_success "WireGuard keys generated"
 else
@@ -749,24 +752,26 @@ if [[ "$WG_MODULE_AVAILABLE" == true ]]; then
     # Use kernel WireGuard
     log_info "Using kernel WireGuard module"
 
-    # Create wg0.conf (without Address line – it will be set by ip)
+    # Create wg0.conf – using sudo bash -c to handle heredoc safely
     if [[ ! -f "$WG_ADMIN_DIR/wg0.conf" ]]; then
         if [[ "$PER_USER" == true ]]; then
             cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
-[Interface]
-PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
-ListenPort = 51821
-EOF
+    [Interface]
+    PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
+    ListenPort = 51821
+    EOF
         else
-            sudo tee "$WG_ADMIN_DIR/wg0.conf" > /dev/null << EOF
-[Interface]
-PrivateKey = $(sudo cat "$WG_ADMIN_DIR/privatekey")
-ListenPort = 51821
-EOF
+            # Use sudo bash -c to run the entire heredoc as root
+            sudo bash -c "cat > $WG_ADMIN_DIR/wg0.conf" << EOF
+    [Interface]
+    PrivateKey = $(sudo cat "$WG_ADMIN_DIR/privatekey")
+    ListenPort = 51821
+    EOF
+            sudo chmod 600 "$WG_ADMIN_DIR/wg0.conf"
         fi
         log_success "wg0.conf created (kernel mode)"
     fi
-
+    
     # Start WireGuard interface if not already up
     if ! ip link show wg0 &>/dev/null; then
         sudo ip link add wg0 type wireguard
