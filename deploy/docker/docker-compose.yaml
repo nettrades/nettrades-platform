@@ -609,15 +609,13 @@ services:
   # Set RUNTIME_SELF_IMPROVING=runsc in .env for untrusted tenants.
   # =========================================================================
   self-improving:
-    build:
-      context: ../../
-      dockerfile: deploy/docker/Dockerfile.self-improving
+    image: unsloth/unsloth:latest
     container_name: self-improving
-    # Runtime is tenant-aware: runsc for untrusted, runc for trusted
-    runtime: ${RUNTIME_SELF_IMPROVING:-}
-    restart: unless-stopped
-    networks:
-      - internal
+    profiles:
+      - finetune
+    volumes:
+      - ./dynamo-data/models:/models
+      - ./training-data:/training-data
     environment:
       - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
       - ODOO_URL=${ODOO_URL:-http://odoo:8069}
@@ -626,9 +624,6 @@ services:
       - THRESHOLD_QUALITY=7.0
       - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-7b}
       - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
-    volumes:
-      - ./dynamo-data/models:/models
-      - ./training-data:/training-data
     depends_on:
       postgres:
         condition: service_healthy
