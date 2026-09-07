@@ -711,16 +711,13 @@ else
     fi
 fi
 
-# Generate keys if missing – using sudo for ALL file operations
+# Generate keys if missing – using sudo bash -c for permission safety
 if [[ ! -f "$WG_ADMIN_DIR/privatekey" ]]; then
     if [[ "$PER_USER" == true ]]; then
-        # Per-user mode: files in home directory (no sudo needed)
         wg genkey | tee "$WG_ADMIN_DIR/privatekey" | wg pubkey > "$WG_ADMIN_DIR/publickey"
     else
-        # System mode: use sudo for everything
         sudo mkdir -p "$WG_ADMIN_DIR"
         sudo chmod 755 "$WG_ADMIN_DIR"
-        # Generate keys using sudo tee and sudo bash to avoid redirection issues
         sudo bash -c "wg genkey | tee $WG_ADMIN_DIR/privatekey > /dev/null"
         sudo bash -c "wg pubkey < $WG_ADMIN_DIR/privatekey | tee $WG_ADMIN_DIR/publickey > /dev/null"
         sudo chmod 600 "$WG_ADMIN_DIR/privatekey" "$WG_ADMIN_DIR/publickey"
@@ -756,22 +753,22 @@ if [[ "$WG_MODULE_AVAILABLE" == true ]]; then
     if [[ ! -f "$WG_ADMIN_DIR/wg0.conf" ]]; then
         if [[ "$PER_USER" == true ]]; then
             cat > "$WG_ADMIN_DIR/wg0.conf" << EOF
-    [Interface]
-    PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
-    ListenPort = 51821
-    EOF
+[Interface]
+PrivateKey = $(cat "$WG_ADMIN_DIR/privatekey")
+ListenPort = 51821
+EOF
         else
-            # Use sudo bash -c to run the entire heredoc as root
+            PRIVKEY=$(sudo cat "$WG_ADMIN_DIR/privatekey")
             sudo bash -c "cat > $WG_ADMIN_DIR/wg0.conf" << EOF
-    [Interface]
-    PrivateKey = $(sudo cat "$WG_ADMIN_DIR/privatekey")
-    ListenPort = 51821
-    EOF
+[Interface]
+PrivateKey = $PRIVKEY
+ListenPort = 51821
+EOF
             sudo chmod 600 "$WG_ADMIN_DIR/wg0.conf"
         fi
         log_success "wg0.conf created (kernel mode)"
     fi
-    
+
     # Start WireGuard interface if not already up
     if ! ip link show wg0 &>/dev/null; then
         sudo ip link add wg0 type wireguard
@@ -872,11 +869,13 @@ ListenPort = 51821
 EOF
     else
         sudo rm -f "$WG_ADMIN_DIR/wg0.conf"
-        sudo tee "$WG_ADMIN_DIR/wg0.conf" > /dev/null << EOF
+        PRIVKEY=$(sudo cat "$WG_ADMIN_DIR/privatekey")
+        sudo bash -c "cat > $WG_ADMIN_DIR/wg0.conf" << EOF
 [Interface]
-PrivateKey = $(sudo cat "$WG_ADMIN_DIR/privatekey")
+PrivateKey = $PRIVKEY
 ListenPort = 51821
 EOF
+        sudo chmod 600 "$WG_ADMIN_DIR/wg0.conf"
     fi
     log_success "wg0.conf created (userspace) without Address line"
 
