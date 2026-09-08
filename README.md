@@ -238,7 +238,7 @@ Work on the dev-deployment1 branch not on the main branch
 
 - **Decision-makers** are increasingly concerned about complex international regulations that grant external authorities expansive powers over sensitive data held by foreign cloud providers.
 
-- **oVER 50% of AI decision-makers** cite data sovereignty and security as a top adoption barrier
+- **OVER 50% of AI decision-makers** cite data sovereignty and security as a top adoption barrier
 
 - **50% of enterprises** now view sovereign AI infrastructure as a major competitive differentiator
 
@@ -296,7 +296,7 @@ Admins can switch modes instantly from the Launcher dashboard. Changes take effe
 | **📊 AI dashboards** | AI routing and montoring |
 | **📊 ERP, CRM, HR, business logic** | Companies could enable built in ERP, CRM, HR and business logic if required |
 | **🔌 [Configurable Hub-and-Spoke Routing - coming soon](docs/developer/bridge-architecture.md)** | The **nettrades_bridge** module routes requests between local and remote brains based on intent, company policy and GPU capacity if configured to do so. |
-| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system for autonomous enterprise operations. |
+| **🤖 Agentic AI** | [LangGraph-based](docs/developer/LangGraph-Agent-State-Machine-Diagram.md) multi-agent system for autonomous enterprise operations with transaction control, error handling and state control |
 | **🔐 Confidential Computing** - coming soon| Configurable Confidential Computing (AMD SEV-SNP or Intel TDX)  that could be enabled to autodetect and run on hardware that supports it. |
 | **🧠️ Model fine tuning** - coming soon | Fine-tune models on your data using Unsloth or Axolotl. |
 | **🖥️ [GPU Marketplace - coming soon](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. Based on company policy and set in the configuration screens|
@@ -2477,3 +2477,20 @@ graph TB
 
 <img src="docs/screenshots/modules.jpg" alt="NETTRADES Launcher" width="100%">
 
+
+
+Uses NVIDIA Dynamo with VLLM and Llama.cpp backend and Llama.cpp as failover
+
+<img src="docs/screenshots/llamacpp.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+Also deploys Prometheus
+
+<img src="docs/screenshots/grafana.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+And deploys Grafana for monitoring
+
+<img src="docs/screenshots/prometheus.jpg" alt="NETTRADES Launcher" width="100%">
