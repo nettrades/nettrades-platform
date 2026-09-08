@@ -103,10 +103,9 @@ detect_environment() {
     local odoo_in_docker=false
 
     # ---- Check if we should force HUB mode ----
-    # If FORCE is true and .env file does not exist, assume a fresh HUB install.
-    ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
-    if [[ "$FORCE" == true ]] && [[ ! -f "$ENV_FILE" ]]; then
-        log_info "Force mode with no .env – forcing HUB deployment."
+    # If FORCE is true, assume HUB deployment (fresh install)
+    if [[ "$FORCE" == true ]]; then
+        log_info "Force mode – forcing HUB deployment."
         DEPLOYMENT_MODE="hub"
         log_success "Deployment mode: HUB (forced)"
         export DEPLOYMENT_MODE
@@ -1168,6 +1167,8 @@ EOF
             actual_pass=$(docker exec "$pg_container" env | grep POSTGRES_PASSWORD | cut -d= -f2)
             # TRIM whitespace and newlines
             actual_pass=$(echo -n "$actual_pass" | tr -d '\n\r')
+            # Force alphanumeric only to prevent corruption
+            actual_pass=$(echo -n "$actual_pass" | tr -cd 'a-zA-Z0-9')
             if [[ -n "$actual_pass" && "$actual_pass" != "$POSTGRES_PASSWORD" ]]; then
                 log_warning "PostgreSQL password mismatch."
                 log_warning "  .env password: $POSTGRES_PASSWORD"
@@ -1192,6 +1193,8 @@ EOF
             CURRENT_PG_PASS=$(docker exec "$PG_CONTAINER" env | grep POSTGRES_PASSWORD | cut -d= -f2)
             # TRIM whitespace and newlines
             CURRENT_PG_PASS=$(echo -n "$CURRENT_PG_PASS" | tr -d '\n\r')
+            # Force alphanumeric only to prevent corruption
+            CURRENT_PG_PASS=$(echo -n "$CURRENT_PG_PASS" | tr -cd 'a-zA-Z0-9')
             if [[ -n "$CURRENT_PG_PASS" ]]; then
                 log_info "PostgreSQL container is running. Using its password: $CURRENT_PG_PASS"
                 safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$CURRENT_PG_PASS"
@@ -1281,8 +1284,8 @@ EOF
     fi
 
     if ! grep -q "^FINE_TUNE_MODEL=" "$ENV_FILE"; then
-        safe_sed_replace "$ENV_FILE" "FINE_TUNE_MODEL" "deepseek-1.5b"
-        log_info "Set FINE_TUNE_MODEL=deepseek-1.5b"
+        safe_sed_replace "$ENV_FILE" "FINE_TUNE_MODEL" "deepseek-7b"
+        log_info "Set FINE_TUNE_MODEL=deepseek-7b"
     fi
 
     if ! grep -q "^FINE_TUNE_METHOD=" "$ENV_FILE"; then
@@ -2000,11 +2003,134 @@ EOF
     fi
 
     # -----------------------------------------------------------------------------
+    # Install Wine for Windows launcher builds (with 32‑bit support)
+    # -----------------------------------------------------------------------------
+    install_wine() {
+        log_step "Installing Wine for Windows launcher builds..."
+    
+        # Check if Wine is already installed and functional
+        if command -v wine &>/dev/null && wine --version &>/dev/null; then
+            log_success "Wine already installed: $(wine --version)"
+            return 0
+        fi
+    
+        if [[ "$OS" != "linux" ]]; then
+            log_warning "Wine installation only supported on Linux. Skipping."
+            return 1
+        fi
+    
+        log_info "Enabling multi-architecture (i386) support..."
+        sudo dpkg --add-architecture i386 || {
+            log_error "Failed to add i386 architecture. Please check your system."
+            return 1
+        }
+    
+        log_info "Updating package lists..."
+        sudo apt update -qq || {
+            log_error "Failed to update package lists."
+            return 1
+        }
+    
+        log_info "Installing Wine and 32‑bit libraries..."
+        sudo apt install -y \
+            wine \
+            wine64 \
+            wine32:i386 \
+            libasound2t64 \
+            libasound2t64:i386 \
+            libnspr4 \
+            libnss3 \
+            libxss1 \
+            libatk-bridge2.0-0t64 \
+            libgtk-3-0t64 \
+            libgbm1 \
+            libnspr4:i386 \
+            libnss3:i386 \
+            libgtk-3-0t64:i386 \
+            || {
+                log_warning "Some Wine dependencies failed to install. Continuing anyway."
+            }
+    
+        # Verify installation
+        if ! command -v wine &>/dev/null; then
+            log_error "Wine installation failed. Skipping Windows build."
+            return 1
+        fi
+    
+        log_info "Configuring a fresh 32‑bit Wine prefix..."
+        # Remove any existing prefix to avoid conflicts
+        if [[ -d "$HOME/.wine" ]]; then
+            log_info "Removing old Wine prefix..."
+            rm -rf "$HOME/.wine"
+        fi
+    
+        export WINEARCH=win32
+        export WINEPREFIX="$HOME/.wine"
+    
+        # Initialise Wine – this downloads and configures 32‑bit components
+        log_info "Initialising Wine (this may take a moment)..."
+        wine winecfg 2>/dev/null || {
+            log_warning "Wine initialisation failed but may still work."
+        }
+    
+        log_success "Wine installation completed."
+        return 0
+    }
+
+    # Install Wine for launcher builds
+    install_wine || log_warning "Wine setup failed; Windows build will be skipped."
+
+    # =============================================================================
+    # BUILD NETTRADES LAUNCHER
+    # =============================================================================
+    build_launcher() {
+        log_step "Building NETTRADES Launcher..."
+        local installer_dir="$PROJECT_ROOT/installer"
+
+        if [[ ! -d "$installer_dir" ]]; then
+            log_warning "Installer directory not found: $installer_dir"
+            return 1
+        fi
+
+        cd "$installer_dir"
+
+        # Install dependencies if node_modules is missing
+        if [[ ! -d "node_modules" ]]; then
+            log_info "Installing npm dependencies..."
+            npm install || {
+                log_warning "npm install failed. The launcher may not build correctly."
+            }
+        fi
+
+        # Build for Linux
+        log_info "Building Linux launcher..."
+        npm run build:linux || {
+            log_warning "Linux build failed. Skipping."
+        }
+
+        # Build for Windows (requires Wine)
+	if command -v wine &>/dev/null; then
+	    log_info "Building Windows launcher (requires Wine)..."
+	    npm run build:win || {
+	        log_warning "Windows build failed. Wine may not be properly configured."
+	    }
+	else
+	    log_info "Wine not installed. Skipping Windows build."
+        fi
+
+        log_success "Launcher build completed"
+        cd "$PROJECT_ROOT"
+    }
+
+    # -----------------------------------------------------------------------------
     # 18. Display final status
     # -----------------------------------------------------------------------------
     cd "$PROJECT_ROOT"
     mark_phase_complete 2
     touch /tmp/nettrades-phase2-completed
+
+    # Build the launcher after all services are running
+    build_launcher
 
     log_success "Phase 2 completed – Docker stack deployed with all modules"
     echo ""

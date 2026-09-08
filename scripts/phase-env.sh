@@ -280,6 +280,12 @@ else
     fi
 fi
 
+# =============================================================================
+# CRITICAL FIX: Sanitise password before writing to .env
+# Forces alphanumeric only, removing any accidental escape sequences
+# =============================================================================
+POSTGRES_PASSWORD=$(echo -n "$POSTGRES_PASSWORD" | tr -cd 'a-zA-Z0-9')
+
 # -----------------------------------------------------------------------------
 # Generate other secrets (only after we have a valid password)
 # -----------------------------------------------------------------------------
