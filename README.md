@@ -79,14 +79,31 @@ PURPOSE:
 
 ### Deploy in minutes, not months
 
-It is recommended to install The NETTRADES Sovereign AI Platform on a Ubuntu 24.04 machine but if you have a Windows machine, first enable WSL2 and then install Ubuntu 24.04
+It is recommended to install The NETTRADES Sovereign AI Platform on a Ubuntu 24.04 machine but if you have a Windows machine, you could enable WSL2 and then install Ubuntu 24.04
 
-Run Powershell as an administrator to enable WSL:
+Enable virtualisation in the BIOS.
+
+Then run Powershell as an administrator to enable Virtual Machine Platform and Windows Subsystem for Linux WSL:
 
 ```bash
-PS C:\WINDOWS\system32> Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
 
 PS C:\WINDOWS\system32> Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+
+PS C:\WINDOWS\system32> Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
+
+```
+
+(These could also be enabled via Start > Turn Windows features on or off )
+
+Or install WSL via the Microsoft Store app:
+
+* Open your Windows Start Menu and launch the Microsoft Store app.
+* Search for "Windows Subsystem for Linux" (or Ubuntu).
+* Click Get or Install 
+
+Restarted the computer and then run Powershell as an administrator and run:
+
+```bash
 
 PS C:\WINDOWS\system32> wsl --set-default-version 2
 
@@ -95,7 +112,7 @@ PS C:\WINDOWS\system32> wsl --update
 ```
 
 
-Now restarted the computer and then run Powershell as an administrator to install Ubuntu 24.04 run:
+Restarted the computer and then run Powershell as an administrator to install Ubuntu 24.04 run:
 
 ```bash
 
@@ -124,16 +141,17 @@ To run a command as administrator (user "root"), use "sudo <command>".
 See "man sudo_root" for details.
 
 ```
+Now you have Ubuntu 24.04
 
-Now go to Start and open the WSL.exe 
+Go to Start and open WSL
 
 (It may also be in C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WSL.exe)
 
-Now you have Ubuntu 24.04
+
 
 After this point run the commands in WSL terminal window not in powershell
 
-Then in a Ubuntu 24.04 or WSL terminal window run:
+In a Ubuntu 24.04 or WSL terminal window run:
 
 
 ```bash
@@ -155,9 +173,10 @@ chmod +x scripts/nettrades-setup.sh
 # Run the full deployment when setting up a totally new development environment - NOT ON PRODUCTION
 ./scripts/nettrades-setup.sh all --force
 
+# This command with the option "all" could take up to half an hour to run, so if you are using a laptop make sure it is plugged in.
 # You could run this with other options too, see the full instructions below
-# Make the prefered selections as it prompts you.
-# Then after half an hour when it has finished installing everything you could run the Launcher
+# Pick the prefered selections as it prompts you.
+# Then after half an hour when it has finished installing everything, you could run the Launcher
 
 cd installer
 
@@ -180,7 +199,7 @@ The quickest way to learn to use the NETTRADES Sovereign AI Platform is to play 
 
 
 
-<img src="installer/NETTRADESLauncher.jpg" alt="NETTRADES Launcher" width="100%">
+<img src="docs/screenshots/dashboard.jpg" alt="NETTRADES Launcher" width="100%">
 
 
 See the "Accessing Your Platform" section below to login to the various applications.
@@ -2401,3 +2420,60 @@ graph TB
 |` Self-Improving Loop` | 13-17, 19 |	User interaction → data_episode → trigger → loop → fine-tuning |
 |` GPU Inference` | 12, 18, 20 |	Bridge → NVIDIA Dynamo → vLLM / External APIs |
 |` Data Persistence` | 21-24 |	Odoo → PostgreSQL, Valkey, MinIO; NVIDIA Dynamo → PostgreSQL |
+
+
+### Screenshots
+
+
+<img src="docs/screenshots/models.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/GPUs.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/vnp.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/training.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/deploy.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/monitor.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/containers.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/BackupRestore.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/settings.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/systemcheck.jpg" alt="NETTRADES Launcher" width="100%">
+
+
+
+
+<img src="docs/screenshots/modules.jpg" alt="NETTRADES Launcher" width="100%">
+
