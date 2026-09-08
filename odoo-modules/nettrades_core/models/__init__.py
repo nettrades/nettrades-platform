@@ -22,6 +22,7 @@ from . import nettrades_experience
 from . import nettrades_review
 from . import nettrades_skill
 from . import nettrades_user_match
+from . import nettrades_good_answer
 # Removed: from . import res_partner
 # Removed: from . import hr_job
 # Removed: from . import project_project
