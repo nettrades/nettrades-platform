@@ -230,18 +230,18 @@ fi
 
 # Correct dependency order: core first, then modules that depend on it
 MODULES=(
-    "nettrades_core"
-    "nettrades_gpu_admin"
-    "nettrades_bridge"
-    "nettrades_ask_someone"
-    "nettrades_good_answer"
-    "nettrades_llm_config"
-    "nettrades_loop"
-    "nettrades_notifications"
-    "nettrades_fairness"
-    "nettrades_data_collection"
+#    "nettrades_core"
+#    "nettrades_gpu_admin"
+#    "nettrades_bridge"
+#    "nettrades_ask_someone"
+#    "nettrades_good_answer"
+#    "nettrades_llm_config"
+#    "nettrades_loop"
+#    "nettrades_notifications"
+#    "nettrades_fairness"
+#    "nettrades_data_collection"
     "nettrades_queue"
-    "nettrades_self_improving_config"
+#    "nettrades_self_improving_config"
 )
 
 #MODULES=("nettrades_core")
