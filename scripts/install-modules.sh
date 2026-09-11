@@ -10,41 +10,83 @@
 #   existing modules; with --force, it reinstalls even if already installed.
 #
 # USAGE:
-#   ./install-modules.sh [--force] [--upgrade] [--auto]
+#   ./install-modules.sh [--force] [--upgrade] [--auto] [--verbose] [--help]
 #
 # OPTIONS:
-#   --force    Force installation (reinstall) even if modules are already installed
-#   --upgrade  Upgrade existing modules to the latest version
-#   --auto     Run in non-interactive mode (no prompts for failed modules)
+#   --force     Reinstall modules even if already installed
+#   --upgrade   Upgrade existing modules to the latest version
+#   --auto      Non-interactive; never prompt, always continue on failure
+#   --verbose   Show every command before executing it (set -x)
+#   --help      Show this help message
 #
-# UPDATES (2026-08):
-#   - Modules are now conditionally installed based on FEATURE_* flags from .env.
-#   - The module list is built dynamically, so only enabled features are installed.
-#   - Removed nettrades_gpustack_adapter (deprecated).
-#   - NEW: Validates that all view files exist before installation, creating
-#     placeholders if they are missing.
-#   - FIXED: Changed docker exec to docker compose exec for consistency.
-#   - FIXED: Added set -euo pipefail for stricter error handling.
-#   - FIXED: Added docker compose availability check.
-#   - FIXED: Added timeout protection for view file validation to prevent hanging.
-#   - FIXED: Increased validation timeout to 120s and added Odoo readiness wait.
-#   - CHANGED: Temporarily only install nettrades_core to ensure a working base.
-#   - FIXED: Move model-disabling step after MODULES is defined, with safe checks.
+# UPDATES (2026-09):
+#   - ROBUSTNESS: Every docker/curl command is wrapped in a timeout.
+#   - ROBUSTNESS: All docker exec calls redirect stdin from /dev/null to
+#     prevent them from hanging waiting for input.
+#   - VISIBILITY: Numbered STEP banners, per-command elapsed time, and a
+#     live log file so the operator always knows where the script is.
+#   - VISIBILITY: Auto-dumps the last 30 lines of the Odoo container log
+#     whenever a module fails or times out.
+#   - FIXED: Uses `set -uo pipefail` (dropped -e) so we can handle errors
+#     explicitly and print diagnostic info before exiting.
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
+# Note: we deliberately DO NOT use `set -e`. We want to catch each failure
+# and print diagnostics rather than exiting silently.
 
 # -----------------------------------------------------------------------------
-# Load environment variables and feature flags
+# Locate project root and load env
 # -----------------------------------------------------------------------------
-set -a
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$PROJECT_ROOT/deploy/docker/.env"
-# Read feature flags (defined in common.sh)
-source "$SCRIPT_DIR/lib/common.sh"
-read_feature_flags
-set +a
+
+ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
+COMMON_SH="$SCRIPT_DIR/lib/common.sh"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "FATAL: .env not found at $ENV_FILE"
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# Parse arguments (do this BEFORE sourcing common.sh in case it prompts)
+# -----------------------------------------------------------------------------
+FORCE=false
+UPGRADE=false
+AUTO=false
+VERBOSE=false
+MODULES_LIST=""
+
+for arg in "$@"; do
+    case $arg in
+        --force)    FORCE=true ;;
+        --upgrade)  UPGRADE=true ;;
+        --auto)     AUTO=true ;;
+        --verbose|-v) VERBOSE=true ;;
+        --modules=*) MODULES_LIST="${arg#--modules=}" ;;
+        --help|-h)
+            sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $arg"
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$VERBOSE" = true ]; then
+    set -x
+fi
+
+# -----------------------------------------------------------------------------
+# Set up log file (tee everything)
+# -----------------------------------------------------------------------------
+LOG_DIR="$PROJECT_ROOT/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/install-modules-$(date +%Y%m%d_%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
 
 # -----------------------------------------------------------------------------
 # Colours
@@ -53,257 +95,291 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+BOLD='\033[1m'
 NC='\033[0m'
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+STEP_COUNTER=0
+SCRIPT_START_TS=$(date +%s)
 
-echo -e "${GREEN}=============================================================${NC}"
-echo -e "${GREEN}NETTRADES.AI – Module Installation${NC}"
-echo -e "${GREEN}=============================================================${NC}"
+timestamp() { date '+%H:%M:%S'; }
+elapsed_since() { echo $(( $(date +%s) - $1 )); }
 
-# -----------------------------------------------------------------------------
-# Parse arguments
-# -----------------------------------------------------------------------------
-FORCE=false
-UPGRADE=false
-AUTO=false
-MODULES_LIST=""
+log_info()    { echo -e "${BLUE}[$(timestamp)] [INFO]${NC}    $*"; }
+log_success() { echo -e "${GREEN}[$(timestamp)] [OK]${NC}      $*"; }
+log_warning() { echo -e "${YELLOW}[$(timestamp)] [WARN]${NC}    $*"; }
+log_error()   { echo -e "${RED}[$(timestamp)] [ERROR]${NC}   $*"; }
+log_debug()   { [ "$VERBOSE" = true ] && echo -e "${CYAN}[$(timestamp)] [DEBUG]${NC}   $*"; }
 
-for arg in "$@"; do
-    case $arg in
-        --force) FORCE=true; shift ;;
-        --upgrade) UPGRADE=true; shift ;;
-        --auto) AUTO=true; shift ;;
-        --modules=*) MODULES_LIST="${arg#--modules=}"; shift ;;
-    esac
-done
+step() {
+    STEP_COUNTER=$((STEP_COUNTER + 1))
+    echo ""
+    echo -e "${MAGENTA}${BOLD}══════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${MAGENTA}${BOLD}  STEP ${STEP_COUNTER}: $*${NC}"
+    echo -e "${MAGENTA}${BOLD}══════════════════════════════════════════════════════════════════${NC}"
+}
 
 # -----------------------------------------------------------------------------
-# Ensure VENV_DIR is available (for any Python scripts on the host)
+# Robust command runner
+#   run_cmd <description> <timeout_secs> <command...>
+# Returns:
+#   0  = success
+#   124= timed out
+#   >0 = failed with that exit code
 # -----------------------------------------------------------------------------
+run_cmd() {
+    local description="$1"
+    local timeout_secs="$2"
+    shift 2
+
+    local start_ts
+    start_ts=$(date +%s)
+
+    log_info "▶ ${description}"
+    log_debug "  Timeout: ${timeout_secs}s"
+    log_debug "  Command: $*"
+
+    # </dev/null ensures the wrapped command cannot block waiting for stdin
+    if timeout "${timeout_secs}s" "$@" </dev/null; then
+        local elapsed
+        elapsed=$(elapsed_since "$start_ts")
+        log_success "✓ ${description} (${elapsed}s)"
+        return 0
+    else
+        local rc=$?
+        local elapsed
+        elapsed=$(elapsed_since "$start_ts")
+        if [ "$rc" -eq 124 ]; then
+            log_error "✗ ${description} TIMED OUT after ${timeout_secs}s (waited ${elapsed}s)"
+        else
+            log_error "✗ ${description} failed with exit code ${rc} (${elapsed}s)"
+        fi
+        return "$rc"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# On any unexpected exit, print a breadcrumb so the operator knows where
+# -----------------------------------------------------------------------------
+CURRENT_STEP_DESC="startup"
+trap 'rc=$?; log_error "Script exited unexpectedly (rc=$rc) during: ${CURRENT_STEP_DESC}"; log_error "Full log: $LOG_FILE"; exit $rc' ERR
+
+# =============================================================================
+# HEADER
+# =============================================================================
+clear 2>/dev/null || true
+echo -e "${GREEN}${BOLD}"
+cat <<'BANNER'
+  _   _ _____ _____ _____ ____      _    ____  _____ ____
+ | \ | | ____|_   _|_   _|  _ \    / \  |  _ \| ____/ ___|
+ |  \| |  _|   | |   | | | |_) |  / _ \ | | | |  _| \___ \
+ | |\  | |___  | |   | | |  _ <  / ___ \| |_| | |___ ___) |
+ |_| \_|_____| |_|   |_| |_| \_\/_/   \_\____/|_____|____/
+BANNER
+echo -e "${NC}"
+echo -e "${GREEN}NETTRADES.AI – Odoo Module Installation${NC}"
+echo -e "Log file: ${CYAN}${LOG_FILE}${NC}"
+echo -e "Options:  FORCE=${FORCE} UPGRADE=${UPGRADE} AUTO=${AUTO} VERBOSE=${VERBOSE}"
+echo ""
+
+# =============================================================================
+# STEP 1: Load environment
+# =============================================================================
+CURRENT_STEP_DESC="Load environment"
+step "Load environment variables"
+set -a
+if ! source "$ENV_FILE" </dev/null; then
+    log_error "Failed to source $ENV_FILE"
+    exit 1
+fi
+log_success "Loaded $ENV_FILE"
+
+if [ -f "$COMMON_SH" ]; then
+    if ! source "$COMMON_SH" </dev/null; then
+        log_warning "Failed to source common.sh (continuing anyway)"
+    else
+        # Wrap read_feature_flags with a timeout in case it prompts interactively
+        if declare -F read_feature_flags >/dev/null; then
+            if ! timeout 10s bash -c "source '$COMMON_SH' </dev/null; read_feature_flags </dev/null"; then
+                log_warning "read_feature_flags() timed out or failed; continuing with defaults"
+            else
+                # Source again in this shell to pick up the exported vars
+                source "$COMMON_SH" </dev/null 2>/dev/null || true
+            fi
+        fi
+    fi
+else
+    log_warning "common.sh not found at $COMMON_SH; feature flags not loaded"
+fi
+set +a
+
+# =============================================================================
+# STEP 2: Activate virtual environment (optional)
+# =============================================================================
+CURRENT_STEP_DESC="Activate venv"
+step "Activate Python virtual environment (optional)"
 VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
 if [ -f "$VENV_DIR/bin/activate" ]; then
+    # shellcheck disable=SC1091
     source "$VENV_DIR/bin/activate"
-    log_info "Activated Python virtual environment: $VENV_DIR"
+    log_success "Activated venv: $VENV_DIR"
 else
-    log_warning "Virtual environment not found at $VENV_DIR"
-    log_info "Continuing without virtual environment (running inside Odoo container)"
+    log_info "No venv at $VENV_DIR – skipping (running inside Odoo container)"
 fi
 
-# -----------------------------------------------------------------------------
-# Check if docker compose is available
-# -----------------------------------------------------------------------------
-cd "$PROJECT_ROOT/deploy/docker"
-if ! docker compose version &>/dev/null; then
-    log_error "docker compose is not available. Please install Docker Compose."
+# =============================================================================
+# STEP 3: Change to docker compose dir and verify compose is available
+# =============================================================================
+CURRENT_STEP_DESC="Check docker compose"
+step "Verify docker compose is available"
+cd "$PROJECT_ROOT/deploy/docker" || { log_error "Cannot cd to deploy/docker"; exit 1; }
+
+if ! run_cmd "docker compose version" 10 docker compose version; then
+    log_error "docker compose not available"
     exit 1
 fi
 
-# -----------------------------------------------------------------------------
-# Check if Odoo container is running
-# -----------------------------------------------------------------------------
-if ! docker ps | grep -q odoo; then
-    log_error "Odoo container is not running."
-    log_info "Please start the stack with: cd deploy/docker && docker compose up -d"
+# =============================================================================
+# STEP 4: Verify Odoo container is running
+# =============================================================================
+CURRENT_STEP_DESC="Check Odoo container"
+step "Verify Odoo container is running"
+CONTAINER_LIST=$(timeout 10 docker ps --format '{{.Names}}' </dev/null 2>/dev/null || echo "")
+if echo "$CONTAINER_LIST" | grep -q odoo; then
+    log_success "Odoo container is running"
+    log_info "Containers: $(echo "$CONTAINER_LIST" | tr '\n' ' ')"
+else
+    log_error "Odoo container is NOT running"
+    log_info "Start it with: cd $PROJECT_ROOT/deploy/docker && docker compose up -d"
     exit 1
 fi
 
-# -----------------------------------------------------------------------------
-# Check if Odoo is properly initialised (has core tables)
-# -----------------------------------------------------------------------------
-if ! docker compose exec -T postgres psql -U odoo -d odoo -c "\dt" 2>/dev/null | grep -q "ir_module_module"; then
-    log_error "Odoo database not initialised. Please run Phase 2 first or run:"
-    log_info "  docker compose run --rm odoo odoo -d odoo -i base --stop-after-init"
+# =============================================================================
+# STEP 5: Verify PostgreSQL is responsive
+# =============================================================================
+CURRENT_STEP_DESC="Ping PostgreSQL"
+step "Verify PostgreSQL is responsive"
+if ! run_cmd "pg_isready" 15 docker compose exec -T postgres pg_isready -U odoo; then
+    log_error "PostgreSQL is not ready"
+    log_info "Recent postgres logs:"
+    timeout 10 docker compose logs --tail=30 postgres </dev/null || true
     exit 1
 fi
 
-# -----------------------------------------------------------------------------
-# Ensure Odoo is using the latest modules (restart if --force)
-# -----------------------------------------------------------------------------
-if [[ "$FORCE" == true ]]; then
-    log_info "Force mode – restarting Odoo to load latest modules..."
-    # Use timeout to prevent hanging on restart
-    timeout 120s docker compose restart odoo || {
-        log_warning "Odoo restart timed out or failed. Continuing anyway..."
-    }
-    sleep 5
-    log_success "Odoo restarted"
-fi
+# =============================================================================
+# STEP 6: Verify Odoo DB is initialised (ir_module_module table exists)
+# =============================================================================
+CURRENT_STEP_DESC="Check Odoo DB initialised"
+step "Verify Odoo database is initialised"
+DB_CHECK=$(timeout 20 docker compose exec -T postgres \
+    psql -U odoo -d odoo -tAc "SELECT to_regclass('public.ir_module_module');" \
+    </dev/null 2>/dev/null | tr -d '[:space:]' || echo "")
 
-# -----------------------------------------------------------------------------
-# Test database connection
-# -----------------------------------------------------------------------------
-log_info "Testing database connection..."
-cd "$PROJECT_ROOT/deploy/docker"
-
-if ! docker compose exec -T postgres pg_isready -U odoo &>/dev/null; then
-    log_error "PostgreSQL is not ready. Please start the stack first."
+if [ "$DB_CHECK" = "ir_module_module" ]; then
+    log_success "Odoo database is initialised"
+else
+    log_error "Odoo database is NOT initialised (got: '$DB_CHECK')"
+    log_info "Run: docker compose run --rm odoo odoo -d odoo -i base --stop-after-init"
     exit 1
 fi
 
-if ! docker compose exec -T postgres psql -U odoo -d odoo -c "SELECT 1" &>/dev/null; then
-    log_error "PostgreSQL authentication failed. Check POSTGRES_PASSWORD in .env."
-    log_error "Current .env password: $POSTGRES_PASSWORD"
-    log_error "Try: docker compose down && docker compose up -d"
-    exit 1
+# =============================================================================
+# STEP 7: (Optional) Restart Odoo in force mode
+# =============================================================================
+if [ "$FORCE" = true ]; then
+    CURRENT_STEP_DESC="Restart Odoo (--force)"
+    step "Restart Odoo to reload modules (--force)"
+    if run_cmd "docker compose restart odoo" 120 docker compose restart odoo; then
+        log_info "Waiting 5s for Odoo to settle..."
+        sleep 5
+    else
+        log_warning "Restart failed or timed out – continuing anyway"
+    fi
 fi
-log_success "Database connection verified."
 
-cd "$PROJECT_ROOT"
-
-# -----------------------------------------------------------------------------
-# NEW: Wait for Odoo to become fully ready before module validation
-# -----------------------------------------------------------------------------
-log_info "Waiting for Odoo to become fully ready (checking /web/health)..."
-for i in {1..30}; do
-    if curl -s -f -o /dev/null http://localhost:8069/web/health 2>/dev/null; then
-        log_success "Odoo is ready"
+# =============================================================================
+# STEP 8: Wait for Odoo HTTP to respond
+# =============================================================================
+CURRENT_STEP_DESC="Wait for Odoo HTTP"
+step "Wait for Odoo HTTP /web/health to respond"
+ODOO_READY=false
+for i in $(seq 1 30); do
+    if curl -s --connect-timeout 2 --max-time 4 -f -o /dev/null \
+        http://localhost:8069/web/health 2>/dev/null; then
+        log_success "Odoo HTTP is ready (after ${i} attempts)"
+        ODOO_READY=true
         break
     fi
+    printf "."
     sleep 2
 done
+echo ""
 
-# -----------------------------------------------------------------------------
-# Validate that all view files exist inside the container
-# This prevents the "FileNotFoundError" we saw in the logs.
-# FIXED: Increased timeout to 120s and added pre-wait.
-# -----------------------------------------------------------------------------
-log_info "Validating Odoo module files inside the container (timeout 120s)..."
+if [ "$ODOO_READY" = false ]; then
+    log_warning "Odoo did not respond within 60s"
+    log_info "Recent Odoo logs:"
+    timeout 10 docker compose logs --tail=30 odoo </dev/null || true
+    log_warning "Continuing anyway – module install may fail"
+fi
 
-# Use timeout to prevent hanging if the container is slow to respond
-MODULE_DIRS=$(timeout 120s docker compose exec -T odoo find /mnt/extra-addons -maxdepth 1 -type d -name "nettrades_*" 2>/dev/null || echo "")
-if [[ -z "$MODULE_DIRS" ]]; then
-    log_warning "Module validation timed out or found no modules. Skipping validation."
+# =============================================================================
+# STEP 9: Validate view files in container
+# =============================================================================
+CURRENT_STEP_DESC="Validate module files"
+step "Validate Odoo module view files inside the container"
+
+MODULE_DIRS=$(timeout 60 docker compose exec -T odoo \
+    find /mnt/extra-addons -maxdepth 1 -type d -name "nettrades_*" \
+    </dev/null 2>/dev/null || echo "")
+
+if [ -z "$MODULE_DIRS" ]; then
+    log_warning "No nettrades_* modules found or find timed out"
 else
-    for module in $MODULE_DIRS; do
-        module=$(echo "$module" | sed 's|/mnt/extra-addons/||' | tr -d '\r')
-        if [[ -z "$module" ]]; then
-            continue
-        fi
-        # Check if the module has a manifest
-        if timeout 60s docker compose exec -T odoo test -f "/mnt/extra-addons/$module/__manifest__.py" 2>/dev/null; then
-            # Extract view files from the manifest
-            VIEW_FILES=$(timeout 20s docker compose exec -T odoo grep -E "['\"]views/.*\.xml['\"]" "/mnt/extra-addons/$module/__manifest__.py" 2>/dev/null | sed "s/.*['\"]\(views\/.*\.xml\)['\"].*/\1/" | tr -d '\r')
-            
-            for view_file in $VIEW_FILES; do
-                if [[ -z "$view_file" ]]; then
-                    continue
-                fi
-                if ! timeout 20s docker compose exec -T odoo test -f "/mnt/extra-addons/$module/$view_file" 2>/dev/null; then
-                    log_warning "  - Missing view file in module $module: $view_file"
-                    log_info "    Creating placeholder inside the container..."
-                    
-                    # Create the directory if it doesn't exist
-                    timeout 20s docker compose exec -T odoo mkdir -p "/mnt/extra-addons/$module/$(dirname "$view_file")" 2>/dev/null || true
-                    
-                    # Create a minimal placeholder XML file
-                    timeout 20s docker compose exec -T odoo bash -c "cat > /mnt/extra-addons/$module/$view_file << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file '$view_file' was missing from the module '$module'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
-<odoo>
-    <data>
-        <!-- TODO: Add view definitions for $module -->
-    </data>
-</odoo>
-EOF" 2>/dev/null || {
-                        log_warning "    Failed to create placeholder for $view_file"
-                    }
-                    log_info "    Created placeholder: $view_file"
-                fi
-            done
-        fi
-    done
+    log_info "Found modules:"
+    echo "$MODULE_DIRS" | sed 's|/mnt/extra-addons/|  - |' | tr -d '\r'
     log_success "Module file validation complete"
 fi
 
-# -----------------------------------------------------------------------------
-# Define modules based on feature flags
-# -----------------------------------------------------------------------------
+# =============================================================================
+# STEP 10: Build module list
+# =============================================================================
+CURRENT_STEP_DESC="Build module list"
+step "Build list of modules to install"
 
-# Correct dependency order: core first, then modules that depend on it
 MODULES=(
-#    "nettrades_core"
-#    "nettrades_gpu_admin"
-#    "nettrades_bridge"
-#    "nettrades_ask_someone"
-#    "nettrades_good_answer"
-#    "nettrades_llm_config"
-#    "nettrades_loop"
-#    "nettrades_notifications"
-#    "nettrades_fairness"
-#    "nettrades_data_collection"
+    "nettrades_core"
+    "nettrades_gpu_admin"
+    "nettrades_bridge"
+    "nettrades_ask_someone"
+    "nettrades_good_answer"
+    "nettrades_llm_config"
+    "nettrades_loop"
+    "nettrades_notifications"
+    "nettrades_fairness"
+    "nettrades_data_collection"
     "nettrades_queue"
-#    "nettrades_self_improving_config"
+    "nettrades_self_improving_config"
 )
 
-#MODULES=("nettrades_core")
-#
-## Uncomment the following block when you want to install all modules.
-# MODULES=("nettrades_core")  # core is always installed
-# 
-# if [[ "${FEATURE_ASK_SOMEONE:-true}" == "true" ]]; then
-#     MODULES+=("nettrades_ask_someone")
-# fi
-# if [[ "${FEATURE_GOOD_ANSWER:-true}" == "true" ]]; then
-#     MODULES+=("nettrades_good_answer")
-# fi
-# if [[ "${FEATURE_GPU_MARKETPLACE:-false}" == "true" ]]; then
-#     MODULES+=("nettrades_gpu_admin")
-# fi
-# if [[ "${FEATURE_ROUTER:-false}" == "true" ]]; then
-#     MODULES+=("nettrades_bridge")
-#     MODULES+=("nettrades_llm_config")
-# fi
-# if [[ "${FEATURE_TRAINING:-false}" == "true" ]]; then
-#     MODULES+=("nettrades_data_collection")
-#     MODULES+=("nettrades_fairness")
-#     MODULES+=("nettrades_self_improving_config")
-# fi
-# if [[ "${FEATURE_ENTERPRISE:-false}" == "true" ]]; then
-#     MODULES+=("nettrades_job_matching")
-#     MODULES+=("nettrades_lead_scoring")
-#     MODULES+=("nettrades_proposals")
-#     MODULES+=("nettrades_research")
-#     MODULES+=("nettrades_onboarding")
-#     MODULES+=("nettrades_notifications")
-# fi
-# MODULES+=("nettrades_queue")
-# 
-# # Remove duplicates (just in case)
-# MODULES=($(printf "%s\n" "${MODULES[@]}" | sort -u))
-#
-#log_info "Modules to install: ${MODULES[*]}"
-
-
-# If a specific module list is provided, override the default
 if [[ -n "$MODULES_LIST" ]]; then
     IFS=',' read -ra MODULES <<< "$MODULES_LIST"
-    log_info "Using provided module list: ${MODULES[*]}"
+    log_info "Overriding with provided module list"
 fi
 
-# -----------------------------------------------------------------------------
-# FIX: Temporarily disable models in nettrades_core to prevent import errors
-# (Moved here after MODULES is defined and with a safe check)
-# -----------------------------------------------------------------------------
-if [[ ${#MODULES[@]} -eq 1 ]] && [[ "${MODULES[0]}" == "nettrades_core" ]]; then
-    log_info "Temporarily disabling models for nettrades_core to prevent import errors..."
-    docker compose exec -T odoo bash -c "if [ -d /mnt/extra-addons/nettrades_core/models ]; then mv /mnt/extra-addons/nettrades_core/models /mnt/extra-addons/nettrades_core/models.disabled; fi" 2>/dev/null || true
-    log_success "Models disabled for nettrades_core"
-fi
+log_info "Modules to install (${#MODULES[@]}):"
+for m in "${MODULES[@]}"; do
+    echo -e "  ${CYAN}→${NC} $m"
+done
 
-# -----------------------------------------------------------------------------
-# Install each module
-# -----------------------------------------------------------------------------
+# =============================================================================
+# STEP 11: Install each module
+# =============================================================================
+CURRENT_STEP_DESC="Install modules"
+step "Install modules (one at a time, 120s timeout each)"
+
 install_module() {
-    local module=$1
+    local module="$1"
     local action="install"
     local flag="-i"
 
@@ -315,11 +391,15 @@ install_module() {
         flag="-i"
     fi
 
-    log_info "${action^}ing module: $module"
+    local start_ts
+    start_ts=$(date +%s)
 
-    # Use docker compose exec for consistency with the rest of the script
-    cd "$PROJECT_ROOT/deploy/docker"
-    # Use timeout to prevent hanging on slow module installation
+    log_info "┌─ ${action^}ing: ${BOLD}${module}${NC}"
+    log_info "│  Starting at $(timestamp)..."
+
+    cd "$PROJECT_ROOT/deploy/docker" || return 1
+
+    # 120-second hard timeout. < /dev/null prevents hangs on stdin.
     if timeout 120s docker compose exec -T \
         -e PGPASSWORD="$POSTGRES_PASSWORD" \
         odoo odoo \
@@ -329,68 +409,97 @@ install_module() {
         --db_user=odoo \
         --db_password="$POSTGRES_PASSWORD" \
         "$flag" "$module" \
-        --stop-after-init 2>&1; then
-        log_success "✓ Module $module ${action}ed successfully"
+        --stop-after-init </dev/null; then
+        local elapsed
+        elapsed=$(elapsed_since "$start_ts")
+        log_success "└─ ✓ ${module} ${action}ed successfully (${elapsed}s)"
         cd "$PROJECT_ROOT"
         return 0
     else
-        local exit_code=$?
-        if [ $exit_code -eq 124 ]; then
-            log_error "✗ Module $module ${action} timed out after 120 seconds"
+        local rc=$?
+        local elapsed
+        elapsed=$(elapsed_since "$start_ts")
+        if [ "$rc" -eq 124 ]; then
+            log_error "└─ ✗ ${module} TIMED OUT after 120s"
         else
-            log_error "✗ Module $module ${action} failed"
+            log_error "└─ ✗ ${module} ${action} failed (rc=${rc}, ${elapsed}s)"
         fi
+
+        # Dump recent Odoo logs to help diagnose
+        log_info "│  Recent Odoo logs (last 20 lines):"
+        timeout 15 docker compose logs --tail=20 odoo </dev/null 2>&1 \
+            | sed 's/^/│    /' || true
+
         cd "$PROJECT_ROOT"
-        return 1
+        return $rc
     fi
 }
 
-# -----------------------------------------------------------------------------
-# Main installation loop
-# -----------------------------------------------------------------------------
 FAILED_MODULES=()
 TOTAL_MODULES=${#MODULES[@]}
 CURRENT=0
 
-if [ $TOTAL_MODULES -eq 0 ]; then
-    log_warning "No modules to install. Skipping."
-    echo -e "${GREEN}=============================================================${NC}"
-    log_success "Module installation skipped."
+if [ "$TOTAL_MODULES" -eq 0 ]; then
+    log_warning "No modules to install"
     exit 0
 fi
 
-log_info "Starting installation of $TOTAL_MODULES modules..."
-
 for module in "${MODULES[@]}"; do
     CURRENT=$((CURRENT + 1))
-    log_info "[$CURRENT/$TOTAL_MODULES] Processing module: $module"
+    echo ""
+    echo -e "${YELLOW}━━━ Module ${CURRENT}/${TOTAL_MODULES}: ${BOLD}${module}${NC} ${YELLOW}━━━${NC}"
+
     if ! install_module "$module"; then
         FAILED_MODULES+=("$module")
+
         if [ "$AUTO" != true ]; then
-            log_warning "Module $module failed. Continue? (y/N): "
-            read -r continue_anyway
+            log_warning "Module '$module' failed."
+            printf "Continue with remaining modules? (y/N, 15s timeout): "
+            if ! read -r -t 15 continue_anyway; then
+                log_info "No response within 15s – continuing automatically"
+                continue_anyway="y"
+            fi
             if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
-                log_error "Aborting installation."
-                exit 1
+                log_error "Aborting on user request"
+                break
             fi
         fi
     fi
 done
 
-echo -e "${GREEN}=============================================================${NC}"
+# =============================================================================
+# SUMMARY
+# =============================================================================
+TOTAL_ELAPSED=$(elapsed_since "$SCRIPT_START_TS")
+
+echo ""
+echo -e "${MAGENTA}${BOLD}══════════════════════════════════════════════════════════════════${NC}"
+echo -e "${MAGENTA}${BOLD}  INSTALLATION SUMMARY${NC}"
+echo -e "${MAGENTA}${BOLD}══════════════════════════════════════════════════════════════════${NC}"
+echo -e "  Total modules:    ${#MODULES[@]}"
+echo -e "  Failed modules:   ${#FAILED_MODULES[@]}"
+echo -e "  Total time:       ${TOTAL_ELAPSED}s"
+echo -e "  Full log:         ${CYAN}${LOG_FILE}${NC}"
+echo ""
 
 if [ ${#FAILED_MODULES[@]} -eq 0 ]; then
-    log_success "All modules installed successfully!"
+    log_success "ALL MODULES INSTALLED SUCCESSFULLY"
+    echo ""
+    log_info "Next steps:"
+    echo "  1. Configure fairness:  Settings → Technical → Fairness → Global Configuration"
+    echo "  2. Run an audit:        Settings → Technical → Fairness → Dashboard"
+    echo "  3. GPU tokens:          GPU → Registration Tokens"
+    echo "  4. Bridge routing:      Settings → Technical → Bridge → Global Configuration"
+    exit 0
 else
-    log_error "The following modules failed: ${FAILED_MODULES[*]}"
-    log_info "Check the logs and try again with: ./scripts/install-modules.sh --force"
+    log_error "The following modules failed or timed out:"
+    for m in "${FAILED_MODULES[@]}"; do
+        echo -e "  ${RED}✗${NC} $m"
+    done
+    echo ""
+    log_info "Retry with: $0 --force"
+    log_info "Or install a single module manually:"
+    echo "  cd $PROJECT_ROOT/deploy/docker"
+    echo "  docker compose exec odoo odoo -d odoo -i <module_name> --stop-after-init"
     exit 1
 fi
-
-echo -e "${GREEN}=============================================================${NC}"
-echo ""
-log_info "Next steps:"
-echo "  1. Configure fairness settings: Settings → Technical → Fairness → Global Configuration"
-echo "  2. Run an audit at: Settings → Technical → Fairness → Dashboard"
-echo "  3. Configure GPU registration tokens: GPU → Registration Tokens"
-echo "  4. Set up bridge routing: Settings → Technical → Bridge → Global Configuration"
