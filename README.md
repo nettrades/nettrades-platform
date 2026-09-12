@@ -60,9 +60,9 @@ PURPOSE:
 [![Contributor License Agreement](https://img.shields.io/badge/Contributor-License-Agreement.svg)](Contributor-License-Agreement.md)
 [![Ethical Statement](https://img.shields.io/badge/Ethical-Statement.svg)](ETHICAL-STATEMENT.md)
 
-## The NETTRADES Sovereign AI Platform
+## The NETTRADES Sovereign AI Platform For Autonomous Enterprises
 
-**The Nettrades Platform builds the entire Sovereign AI Infrastructure of any organisation, using its spare GPU capacity.**
+**The Nettrades Platform builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity.**
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
@@ -72,7 +72,9 @@ PURPOSE:
 
 **Now they just install Ubuntu Linux on a computer and run the commands below and deploy the entire NETTRADES Sovereign AI Infrastructure in a few minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
-**Then use their spare GPUs to talk to their organisations data.**
+The Nettrades Platform builds the Sovereign AI Infrastructure for Autonomous Enterprises. 
+
+**Where they use their spare GPU capacity to talk to their organisations data.** 
 
 
 
