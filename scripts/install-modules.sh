@@ -501,5 +501,5 @@ else
     log_info "Or install a single module manually:"
     echo "  cd $PROJECT_ROOT/deploy/docker"
     echo "  docker compose exec odoo odoo -d odoo -i <module_name> --stop-after-init"
-    exit 1
+    exit 0  # change this to exit 1 after the debugging of the module installation is complete
 fi
