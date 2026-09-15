@@ -14,15 +14,21 @@
 #   - Added nettrades_user, nettrades_company, etc.
 # =============================================================================
 
-from . import nettrades_user
+from . import expert_session.py
 from . import nettrades_company
-from . import nettrades_project
-from . import nettrades_field
 from . import nettrades_experience
-from . import nettrades_review
-from . import nettrades_skill
-from . import nettrades_user_match
+from . import nettrades_field
 from . import nettrades_good_answer
+from . import nettrades_project
+from . import nettrades_review
+from . import nettrades_secrets.py
+from . import nettrades_skill
+from . import nettrades_user
+from . import nettrades_user_match
+from . import nettrades_vote.py
+from . import qualified_professional.py
+from . import review.py
+from . import sandbox_policy.py
 # Removed: from . import res_partner
 # Removed: from . import hr_job
 # Removed: from . import project_project
