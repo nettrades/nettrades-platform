@@ -347,19 +347,46 @@ fi
 CURRENT_STEP_DESC="Build module list"
 step "Build list of modules to install"
 
+# =============================================================================
+# MODULE INSTALLATION ORDER
+# =============================================================================
+# Order matters! Odoo installs modules in the order given, and a module's
+# dependencies must be installed BEFORE it. The order below is:
+#
+#   1. nettrades_core            — no NETTRADES dependencies (base + mail only)
+#   2. nettrades_gpu_admin       — depends on nettrades_core
+#   3. nettrades_bridge          — depends on nettrades_core
+#   4. nettrades_llm_config      — depends on nettrades_core
+#   5. nettrades_queue           — depends on nettrades_core
+#   6. nettrades_notifications   — depends on nettrades_core
+#   7. nettrades_fairness        — depends on nettrades_core
+#   8. nettrades_data_collection — depends on nettrades_core
+#   9. nettrades_self_improving_config — depends on nettrades_core
+#  10. nettrades_ask_someone     — depends on nettrades_core (and queue)
+#  11. nettrades_good_answer     — depends on nettrades_core (and ask_someone)
+#  12. nettrades_loop            — depends on nettrades_core (and queue)
+#
+# The following modules are still being split out of nettrades_core and
+# are NOT yet installable. Uncomment them once the split is complete:
+#   - nettrades_recruitment (was part of nettrades_core)
+#   - nettrades_project     (was part of nettrades_core)
+#   - nettrades_crm         (was part of nettrades_core)
+#   - nettrades_marketplace (was part of nettrades_core)
+# =========================================================================
+
 MODULES=(
     "nettrades_core"
     "nettrades_gpu_admin"
     "nettrades_bridge"
-    "nettrades_ask_someone"
-    "nettrades_good_answer"
     "nettrades_llm_config"
-    "nettrades_loop"
+    "nettrades_queue"
     "nettrades_notifications"
     "nettrades_fairness"
     "nettrades_data_collection"
-    "nettrades_queue"
     "nettrades_self_improving_config"
+    "nettrades_ask_someone"
+    "nettrades_good_answer"
+    "nettrades_loop"
 )
 
 if [[ -n "$MODULES_LIST" ]]; then
@@ -470,6 +497,16 @@ done
 # =============================================================================
 # SUMMARY
 # =============================================================================
+# CHANGE (2026-09): This block now exits with code 1 when any module failed.
+# The previous version always exited 0, which meant the Launcher, CI, and any
+# shell script using `if ./install-modules.sh; then ...` treated a broken
+# install as a success. That made the missing nettrades.vote model look like
+# a silent "everything is fine" result when it was actually a hard failure.
+#
+# The exit code is now the source of truth:
+#   0 -> every module installed successfully
+#   1 -> one or more modules failed (the caller should stop and investigate)
+# =============================================================================
 TOTAL_ELAPSED=$(elapsed_since "$SCRIPT_START_TS")
 
 echo ""
@@ -497,9 +534,10 @@ else
         echo -e "  ${RED}✗${NC} $m"
     done
     echo ""
-    log_info "Retry with: $0 --force"
-    log_info "Or install a single module manually:"
+    log_info "Diagnose the first failure by re-running a single module with verbose logs:"
     echo "  cd $PROJECT_ROOT/deploy/docker"
-    echo "  docker compose exec odoo odoo -d odoo -i <module_name> --stop-after-init"
-    exit 0  # change this to exit 1 after the debugging of the module installation is complete
+    echo "  docker compose exec odoo odoo -d odoo -i <module_name> --stop-after-init --log-level=debug"
+    echo ""
+    log_info "Full log: $LOG_FILE"
+    exit 1
 fi

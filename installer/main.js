@@ -1475,6 +1475,67 @@ ipcMain.handle('detect-hardware', () => {
     };
 });
 
+// =============================================================================
+// HARDWARE DETECTION (moved out of Odoo into src/core/hardware_detection.py)
+// =============================================================================
+// The Python hardware detection module is invoked as a subprocess from the
+// Launcher. This decouples hardware discovery from Odoo entirely, which
+// means:
+//   1. The Launcher can show hardware info BEFORE any deployment
+//   2. Users can see what their machine can do without installing Odoo
+//   3. The same detection works for the Hub (Linux) and Spoke (Windows)
+//   4. We can move to a non-Odoo backend in the future without touching
+//      this code path
+// =============================================================================
+
+ipcMain.handle('detect-hardware-profile', async () => {
+    /**
+     * Run the Python hardware detection module and return the SystemProfile.
+     *
+     * The script is located at src/core/hardware_detection.py. It prints
+     * JSON to stdout, which we parse and return.
+     */
+    const scriptPath = path.join(PROJECT_ROOT, 'src', 'core', 'hardware_detection.py');
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `Hardware detection script not found: ${scriptPath}` };
+    }
+
+    // Use the venv Python if it exists, otherwise fall back to system Python
+    const venvPython = path.join(VENV_DIR, 'bin', 'python');
+    const pythonBin = fs.existsSync(venvPython) ? venvPython : 'python3';
+
+    return new Promise((resolve) => {
+        exec(`${pythonBin} "${scriptPath}"`, { cwd: PROJECT_ROOT, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+            if (error) {
+                logError(`Hardware detection failed: ${stderr || error.message}`);
+                resolve({ success: false, error: stderr || error.message });
+                return;
+            }
+            try {
+                const profile = JSON.parse(stdout);
+                logInfo(`Hardware profile: ${profile.hostname}, ${profile.gpus.length} GPU(s), recommended role: ${profile.recommended_role || 'unknown'}`);
+                resolve({ success: true, data: profile });
+            } catch (e) {
+                logError(`Failed to parse hardware profile JSON: ${e.message}`);
+                resolve({ success: false, error: `Invalid JSON output: ${stdout.substring(0, 500)}` });
+            }
+        });
+    });
+});
+
+ipcMain.handle('get-recommended-role', async () => {
+    /**
+     * Convenience handler that returns only the recommended role for this
+     * machine (dynamo_worker / rpc_worker / local_only). This is used by
+     * the Spoke installer to decide which software to install.
+     */
+    const result = await ipcMain.handle('detect-hardware-profile');
+    if (result.success && result.data) {
+        return { success: true, role: result.data.recommended_role || 'local_only' };
+    }
+    return { success: false, role: 'local_only', error: result.error };
+});
+
 function detectGPUs() {
     const gpus = [];
     const platform = process.platform;

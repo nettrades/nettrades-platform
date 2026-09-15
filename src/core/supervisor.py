@@ -22,19 +22,31 @@
 #   7. Post-processing for self-improving loop after routing
 #   8. Fallback detection: automatically notifies the user when the CPU model is used
 #   9. Resolution detection: identifies when user problems are solved
+#  10. NEW: Hardware-aware inference routing (Dynamo vs RPC cluster vs local)
+#  11. NEW: Session-to-backend affinity binding
+#  12. NEW: Graceful drain-and-restart on RPC node failure
 #
 # INTEGRATION POINTS:
 #   - Odoo: Reads company-specific LLM configuration via LLMFactory
 #   - Bridge: Routes requests to local or remote brain based on company settings
 #   - Self-Improving: Records episodes for fine-tuning models
-#   - GPUStack: Uses configured LLM provider (OpenAI, Anthropic, DeepSeek, Ollama,
-#     NETTRADES.AI)
-#   - llama.cpp: Used as fallback when GPUStack is unavailable
+#   - Dynamo: Primary inference for GPU data centre nodes
+#   - llama.cpp RPC: Distributed inference for office PCs
+#   - Hardware detection: src/core/hardware_detection.py
+#   - Node health: src/core/node_health.py
 #
 # UPDATES (2026-08-10):
 #   - Added resolution detection in post_process
 #   - Added track system integration
 #   - Enhanced episode recording with full metadata
+#
+# UPDATES (2026-09-15):
+#   - Added hardware-aware routing: the supervisor now checks whether the
+#     requested model fits on a Dynamo node, an RPC cluster, or local inference.
+#   - Added session-to-backend affinity: once a conversation starts on a
+#     backend, all subsequent turns stay on that backend (KV cache locality).
+#   - Added drain-and-restart integration: when the health monitor detects
+#     that an RPC node has failed, the supervisor drains the affected cluster.
 # =============================================================================
 
 import asyncio
@@ -80,6 +92,16 @@ from bridge_integration import BridgeService
 from self_improving_integration import SelfImprovingService, EpisodeData
 
 # -----------------------------------------------------------------------------
+# Import node health monitor (src/core/node_health.py)
+# -----------------------------------------------------------------------------
+from node_health import get_health_monitor, NodeHealth
+
+# -----------------------------------------------------------------------------
+# Import hardware detection (src/core/hardware_detection.py)
+# -----------------------------------------------------------------------------
+from hardware_detection import detect_system_profile, SystemProfile
+
+# -----------------------------------------------------------------------------
 # Import resilience utilities (retry and circuit breaker)
 # -----------------------------------------------------------------------------
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -93,6 +115,10 @@ _logger = logging.getLogger(__name__)
 # Maximum follow-up rounds for medical/legal screening
 # This prevents infinite loops when the user is not providing enough information.
 MAX_FOLLOWUP_ROUNDS = 3
+
+# Default thresholds for hardware-aware routing
+MODEL_SIZE_THRESHOLD_BYTES = 40 * 1024 * 1024 * 1024   # 40 GB (roughly 70B params at Q4)
+VRAM_HEADROOM_FACTOR = 0.85                              # Reserve 15% VRAM
 
 # =============================================================================
 # CIRCUIT BREAKER FOR SUPERVISOR INVOCATION
@@ -150,7 +176,7 @@ async def invoke_supervisor_with_retry(
 # =============================================================================
 # CREATE SUB-AGENTS (Each is a compiled LangGraph sub-graph)
 # =============================================================================
-# The supervisor uses these sub-agents to handle specific business domains.
+# The supervisor uses these sub-agents to handle specific domains.
 # Each sub-agent is created by its factory function and returns a compiled
 # graph with an .ainvoke() method.
 recruitment_agent = create_recruitment_agent()
@@ -163,7 +189,191 @@ ask_someone_agent = create_ask_someone_agent()
 good_answer_agent = create_good_answer_agent()
 gpu_marketplace_agent = create_gpu_marketplace_agent()
 
-_logger.info("??? All sub-agents loaded successfully")
+_logger.info("All sub-agents loaded successfully")
+
+
+# =============================================================================
+# HARDWARE-AWARE ROUTING HELPERS
+# =============================================================================
+
+async def _get_available_hardware(company_id: int) -> Dict[str, Any]:
+    """
+    Query the available hardware for a company.
+
+    This calls the Odoo `gpu.cluster` model to get the company's GPU
+    inventory, and combines it with the health monitor's live data.
+
+    Returns a dict with:
+      - dynamo_vram_mb: total VRAM available on Dynamo-capable nodes
+      - rpc_vram_mb:    total VRAM available on RPC-capable nodes
+      - rpc_nodes:      list of healthy RPC node IDs
+      - local_profile:  the local machine's SystemProfile
+    """
+    result = {
+        'dynamo_vram_mb': 0,
+        'rpc_vram_mb': 0,
+        'rpc_nodes': [],
+        'local_profile': None,
+    }
+
+    # Local hardware profile (always available, no Odoo needed)
+    try:
+        result['local_profile'] = detect_system_profile()
+    except Exception as e:
+        _logger.warning(f"Local hardware detection failed: {e}")
+
+    # Query Odoo for cluster inventory
+    try:
+        import requests
+        import os
+        odoo_url = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:8080")
+        api_key = os.getenv("ODOO_API_KEY", "")
+
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "object",
+                "method": "execute_kw",
+                "args": [
+                    os.getenv("ODOO_DB", "odoo"),
+                    os.getenv("ODOO_USER", 1),
+                    os.getenv("ODOO_PASSWORD", "admin"),
+                    "gpu.cluster",
+                    "search_read",
+                    [[("company_id", "=", company_id)]],
+                    {"fields": ["id", "trust_mode", "total_vram_gb", "available_vram_gb"]},
+                ]
+            },
+            "id": 1,
+        }
+        headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
+        resp = requests.post(f"{odoo_url}/jsonrpc", json=payload, headers=headers, timeout=5)
+        if resp.ok:
+            clusters = resp.json().get("result", [])
+            for c in clusters:
+                vram_mb = int(c.get("available_vram_gb", 0) * 1024)
+                if c.get("trust_mode") == "company_multi_gpu":
+                    result['dynamo_vram_mb'] += vram_mb
+                else:
+                    result['rpc_vram_mb'] += vram_mb
+    except Exception as e:
+        _logger.warning(f"Failed to query Odoo GPU clusters: {e}")
+
+    # Query the health monitor for healthy RPC nodes
+    monitor = get_health_monitor()
+    for node in monitor.get_healthy_nodes_by_role('rpc_worker'):
+        result['rpc_nodes'].append(node.node_id)
+        # Add this node's VRAM to the pool
+        for mem in node.gpu_memory_used_mb.values():
+            result['rpc_vram_mb'] += 0  # TODO: use total VRAM not used
+    return result
+
+
+def _model_fits_in_vram(model_size_bytes: int, available_vram_mb: int) -> bool:
+    """Check whether a model fits in the available VRAM with headroom."""
+    if available_vram_mb <= 0:
+        return False
+    available_bytes = available_vram_mb * 1024 * 1024 * VRAM_HEADROOM_FACTOR
+    return model_size_bytes <= available_bytes
+
+
+def _select_inference_track(state: dict, hardware: Dict[str, Any]) -> str:
+    """
+    Decide which inference track should handle this request.
+
+    The decision tree is:
+      1. If the conversation has a pinned backend, use it (session affinity).
+      2. If the model fits on a Dynamo node with NVLink, use Dynamo.
+      3. If the model fits on the RPC cluster, use RPC.
+      4. If the model fits locally, use local inference.
+      5. Otherwise, fall back to remote (NETTRADES.AI hub).
+
+    Returns one of: 'dynamo', 'rpc', 'local', 'remote'.
+    """
+    # 1. Session affinity: never switch mid-conversation
+    pinned = state.get("inference_track")
+    if pinned:
+        _logger.info(f"Using pinned inference track: {pinned}")
+        return pinned
+
+    model_size = state.get("model_size_bytes", 0)
+
+    # 2. Try Dynamo first (lowest latency, highest throughput)
+    if model_size and _model_fits_in_vram(model_size, hardware['dynamo_vram_mb']):
+        return 'dynamo'
+
+    # 3. Try RPC cluster
+    if model_size and _model_fits_in_vram(model_size, hardware['rpc_vram_mb']):
+        return 'rpc'
+
+    # 4. Try local
+    local = hardware.get('local_profile')
+    if local and model_size:
+        local_vram = local.total_vram_mb
+        if _model_fits_in_vram(model_size, local_vram):
+            return 'local'
+
+    # 5. Fall back to remote
+    return 'remote'
+
+
+async def _on_rpc_node_failure(node: NodeHealth) -> None:
+    """
+    Callback fired by the health monitor when an RPC node becomes unhealthy.
+
+    This implements the drain-and-restart pattern from Ghostlink:
+      1. Find any active RPC cluster that includes this node
+      2. Drain the cluster (unload the master llama-server)
+      3. Fail in-flight requests with a clear error
+      4. Reassign layers to exclude the failed node
+      5. Relaunch the cluster
+
+    The conversation transcript is preserved by the LangGraph checkpointer,
+    so the user can retry with full context.
+    """
+    _logger.warning(
+        f"RPC node {node.node_id} ({node.hostname}) failed — draining affected clusters"
+    )
+    try:
+        import requests, os
+        odoo_url = os.getenv("ODOO_PROXY_URL", "http://odoo-proxy:8080")
+        api_key = os.getenv("ODOO_API_KEY", "")
+
+        # Ask Odoo to drain and restart any cluster that includes this node
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "object",
+                "method": "execute_kw",
+                "args": [
+                    os.getenv("ODOO_DB", "odoo"),
+                    os.getenv("ODOO_USER", 1),
+                    os.getenv("ODOO_PASSWORD", "admin"),
+                    "gpu.cluster",
+                    "drain_and_restart_for_node",
+                    [node.node_id],
+                    {},
+                ]
+            },
+            "id": 1,
+        }
+        headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
+        resp = requests.post(f"{odoo_url}/jsonrpc", json=payload, headers=headers, timeout=10)
+        if resp.ok:
+            _logger.info(f"Drain-and-restart triggered for node {node.node_id}")
+        else:
+            _logger.error(f"Drain-and-restart failed: HTTP {resp.status_code}")
+    except Exception as e:
+        _logger.error(f"Drain-and-restart callback error: {e}")
+
+
+# Register the callback with the global health monitor
+try:
+    get_health_monitor().on_node_unhealthy(_on_rpc_node_failure)
+except Exception as e:
+    _logger.warning(f"Could not register drain-and-restart callback: {e}")
 
 # =============================================================================
 # NODE 1: CLASSIFY INTENT
@@ -336,73 +546,86 @@ async def medical_screening(state: dict) -> dict:
     return state
 
 # =============================================================================
-# NODE 3: BRIDGE ROUTE (Hub-and-Spoke Routing)
+# NODE 3: BRIDGE ROUTE (now hardware-aware)
 # =============================================================================
 async def bridge_route(state: dict) -> dict:
     """
-    Check if the request should be routed to the remote brain via the bridge.
+    Check if the request should be routed to the remote brain via the bridge,
+    AND decide which inference track should handle it.
 
-    This node integrates the nettrades_bridge module, which decides whether the
-    current request should be processed locally (by the company's own LangGraph
-    agents) or forwarded to the remote NETTRADES.AI brain.
+    This node now performs two routing decisions:
+      1. Hub-and-spoke routing (existing): local vs remote brain
+      2. Inference track selection (new): dynamo vs rpc vs local
 
-    The decision is based on:
-    - Company-specific feature flags (e.g., enable_remote_recruitment)
-    - GPU overflow detection (local GPU utilisation > threshold)
-    - Bridge mode (local, remote, hybrid)
-
-    If the bridge decides to route remotely, it returns a bridge_response that
-    is used directly by the route node, bypassing local sub-agents.
-
-    Returns:
-        dict: Updated state with 'bridge_response' and 'route_source' keys.
+    The inference track decision is stored in state["inference_track"] and
+    is used by the `route` node to dispatch to the correct backend.
     """
     intent = state.get("intent", "general")
     company_id = state.get("company_id")
+    model_size = state.get("model_size_bytes", 0)
 
-    # Instantiate the bridge service (fallback if module not found)
-    bridge = BridgeService()
-
+    # --- NEW: Hardware-aware inference track selection ---
     try:
-        # Call the bridge service to determine routing
-        bridge_result = await bridge.route_request(intent, state, company_id)
+        hardware = await _get_available_hardware(company_id)
+        track = _select_inference_track(state, hardware)
+        state["inference_track"] = track
+        _logger.info(
+            f"Selected inference track: {track} "
+            f"(dynamo_vram={hardware['dynamo_vram_mb']}MB, "
+            f"rpc_vram={hardware['rpc_vram_mb']}MB, "
+            f"rpc_nodes={len(hardware['rpc_nodes'])})"
+        )
+    except Exception as e:
+        _logger.warning(f"Hardware-aware routing failed, defaulting to local: {e}")
+        state["inference_track"] = "local"
 
+    # --- Existing: Hub-and-spoke routing via bridge ---
+    bridge = BridgeService()
+    try:
+        bridge_result = await bridge.route_request(intent, state, company_id)
         if bridge_result and bridge_result.get('source') != 'local':
-            # The bridge decided to route remotely
             state["route_source"] = "remote"
             state["bridge_response"] = bridge_result
             _logger.info(f"Request routed remotely via bridge for intent: {intent}")
         else:
-            # Process locally
             state["route_source"] = "local"
             state["bridge_response"] = None
             _logger.info(f"Request routed locally for intent: {intent}")
     except Exception as e:
-        # If bridge fails, fallback to local processing
         _logger.warning(f"Bridge route failed: {e}. Falling back to local.")
         state["route_source"] = "local"
         state["bridge_response"] = None
 
     return state
 
+
 # =============================================================================
 # NODE 4: ROUTE (Dispatch to Sub-Agent)
 # =============================================================================
 async def route(state: dict) -> dict:
     """
-    Route the request to the appropriate sub-agent based on intent.
+    Route the request to the appropriate sub-agent based on intent,
+    AND set up the correct inference backend based on inference_track.
 
+    The inference_track determines which API endpoint the LLMFactory
+    should use:
+      - 'dynamo' -> http://dynamo:8000/v1  (vLLM, tensor parallelism)
+      - 'rpc'    -> http://llama-rpc-master:8080/v1  (llama.cpp pipeline)
+      - 'local'  -> http://llama-cpp:8080/v1  (local CPU fallback)
+      - 'remote' -> https://api.nettrades.ai/v1  (hub brain)
+
+    Additionally, it detects if the inference backend is a CPU fallback
+       and notifies the user accordingly.
+       
     This node is the main dispatcher. It checks:
     1. If screening is complete (for medical/legal intents)
     2. If the bridge already handled the request (use bridge_response)
     3. If not, it dispatches to the appropriate sub-agent based on intent
-    4. Additionally, it detects if the inference backend is a CPU fallback
-       and notifies the user accordingly.
 
     The mapping of intents to sub-agents is:
     - recruitment -> Recruitment Agent
     - freelance -> Freelance Agent
-    - lead_gen -> Lead Generation Agent
+    - lead_gen -> Lead Gen Agent
     - gpu_management -> GPU Management Agent
     - vision -> Vision Agent
     - action -> Action Agent
@@ -433,7 +656,7 @@ async def route(state: dict) -> dict:
         if not state.get("fallback_notified", False):
             fallback_msg = (
                 " **Note:** The primary GPU accelerated AI model is currently unavailable. "
-                "I'm using a smaller CPUâ€‘based model for now. This may affect the quality of responses. "
+                "I'm using a smaller CPU-based model for now. This may affect the quality of responses. "
                 "If you need a more accurate answer, you can ask a human expert."
             )
             state["messages"].append({
@@ -455,7 +678,8 @@ async def route(state: dict) -> dict:
 
     # Continue with normal routing
     intent = state.get("intent", "general")
-    _logger.info(f"Routing intent: {intent}")
+    track = state.get("inference_track", "local")
+    _logger.info(f"Routing intent: {intent} on track: {track}")
 
     try:
         # Dispatch to the appropriate sub-agent based on intent
@@ -490,7 +714,7 @@ async def route(state: dict) -> dict:
 
         # Merge the result into the state
         state.update(result)
-        _logger.info(f"Routing completed for intent: {intent}")
+        _logger.info(f"Routing completed for intent: {intent} on track: {track}")
     except Exception as e:
         _logger.error(f"Routing failed: {e}")
         state["error"] = str(e)
@@ -519,6 +743,10 @@ async def post_process(state: dict) -> dict:
 
     Returns:
         dict: Updated state (unchanged, but episode is recorded asynchronously).
+        
+    It also records which inference_track was used, so the loop can
+    learn which track works best for which intent.
+ 
     """
     # Only record local requests for self-improving
     # (remote requests are recorded at the hub)
@@ -611,6 +839,7 @@ async def post_process(state: dict) -> dict:
             context_data={
                 "intent": intent,
                 "route_source": state.get("route_source", "local"),
+                "inference_track": state.get("inference_track", "local"),
                 "fallback_used": state.get("fallback_used", False),
                 "thread_id": thread_id,
             },
@@ -639,8 +868,10 @@ async def post_process(state: dict) -> dict:
         if episode_id:
             _logger.info(
                 f"Episode recorded for self-improving loop "
-                f"(intent: {intent}, quality: {quality_score:.2f}, "
-                f"resolution: {resolution_status}, track: {track})"
+                f"(intent: {intent}, track: {state.get('inference_track')}, "
+                f"quality: {quality_score:.2f}, resolution: {resolution_status})"
+              #  f"(intent: {intent}, quality: {quality_score:.2f}, "
+              #  f"resolution: {resolution_status}, track: {track})"
             )
         else:
             _logger.warning("Failed to record episode for self-improving")

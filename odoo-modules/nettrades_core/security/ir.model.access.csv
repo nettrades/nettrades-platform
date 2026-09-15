@@ -8,3 +8,11 @@ access_nettrades_secrets_user,nettrades.secrets.user,model_nettrades_secrets,net
 access_nettrades_secrets_audit_user,nettrades.secrets.audit.user,model_nettrades_secrets_audit,nettrades_core.group_secrets_manager,1,1,1,1
 access_nettrades_secrets_admin,nettrades.secrets.admin,model_nettrades_secrets,base.group_system,1,1,1,1
 access_nettrades_secrets_audit_admin,nettrades.secrets.audit.admin,model_nettrades_secrets_audit,base.group_system,1,1,1,1
+access_nettrades_user_user,nettrades.user.user,model_nettrades_user,base.group_user,1,1,1,1
+access_nettrades_company_user,nettrades.company.user,model_nettrades_company,base.group_user,1,1,1,1
+access_nettrades_project_user,nettrades.project.user,model_nettrades_project,base.group_user,1,1,1,1
+access_nettrades_good_answer_user,nettrades.good_answer.user,model_nettrades_good_answer,base.group_user,1,1,1,1
+access_nettrades_vote_user,nettrades.vote.user,model_nettrades_vote,base.group_user,1,1,1,1
+access_expert_session_user,expert.session.user,model_expert_session,base.group_user,1,1,1,1
+access_qualified_professional_user,qualified.professional.user,model_qualified_professional,base.group_user,1,1,1,1
+access_sandbox_policy_user,sandbox.policy.user,model_sandbox_policy,base.group_user,1,1,1,1
