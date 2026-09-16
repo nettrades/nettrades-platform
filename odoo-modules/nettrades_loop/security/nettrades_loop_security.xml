@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ============================================================================
+    NETTRADES Loop - Security Groups and Record Rules
+    ============================================================================
+    FILE: odoo-modules/nettrades_loop/security/nettrades_loop_security.xml
+    ============================================================================
+-->
+<odoo>
+
+    <!-- Manager group: full access to loop records -->
+    <record id="group_nettrades_loop_manager" model="res.groups">
+        <field name="name">NETTRADES Loop Manager</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <!-- Multi-company record rule for loop.cycle -->
+    <record id="rule_loop_cycle_company" model="ir.rule">
+        <field name="name">Loop Cycle: Multi-company</field>
+        <field name="model_id" ref="model_loop_cycle"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="global" eval="True"/>
+    </record>
+
+</odoo>

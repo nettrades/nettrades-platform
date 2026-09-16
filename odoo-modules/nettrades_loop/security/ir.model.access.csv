@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_loop_cycle_user,loop.cycle.user,model_loop_cycle,base.group_user,1,0,0,0
+access_loop_cycle_manager,loop.cycle.manager,model_loop_cycle,base.group_system,1,1,1,1
+access_self_improving_loop_user,self_improving.loop.user,model_self_improving_loop,base.group_user,1,0,0,0
+access_self_improving_loop_manager,self_improving.loop.manager,model_self_improving_loop,base.group_system,1,1,1,1
+access_training_pipeline_user,training.pipeline.user,model_training_pipeline,base.group_user,1,0,0,0
+access_training_pipeline_manager,training.pipeline.manager,model_training_pipeline,base.group_system,1,1,1,1
