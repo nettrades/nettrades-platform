@@ -4,10 +4,11 @@
     FILE: odoo-modules/nettrades_core/views/project_views.xml
     =============================================================================
     PURPOSE:
-        Extends the project.project form view with NETTRADES-specific fields for:
+        Extends the project.project form view with NETTRADES-specific fields:
         - Forgejo repository integration
         - Freelance project budget
         - Create Forgejo repository button
+        - Leave Review button (for project completion)
     =============================================================================
 -->
 <odoo>
@@ -24,13 +25,22 @@
                        help="Budget for this project (for freelance projects)."/>
             </field>
 
-            <!-- Create Repository Button -->
+            <!-- Create Forgejo Repository Button -->
             <xpath expr="//field[@name='name']" position="after">
                 <button name="action_create_forgejo_repo"
                         string="Create Forgejo Repository"
                         type="object"
                         class="btn-primary"
                         help="Create a Forgejo repository for this project."/>
+            </xpath>
+
+            <!-- Leave Review Button -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_leave_review"
+                        string="Leave Review"
+                        type="object"
+                        class="btn-secondary"
+                        help="Open the review form for the assigned project user."/>
             </xpath>
         </field>
     </record>
