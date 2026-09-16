@@ -66,8 +66,6 @@
         'views/nettrades_core_menu.xml',
 
         # Views — every one from the original manifest
-        'views/hr_job_views.xml',
-        'views/res_partner_views.xml',
         'views/nettrades_user_views.xml',
         'views/nettrades_company_views.xml',
         'views/nettrades_project_views.xml',
@@ -75,7 +73,6 @@
         'views/nettrades_review_views.xml',
         'views/nettrades_experience_views.xml',
         'views/nettrades_user_match_views.xml',
-        'views/nettrades_core_menu.xml',
 
         # Data (reference data loaded last)
         'data/nettrades.skill.csv',

@@ -333,7 +333,7 @@ async def _on_rpc_node_failure(node: NodeHealth) -> None:
     so the user can retry with full context.
     """
     _logger.warning(
-        f"RPC node {node.node_id} ({node.hostname}) failed — draining affected clusters"
+        f"RPC node {node.node_id} ({node.hostname}) failed â€” draining affected clusters"
     )
     try:
         import requests, os
