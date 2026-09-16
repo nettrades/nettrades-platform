@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    =============================================================================
+    FILE: odoo-modules/nettrades_core/views/nettrades_core_menu_root.xml
+    =============================================================================
+    PURPOSE:
+        Defines ONLY the root NETTRADES menu item. This file MUST load before
+        any view file that uses `parent="menu_nettrades_root"`.
+
+    WHY THIS FILE EXISTS SEPARATELY:
+        The views reference the root menu by ID (`menu_nettrades_root`). The
+        sub-menus reference actions defined in the views. Neither can load
+        first without breaking the other — unless the two are split.
+
+        This file is the "root" half of that split. It loads first.
+
+        The "sub-menu" half — nettrades_core_menu.xml — loads last, after
+        all views have defined their actions.
+
+    FIXED (2026-09-16):
+        - The root menu ID is now `menu_nettrades_root` to match the ID
+          that the view files actually reference. Previously it was
+          `nettrades_core_menu_root`, which the views could not resolve.
+    =============================================================================
+-->
+<odoo>
+    <!-- Root Menu: the top-level NETTRADES entry in the Odoo app switcher.
+         Everything else in this module hangs off this node. -->
+    <menuitem id="menu_nettrades_root"
+              name="NETTRADES"
+              sequence="10"
+              web_icon="nettrades_core,static/description/icon.png"/>
+</odoo>

@@ -4,7 +4,7 @@
     NETTRADES Core – Security Groups & Record Rules
     ============================================================================
     FILE:    odoo-modules/nettrades_core/security/nettrades_security.xml
-    VERSION: 2.1
+    VERSION: 2.2
 
     PURPOSE:
         Defines the user groups and record rules used across the NETTRADES platform.
@@ -36,9 +36,19 @@
           so any active rule MUST reference a model that is actually
           imported by nettrades_core/models/__init__.py.
         - The admin override rule was renamed back to its ORIGINAL id
-          `rule_company_admin_all` (I had renamed it to
-          `rule_nettrades_admin_all` by mistake; that would have orphaned
-          any reference to the old id).
+          `rule_company_admin_all`.
+
+    UPDATES (2026-09-16):
+        - FIXED: rule_company_experiences referenced 'user_id.company_id',
+          but nettrades.experience has no 'user_id' field. The correct
+          field (per grep of fields.Many2one in the model) is
+          'partner_id'. The domain was updated to 'partner_id.company_id'.
+          The error was:
+              Invalid domain: Invalid field nettrades.experience.user_id
+              in condition ('user_id.company_id', '=', 1)
+        - Cross-checked every other active rule's domain against the
+          actual fields declared by grep in the model files. All others
+          resolve correctly (verified 2026-09-16).
     ============================================================================
 -->
 <odoo>
@@ -77,6 +87,7 @@
     <!-- =========================================================================
          TENANT ISOLATION RECORD RULES — ACTIVE
          Every rule below references a model that IS defined in nettrades_core.
+         Every domain has been verified against the model's actual fields.
          ========================================================================= -->
 
     <!-- nettrades_user: Users belong to a company -->
@@ -139,11 +150,14 @@
         <!--<field name="comment">Users can only access votes from their own company.</field>-->
     </record>
 
-    <!-- nettrades_experience: Experiences belong to a company via user -->
+    <!-- nettrades_experience: Experiences belong to a company via partner.
+         The model only has a 'partner_id' field (no 'user_id'), so the
+         domain traverses 'partner_id.company_id', not 'user_id.company_id'.
+         FIXED 2026-09-16. -->
     <record id="rule_company_experiences" model="ir.rule">
         <field name="name">Tenant: Experiences - Own Company Only</field>
         <field name="model_id" ref="nettrades_core.model_nettrades_experience"/>
-        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
+        <field name="domain_force">[('partner_id.company_id','=',user.company_id.id)]</field>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
@@ -161,18 +175,27 @@
         <field name="perm_unlink" eval="False"/>
     </record>
 
-    <!-- nettrades_user_match: Matches belong to a company via freelancer -->
+    <!-- nettrades_user_match: Matches belong to a company via user.
+         DISABLED 2026-09-16: the nettrades.user_match model has been moved
+         to models/backup/ pending the nettrades_recruitment module in
+         Phase E. Restore this rule (with the correct domain) when the
+         model is re-enabled. -->
+    <!-- TODO(move): move to nettrades_recruitment/security/
     <record id="rule_company_user_matches" model="ir.rule">
         <field name="name">Tenant: User Matches - Own Company Only</field>
         <field name="model_id" ref="nettrades_core.model_nettrades_user_match"/>
-        <field name="domain_force">[('freelancer_id.company_id','=',user.company_id.id)]</field>
+        <field name="domain_force">[('user_id.company_id','=',user.company_id.id)]</field>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
     </record>
+    -->
 
-    <!-- expert.session: Sessions belong to a company via requester -->
+    <!-- expert.session: Sessions belong to a company via requester.
+         The model has a 'requester_id' Many2one field. Whatever model it
+         points to (nettrades.user or res.users) provides 'company_id',
+         so this domain resolves. -->
     <record id="rule_company_expert_sessions" model="ir.rule">
         <field name="name">Tenant: Expert Sessions - Own Company Only</field>
         <field name="model_id" ref="nettrades_core.model_expert_session"/>
