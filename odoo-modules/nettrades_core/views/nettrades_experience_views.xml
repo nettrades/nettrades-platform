@@ -57,14 +57,12 @@
         <field name="res_model">nettrades.experience</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
-            <![CDATA[
-                <p class="o_view_nocontent_smiling_face">
-                    Create work experience entries for partners.
-                </p>
-                <p>
-                    Experience entries are used to document the career history of freelancers and job seekers.
-                </p>
-            ]]>
+            <p class="o_view_nocontent_smiling_face">
+                Create work experience entries for partners.
+            </p>
+            <p>
+                Experience entries are used to document the career history of freelancers and job seekers.
+            </p>
         </field>
     </record>
 </odoo>

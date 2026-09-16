@@ -75,7 +75,7 @@
                 <field name="reviewer_id"/>
                 <field name="reviewed_partner_id"/>
                 <field name="project_id"/>
-                <filter name="high_rating" string="High Rating" domain="[('rating','>=',4)]"/>
+                <filter name="high_rating" string="High Rating" domain="[('rating','&gt;=',4)]"/>
                 <filter name="low_rating" string="Low Rating" domain="[('rating','&lt;=',2)]"/>
                 <separator/>
                 <filter name="group_by_reviewer" string="Reviewer" domain="[]"
@@ -92,14 +92,12 @@
         <field name="res_model">nettrades.review</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
-            <![CDATA[
-                <p class="o_view_nocontent_smiling_face">
-                    Add a new review
-                </p>
-                <p>
-                    Reviews help build reputation and trust in the NETTRADES platform.
-                </p>
-            ]]>
+            <p class="o_view_nocontent_smiling_face">
+                Add a new review
+            </p>
+            <p>
+                Reviews help build reputation and trust in the NETTRADES platform.
+            </p>
         </field>
     </record>
 

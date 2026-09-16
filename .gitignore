@@ -218,3 +218,6 @@ deploy/docker/*.dmg
 *.tar.gz
 *.zip
 third-party/odoo/
+*:Zone.Identifier
+*.pyc
+__pycache__/
