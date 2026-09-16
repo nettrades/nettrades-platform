@@ -16,24 +16,14 @@
     # =========================================================================
     # DEPENDENCIES
     # =========================================================================
-    # ORIGINAL (from your file):
-    #   'base', 'hr_recruitment', 'crm', 'project',
-    #   'website_sale_marketplace', 'auth_signup', 'queue_job'
+    # Reduced to ['base', 'mail'] to unblock installation. Any one of the
+    # six original dependencies being missing blocks the ENTIRE NETTRADES
+    # module tree, because nettrades_core is the root of the graph.
     #
-    # CHANGE (2026-09-15):
-    #   Reduced to ['base', 'mail'] to unblock installation. The reason is
-    #   that any one of the six removed modules being missing, misconfigured,
-    #   or slow to install blocks the ENTIRE NETTRADES module tree, because
-    #   nettrades_core is the root of the dependency graph.
-    #
-    #   The models that are still in nettrades_core today reference ONLY
-    #   base models (res.partner, res.company, res.currency). None of them
-    #   reference hr_recruitment, crm, project, or website_sale_marketplace
-    #   directly. In the final phase, the models that DO need those modules
-    #   will be moved into their own modules which declare the dependency.
-    #
-    #   If you want to revert to the original dependency set, uncomment the
-    #   six lines below and comment out the reduced list.
+    # Models still in nettrades_core reference ONLY base models
+    # (res.partner, res.company, res.currency). The models that DO need
+    # hr_recruitment, crm, project, or website_sale_marketplace will be
+    # moved into their own modules in Phase E.
     # =========================================================================
     'depends': [
         # Original dependencies (kept here as a comment for reference):
@@ -52,20 +42,33 @@
     # =========================================================================
     # DATA FILES
     # =========================================================================
-    # Every data file from the ORIGINAL manifest is preserved below.
-    # The order has been reorganised slightly for correctness (security
-    # before views before data), but no file has been removed.
+    # Load order is critical. Odoo resolves XML ID references at load time,
+    # so anything a file references must already be loaded.
+    #
+    # Correct order:
+    #   1. Security               — groups, then rules, then model access
+    #   2. Menu ROOT              — the root menu item, referenced by every view
+    #   3. Views                  — define the actions that the sub-menus use
+    #   4. Menu SUB-MENUS         — reference both the root menu and the actions
+    #   5. Reference data         — CSV/XML content loaded last
+    #
+    # FIXED (2026-09-16):
+    #   The menu file was a single file that both:
+    #     (a) defined the root menu that the views reference, and
+    #     (b) referenced actions that the views define.
+    #   That is a circular dependency. It has been split:
+    #     - nettrades_core_menu_root.xml : root menu only  → loads first
+    #     - nettrades_core_menu.xml      : sub-menus + actions → loads last
     # =========================================================================
     'data': [
-        # Security – must load first, before anything that references it
+        # --- Security: must load first ---
         'security/nettrades_security.xml',
         'security/ir.model.access.csv',
 
-        # Menu – must load before views that reference it
-        # (Original name: nettrades_core_menu.xml — preserved)
-        'views/nettrades_core_menu.xml',
+        # --- Menu root: referenced by every view below ---
+        'views/nettrades_core_menu_root.xml',
 
-        # Views — every one from the original manifest
+        # --- Views: define the actions the sub-menus reference ---
         'views/nettrades_user_views.xml',
         'views/nettrades_company_views.xml',
         'views/nettrades_project_views.xml',
@@ -73,7 +76,10 @@
         'views/nettrades_review_views.xml',
         'views/nettrades_experience_views.xml',
 
-        # Data (reference data loaded last)
+        # --- Menu sub-menus: reference the root menu AND the actions above ---
+        'views/nettrades_core_menu.xml',
+
+        # --- Reference data: loaded last ---
         'data/nettrades.skill.csv',
         'data/portal_data.xml',
     ],
