@@ -47,6 +47,7 @@ class NettradesField(models.Model):
     _name = 'nettrades.field'
     _description = 'Professional Field'
     _rec_name = 'name'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     # =========================================================================
     # 1. BASIC IDENTIFICATION

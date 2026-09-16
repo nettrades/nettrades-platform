@@ -38,6 +38,7 @@ class NettradesReview(models.Model):
     _name = 'nettrades.review'
     _description = 'User Review'
     _order = 'create_date DESC'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     # =========================================================================
     # 1. BASIC FIELDS
