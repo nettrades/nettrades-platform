@@ -2496,3 +2496,32 @@ Also deploys Prometheus
 And deploys Grafana for monitoring
 
 <img src="docs/screenshots/prometheus.jpg" alt="NETTRADES Launcher" width="100%">
+
+### Get Git to stop tracking third-party/odoo
+
+third-party/odoo is cloned from https://github.com/odoo/odoo   
+Therefore Git tracks third-party/odoo as a pointer to a commit in a nested repository, not as a set of files. All other third-party/* directories are tracked as regular files. They are not cloned from anywhere.
+
+Run the following commands to stop tracking third-party/odoo or else it will ask you to check in any local changes.
+
+```bash
+
+cd ~/nettrades-platform
+
+# 1. Remove the gitlink from the index but KEEP the files on disk.
+#    -f is needed because the entry is a gitlink, not a normal file.
+git rm --cached -f third-party/odoo
+
+# 2. Add it to .gitignore so it does not come back on the next `git add`.
+echo "third-party/odoo/" >> .gitignore
+git add .gitignore
+
+# 3. Verify the index is clean for that path
+git ls-files third-party/odoo
+# Expected: no output (empty)
+
+# 4. Verify the working tree still has Odoo
+ls third-party/odoo/ | head
+# Expected: a list of Odoo source files (addons, odoo, setup, etc.)
+
+```
