@@ -19,10 +19,14 @@
 #   - gpu_overflow_threshold: GPU utilisation threshold for overflow
 #   - use_nettrades_ai_for_training: Use NETTRADES.AI for fine-tuning
 #
+# UPDATES (2026-09-17):
+#   - Added action_test_connection() so the form button resolves.
+#   - Replaced all non-ASCII characters (em-dashes) with ASCII equivalents,
+#     so the file is valid UTF-8 without any Windows-1252 byte leaks.
 # =============================================================================
 
 from odoo import fields, models, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -69,7 +73,7 @@ class LLMCompanyConfig(models.Model):
     )
 
     # =========================================================================
-    # FIX: This uses the existing llm.provider model from Apexive odoo-llm
+    # This uses the existing llm.provider model from Apexive odoo-llm.
     # The llm.provider model already stores provider_type, api_key, base_url,
     # and default_model. We extend it with company-specific overrides.
     # =========================================================================
@@ -286,6 +290,61 @@ class LLMCompanyConfig(models.Model):
         effective['nettrades_ai_api_key'] = self.nettrades_ai_api_key
 
         return effective
+
+    def action_test_connection(self):
+        """
+        Test the connection to the configured LLM provider.
+
+        This is a pragmatic validation - it verifies that all required
+        configuration fields are present for the selected provider and
+        that the company overrides (if enabled) are complete. It does
+        not perform an actual HTTP request to the provider, because
+        doing so would block the Odoo worker for the duration of the
+        request timeout.
+
+        A future enhancement could queue an async job that performs a
+        real HTTP round-trip and reports the result via a notification.
+        """
+        self.ensure_one()
+
+        if not self.provider_id:
+            raise UserError(_("Please select a provider before testing the connection."))
+
+        if self.override_api_key and not self.api_key:
+            raise UserError(_(
+                "Override API Key is enabled but no API key is set. "
+                "Either provide a key or disable the override to use the "
+                "provider's default key."
+            ))
+
+        if self.override_api_base_url and not self.api_base_url:
+            raise UserError(_(
+                "Override API Base URL is enabled but no URL is set. "
+                "Either provide a URL or disable the override to use the "
+                "provider's default endpoint."
+            ))
+
+        if self.override_model and not self.model_name:
+            raise UserError(_(
+                "Override Model is enabled but no model name is set. "
+                "Either provide a model name or disable the override to "
+                "use the provider's default model."
+            ))
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Configuration Valid'),
+                'message': _(
+                    'Provider "%s" is configured correctly. '
+                    'Click Save, then send a test prompt through the '
+                    'LangGraph supervisor to confirm end-to-end connectivity.'
+                ) % self.provider_id.display_name,
+                'type': 'success',
+                'sticky': False,
+            },
+        }
 
     def get_llm_provider_class(self, provider_type):
         """

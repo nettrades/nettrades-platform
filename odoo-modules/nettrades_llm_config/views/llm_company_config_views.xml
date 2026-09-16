@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!--
 =============================================================================
-NETTRADES LLM Configuration – Company Configuration Views
+NETTRADES LLM Configuration - Company Configuration Views
 =============================================================================
 FILE: odoo-modules/nettrades_llm_config/views/llm_company_config_views.xml
 
@@ -13,20 +13,23 @@ PURPOSE:
 LOAD ORDER (fixed 2026-09-17):
   Actions must be defined BEFORE any <menuitem> that references them,
   because Odoo processes XML top-to-bottom. The previous order put the
-  menuitems first, which raised:
-      ValueError: External ID not found in the system:
-          nettrades_llm_config.action_llm_company_config
+  menuitems first, which raised an External ID error.
 
-  New order:
+  Order in this file:
     1. Action (defines action_llm_company_config)
-    2. Views (define the view IDs the action may reference)
+    2. Views (define the view IDs)
     3. Menus (reference action_llm_company_config and each other)
+
+ATTRS MIGRATION (2026-09-17):
+  Replaced all attrs="{'invisible': [...]}" and attrs="{'required': [...]}"
+  with the Odoo 17+ inline syntax (invisible="...", required="..."), which
+  is cleaner and is the recommended form going forward.
 =============================================================================
 -->
 <odoo>
 
     <!-- =====================================================================
-         1. ACTIONS — must load first
+         1. ACTIONS
          ===================================================================== -->
 
     <record id="action_llm_company_config" model="ir.actions.act_window">
@@ -72,14 +75,15 @@ LOAD ORDER (fixed 2026-09-17):
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_test_connection" string="Test Connection" type="object" class="btn-primary"/>
+                    <button name="action_test_connection" string="Test Connection"
+                            type="object" class="btn-primary"/>
                     <field name="active" widget="boolean_toggle"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
                         <h1>
                             <field name="company_id" placeholder="Select Company"/>
-                            <span class="o_stat_info" attrs="{'invisible': [('active', '=', False)]}">(Active)</span>
+                            <span class="o_stat_info" invisible="not active">(Active)</span>
                         </h1>
                     </div>
 
@@ -87,23 +91,23 @@ LOAD ORDER (fixed 2026-09-17):
                     <group string="Primary LLM Provider">
                         <field name="provider_id" options="{'no_create': True}" required="True"/>
                         <field name="override_model"/>
-                        <field name="model_name" attrs="{'invisible': [('override_model', '=', False)], 'required': [('override_model', '=', True)]}"/>
+                        <field name="model_name" invisible="not override_model" required="override_model"/>
                         <field name="override_api_key"/>
-                        <field name="api_key" password="True" attrs="{'invisible': [('override_api_key', '=', False)], 'required': [('override_api_key', '=', True)]}"/>
+                        <field name="api_key" password="True" invisible="not override_api_key" required="override_api_key"/>
                         <field name="override_api_base_url"/>
-                        <field name="api_base_url" attrs="{'invisible': [('override_api_base_url', '=', False)]}"/>
+                        <field name="api_base_url" invisible="not override_api_base_url"/>
                     </group>
 
                     <!-- FALLBACK PROVIDER -->
                     <group string="Fallback Provider">
                         <field name="fallback_provider_id" options="{'no_create': True}"/>
-                        <field name="fallback_model_name" attrs="{'invisible': [('fallback_provider_id', '=', False)]}"/>
+                        <field name="fallback_model_name" invisible="not fallback_provider_id"/>
                     </group>
 
                     <!-- GPU OVERFLOW -->
                     <group string="GPU Overflow Configuration">
                         <field name="gpu_overflow_enabled"/>
-                        <field name="gpu_overflow_threshold" attrs="{'invisible': [('gpu_overflow_enabled', '=', False)]}"/>
+                        <field name="gpu_overflow_threshold" invisible="not gpu_overflow_enabled"/>
                         <field name="use_nettrades_ai_for_training"/>
                         <field name="nettrades_ai_url"/>
                         <field name="nettrades_ai_api_key" password="True"/>
@@ -121,7 +125,7 @@ LOAD ORDER (fixed 2026-09-17):
     </record>
 
     <!-- =====================================================================
-         3. MENUS — reference actions and each other
+         3. MENUS
          ===================================================================== -->
 
     <menuitem id="menu_llm_config_root"
