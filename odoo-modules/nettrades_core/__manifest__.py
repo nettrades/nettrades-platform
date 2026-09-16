@@ -81,7 +81,7 @@
 
         # --- Reference data: loaded last ---
         'data/nettrades.skill.csv',
-        'data/portal_data.xml',
+        # 'data/portal_data.xml',   # Deferred to Phase E — see notes below
     ],
     'demo': [],
     'installable': True,
