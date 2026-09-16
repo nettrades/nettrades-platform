@@ -5,12 +5,12 @@
         <field name="name">trigger.config.tree</field>
         <field name="model">trigger.config</field>
         <field name="arch" type="xml">
-            <tree string="Trigger Configs" editable="bottom">
+            <list string="Trigger Configs" editable="bottom">
                 <field name="name" string="Trigger"/>
                 <field name="event_type" string="Event Type"/>
                 <field name="action" string="Action"/>
                 <field name="active" widget="boolean_toggle"/>
-            </tree>
+            </list>
         </field>
     </record>
 
