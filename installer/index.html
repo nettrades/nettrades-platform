@@ -2591,6 +2591,25 @@
 
                 <div id="deploy-step-1">
                     <h3 style="margin-bottom:12px;">Step 1: Choose Your Deployment Type</h3>
+                    <!-- =========================================================================
+                         HARDWARE PROFILE PANEL
+                         =========================================================================
+                         Shows the detected hardware for this machine and the recommended
+                         role. Populated by refreshHardwareProfile() in the script section.
+                         Placed here (above the deployment cards) so the user sees their
+                         machine's capabilities before choosing a deployment type.
+                         ========================================================================= -->
+                    <div class="card" id="hardware-profile-card" style="margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <h3 style="margin:0;">💻 Hardware Profile</h3>
+                            <button class="btn-secondary" onclick="refreshHardwareProfile()" style="padding:4px 12px;font-size:12px;">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        <div id="hardware-profile-content" style="margin-top:12px;">
+                            <p style="color:#6a7f9a;">Click refresh to detect this machine's hardware capabilities.</p>
+                        </div>
+                    </div>
                     <div id="deployment-cards" class="deployment-cards"></div>
                     <div id="custom-phases" style="display:none;">
                         <h4 style="margin-top:16px;">Select Phases for Custom Deployment</h4>
@@ -3961,6 +3980,93 @@
             safeSetText('gpu-count', hardware.gpus.length);
             safeSetText('dashboard-gpu-count', hardware.gpus.length);
         };
+
+        // =========================================================================
+        // HARDWARE PROFILE PANEL
+        // =========================================================================
+        // Populated by calling the Python hardware detection module via IPC
+        // (window.api.detectHardwareProfile()). Shows CPU, RAM, GPU(s), and
+        // the recommended role for this machine (dynamo_worker, rpc_worker,
+        // rpc_master, or local_only).
+        //
+        // The panel is rendered into #hardware-profile-content, which is a
+        // <div> in the Deploy tab (see the HTML below).
+        //
+        // NOTE: this function is intentionally separate from window.detectHardware().
+        //   - detectHardware()  (legacy) calls the OLD IPC handler and is used
+        //                       by the Deploy tab's hardware-info summary.
+        //   - refreshHardwareProfile() calls the NEW IPC handler that shells
+        //                       out to src/core/hardware_detection.py, which is
+        //                       the single source of truth for hardware detection.
+        //   Once the legacy path is retired, they can be merged.
+        // =========================================================================
+        window.refreshHardwareProfile = async function() {
+            const container = document.getElementById('hardware-profile-content');
+            if (!container) return;
+            container.innerHTML = '<p style="color:#6a7f9a;">Detecting hardware...</p>';
+
+            try {
+                const result = await window.api.detectHardwareProfile();
+                if (!result.success) {
+                    container.innerHTML = `<p style="color:#ff5f57;">Detection failed: ${result.error}</p>`;
+                    return;
+                }
+
+                const p = result.data;
+                const roleLabels = {
+                    dynamo_worker: '🚀 Dynamo Worker (NVIDIA + NVLink)',
+                    rpc_worker:    '🔄 llama.cpp RPC Worker',
+                    rpc_master:    '🎛️ RPC Master (Coordinator)',
+                    local_only:    '💻 Local Inference Only',
+                };
+
+                let gpuHtml = '<em style="color:#6a7f9a;">No GPU detected — CPU-only mode</em>';
+                if (p.gpus && p.gpus.length > 0) {
+                    gpuHtml = p.gpus.map(g => `
+                        <div style="padding:4px 0;">
+                            <strong>GPU ${g.index}:</strong> ${g.model}
+                            — ${Math.round(g.memory_mb / 1024)} GB
+                            ${g.compute_capability ? `(CC ${g.compute_capability})` : ''}
+                            ${g.supports_tensor_parallel ? '<span style="color:#28c840;">[NVLink]</span>' : ''}
+                        </div>
+                    `).join('');
+                }
+
+                container.innerHTML = `
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
+                        <div><strong>Hostname:</strong> ${p.hostname}</div>
+                        <div><strong>Platform:</strong> ${p.platform}${p.is_wsl ? ' (WSL2)' : ''}</div>
+                        <div><strong>CPU:</strong> ${p.cpu.model}</div>
+                        <div><strong>Cores:</strong> ${p.cpu.cores}</div>
+                        <div><strong>Total RAM:</strong> ${Math.round(p.total_ram_mb / 1024)} GB</div>
+                        <div><strong>Available RAM:</strong> ${Math.round(p.available_ram_mb / 1024)} GB</div>
+                        <div><strong>Disk free:</strong> ${p.disk_free_gb.toFixed(1)} GB</div>
+                        <div><strong>Docker:</strong> ${p.has_docker ? '✅' : '❌'}</div>
+                        <div><strong>WireGuard:</strong> ${p.has_wireguard ? '✅' : '❌'}</div>
+                        <div><strong>RPC server:</strong> ${p.has_rpc_server ? '✅' : '❌'}</div>
+                    </div>
+                    <hr style="border-color:#1e2a3a;margin:12px 0;">
+                    <div>
+                        <strong>GPUs:</strong>
+                        ${gpuHtml}
+                    </div>
+                    <hr style="border-color:#1e2a3a;margin:12px 0;">
+                    <div>
+                        <strong>Recommended role:</strong>
+                        <span style="color:#4a8aff;">${roleLabels[p.recommended_role] || p.recommended_role}</span>
+                    </div>
+                `;
+            } catch (e) {
+                container.innerHTML = `<p style="color:#ff5f57;">Error: ${e.message}</p>`;
+            }
+        };
+
+        // Auto-run when the app finishes loading.
+        // Note: this is separate from the main DOMContentLoaded listener above,
+        // so it does not interfere with the initial tab render.
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(refreshHardwareProfile, 1000);
+        });
 
         // ─── Modals ───
         function showModal(content) {
