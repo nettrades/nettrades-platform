@@ -168,9 +168,6 @@ cd nettrades-platform
 
 # Make the scripts executable
 chmod +x scripts/*.sh
-chmod +x scripts/lib/*.sh
-chmod +x installer/*.js
-chmod +x scripts/nettrades-setup.sh
 
 # Run the full deployment when setting up a totally new development environment - NOT ON PRODUCTION
 ./scripts/nettrades-setup.sh all --force
@@ -813,9 +810,6 @@ To build an installer/launcher for Windows in WSL run
 cd nettrades-platform
 
 chmod +x scripts/*.sh
-chmod +x scripts/lib/*.sh
-chmod +x installer/*.js
-chmod +x scripts/nettrades-setup.sh
 cd installer
 npm install
 # npm run build:all   # or build:win / build:mac / build:linux
