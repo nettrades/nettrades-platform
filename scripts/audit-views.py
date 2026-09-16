@@ -142,7 +142,7 @@ def check_view_file(xml_file: Path, model_fields: dict) -> list[tuple]:
             continue
 
         # Only check <field name="X"> inside <arch>, not anywhere else
-        for field_elem in arch_elem.iter("field"):
+        for field_elem in arch_elem.findall(".//field"):
             ref = field_elem.get("name")
             if ref is None:
                 continue
