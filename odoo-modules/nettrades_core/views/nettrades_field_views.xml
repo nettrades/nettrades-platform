@@ -17,6 +17,7 @@
             </list>
         </field>
     </record>
+
     <record id="view_nettrades_field_form" model="ir.ui.view">
         <field name="name">nettrades.field.form</field>
         <field name="model">nettrades.field</field>
@@ -98,9 +99,9 @@
                                 Enable Data-Juicer to configure quality filtering.
                             </div>
                             <div class="text-muted" invisible="not enable_data_juicer">
-                                <p><strong>How Data-Juicer works:</strong> When a fine-tuning dataset is exported for this field, Data-Juicer runs the `llm_quality_score_filter` operator using the selected inference endpoint. Each (question, answer) pair is scored for quality. Pairs scoring below the minimum threshold are rejected. If more than the Maximum Rejection Rate of samples are rejected, Data-Juicer is automatically disabled to prevent starving the training pipeline.</p>
+                                <p><strong>How Data-Juicer works:</strong> When a fine-tuning dataset is exported for this field, Data-Juicer runs the llm_quality_score_filter operator using the selected inference endpoint. Each (question, answer) pair is scored for quality. Pairs scoring below the minimum threshold are rejected. If more than the Maximum Rejection Rate of samples are rejected, Data-Juicer is automatically disabled to prevent starving the training pipeline.</p>
                                 <p><strong>Auto-disable safety net:</strong> If you enable Auto-Disable on Poor Results and the rejection rate exceeds the threshold, Data-Juicer is automatically disabled and an Odoo activity is created for the administrator. This prevents a misconfigured threshold from blocking all fine-tuning.</p>
-                                <p><strong>Dependencies:</strong> Data-Juicer must be installed in the Python environment (`pip install 'py-data-juicer[generic,nlp]'`). If it is not available, the quality pipeline will be skipped and the unfiltered dataset will be used.</p>
+                                <p><strong>Dependencies:</strong> Data-Juicer must be installed in the Python environment (pip install 'py-data-juicer[generic,nlp]'). If it is not available, the quality pipeline will be skipped and the unfiltered dataset will be used.</p>
                             </div>
                         </page>
                         <page string="DEITA Scoring">
@@ -116,8 +117,8 @@
                             </div>
                             <div class="text-muted" invisible="not enable_deita_scoring">
                                 <p><strong>How LLM-as-Judge works:</strong> After Data-Juicer filtering (if enabled), each surviving (question, answer) pair is scored by an LLM judge on complexity and quality. Pairs that fail to meet the minimum thresholds are rejected before training.</p>
-                                <p><strong>DEITA research backing:</strong> "DEITA introduces a way to measure data quality across three critical dimensions: complexity, quality and diversity." Models fine-tuned on a small amount of carefully selected high-quality data outperform models trained on 10× the data selected randomly.</p>
-                                <p><strong>Dependencies:</strong> `distilabel[vllm]` must be installed. If missing, the DEITA step will be skipped silently.</p>
+                                <p><strong>DEITA research backing:</strong> "DEITA introduces a way to measure data quality across three critical dimensions: complexity, quality and diversity." Models fine-tuned on a small amount of carefully selected high-quality data outperform models trained on 10x the data selected randomly.</p>
+                                <p><strong>Dependencies:</strong> distilabel[vllm] must be installed. If missing, the DEITA step will be skipped silently.</p>
                             </div>
                         </page>
                     </notebook>
@@ -130,6 +131,7 @@
             </form>
         </field>
     </record>
+
     <record id="view_nettrades_field_search" model="ir.ui.view">
         <field name="name">nettrades.field.search</field>
         <field name="model">nettrades.field</field>
@@ -151,23 +153,23 @@
             </search>
         </field>
     </record>
+
     <record id="action_nettrades_field" model="ir.actions.act_window">
         <field name="name">Professional Fields</field>
         <field name="res_model">nettrades.field</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
-            <![CDATA[
-                <p class="o_view_nocontent_smiling_face">
-                    Create a new professional field
-                </p>
-                <p>
-                    Professional fields define domains of expertise (e.g., Cardiology,
-                    Python Development, Legal Advisory). They control qualification,
-                    voting weights, and fine-tuning for AI models.
-                </p>
-            ]]>
+            <p class="o_view_nocontent_smiling_face">
+                Create a new professional field
+            </p>
+            <p>
+                Professional fields define domains of expertise (e.g., Cardiology,
+                Python Development, Legal Advisory). They control qualification,
+                voting weights, and fine-tuning for AI models.
+            </p>
         </field>
     </record>
+
     <record id="action_nettrades_skill" model="ir.actions.act_window">
         <field name="name">Skills</field>
         <field name="res_model">nettrades.skill</field>
