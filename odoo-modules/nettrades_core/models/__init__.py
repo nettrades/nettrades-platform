@@ -97,5 +97,4 @@ from . import nettrades_user
 from . import nettrades_user_match
 from . import nettrades_vote           # was: nettrades_vote.py
 from . import qualified_professional   # was: qualified_professional.py
-from . import review                   # was: review.py
 from . import sandbox_policy           # was: sandbox_policy.py

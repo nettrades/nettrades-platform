@@ -10,10 +10,14 @@ class NettradesUserMatch(models.Model):
     _name = 'nettrades.user_match'
     _description = 'AI Match between Job and User'
 
-    job_id = fields.Many2one(
-        'hr.job', required=True,
-        help="The job posting for which the match was calculated."
-    )
+    # Disabled (2026-09-16): hr.job requires the hr_recruitment module,
+    # which nettrades_core no longer depends on. Restore in Phase E when
+    # this model moves to nettrades_recruitment.
+    # job_id = fields.Many2one(
+    #     'hr.job', required=True,
+    #     help="The job posting for which the match was calculated."
+    # )
+
     user_id = fields.Many2one(
         'res.partner', required=True,
         help="The candidate (job seeker / freelancer) who was matched."

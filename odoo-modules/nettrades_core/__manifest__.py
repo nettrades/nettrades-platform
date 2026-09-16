@@ -72,7 +72,6 @@
         'views/nettrades_field_views.xml',
         'views/nettrades_review_views.xml',
         'views/nettrades_experience_views.xml',
-        'views/nettrades_user_match_views.xml',
 
         # Data (reference data loaded last)
         'data/nettrades.skill.csv',

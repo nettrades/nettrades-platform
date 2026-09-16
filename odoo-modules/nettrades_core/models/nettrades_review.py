@@ -57,11 +57,11 @@ class NettradesReview(models.Model):
         help="The user who received this review."
     )
 
-    project_id = fields.Many2one(
-        'project.project',
-        string='Project',
-        help="The project for which this review was given (optional)."
-    )
+   # project_id = fields.Many2one(
+   #     'project.project',
+   #     string='Project',
+   #     help="The project for which this review was given (optional)."
+   # )
 
     rating = fields.Integer(
         string='Rating',
@@ -134,5 +134,5 @@ class NettradesReview(models.Model):
             'reviewed_partner_id': reviewed_id,
             'rating': rating,
             'comment': comment,
-            'project_id': project_id,
+           # 'project_id': project_id,
         })
