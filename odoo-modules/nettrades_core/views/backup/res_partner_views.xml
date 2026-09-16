@@ -4,12 +4,7 @@
     FILE: odoo-modules/nettrades_core/views/res_partner_views.xml
     =============================================================================
     PURPOSE:
-        Extends the res.partner form view with NETTRADES-specific fields for:
-        - Professional profiles (summary, hourly rate, resume)
-        - Social media / contact fields (Forgejo, GitHub, LinkedIn, Twitter, Blog)
-        - Duplicate detection (VAT, Company Registry)
-        - Average rating display
-        - Worker agent configuration
+        Extends the res.partner form view with NETTRADES-specific fields.
     =============================================================================
 -->
 <odoo>
@@ -29,7 +24,7 @@
                 <field name="resume_pdf" filename="resume_filename"/>
             </field>
 
-            <!-- Social / Contact Fields -->
+            <!-- Social Media / Contact Fields -->
             <field name="website" position="after">
                 <group string="Social Media / Platforms" name="social_media_group">
                     <field name="forgejo_username" placeholder="Forgejo username"/>
@@ -105,6 +100,22 @@
                         <field name="is_expert"/>
                         <field name="expert_rate" invisible="not is_expert"/>
                         <field name="expert_bio" invisible="not is_expert"/>
+                    </group>
+                </page>
+            </xpath>
+
+            <!-- NETTRADES Profile Page (no inline <tree>!) -->
+            <xpath expr="//notebook" position="inside">
+                <page string="NETTRADES Profile" name="nettrades_profile_page">
+                    <group string="Fields and Skills" name="fields_skills_group">
+                        <field name="field_ids" widget="many2many_tags"/>
+                        <field name="skill_ids" widget="many2many_tags"/>
+                    </group>
+                    <group string="Experience" name="experience_group">
+                        <field name="experience_ids"/>
+                    </group>
+                    <group string="Reviews" name="reviews_group">
+                        <field name="review_ids"/>
                     </group>
                 </page>
             </xpath>

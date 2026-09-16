@@ -4,11 +4,7 @@
     FILE: odoo-modules/nettrades_core/views/hr_job_views.xml
     =============================================================================
     PURPOSE:
-        Extends the hr.job form view with NETTRADES-specific AI matching fields:
-        - Required skills for AI matching
-        - Minimum years of experience
-        - Freelance project flag with budget
-        - Forgejo repository URL for integration
+        Extends the hr.job form view with NETTRADES AI matching fields.
     =============================================================================
 -->
 <odoo>
@@ -19,13 +15,9 @@
         <field name="arch" type="xml">
             <!-- AI Match Candidates Button -->
             <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_match_candidates"
-                        string="AI Match Candidates"
-                        type="object"
-                        class="btn-primary"
-                        help="Use AI to match candidates for this job position."/>
+                <button name="action_match_candidates" string="AI Match Candidates" type="object" class="btn-primary" help="Use AI to match candidates for this job position."/>
+                <button name="action_match_candidates_async" string="Match Candidates in Background" type="object" class="btn-secondary" help="Queue AI candidate matching as a background job."/>
             </xpath>
-
             <!-- AI Matching Configuration -->
             <xpath expr="//sheet" position="inside">
                 <group string="AI Matching Configuration" name="ai_matching_group">
