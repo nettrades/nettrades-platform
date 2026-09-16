@@ -37,12 +37,12 @@
     # =========================================================================
     'depends': [
         # Original dependencies (kept here as a comment for reference):
-        # 'hr_recruitment',
-        # 'crm',
-        # 'project',
-        # 'website_sale_marketplace',
-        # 'auth_signup',
-        # 'queue_job',
+        # 'hr_recruitment',            # For job matching
+        # 'crm',                       # For lead management
+        # 'project',                   # For project management
+        # 'website_sale_marketplace',  # For marketplace features
+        # 'auth_signup',               # For self-service onboarding
+        # 'queue_job',                 # For async jobs
 
         # Reduced set (Phase A — safe to install anywhere):
         'base',    # res.partner, res.company, res.currency, res.users
@@ -75,6 +75,7 @@
         'views/nettrades_review_views.xml',
         'views/nettrades_experience_views.xml',
         'views/nettrades_user_match_views.xml',
+        'views/nettrades_core_menu.xml',
 
         # Data (reference data loaded last)
         'data/nettrades.skill.csv',
