@@ -6,6 +6,13 @@ a field declared on the view's target model.
 
 Does NOT include references inside XML comments (<!-- ... -->) or
 inside the string attribute of <field name="arch">.
+
+To run it on for example odoo-modules/nettrades_core use the commands:
+cd ~/nettrades-platform
+python3 scripts/audit-views.py > /tmp/audit2.txt
+grep 'odoo-modules/nettrades_core' /tmp/audit2.txt
+
+
 """
 import os
 import re
@@ -29,17 +36,17 @@ for py_file in glob.glob(str(BASE / "nettrades_*" / "models" / "*.py")):
     text = Path(py_file).read_text(errors="ignore")
 
     # Find every _name = '...' and the block that follows it up to the next _name
-    for match in re.finditer(r"_name\s*=\s*['\"]([a-zA-Z0-9_.]+)['\"]", text):
+    for match in re.finditer(r"^\s*_name\s*=\s*['\"]([a-zA-Z0-9_.]+)['\"]", text, re.MULTILINE):
         model_name = match.group(1)
         start = match.end()
         # Stop at the next _name declaration, or end of file
-        nxt = re.search(r"_name\s*=", text[start:])
+        nxt = re.search(r"^\s*_name\s*=", text[start:], re.MULTILINE)
         end = start + nxt.start() if nxt else len(text)
         block = text[start:end]
 
         # Field declarations: `name = fields.X(...)` at the start of a line
         fields = set(re.findall(
-            r"^\s{0,8}([a-z_][a-z0-9_]*)\s*=\s*fields\.",
+            r"^[ \t]{0,8}([a-z_][a-z0-9_]*)[ \t]*=[ \t]*fields\.",
             block, re.MULTILINE,
         ))
         model_fields.setdefault(model_name, set()).update(fields)
