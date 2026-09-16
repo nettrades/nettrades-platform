@@ -9,15 +9,25 @@ PURPOSE:
   This file defines the Odoo admin interface for company-specific LLM
   configuration. It provides a user-friendly way for administrators to
   configure which LLM provider each company should use.
+
+LOAD ORDER (fixed 2026-09-17):
+  Actions must be defined BEFORE any <menuitem> that references them,
+  because Odoo processes XML top-to-bottom. The previous order put the
+  menuitems first, which raised:
+      ValueError: External ID not found in the system:
+          nettrades_llm_config.action_llm_company_config
+
+  New order:
+    1. Action (defines action_llm_company_config)
+    2. Views (define the view IDs the action may reference)
+    3. Menus (reference action_llm_company_config and each other)
 =============================================================================
 -->
 <odoo>
-<!-- MENUS -->
-    <menuitem id="menu_llm_config_root" name="LLM Configuration" parent="nettrades_core.menu_nettrades_root" sequence="60"/>
 
-    <menuitem id="menu_llm_company_config" name="Company LLM Settings" parent="menu_llm_config_root" action="action_llm_company_config"/>
-
-<!-- ACTION -->
+    <!-- =====================================================================
+         1. ACTIONS — must load first
+         ===================================================================== -->
 
     <record id="action_llm_company_config" model="ir.actions.act_window">
         <field name="name">Company LLM Settings</field>
@@ -35,7 +45,11 @@ PURPOSE:
         </field>
     </record>
 
-<!-- TREE VIEW -->
+    <!-- =====================================================================
+         2. VIEWS
+         ===================================================================== -->
+
+    <!-- TREE / LIST VIEW -->
     <record id="view_llm_company_config_tree" model="ir.ui.view">
         <field name="name">nettrades.llm.company.config.tree</field>
         <field name="model">nettrades.llm.company.config</field>
@@ -69,9 +83,7 @@ PURPOSE:
                         </h1>
                     </div>
 
-                    <!-- ==========================================================
-                    PRIMARY PROVIDER
-                    ========================================================== -->
+                    <!-- PRIMARY PROVIDER -->
                     <group string="Primary LLM Provider">
                         <field name="provider_id" options="{'no_create': True}" required="True"/>
                         <field name="override_model"/>
@@ -82,17 +94,13 @@ PURPOSE:
                         <field name="api_base_url" attrs="{'invisible': [('override_api_base_url', '=', False)]}"/>
                     </group>
 
-                    <!-- ==========================================================
-                    FALLBACK PROVIDER
-                    ========================================================== -->
+                    <!-- FALLBACK PROVIDER -->
                     <group string="Fallback Provider">
                         <field name="fallback_provider_id" options="{'no_create': True}"/>
                         <field name="fallback_model_name" attrs="{'invisible': [('fallback_provider_id', '=', False)]}"/>
                     </group>
 
-                    <!-- ==========================================================
-                    GPU OVERFLOW
-                    ========================================================== -->
+                    <!-- GPU OVERFLOW -->
                     <group string="GPU Overflow Configuration">
                         <field name="gpu_overflow_enabled"/>
                         <field name="gpu_overflow_threshold" attrs="{'invisible': [('gpu_overflow_enabled', '=', False)]}"/>
@@ -101,9 +109,7 @@ PURPOSE:
                         <field name="nettrades_ai_api_key" password="True"/>
                     </group>
 
-                    <!-- ==========================================================
-                    PERFORMANCE
-                    ========================================================== -->
+                    <!-- PERFORMANCE -->
                     <group string="Performance Settings">
                         <field name="temperature"/>
                         <field name="request_timeout"/>
@@ -113,4 +119,19 @@ PURPOSE:
             </form>
         </field>
     </record>
+
+    <!-- =====================================================================
+         3. MENUS — reference actions and each other
+         ===================================================================== -->
+
+    <menuitem id="menu_llm_config_root"
+              name="LLM Configuration"
+              parent="nettrades_core.menu_nettrades_root"
+              sequence="60"/>
+
+    <menuitem id="menu_llm_company_config"
+              name="Company LLM Settings"
+              parent="menu_llm_config_root"
+              action="action_llm_company_config"/>
+
 </odoo>
