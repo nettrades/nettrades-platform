@@ -5,14 +5,14 @@
         <field name="name">fairness.audit.tree</field>
         <field name="model">fairness.audit</field>
         <field name="arch" type="xml">
-            <tree string="Fairness Audits" editable="bottom">
+            <list string="Fairness Audits" editable="bottom">
                 <field name="name" string="Audit Name"/>
                 <field name="model_id" string="Model"/>
                 <field name="fairness_score" string="Score" sum="Average"/>
                 <field name="status" string="Status" widget="badge"/>
                 <field name="audit_date" string="Date"/>
                 <field name="user_id" string="Auditor"/>
-            </tree>
+            </list>
         </field>
     </record>
 

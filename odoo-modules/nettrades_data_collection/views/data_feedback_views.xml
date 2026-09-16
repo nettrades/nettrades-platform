@@ -5,14 +5,14 @@
         <field name="name">data.feedback.tree</field>
         <field name="model">data.feedback</field>
         <field name="arch" type="xml">
-            <tree string="Feedback" editable="top">
+            <list string="Feedback" editable="top">
                 <field name="name" string="Feedback"/>
                 <field name="annotation_id" string="Annotation"/>
                 <field name="episode_id" string="Episode"/>
                 <field name="rating" string="Rating" widget="priority"/>
                 <field name="user_id" string="User"/>
                 <field name="create_date" string="Date"/>
-            </tree>
+            </list>
         </field>
     </record>
 

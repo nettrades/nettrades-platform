@@ -5,13 +5,13 @@
         <field name="name">data.edge_case.tree</field>
         <field name="model">data.edge_case</field>
         <field name="arch" type="xml">
-            <tree string="Edge Cases" editable="top">
+            <list string="Edge Cases" editable="top">
                 <field name="name" string="Case"/>
                 <field name="severity" string="Severity" widget="badge"/>
                 <field name="episode_id" string="Episode"/>
                 <field name="description" string="Description"/>
                 <field name="state" string="Status"/>
-            </tree>
+            </list>
         </field>
     </record>
 

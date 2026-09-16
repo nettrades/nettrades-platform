@@ -5,13 +5,13 @@
         <field name="name">self.improving.config.dashboard</field>
         <field name="model">self.improving.config</field>
         <field name="arch" type="xml">
-            <tree string="Configuration Dashboard" editable="bottom">
+            <list string="Configuration Dashboard" editable="bottom">
                 <field name="name" string="Config Name"/>
                 <field name="active" string="Active" widget="boolean_toggle"/>
                 <field name="loop_orchestrator_id" string="Orchestrator"/>
                 <field name="auto_trigger" string="Auto Trigger" widget="boolean"/>
                 <field name="last_run" string="Last Run"/>
-            </tree>
+            </list>
         </field>
     </record>
 

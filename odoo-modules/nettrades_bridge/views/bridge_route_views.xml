@@ -9,7 +9,7 @@
             <field name="name">nettrades.bridge.route.tree</field>
             <field name="model">nettrades_bridge.route</field>
             <field name="arch" type="xml">
-                <tree string="Bridge Routes"
+                <list string="Bridge Routes"
                       decoration-success="health_status=='healthy'"
                       decoration-danger="health_status=='unhealthy'"
                       decoration-warning="health_status=='unknown'">
@@ -22,7 +22,7 @@
                     <field name="priority"/>
                     <field name="load_balancing_strategy"/>
                     <field name="last_health_check"/>
-                </tree>
+                </list>
             </field>
         </record>
 

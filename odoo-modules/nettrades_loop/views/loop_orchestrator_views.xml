@@ -5,12 +5,12 @@
         <field name="name">loop.orchestrator.tree</field>
         <field name="model">loop.orchestrator</field>
         <field name="arch" type="xml">
-            <tree string="Orchestrators" editable="bottom">
+            <list string="Orchestrators" editable="bottom">
                 <field name="name" string="Orchestrator"/>
                 <field name="current_step" string="Current Step"/>
                 <field name="status" string="Status" widget="badge"/>
                 <field name="cycle_count" string="Cycles" sum="Total"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -31,11 +31,11 @@
                     <notebook>
                         <page string="Cycles" name="cycles">
                             <field name="cycle_ids" context="{'default_orchestrator_id': active_id}">
-                                <tree string="Cycles" editable="bottom">
+                                <list string="Cycles" editable="bottom">
                                     <field name="name"/>
                                     <field name="start_date"/>
                                     <field name="state"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>

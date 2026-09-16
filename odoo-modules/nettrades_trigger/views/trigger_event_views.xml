@@ -5,13 +5,13 @@
         <field name="name">trigger.event.tree</field>
         <field name="model">trigger.event</field>
         <field name="arch" type="xml">
-            <tree string="Trigger Events" editable="bottom">
+            <list string="Trigger Events" editable="bottom">
                 <field name="name" string="Event"/>
                 <field name="config_id" string="Trigger Config"/>
                 <field name="triggered_at" string="Triggered At"/>
                 <field name="status" string="Status" widget="badge"/>
                 <field name="result" string="Result"/>
-            </tree>
+            </list>
         </field>
     </record>
 

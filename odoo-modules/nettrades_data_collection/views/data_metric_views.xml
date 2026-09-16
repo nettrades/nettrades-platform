@@ -5,13 +5,13 @@
         <field name="name">data.metric.tree</field>
         <field name="model">data.metric</field>
         <field name="arch" type="xml">
-            <tree string="Metrics" editable="top">
+            <list string="Metrics" editable="top">
                 <field name="name" string="Metric Name"/>
                 <field name="value" string="Value" sum="Total"/>
                 <field name="date" string="Date"/>
                 <field name="episode_id" string="Episode"/>
                 <field name="unit" string="Unit"/>
-            </tree>
+            </list>
         </field>
     </record>
 

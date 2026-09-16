@@ -5,13 +5,13 @@
         <field name="name">data.annotation.tree</field>
         <field name="model">data.annotation</field>
         <field name="arch" type="xml">
-            <tree string="Annotations" editable="top">
+            <list string="Annotations" editable="top">
                 <field name="name" string="Annotation"/>
                 <field name="episode_id" string="Episode"/>
                 <field name="user_id" string="Annotator"/>
                 <field name="annotation_text" string="Text"/>
                 <field name="create_date" string="Date"/>
-            </tree>
+            </list>
         </field>
     </record>
 

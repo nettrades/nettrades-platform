@@ -11,13 +11,13 @@
             <field name="name">nettrades.project.tree</field>
             <field name="model">nettrades.project</field>
             <field name="arch" type="xml">
-                <tree string="Projects">
+                <list string="Projects">
                     <field name="title"/>
                     <field name="company_id"/>
                     <field name="budget"/>
                     <field name="status"/>
-                    <field name="created_at"/>
-                </tree>
+                    <field name="create_date"/>
+                </list>
             </field>
         </record>
 
@@ -39,7 +39,7 @@
                             <field name="required_skills"/>
                         </group>
                         <group>
-                            <field name="created_at"/>
+                            <field name="create_date"/>
                             <field name="updated_at"/>
                         </group>
                     </sheet>

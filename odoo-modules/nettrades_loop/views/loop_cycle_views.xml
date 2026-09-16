@@ -5,13 +5,13 @@
         <field name="name">loop.cycle.tree</field>
         <field name="model">loop.cycle</field>
         <field name="arch" type="xml">
-            <tree string="Loop Cycles" editable="bottom">
+            <list string="Loop Cycles" editable="bottom">
                 <field name="name" string="Cycle"/>
                 <field name="start_date" string="Started"/>
                 <field name="end_date" string="Ended"/>
                 <field name="state" string="Status" widget="badge"/>
                 <field name="orchestrator_id" string="Orchestrator"/>
-            </tree>
+            </list>
         </field>
     </record>
 
