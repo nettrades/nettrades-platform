@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
     <record id="view_nettrades_field_tree" model="ir.ui.view">
         <field name="name">nettrades.field.tree</field>
         <field name="model">nettrades.field</field>
@@ -117,7 +116,7 @@
                             </div>
                             <div class="text-muted" invisible="not enable_deita_scoring">
                                 <p><strong>How LLM-as-Judge works:</strong> After Data-Juicer filtering (if enabled), each surviving (question, answer) pair is scored by an LLM judge on complexity and quality. Pairs that fail to meet the minimum thresholds are rejected before training.</p>
-                                <p><strong>DEITA research backing:</strong> "DEITA introduces a way to measure data quality across three critical dimensions: complexity, quality and diversity." Models fine-tuned on a small amount of carefully selected high-quality data outperform models trained on 10x the data selected randomly.</p>
+                                <p><strong>DEITA research backing:</strong> "DEITA introduces a way to measure data quality across three critical dimensions: complexity, quality and diversity." Models fine-tuned on a small amount of carefully selected high-quality data outperform models trained on 10× the data selected randomly.</p>
                                 <p><strong>Dependencies:</strong> `distilabel[vllm]` must be installed. If missing, the DEITA step will be skipped silently.</p>
                             </div>
                         </page>
@@ -174,5 +173,4 @@
         <field name="res_model">nettrades.skill</field>
         <field name="view_mode">list,form</field>
     </record>
-    </data>
 </odoo>
