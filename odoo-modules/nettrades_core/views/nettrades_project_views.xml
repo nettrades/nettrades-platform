@@ -67,7 +67,7 @@
         <record id="action_nettrades_project" model="ir.actions.act_window">
             <field name="name">Projects</field>
             <field name="res_model">nettrades.project</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create your first project!
@@ -78,7 +78,7 @@
         <!-- Menu Item -->
         <menuitem id="menu_nettrades_project" 
                   name="Projects" 
-                  parent="menu_nettrades_core" 
+                  parent="menu_nettrades_root" 
                   action="action_nettrades_project"
                   sequence="10"/>
 

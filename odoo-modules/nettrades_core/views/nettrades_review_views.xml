@@ -103,7 +103,7 @@
         </field>
     </record>
 
-    <menuitem id="menu_nettrades_review_root" name="Reviews" parent="nettrades_core_menu_root" sequence="40"/>
+    <menuitem id="menu_nettrades_review_root" name="Reviews" parent="menu_nettrades_root" sequence="40"/>
     <menuitem id="menu_nettrades_review_list" name="All Reviews" parent="menu_nettrades_review_root"
               action="action_nettrades_review"/>
 </odoo>
