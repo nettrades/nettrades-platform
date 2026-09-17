@@ -43,12 +43,13 @@
     ],
     'data': [
         'security/ir.model.access.csv',
-        'views/qualified_professional_views.xml',
-        'views/good_answer_config_views.xml',
-        'views/ft_dataset_views.xml',
         'data/cron.xml',
+        # Views deferred until the view files are built:
+        # 'views/qualified_professional_views.xml',
+        # 'views/good_answer_config_views.xml',
+        # 'views/ft_dataset_views.xml',
     ],
-    'controllers': ['controllers/main.py'],
+    # 'controllers': ['controllers/main.py'],
     'installable': True,
     'application': False,
 }

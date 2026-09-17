@@ -46,7 +46,7 @@
         <!-- Trigger Fine-Tuning on Dataset Threshold - Dont know if this could be removed, Unsloth/Axolotl now handle fine tuning -->
         <record id="cron_trigger_finetune" model="ir.cron">
             <field name="name">Trigger Fine-Tuning on Dataset Threshold</field>
-            <field name="model_id" ref="model_ft_dataset"/>
+            <field name="model_id" ref="nettrades_good_answer.model_ft_dataset"/>
             <field name="state">code</field>
             <field name="code">model.action_trigger_finetune()</field>
             <field name="interval_number">1</field>
