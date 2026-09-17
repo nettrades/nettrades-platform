@@ -11,19 +11,34 @@
 #   and converts all text files to Unix (LF) line endings to avoid
 #   Windows ↔ Linux corruption issues.
 #
-#   NEW: Automatically clones the Odoo repository if third-party/odoo is missing.
-#   NEW: With --force, it always copies fresh modules (overwrites existing).
-#   NEW: Validates that all view files referenced in module manifests exist,
-#        and creates placeholder files if they are missing (with a warning).
-#   FIXED: Validates PROJECT_ROOT to prevent duplicate path issues.
-#   FIXED: Uses realpath to ensure PROJECT_ROOT is always an absolute path,
-#          preventing path duplication when called from subdirectories.
-#   FIXED (2026-08): Removed an uncommented separator line that caused a
-#          shell error. All comment lines now start with '#'.
-#   FIXED (2026-09): Corrected HTML entity corruption (&amp;&gt; → >, &amp;&amp; → &&)
-#          that was causing syntax errors in the script.
-#   FIXED (2026-09): Respects PROJECT_ROOT environment variable if already set,
-#          allowing the caller to override the detected root.
+#   Automatically clones the Odoo repository if third-party/odoo is missing.
+#   With --force, always copies fresh modules (overwrites existing).
+#
+#   VALIDATES that all files referenced in each module's manifest exist
+#   before copying. Fails loudly if any are missing.
+#
+# UPDATES (2026-09-17):
+#   - REPLACED placeholder creation with fail-loud validation. Previously,
+#     missing view files were silently replaced with empty XML stubs, which
+#     produced modules that loaded without any UI. That hid real bugs and
+#     caused phantom errors when the placeholders were later loaded by Odoo.
+#     Now the script exits with code 1 and lists every missing file.
+#   - EXTENDED validation to check ALL file types referenced in manifests
+#     (xml, csv, yml, yaml, js, css, scss), not just views/*.xml. This
+#     catches missing data files, security files, and assets too.
+#   - ADDED --skip-validation flag as an escape hatch. Do not use in normal
+#     workflow — it exists only for rare debugging scenarios.
+#
+# PREVIOUS UPDATES:
+#   - FIXED: Validates PROJECT_ROOT to prevent duplicate path issues.
+#   - FIXED: Uses realpath to ensure PROJECT_ROOT is always an absolute path,
+#            preventing path duplication when called from subdirectories.
+#   - FIXED (2026-08): Removed an uncommented separator line that caused a
+#            shell error. All comment lines now start with '#'.
+#   - FIXED (2026-09): Corrected HTML entity corruption (&amp;&gt; → >,
+#            &amp;&amp; → &&) that was causing syntax errors in the script.
+#   - FIXED (2026-09): Respects PROJECT_ROOT environment variable if already
+#            set, allowing the caller to override the detected root.
 # =============================================================================
 
 set -euo pipefail
@@ -85,11 +100,15 @@ THIRD_PARTY="$PROJECT_ROOT/third-party"
 ODOO_REPO="$THIRD_PARTY/odoo"
 TARGET="$PROJECT_ROOT/deploy/docker/odoo-modules"
 
+# -----------------------------------------------------------------------------
 # Parse arguments
+# -----------------------------------------------------------------------------
 FORCE=false
+SKIP_VALIDATION=false
 for arg in "$@"; do
     case $arg in
         --force) FORCE=true ;;
+        --skip-validation) SKIP_VALIDATION=true ;;
     esac
 done
 
@@ -99,7 +118,7 @@ if [[ "$FORCE" == true ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# NEW: Clone Odoo repository if missing
+# Clone Odoo repository if missing
 # -----------------------------------------------------------------------------
 if [[ ! -d "$ODOO_REPO" ]] || [[ -z "$(ls -A "$ODOO_REPO" 2>/dev/null)" ]]; then
     log_info "Odoo repository not found at $ODOO_REPO"
@@ -119,6 +138,143 @@ if [[ ! -d "$ODOO_REPO" ]] || [[ -z "$(ls -A "$ODOO_REPO" 2>/dev/null)" ]]; then
     fi
 else
     log_success "Odoo repository already exists at $ODOO_REPO"
+fi
+
+# =============================================================================
+# MANIFEST VALIDATION
+# =============================================================================
+# Validate that every file referenced in a module's __manifest__.py exists
+# on disk before we copy anything. This catches manifest-vs-reality drift
+# early, instead of letting Odoo fail later with a confusing error.
+#
+# The previous version of this script created empty placeholder files for
+# any missing view. That hid the problem: the module would install, but
+# there would be no UI. Even worse, the placeholders could themselves
+# trigger errors when Odoo tried to load them. Failing loudly is better.
+# =============================================================================
+
+validate_one_module() {
+    local module_dir="$1"
+    local issues_file="$2"
+    local manifest="$module_dir/__manifest__.py"
+    local module_name
+    module_name="$(basename "$module_dir")"
+
+    [[ -f "$manifest" ]] || return 0
+
+    # -------------------------------------------------------------------------
+    # Extract every quoted string that looks like a relative file path.
+    # We look for strings ending in one of the extensions that can legitimately
+    # appear in a manifest's data, demo, or assets sections.
+    #
+    # The regex catches both single and double quoted strings. It allows
+    # subdirectories and hyphens. It excludes URL-like strings (which contain
+    # "://") because those are never local file references.
+    # -------------------------------------------------------------------------
+    local paths
+    paths="$(grep -oE "['\"][a-zA-Z0-9_][a-zA-Z0-9_./-]*\.(xml|csv|yml|yaml|js|css|scss)['\"]" "$manifest" \
+        | tr -d "\"'" \
+        | sort -u)"
+
+    [[ -z "$paths" ]] && return 0
+
+    while IFS= read -r rel_path; do
+        [[ -z "$rel_path" ]] && continue
+
+        # Skip absolute paths and anything that looks like a URL or scheme
+        [[ "$rel_path" == /* ]] && continue
+        [[ "$rel_path" == *"://"* ]] && continue
+        [[ "$rel_path" =~ ^[a-z]+: ]] && continue
+
+        # ---------------------------------------------------------------------
+        # Determine the effective path within the module directory.
+        #
+        # - For data/demo entries, paths are relative to the module directory
+        #   (e.g. 'views/foo.xml').
+        # - For assets entries, paths use the format '<module_name>/path'
+        #   (e.g. 'my_module/static/src/js/foo.js'). Strip the leading
+        #   '<module_name>/' segment so we can resolve against the module
+        #   directory the same way Odoo does.
+        # ---------------------------------------------------------------------
+        local effective_path="$rel_path"
+        if [[ "$rel_path" == "$module_name/"* ]]; then
+            effective_path="${rel_path#"$module_name/"}"
+        fi
+
+        local full_path="$module_dir/$effective_path"
+        if [[ ! -f "$full_path" ]]; then
+            echo "MISSING: $module_name/$effective_path" >> "$issues_file"
+        fi
+    done <<< "$paths"
+
+    return 0
+}
+
+validate_manifests() {
+    log_step "Validating module manifests..."
+
+    local modules_checked=0
+    local issues_file
+    issues_file="$(mktemp)"
+
+    # --- Validate modules in odoo-modules/ -----------------------------------
+    if [[ -d "$ODOO_MODULES" ]]; then
+        for module_dir in "$ODOO_MODULES"/*/; do
+            [[ -d "$module_dir" ]] || continue
+            validate_one_module "$module_dir" "$issues_file" || true
+            modules_checked=$((modules_checked + 1))
+        done
+    fi
+
+    # --- Validate modules in third-party/ (excluding 'odoo' source) ----------
+    if [[ -d "$THIRD_PARTY" ]]; then
+        for module_dir in "$THIRD_PARTY"/*/; do
+            [[ -d "$module_dir" ]] || continue
+            local name
+            name="$(basename "$module_dir")"
+            [[ "$name" == "odoo" ]] && continue
+            validate_one_module "$module_dir" "$issues_file" || true
+            modules_checked=$((modules_checked + 1))
+        done
+    fi
+
+    # --- Report results ------------------------------------------------------
+    if [[ -s "$issues_file" ]]; then
+        local total_missing
+        total_missing="$(wc -l < "$issues_file" | tr -d ' ')"
+
+        echo ""
+        log_error "════════════════════════════════════════════════════════════════"
+        log_error "  MANIFEST VALIDATION FAILED"
+        log_error "════════════════════════════════════════════════════════════════"
+        log_error "  $total_missing missing file(s):"
+        echo ""
+        sed 's/^/    /' "$issues_file"
+        echo ""
+        log_error "════════════════════════════════════════════════════════════════"
+        log_error "Fix each missing file by either:"
+        log_error "  1. Creating the file at the expected path, OR"
+        log_error "  2. Removing the reference from __manifest__.py"
+        log_error ""
+        log_error "Do NOT create placeholder files — they hide real bugs and"
+        log_error "produce modules that install but have no UI."
+        log_error "════════════════════════════════════════════════════════════════"
+        rm -f "$issues_file"
+        return 1
+    fi
+
+    rm -f "$issues_file"
+    log_success "Validated $modules_checked modules — all manifest references resolve"
+    return 0
+}
+
+if [[ "$SKIP_VALIDATION" == true ]]; then
+    log_warning "Manifest validation skipped (--skip-validation passed)"
+else
+    if ! validate_manifests; then
+        log_error "Aborting before copy — fix the missing files first."
+        exit 1
+    fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -172,55 +328,7 @@ for module_dir in "$TARGET"/*/; do
 done
 
 # -----------------------------------------------------------------------------
-# NEW: Validate that all view files referenced in manifests exist
-# If a file is missing, create a placeholder to prevent Odoo from failing.
-# -----------------------------------------------------------------------------
-log_step "Validating Odoo module view files..."
-for manifest in "$TARGET"/*/__manifest__.py; do
-    if [[ -f "$manifest" ]]; then
-        module_dir="$(dirname "$manifest")"
-        module_name="$(basename "$module_dir")"
-
-        # Extract data files from manifest (simple grep for 'views/*.xml')
-        # This is a best-effort approach – Odoo's manifest can be more complex,
-        # but this catches the common case.
-        while IFS= read -r view_file; do
-            # Remove quotes and whitespace
-            view_file=$(echo "$view_file" | sed "s/['\"]//g" | xargs)
-            if [[ -n "$view_file" ]]; then
-                full_path="$module_dir/$view_file"
-                if [[ ! -f "$full_path" ]]; then
-                    log_warning "  - Missing view file: $view_file in module $module_name"
-                    log_info "    Creating placeholder file to prevent Odoo failure..."
-
-                    # Create the directory if it doesn't exist
-                    mkdir -p "$(dirname "$full_path")"
-
-                    # Create a minimal placeholder XML file
-                    cat > "$full_path" << EOF
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-    AUTO-GENERATED PLACEHOLDER
-    The original file '$view_file' was missing from the module '$module_name'.
-    This placeholder was created to prevent Odoo from failing during installation.
-    Please replace this with the actual view definition.
--->
-<odoo>
-    <data>
-        <!-- TODO: Add view definitions for $module_name -->
-    </data>
-</odoo>
-EOF
-                    log_info "    Created placeholder: $full_path"
-                fi
-            fi
-        done < <(grep -E "['\"]views/.*\.xml['\"]" "$manifest" | sed "s/.*['\"]\(views\/.*\.xml\)['\"].*/\1/")
-    fi
-done
-log_success "View file validation complete"
-
-# -----------------------------------------------------------------------------
-# NEW: Convert line endings to LF for all text files in Odoo modules
+# Convert line endings to LF for all text files in Odoo modules
 # -----------------------------------------------------------------------------
 log_step "Converting line endings to LF in Odoo modules..."
 if command -v dos2unix >/dev/null 2>&1; then
