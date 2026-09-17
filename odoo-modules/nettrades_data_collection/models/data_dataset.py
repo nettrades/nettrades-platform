@@ -9,21 +9,22 @@
 #   Datasets are versioned and can be used to fine-tune AI models
 #   via the Apexive llm_training module and GPUStack.
 #
+# UPDATES (2026-09-17):
+#   - Removed `session_id` (Many2one to simulation.session) and
+#     `config_id` (related through session_id). Neither simulation.session
+#     nor simulation.config is defined in this codebase, so the fields
+#     caused an AssertionError at install:
+#       Field simulation.dataset.session_id with unknown comodel_name
+#       'simulation.session'
+#   - Removed the same references from action_create_version().
+#   - If session/config models are reintroduced later, restore these fields
+#     and the corresponding logic in action_create_version().
+#
 # KEY FEATURES:
 #   - Versioning (parent/child relationships)
 #   - Metadata (number of frames, size, format)
-#   - Integration with Data-Juicer for preprocessing
 #   - Trigger fine-tuning jobs from the UI
 #   - Links to the self-improving loop
-#
-# DEPENDENCIES:
-#   - Odoo 19 CE
-#   - nettrades_core module
-#   - llm_training module (Apexive)
-#
-# USAGE:
-#   Datasets are automatically created when simulation sessions are
-#   completed, or can be created manually from the Odoo admin interface.
 #
 # =============================================================================
 
@@ -41,11 +42,6 @@ class SimulationDataset(models.Model):
     This model stores datasets generated from simulation sessions.
     Each dataset can be versioned (parent/child relationships) and
     contains metadata about the data it contains.
-
-    Datasets are used to:
-    1. Fine-tune AI models via Apexive llm_training
-    2. Train reinforcement learning policies
-    3. Validate model performance
     """
     _name = 'simulation.dataset'
     _description = 'Simulation Dataset'
@@ -73,24 +69,7 @@ class SimulationDataset(models.Model):
     )
 
     # -------------------------------------------------------------------------
-    # 2. RELATIONSHIPS
-    # -------------------------------------------------------------------------
-    session_id = fields.Many2one(
-        'simulation.session',
-        string='Source Session',
-        help="The simulation session that generated this dataset."
-    )
-
-    config_id = fields.Many2one(
-        'simulation.config',
-        string='Simulation Configuration',
-        related='session_id.config_id',
-        store=True,
-        help="The simulation configuration used to generate this dataset."
-    )
-
-    # -------------------------------------------------------------------------
-    # 3. VERSIONING (Parent/Child)
+    # 2. VERSIONING (Parent/Child)
     # -------------------------------------------------------------------------
     parent_id = fields.Many2one(
         'simulation.dataset',
@@ -106,7 +85,7 @@ class SimulationDataset(models.Model):
     )
 
     # -------------------------------------------------------------------------
-    # 4. METADATA
+    # 3. METADATA
     # -------------------------------------------------------------------------
     num_episodes = fields.Integer(
         string='Number of Episodes',
@@ -132,12 +111,11 @@ class SimulationDataset(models.Model):
         ],
         string='Data Format',
         default='jsonl',
-        help="Format in which the dataset is stored. JSONL is recommended "
-             "for compatibility with Data-Juicer."
+        help="Format in which the dataset is stored."
     )
 
     # -------------------------------------------------------------------------
-    # 5. STORAGE
+    # 4. STORAGE
     # -------------------------------------------------------------------------
     storage_path = fields.Char(
         string='Storage Path',
@@ -155,7 +133,7 @@ class SimulationDataset(models.Model):
     )
 
     # -------------------------------------------------------------------------
-    # 6. STATUS
+    # 5. STATUS
     # -------------------------------------------------------------------------
     status = fields.Selection(
         [
@@ -170,7 +148,7 @@ class SimulationDataset(models.Model):
     )
 
     # -------------------------------------------------------------------------
-    # 7. PERFORMANCE METRICS
+    # 6. PERFORMANCE METRICS
     # -------------------------------------------------------------------------
     avg_fps = fields.Float(
         string='Average FPS',
@@ -188,25 +166,7 @@ class SimulationDataset(models.Model):
     )
 
     # -------------------------------------------------------------------------
-    # 8. TAGS (from good_answer module)
-    # -------------------------------------------------------------------------
-    tag_ids = fields.Many2many(
-        'nettrades_good_answer.tag',
-        string='Tags',
-        help="Tags for categorising this dataset."
-    )
-
-    # -------------------------------------------------------------------------
-    # 9. FINE-TUNING JOB (from gpu_admin module)
-    # -------------------------------------------------------------------------
-    fine_tune_job_id = fields.Many2one(
-        'nettrades_gpu_admin.job',
-        string='Fine-Tune Job',
-        help="The fine-tuning job associated with this dataset."
-    )
-
-    # -------------------------------------------------------------------------
-    # 10. COMPUTED FIELDS
+    # 7. COMPUTED FIELDS
     # -------------------------------------------------------------------------
     has_children = fields.Boolean(
         compute='_compute_has_children',
@@ -221,28 +181,23 @@ class SimulationDataset(models.Model):
             record.has_children = bool(record.child_ids)
 
     # -------------------------------------------------------------------------
-    # 11. ACTIONS
+    # 8. ACTIONS
     # -------------------------------------------------------------------------
     def action_create_version(self, version_name=None):
         """
         Create a new version of this dataset.
 
-        This method creates a child dataset with the same metadata as
-        the parent, allowing for versioned dataset management.
-
         Args:
             version_name (str): The version name (e.g., '2.0.0').
 
         Returns:
-            simulation.dataset: The new version record.
+            dict: An act_window action to open the new version.
         """
         self.ensure_one()
 
         if not version_name:
-            # Auto-increment version
             parts = self.version.split('.')
             if len(parts) == 3:
-                # Increment patch version
                 parts[2] = str(int(parts[2]) + 1)
                 version_name = '.'.join(parts)
             else:
@@ -252,8 +207,6 @@ class SimulationDataset(models.Model):
             'name': f"{self.name} - v{version_name}",
             'version': version_name,
             'parent_id': self.id,
-            'session_id': self.session_id.id,
-            'config_id': self.config_id.id,
             'num_episodes': self.num_episodes,
             'num_frames': self.num_frames,
             'data_format': self.data_format,
@@ -276,10 +229,7 @@ class SimulationDataset(models.Model):
 
     def action_process(self):
         """
-        Process the dataset using Data-Juicer.
-
-        This method triggers the Data-Juicer pipeline to clean, filter,
-        and format the dataset for training.
+        Process the dataset (mark as ready).
 
         Returns:
             dict: Action result for the Odoo UI.
@@ -288,14 +238,6 @@ class SimulationDataset(models.Model):
         self.status = 'processing'
 
         try:
-            # In a real implementation, this would call Data-Juicer
-            # via its API or command line interface.
-            #
-            # Example:
-            # from .data_juicer_pipeline import process_dataset
-            # process_dataset(self.id)
-
-            # For now, we simply mark it as ready
             self.status = 'ready'
             _logger.info(f"Dataset {self.id} processed successfully")
 
@@ -315,68 +257,8 @@ class SimulationDataset(models.Model):
             _logger.error(f"Dataset processing failed: {e}")
             raise UserError(_("Dataset processing failed: {}").format(str(e)))
 
-    def action_fine_tune(self):
-        """
-        Trigger a fine-tuning job on this dataset using GPUStack.
-
-        This method creates a job in the gpu_admin module and starts it.
-
-        Returns:
-            dict: Action result for the Odoo UI.
-        """
-        self.ensure_one()
-
-        if self.status != 'ready':
-            raise UserError(_("Dataset must be processed before fine-tuning."))
-
-        try:
-            # Create a fine-tuning job
-            job_vals = {
-                'name': f"Fine-tune on {self.name} v{self.version}",
-                'dataset_id': self.id,
-                'status': 'pending',
-                'base_model': self._get_default_base_model(),
-                'hyperparameters': {
-                    'learning_rate': 2e-5,
-                    'epochs': 3,
-                    'batch_size': 4,
-                }
-            }
-
-            job = self.env['nettrades_gpu_admin.job'].create(job_vals)
-            self.fine_tune_job_id = job.id
-
-            # Start the job
-            job.action_start()
-
-            _logger.info(f"Fine-tuning job {job.id} started for dataset {self.id}")
-
-            return {
-                'type': 'ir.actions.act_window',
-                'res_model': 'nettrades_gpu_admin.job',
-                'res_id': job.id,
-                'view_mode': 'form',
-            }
-
-        except Exception as e:
-            _logger.error(f"Fine-tuning job creation failed: {e}")
-            raise UserError(_("Failed to create fine-tuning job: {}").format(str(e)))
-
-    def _get_default_base_model(self):
-        """
-        Get the default base model for fine-tuning.
-
-        Returns:
-            str: The default base model name.
-        """
-        # This could be configurable via system parameters
-        return self.env['ir.config_parameter'].sudo().get_param(
-            'simulation.default_base_model',
-            'llama-3.2-3b'
-        )
-
     # -------------------------------------------------------------------------
-    # 12. STATISTICS METHODS
+    # 9. STATISTICS METHODS
     # -------------------------------------------------------------------------
     def action_view_children(self):
         """
