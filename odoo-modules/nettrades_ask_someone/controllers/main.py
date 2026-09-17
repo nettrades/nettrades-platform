@@ -198,4 +198,4 @@ class AskSomeoneController(http.Controller):
             experts.append(expert_data)
     
         experts.sort(key=lambda e: (-e['reputation'], e.get('distance', 0)))
-    return experts
+        return experts
