@@ -35,6 +35,8 @@ set -uo pipefail
 # Note: we deliberately DO NOT use `set -e`. We want to catch each failure
 # and print diagnostics rather than exiting silently.
 
+stdbuf -oL -eL true 2>/dev/null || true
+
 # -----------------------------------------------------------------------------
 # Locate project root and load env
 # -----------------------------------------------------------------------------
@@ -426,7 +428,7 @@ install_module() {
     cd "$PROJECT_ROOT/deploy/docker" || return 1
 
     # 120-second hard timeout. < /dev/null prevents hangs on stdin.
-    if timeout 120s docker compose exec -T \
+    if stdbuf -oL -eL timeout 120s docker compose exec -T \
         -e PGPASSWORD="$POSTGRES_PASSWORD" \
         odoo odoo \
         -d odoo \
