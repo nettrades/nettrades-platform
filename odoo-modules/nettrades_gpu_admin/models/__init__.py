@@ -19,4 +19,10 @@ from . import gpu_token_economics
 from . import multimodal_config
 
 # res_partner is currently disabled to avoid circular dependency issues
+# The file res_partner.py adds a gpu_nodes One2many to res.partner. 
+# That field is a reverse relation for gpu.node.partner_id. It would be useful in the UI (a "GPU Nodes" tab on the partner form), 
+# but it's not required for any core functionality.
+# The question is whether it causes a circular dependency. It doesn't — the class is a plain _inherit of res.partner, and res.partner is a core model
+# But if you enable it, it may cause a conflict with nettrades_core (which might also extend res.partner), you'll see the AssertionError again
+
 # from . import res_partner
