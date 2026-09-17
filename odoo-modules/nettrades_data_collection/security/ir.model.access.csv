@@ -3,8 +3,8 @@ access_data_annotation_user,data.annotation.user,model_data_annotation,base.grou
 access_data_annotation_manager,data.annotation.manager,model_data_annotation,base.group_system,1,1,1,1
 access_data_collector_user,data.collector.user,model_data_collector,base.group_user,1,0,0,0
 access_data_collector_manager,data.collector.manager,model_data_collector,base.group_system,1,1,1,1
-access_data_dataset_user,data.dataset.user,model_data_dataset,base.group_user,1,0,0,0
-access_data_dataset_manager,data.dataset.manager,model_data_dataset,base.group_system,1,1,1,1
+access_data_dataset_user,simulation.dataset.user,model_simulation_dataset,base.group_user,1,0,0,0
+access_data_dataset_manager,simulation.dataset.manager,model_simulation_dataset,base.group_system,1,1,1,1
 access_data_edge_case_user,data.edge_case.user,model_data_edge_case,base.group_user,1,0,0,0
 access_data_edge_case_manager,data.edge_case.manager,model_data_edge_case,base.group_system,1,1,1,1
 access_data_episode_user,data.episode.user,model_data_episode,base.group_user,1,0,0,0
