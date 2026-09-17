@@ -12,5 +12,7 @@
 
 from . import bridge_config
 from . import bridge_company_config
-from . import bridge_usage_log
+from . import bridge_route
 from . import bridge_routing
+from . import bridge_usage_log
+from . import wireguard
