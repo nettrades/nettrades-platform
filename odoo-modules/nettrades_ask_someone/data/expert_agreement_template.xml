@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    NETTRADES Ask Someone – Expert Agreement Template
+    NETTRADES Ask Someone - Expert Agreement Template
     ================================================
     This is the legal agreement that professionals must sign before
     they can charge for their services.  The agreement text is displayed
@@ -8,7 +8,7 @@
     "Become an Expert".  Acceptance is recorded with a timestamp.
 
     The administrator can update the agreement text at any time through
-    the Odoo UI (Settings → Technical → Views → Templates).
+    the Odoo UI (Settings -> Technical -> Views -> Templates).
     Professionals will be prompted to re-sign if the version changes.
 -->
 <odoo>
@@ -38,7 +38,7 @@
             <p>For professional fields where the NETTRADES administrator has enabled
             the <b>"Use Expert Answers for Training"</b> option, your responses to
             "Ask Someone" sessions may be used to improve the AI through
-            fine-tuning.  <b>The requester's original question is NEVER stored</b> –
+            fine-tuning.  <b>The requester's original question is NEVER stored</b> -
             only the medical, legal, or technical knowledge contained in your answer
             is used.  This helps the AI learn to provide better answers to future
             users without compromising patient or client confidentiality.</p>

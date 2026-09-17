@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_trigger_config_user,Access Trigger Config,model_trigger_config,base.group_user,1,0,0,0
+access_trigger_config_manager,Manage Trigger Config,model_trigger_config,base.group_system,1,1,1,1
+access_trigger_event_user,Access Trigger Event,model_trigger_event,base.group_user,1,0,0,0
+access_trigger_event_manager,Manage Trigger Event,model_trigger_event,base.group_system,1,1,1,1

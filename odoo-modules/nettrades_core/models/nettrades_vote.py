@@ -30,9 +30,9 @@
 #   file unblocks all of them.
 #
 # DESIGN DECISIONS:
-#   - `_order = 'create_date desc'` — newest votes first, which is what
+#   - `_order = 'create_date desc'` - newest votes first, which is what
 #     the UI and the self-improving loop both want.
-#   - `_rec_name = 'id'` — a vote has no natural human-readable name, so
+#   - `_rec_name = 'id'` - a vote has no natural human-readable name, so
 #     we use the record ID as its display name.
 #   - The unique constraint on (answer_id, user_id) enforces "one vote per
 #     user per answer" at the database level. The helper `record_vote()`

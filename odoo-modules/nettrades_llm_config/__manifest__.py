@@ -9,10 +9,10 @@
 #   Manages connection settings, model selection, and API keys.
 #
 # DEPENDENCIES:
-#   - 'llm'         : Apexive odoo-llm — provides the `llm.provider` model
+#   - 'llm'         : Apexive odoo-llm - provides the `llm.provider` model
 #                     used as comodel in nettrades.llm.company.config.
 #                     This is copied by prepare-odoo-addons.sh from third-party/.
-#   - 'queue_job'   : OCA queue_job — for async jobs.
+#   - 'queue_job'   : OCA queue_job - for async jobs.
 #
 # REMOVED FROM MANIFEST (2026-09-16):
 #   These files are referenced by the manifest but do not exist in the
@@ -42,7 +42,7 @@
         'mail',
         'web',
         'queue_job',
-        'llm',   # Apexive odoo-llm — provides llm.provider comodel
+        'llm',   # Apexive odoo-llm - provides llm.provider comodel
     ],
     'data': [
         'security/ir.model.access.csv',

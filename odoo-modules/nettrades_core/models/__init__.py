@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# NETTRADES Core — Models Package
+# NETTRADES Core - Models Package
 # =============================================================================
 # FILE: odoo-modules/nettrades_core/models/__init__.py
 #
@@ -36,7 +36,7 @@ def _safe_import(module_name):
     Import a model submodule and turn any ImportError into a clear message
     that names the file to look for.
 
-    This is defensive. It does NOT swallow the error — it re-raises it,
+    This is defensive. It does NOT swallow the error - it re-raises it,
     because a missing model file must be fixed, not silently ignored.
     """
     try:
@@ -58,7 +58,7 @@ def _safe_import(module_name):
 
 
 # =============================================================================
-# ALL ORIGINAL IMPORTS — every one preserved, only the `.py` suffix removed
+# ALL ORIGINAL IMPORTS - every one preserved, only the `.py` suffix removed
 # =============================================================================
 # Original imports (from your file, with `.py` extension):
 #   from . import expert_session.py
@@ -81,10 +81,10 @@ def _safe_import(module_name):
 #   # Removed: from . import res_partner
 #   # Removed: from . import hr_job
 #   # Removed: from . import project_project
-# are kept as comments — they document a previous refactor.
+# are kept as comments - they document a previous refactor.
 # =============================================================================
 
-from . import expert_session           # expert.session — was: expert_session.py
+from . import expert_session           # expert.session - was: expert_session.py
 from . import nettrades_company
 from . import nettrades_experience
 from . import nettrades_field

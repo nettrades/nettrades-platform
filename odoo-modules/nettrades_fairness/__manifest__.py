@@ -61,7 +61,7 @@
         'views/fairness_config_views.xml',
         'views/fairness_audit_views.xml',
         'views/fairness_dashboard_views.xml',
-        'data/cron_data.xml',
+        # 'data/cron_data.xml',   # Deferred - no cron jobs defined yet
     ],
     'installable': True,
     'application': True,

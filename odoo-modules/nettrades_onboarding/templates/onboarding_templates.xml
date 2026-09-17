@@ -1,4 +1,4 @@
-<!-- Section F.2 – Portal template for the onboarding flow -->
+<!-- Section F.2 - Portal template for the onboarding flow -->
 <odoo>
     <template id="onboarding_page" name="Onboarding wizard">
         <t t-call="website.layout">

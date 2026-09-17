@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    NETTRADES GPU Admin – GPU Node Detail View
+    NETTRADES GPU Admin - GPU Node Detail View
     ==========================================
     Shows every property of a single GPU-equipped machine.
     The administrator can assign the node to Pool A (internal) or Pool B
@@ -8,7 +8,7 @@
     capabilities (TEE), check edge-device capabilities, and review earnings
     and reputation.
 
-    FUTURE ENHANCEMENT: Add a “Remote Restart” button that sends a command
+    FUTURE ENHANCEMENT: Add a "Remote Restart" button that sends a command
     to the agent via the WireGuard tunnel.
 -->
 <odoo>
@@ -51,7 +51,7 @@
                             <field name="name" placeholder="Node Name..."/>
                         </h1>
                         <span class="oe_read_only">
-                            <field name="node_id" help="Hardware-bound unique identifier – prevents token farming."/>
+                            <field name="node_id" help="Hardware-bound unique identifier - prevents token farming."/>
                         </span>
                     </div>
                     <group>
@@ -108,7 +108,7 @@
                                 <field name="pool"
                                        help="Internal: used only by company employees, free, multi-GPU. Public: shared with NETTRADES marketplace, earns tokens."/>
                                 <field name="container_runtime"
-                                       help="gVisor is recommended for all pools – it provides syscall-level isolation without memory hoarding. Docker is for trusted internal pools only."/>
+                                       help="gVisor is recommended for all pools - it provides syscall-level isolation without memory hoarding. Docker is for trusted internal pools only."/>
                                 <field name="scheduled_share"
                                        help="When checked, this node follows the company's public sharing schedule."/>
                             </group>
@@ -135,13 +135,13 @@
                         <page string="Hardware Security">
                             <group string="Confidential Computing (TEE) Capabilities">
                                 <field name="tee_capabilities" widget="json"
-                                       help="Hardware-backed security features detected on this node. Consumer GPUs will show all False – this is normal."/>
+                                       help="Hardware-backed security features detected on this node. Consumer GPUs will show all False - this is normal."/>
                             </group>
                             <div class="text-muted">
                                 <p><b>What this means:</b></p>
                                 <p>Nodes that support NVIDIA CC, Intel SGX, or AMD SEV-SNP can
                                 run the most sensitive workloads with hardware-guaranteed isolation.
-                                Consumer GPUs (RTX 4090, etc.) do not have these features – this
+                                Consumer GPUs (RTX 4090, etc.) do not have these features - this
                                 is expected.</p>
                                 <p><b>Routing sensitive workloads:</b> When you configure inference
                                 policies, you may prefer to route high-sensitivity requests to
@@ -160,8 +160,8 @@
                                 and Google Coral TPU can run quantized AI models on-device.  If this node
                                 is an edge device, the platform can automatically deploy the appropriate
                                 model size and quantization.</p>
-                                <p><b>Enable edge support globally:</b> Go to <em>GPU Manager → Multi-Modal
-                                &amp; Edge Settings</em> and enable “Edge Device Support”.  Then select the
+                                <p><b>Enable edge support globally:</b> Go to <em>GPU Manager -> Multi-Modal
+                                &amp; Edge Settings</em> and enable "Edge Device Support".  Then select the
                                 default quantization level.</p>
                             </div>
                         </page>
@@ -189,11 +189,11 @@
                                 <p><b>To get this node fully operational, ensure:</b></p>
                                 <ul>
                                     <li>The <b>NETTRADES GPU Agent</b> is installed and running on the node.</li>
-                                    <li><b>WireGuard</b> is active (public key and assigned IP are visible in the “Network” tab).</li>
+                                    <li><b>WireGuard</b> is active (public key and assigned IP are visible in the "Network" tab).</li>
                                     <li><b>GPUStack worker</b> is registered (GPUStack Worker ID is not empty).</li>
                                     <li><b>Container runtime</b> is set to <b>gVisor</b> (recommended) or Docker (trusted internal only).</li>
                                     <li>If you see <b>TEE capabilities</b> all False, that is normal for consumer hardware.</li>
-                                    <li>If the node is an <b>edge device</b>, enable “Edge Device Support” in Multi-Modal &amp; Edge Settings.</li>
+                                    <li>If the node is an <b>edge device</b>, enable "Edge Device Support" in Multi-Modal &amp; Edge Settings.</li>
                                 </ul>
                             </div>
                         </page>

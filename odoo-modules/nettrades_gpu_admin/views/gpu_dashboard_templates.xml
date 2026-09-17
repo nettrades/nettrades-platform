@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    GPU Manager Dashboard – Owl template used by the JavaScript component.
+    GPU Manager Dashboard - Owl template used by the JavaScript component.
     Shows a real-time summary of all GPU nodes, sharing schedules, and
     WireGuard peers.  The "Fine-Tuning" panel appears only for trusted clusters.
     FUTURE IMPROVEMENT: add a live graph of GPU utilisation.
@@ -20,7 +20,7 @@
                 <div class="col-6">
                     <div class="card">
                         <div class="card-header">
-                            <h4>Pool A – Internal (Trusted Multi-GPU)</h4>
+                            <h4>Pool A - Internal (Trusted Multi-GPU)</h4>
                         </div>
                         <div class="card-body">
                             <table class="table table-sm">
@@ -56,7 +56,7 @@
                 <div class="col-6">
                     <div class="card">
                         <div class="card-header">
-                            <h4>Pool B – Public Sharing</h4>
+                            <h4>Pool B - Public Sharing</h4>
                         </div>
                         <div class="card-body">
                             <table class="table table-sm">

@@ -4,7 +4,7 @@ import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";
 
 /**
- * GPU Dashboard – Owl component for real-time GPU cluster management.
+ * GPU Dashboard - Owl component for real-time GPU cluster management.
  * Handles network scan, node removal/reassignment, fine-tuning launch,
  * and schedule toggling.
  * FUTURE: Add live utilisation graphs via Prometheus WebSocket.

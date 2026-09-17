@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    NETTRADES GPU Admin – Menu Structure
+    NETTRADES GPU Admin - Menu Structure
     ====================================
     Adds a "GPU Manager" top-level menu with sub-menus for the Dashboard,
     Clusters, Nodes, Sharing Schedule, and Token Economics.

@@ -3,7 +3,7 @@
     <data>
 
         <!-- =================================================================
-        TREE VIEW – Overview of all routes with status
+        TREE VIEW - Overview of all routes with status
         ================================================================= -->
         <record id="view_nettrades_bridge_route_tree" model="ir.ui.view">
             <field name="name">nettrades.bridge.route.tree</field>
@@ -27,7 +27,7 @@
         </record>
 
         <!-- =================================================================
-        FORM VIEW – Full configuration with all routing options
+        FORM VIEW - Full configuration with all routing options
         ================================================================= -->
         <record id="view_nettrades_bridge_route_form" model="ir.ui.view">
             <field name="name">nettrades.bridge.route.form</field>
@@ -66,7 +66,7 @@
                         <notebook>
 
                             <!-- ==============================================
-                            PAGE 1: ROUTING RULES (OLD LOGIC – Admin Config)
+                            PAGE 1: ROUTING RULES (OLD LOGIC - Admin Config)
                             ============================================== -->
                             <page string="Routing Rules">
                                 <group string="Local Infrastructure">
@@ -148,7 +148,7 @@
                             </page>
 
                             <!-- ==============================================
-                            PAGE 2: LOAD BALANCING (NEW LOGIC – Dynamo)
+                            PAGE 2: LOAD BALANCING (NEW LOGIC - Dynamo)
                             ============================================== -->
                             <page string="Load Balancing">
                                 <group>

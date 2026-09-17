@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     ============================================================================
-    NETTRADES Core – Security Groups & Record Rules
+    NETTRADES Core - Security Groups & Record Rules
     ============================================================================
     FILE:    odoo-modules/nettrades_core/security/nettrades_security.xml
     VERSION: 2.2
@@ -11,9 +11,9 @@
         These enforce tenant isolation and access control.
 
     GROUPS:
-        1. NETTRADES Manager – full access to all NETTRADES features.
-        2. NETTRADES User – standard user access (portal, jobs, profiles).
-        3. NETTRADES API – for external API integrations.
+        1. NETTRADES Manager - full access to all NETTRADES features.
+        2. NETTRADES User - standard user access (portal, jobs, profiles).
+        3. NETTRADES API - for external API integrations.
 
     RECORD RULES:
         Tenant isolation rules that prevent cross-company data access.
@@ -57,35 +57,35 @@
          USER GROUPS
          ========================================================================= -->
 
-    <!-- 1. NETTRADES Manager – highest privilege level -->
+    <!-- 1. NETTRADES Manager - highest privilege level -->
     <record id="group_nettrades_manager" model="res.groups">
         <field name="name">NETTRADES Manager</field>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
         <!--<field name="comment">Full access to all NETTRADES platform features.</field>-->
     </record>
 
-    <!-- 2. NETTRADES User – standard user -->
+    <!-- 2. NETTRADES User - standard user -->
     <record id="group_nettrades_user" model="res.groups">
         <field name="name">NETTRADES User</field>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
         <!--<field name="comment">Standard user access for the NETTRADES platform.</field>-->
     </record>
 
-    <!-- 3. NETTRADES API – for API calls -->
+    <!-- 3. NETTRADES API - for API calls -->
     <record id="group_nettrades_api" model="res.groups">
         <field name="name">NETTRADES API</field>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
         <!--<field name="comment">API access group for external integrations.</field>-->
     </record>
 
-    <!-- 4. Secrets Manager – can read/write encrypted secrets -->
+    <!-- 4. Secrets Manager - can read/write encrypted secrets -->
     <record id="group_secrets_manager" model="res.groups">
         <field name="name">NETTRADES Secrets Manager</field>
         <field name="implied_ids" eval="[(4, ref('group_nettrades_manager'))]"/>
     </record>
 
     <!-- =========================================================================
-         TENANT ISOLATION RECORD RULES — ACTIVE
+         TENANT ISOLATION RECORD RULES - ACTIVE
          Every rule below references a model that IS defined in nettrades_core.
          Every domain has been verified against the model's actual fields.
          ========================================================================= -->
@@ -235,7 +235,7 @@
 
 
     <!-- =========================================================================
-         RULES FOR MODELS NOT DEFINED IN nettrades_core — COMMENTED OUT
+         RULES FOR MODELS NOT DEFINED IN nettrades_core - COMMENTED OUT
          =========================================================================
          The rules below reference models that are NOT imported by
          nettrades_core/models/__init__.py. They were in the original file,
@@ -243,7 +243,7 @@
              ValueError: External ID not found in the system: <ref>
 
          They are preserved here (commented out) so that when the module
-         split is performed, each block can be moved — not recreated — to
+         split is performed, each block can be moved - not recreated - to
          the security file of the module that owns the model.
 
          Do NOT uncomment any of these until the corresponding model has

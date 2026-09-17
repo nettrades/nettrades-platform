@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    NETTRADES GPU Admin – Cluster Views
+    NETTRADES GPU Admin - Cluster Views
     ====================================
     This is the main configuration screen for a company GPU cluster.
     The administrator can set trust mode, WireGuard parameters,
@@ -64,7 +64,7 @@
                         <page string="Configuration">
                             <group string="Trust Mode &amp; GPUStack">
                                 <field name="trust_mode"
-                                       help="Trusted – Multi-GPU: full WireGuard mesh, allows NCCL across nodes, gVisor isolation recommended. Untrusted – Public Sharing: hub-and-spoke WireGuard, gVisor isolation required."/>
+                                       help="Trusted - Multi-GPU: full WireGuard mesh, allows NCCL across nodes, gVisor isolation recommended. Untrusted - Public Sharing: hub-and-spoke WireGuard, gVisor isolation required."/>
                                 <field name="gpustack_server_url"
                                        help="URL of the GPUStack server (e.g. http://gpustack:80)."/>
                                 <field name="gpustack_api_key" password="True"
@@ -75,7 +75,7 @@
                                 <ul>
                                     <li>Use the <b>Scan Network</b> button to discover GPU-equipped machines.</li>
                                     <li>Configure the <b>WireGuard</b> tab to generate controller keys and set the mesh subnet.</li>
-                                    <li>Visit <b>GPU Manager → Multi-Modal &amp; Edge Settings</b> to enable vision, robotics, IoT, or edge-device features.</li>
+                                    <li>Visit <b>GPU Manager -> Multi-Modal &amp; Edge Settings</b> to enable vision, robotics, IoT, or edge-device features.</li>
                                 </ul>
                             </div>
                         </page>
@@ -95,7 +95,7 @@
                                        help="Public key of the controller. Share this with worker nodes."/>
                             </group>
                             <div class="text-muted" colspan="2">
-                                <p><b>Security:</b> WireGuard requires Linux kernel ≥ 6.19.14 (or ≥6.18.24)
+                                <p><b>Security:</b> WireGuard requires Linux kernel >= 6.19.14 (or >=6.18.24)
                                 to mitigate CVE-2026-31579. The controller deploy script checks this
                                 automatically.</p>
                             </div>

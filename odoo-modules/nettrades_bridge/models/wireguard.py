@@ -20,7 +20,7 @@
 #   - Dashboard widgets: Show WireGuard status in Odoo dashboards
 #
 # USAGE:
-#   In Odoo, navigate to Settings → Technical → Server Actions to create
+#   In Odoo, navigate to Settings -> Technical -> Server Actions to create
 #   actions that call these methods. Or use them directly in Python code:
 #
 #       wireguard = env['nettrades.wireguard']

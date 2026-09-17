@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 =============================================================================
-NETTRADES Bridge – Security Groups
+NETTRADES Bridge - Security Groups
 =============================================================================
 FILE: odoo-modules/nettrades_bridge/security/bridge_security.xml
 
@@ -9,8 +9,8 @@ PURPOSE:
   Defines security groups for the bridge module.
 
 GROUPS:
-  1. Bridge Administrator – full access to configuration
-  2. Bridge User – read-only access to usage logs
+  1. Bridge Administrator - full access to configuration
+  2. Bridge User - read-only access to usage logs
 =============================================================================
 -->
 <odoo>

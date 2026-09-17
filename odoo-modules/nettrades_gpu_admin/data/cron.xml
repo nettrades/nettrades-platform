@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    NETTRADES GPU Admin – Autonomous Cron Jobs
+    NETTRADES GPU Admin - Autonomous Cron Jobs
     ==========================================
     GPU Health Watchdog: runs every hour, creates an Odoo activity for any
     node that has been offline for more than 1 day.

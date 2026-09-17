@@ -375,17 +375,17 @@ step "Build list of modules to install"
 
 MODULES=(
     "nettrades_core"
-    "nettrades_gpu_admin"
-    "nettrades_bridge"
-    "nettrades_llm_config"
     "nettrades_queue"
     "nettrades_notifications"
-    "nettrades_fairness"
-    "nettrades_data_collection"
-    "nettrades_self_improving_config"
+    "nettrades_llm_config"
+    "nettrades_bridge"
+    "nettrades_gpu_admin"
     "nettrades_ask_someone"
     "nettrades_good_answer"
+    "nettrades_fairness"
+    "nettrades_data_collection"
     "nettrades_loop"
+    "nettrades_self_improving_config"
 )
 
 if [[ -n "$MODULES_LIST" ]]; then

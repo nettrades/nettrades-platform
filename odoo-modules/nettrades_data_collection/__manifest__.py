@@ -57,7 +57,7 @@
         'views/data_feedback_views.xml',
         'views/data_metric_views.xml',
         'views/data_edge_case_views.xml',
-        'data/cron_data.xml',
+        # 'data/cron_data.xml',   # Deferred - no cron jobs defined yet
     ],
     'installable': True,
     'application': False,

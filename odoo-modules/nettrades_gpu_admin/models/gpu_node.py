@@ -260,7 +260,7 @@ class GPUNode(models.Model):
     # to fail with AssertionError: is_model_definition(model_def).
     # We rename it to 'gpu_pool' to avoid this conflict.
 
-    # Real stored field – safe name that does not shadow Odoo's internal `pool` attribute
+    # Real stored field - safe name that does not shadow Odoo's internal `pool` attribute
     gpu_pool = fields.Selection(
         [
             ('internal', 'Internal (Trusted)'),
@@ -271,7 +271,7 @@ class GPUNode(models.Model):
         help="Internal: Company trusted network. Uses Docker runtime. Public: Untrusted freelancer network. Uses gVisor runtime."
     )
 
-    # Backward compatibility alias – points to gpu_pool
+    # Backward compatibility alias - points to gpu_pool
     pool = fields.Selection(
         related='gpu_pool',
         string='Pool',

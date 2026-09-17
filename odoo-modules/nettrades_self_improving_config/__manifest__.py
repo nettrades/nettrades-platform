@@ -46,14 +46,14 @@
     'data': [
         'security/ir.model.access.csv',
         'security/nettrades_self_improving_config_security.xml',
-        'views/self_improving_config_views.xml',
+        # 'views/self_improving_config_views.xml',   # Deferred - views not yet written
         'views/dashboard_views.xml',
         'views/menu_views.xml',
-        'views/trigger_config_views.xml',
-        'data/self_improving_config_data.xml',
+        # 'views/trigger_config_views.xml',           # Deferred - views not yet written
+        # 'data/self_improving_config_data.xml',     # Deferred - no default data yet
     ],
     'demo': [
-        'demo/self_improving_config_demo.xml',
+        # 'demo/self_improving_config_demo.xml',     # Deferred - no demo data
     ],
     'installable': True,
     'application': False,

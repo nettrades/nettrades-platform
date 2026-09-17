@@ -4,7 +4,7 @@
 # PURPOSE:
 #   Bridge route management for the NETTRADES Sovereign AI Router.
 #   Provides:
-#     1. Route decision engine – local vs remote based on admin configuration
+#     1. Route decision engine - local vs remote based on admin configuration
 #     2. Dynamic node registration for NVIDIA Dynamo
 #     3. Load balancing across healthy Dynamo nodes
 #     4. Health checking for all routes
@@ -60,7 +60,7 @@ class BridgeRoute(models.Model):
     _order = 'priority desc, name'
 
     # =========================================================================
-    # 1. CORE FIELDS – Basic route identification
+    # 1. CORE FIELDS - Basic route identification
     # =========================================================================
 
     name = fields.Char('Route Name', required=True)
@@ -79,7 +79,7 @@ class BridgeRoute(models.Model):
     priority = fields.Integer('Priority', default=100)
 
     # =========================================================================
-    # 2. ROUTE DECISION ENGINE – Local vs Remote (OLD LOGIC PRESERVED)
+    # 2. ROUTE DECISION ENGINE - Local vs Remote (OLD LOGIC PRESERVED)
     # =========================================================================
 
     # ─── Routing Mode ──────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ class BridgeRoute(models.Model):
     ], string='Embedding Routing', default='local')
 
     # =========================================================================
-    # 3. TARGET ROUTES – Where requests are sent (NEW LOGIC)
+    # 3. TARGET ROUTES - Where requests are sent (NEW LOGIC)
     # =========================================================================
 
     # ─── Primary Target ──────────────────────────────────────────────────────
@@ -257,7 +257,7 @@ class BridgeRoute(models.Model):
                 record.health_status = 'unknown'
 
     # =========================================================================
-    # 10. ROUTE DECISION ENGINE – THE CORE LOGIC
+    # 10. ROUTE DECISION ENGINE - THE CORE LOGIC
     # =========================================================================
 
     @api.model

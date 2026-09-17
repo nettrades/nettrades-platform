@@ -46,7 +46,7 @@
 <odoo>
 
     <!-- =====================================================================
-         RULE 1: GPU CLUSTER – Company Isolation (Admin + Operator)
+         RULE 1: GPU CLUSTER - Company Isolation (Admin + Operator)
          =====================================================================
          Original name: "GPU Administrator GPU Operator GPU Cluster: Company Only"
          Applies to:  gpu.cluster model
@@ -67,7 +67,7 @@
     </record>
 
     <!-- =====================================================================
-         RULE 2: GPU NODE – Company Isolation (Admin + Operator)
+         RULE 2: GPU NODE - Company Isolation (Admin + Operator)
          =====================================================================
          Original name: "GPU Node: Company Only"
          Applies to:  gpu.node model
@@ -87,7 +87,7 @@
     </record>
 
     <!-- =====================================================================
-         RULE 3: GPU CLUSTER SUBNET – Company Isolation (Admin + Operator)
+         RULE 3: GPU CLUSTER SUBNET - Company Isolation (Admin + Operator)
          =====================================================================
          Original name: "GPU Cluster Subnet: Company Only"
          Applies to:  gpu.cluster.subnet model
@@ -107,7 +107,7 @@
     </record>
 
     <!-- =====================================================================
-         RULE 4: GPU SHARING SCHEDULE – Company Isolation (Admin + Operator)
+         RULE 4: GPU SHARING SCHEDULE - Company Isolation (Admin + Operator)
          =====================================================================
          Original name: "GPU Sharing Schedule: Company Only"
          Applies to:  gpu.sharing.schedule model
@@ -127,7 +127,7 @@
     </record>
 
     <!-- =====================================================================
-         RULE 5: GPU TOKEN ECONOMICS – Company Isolation (Admin + Operator)
+         RULE 5: GPU TOKEN ECONOMICS - Company Isolation (Admin + Operator)
          =====================================================================
          Original name: "GPU Token Economics: Company Only"
          Applies to:  gpu.token.economics model
@@ -147,7 +147,7 @@
     </record>
 
     <!-- =====================================================================
-         RULE 6: MULTIMODAL CONFIG – Company Isolation (Admin + Operator)
+         RULE 6: MULTIMODAL CONFIG - Company Isolation (Admin + Operator)
          =====================================================================
          Original name: "Multimodal Config: Company Only"
          Applies to:  multimodal.config model
@@ -167,7 +167,7 @@
     </record>
 
     <!-- =====================================================================
-         RULE 7: GPU CLUSTER – Operator Read Only (Explicit Operator Rule)
+         RULE 7: GPU CLUSTER - Operator Read Only (Explicit Operator Rule)
          =====================================================================
          Original name: "GPU Cluster: Operator Read Only"
          Applies to:  gpu.cluster model
@@ -182,7 +182,7 @@
                       Operators cannot modify cluster configurations.
 
          NOTE: In Odoo, record rules do not directly enforce read/write
-               permissions—that is handled by `ir.model.access.csv`. However,
+               permissions-that is handled by `ir.model.access.csv`. However,
                having this dedicated rule for Operators makes the security
                policy explicit and self-documenting.
     ===================================================================== -->
@@ -197,7 +197,7 @@
     </record>
 
     <!-- =====================================================================
-         RULE 8: GPU NODE – Operator Read Only (Explicit Operator Rule)
+         RULE 8: GPU NODE - Operator Read Only (Explicit Operator Rule)
          =====================================================================
          Original name: "GPU Node: Operator Read Only"
          Applies to:  gpu.node model

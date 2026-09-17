@@ -56,7 +56,7 @@
                         <ol>
                             <li>Ensure the target edge device runs the NETTRADES GPU Agent.</li>
                             <li>The agent will automatically detect the device type (Jetson, Raspberry Pi, Coral) and report it to Odoo.</li>
-                            <li>No additional configuration is needed on the edge device – the agent handles model deployment.</li>
+                            <li>No additional configuration is needed on the edge device - the agent handles model deployment.</li>
                         </ol>
                     </div>
                 </sheet>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    NETTRADES Good Answer – Autonomous Cron Jobs
+    NETTRADES Good Answer - Autonomous Cron Jobs
     ============================================
     Process Feedback: runs hourly, collects unprocessed Good Answer feedback
     and exports it into fine-tuning datasets.

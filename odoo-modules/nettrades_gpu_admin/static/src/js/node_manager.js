@@ -12,8 +12,8 @@ export class GPUNodeManager extends Component {
         this.state = useState({
             node: null,
             pools: [
-                { value: "internal", label: "Pool A – Internal" },
-                { value: "public", label: "Pool B – Public Sharing" },
+                { value: "internal", label: "Pool A - Internal" },
+                { value: "public", label: "Pool B - Public Sharing" },
             ],
             runtimes: [
                 { value: "gvisor", label: "gVisor (recommended)" },

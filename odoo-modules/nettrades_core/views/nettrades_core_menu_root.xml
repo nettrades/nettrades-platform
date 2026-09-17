@@ -10,11 +10,11 @@
     WHY THIS FILE EXISTS SEPARATELY:
         The views reference the root menu by ID (`menu_nettrades_root`). The
         sub-menus reference actions defined in the views. Neither can load
-        first without breaking the other — unless the two are split.
+        first without breaking the other - unless the two are split.
 
         This file is the "root" half of that split. It loads first.
 
-        The "sub-menu" half — nettrades_core_menu.xml — loads last, after
+        The "sub-menu" half - nettrades_core_menu.xml - loads last, after
         all views have defined their actions.
 
     FIXED (2026-09-16):

@@ -49,7 +49,7 @@
         'security/ir.model.access.csv',
         'views/trigger_config_views.xml',
         'views/trigger_event_views.xml',
-        'data/cron_data.xml',
+        # 'data/cron_data.xml',   # Deferred - no cron jobs defined yet
     ],
     'installable': True,
     'application': False,

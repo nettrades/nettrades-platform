@@ -32,7 +32,7 @@
 <odoo>
 
     <!-- =====================================================================
-         RULE: GPU Registration Token – Company Isolation
+         RULE: GPU Registration Token - Company Isolation
          =====================================================================
          Applies to:  gpu.registration.token model
          Groups:      Administrator and Operator

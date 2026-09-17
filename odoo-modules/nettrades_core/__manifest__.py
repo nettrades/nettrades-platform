@@ -34,7 +34,7 @@
         # 'auth_signup',               # For self-service onboarding
         # 'queue_job',                 # For async jobs
 
-        # Reduced set (Phase A — safe to install anywhere):
+        # Reduced set (Phase A - safe to install anywhere):
         'base',    # res.partner, res.company, res.currency, res.users
         'mail',    # mail.thread, mail.activity.mixin, chatter
     ],
@@ -46,19 +46,19 @@
     # so anything a file references must already be loaded.
     #
     # Correct order:
-    #   1. Security               — groups, then rules, then model access
-    #   2. Menu ROOT              — the root menu item, referenced by every view
-    #   3. Views                  — define the actions that the sub-menus use
-    #   4. Menu SUB-MENUS         — reference both the root menu and the actions
-    #   5. Reference data         — CSV/XML content loaded last
+    #   1. Security               - groups, then rules, then model access
+    #   2. Menu ROOT              - the root menu item, referenced by every view
+    #   3. Views                  - define the actions that the sub-menus use
+    #   4. Menu SUB-MENUS         - reference both the root menu and the actions
+    #   5. Reference data         - CSV/XML content loaded last
     #
     # FIXED (2026-09-16):
     #   The menu file was a single file that both:
     #     (a) defined the root menu that the views reference, and
     #     (b) referenced actions that the views define.
     #   That is a circular dependency. It has been split:
-    #     - nettrades_core_menu_root.xml : root menu only  → loads first
-    #     - nettrades_core_menu.xml      : sub-menus + actions → loads last
+    #     - nettrades_core_menu_root.xml : root menu only  -> loads first
+    #     - nettrades_core_menu.xml      : sub-menus + actions -> loads last
     # =========================================================================
     'data': [
         # --- Security: must load first ---
@@ -81,7 +81,7 @@
 
         # --- Reference data: loaded last ---
         'data/nettrades.skill.csv',
-        # 'data/portal_data.xml',   # Deferred to Phase E — see notes below
+        # 'data/portal_data.xml',   # Deferred to Phase E - see notes below
     ],
     'demo': [],
     'installable': True,
