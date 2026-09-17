@@ -11,32 +11,8 @@
                     <div class="oe_title">
                         <h1>AI Fairness &amp; Rationality Configuration</h1>
                     </div>
-                    
-                    <!-- Enable/Disable Features -->
-                    <group string="Feature Controls" colspan="4">
-                        <field name="rationality_evaluation_enabled"/>
-                        <field name="bias_detection_enabled"/>
-                        <field name="auto_flag_for_review"/>
-                        <field name="auto_filter_training"/>
-                    </group>
-                    
-                    <!-- Thresholds -->
-                    <group string="Quality Thresholds" colspan="4">
-                        <field name="rationality_threshold" widget="float_time"/>
-                        <field name="bias_threshold" widget="float_time"/>
-                        <field name="min_votes_for_training"/>
-                    </group>
-                    
-                    <!-- Evaluation Model -->
-                    <group string="Evaluation Model" colspan="4">
-                        <field name="evaluation_model"/>
-                        <field name="custom_evaluation_url" 
-                               attrs="{'invisible': [('evaluation_model', '!=', 'custom')]}"/>
-                        <field name="custom_evaluation_api_key" password="True"
-                               attrs="{'invisible': [('evaluation_model', '!=', 'custom')]}"/>
-                    </group>
-                    
-                    <!-- Status Summary -->
+
+                    <!-- System Status (computed, live) -->
                     <group string="System Status" colspan="4">
                         <field name="last_audit_date"/>
                         <field name="total_evaluations"/>
@@ -44,11 +20,48 @@
                         <field name="average_rationality"/>
                         <field name="average_bias"/>
                     </group>
+
+                    <!-- Enable/Disable Features -->
+                    <group string="Feature Controls" colspan="4">
+                        <field name="rationality_evaluation_enabled"/>
+                        <field name="bias_detection_enabled"/>
+                        <field name="auto_flag_for_review"/>
+                        <field name="auto_filter_training"/>
+                        <field name="auto_audit_enabled"/>
+                    </group>
+
+                    <!-- Thresholds -->
+                    <group string="Quality Thresholds" colspan="4">
+                        <field name="rationality_threshold"/>
+                        <field name="bias_threshold"/>
+                        <field name="min_votes_for_training"/>
+                    </group>
+
+                    <!-- Evaluation Model -->
+                    <group string="Evaluation Model" colspan="4">
+                        <field name="evaluation_model"/>
+                        <field name="custom_evaluation_url"
+                               invisible="evaluation_model != 'custom'"/>
+                        <field name="custom_evaluation_api_key" widget="password"
+                               invisible="evaluation_model != 'custom'"/>
+                    </group>
+
+                    <group string="Protected Attributes" colspan="4">
+                        <field name="protected_attributes"/>
+                        <field name="fairness_metrics_enabled"/>
+                    </group>
+
+                    <group string="A/B Testing" colspan="4">
+                        <field name="ab_testing_enabled"/>
+                        <field name="ab_traffic_split" invisible="not ab_testing_enabled"/>
+                        <field name="promotion_threshold" invisible="not ab_testing_enabled"/>
+                        <field name="evaluation_window_days" invisible="not ab_testing_enabled"/>
+                    </group>
                 </sheet>
             </form>
         </field>
     </record>
-    
+
     <!-- Field-Specific Configuration Form -->
     <record id="view_fairness_field_config_form" model="ir.ui.view">
         <field name="name">nettrades.fairness.field.config.form</field>
@@ -62,35 +75,49 @@
                         <field name="sensitivity_level"/>
                         <field name="protected_attributes"/>
                     </group>
-                    
-                    <group string="Threshold Overrides" 
-                           attrs="{'invisible': [('override_global', '=', False)]}">
+
+                    <group string="Threshold Overrides"
+                           invisible="not override_global">
                         <field name="rationality_threshold"/>
                         <field name="bias_threshold"/>
+                        <field name="min_votes_for_training"/>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
-    
+
+    <!-- Actions for the menus -->
+    <record id="action_fairness_global_config" model="ir.actions.act_window">
+        <field name="name">Global Fairness Configuration</field>
+        <field name="res_model">nettrades.fairness.config</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_fairness_field_config" model="ir.actions.act_window">
+        <field name="name">Field Fairness Configurations</field>
+        <field name="res_model">nettrades.fairness.field.config</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <!-- Menu Items -->
-    <menuitem id="menu_fairness_root" 
-              name="Fairness &amp; AI Ethics" 
+    <menuitem id="menu_fairness_root"
+              name="Fairness &amp; AI Ethics"
               parent="nettrades_core.menu_nettrades_root"
               sequence="70"/>
-    
-    <menuitem id="menu_fairness_global_config" 
-              name="Global Configuration" 
-              parent="menu_fairness_root" 
+
+    <menuitem id="menu_fairness_global_config"
+              name="Global Configuration"
+              parent="menu_fairness_root"
               action="action_fairness_global_config"/>
-    
-    <menuitem id="menu_fairness_field_config" 
-              name="Field Configurations" 
-              parent="menu_fairness_root" 
+
+    <menuitem id="menu_fairness_field_config"
+              name="Field Configurations"
+              parent="menu_fairness_root"
               action="action_fairness_field_config"/>
-    
-    <menuitem id="menu_fairness_audit_log" 
-              name="Audit Logs" 
-              parent="menu_fairness_root" 
+
+    <menuitem id="menu_fairness_audit_log"
+              name="Audit Logs"
+              parent="menu_fairness_root"
               action="action_fairness_audit_log"/>
 </odoo>
