@@ -14,6 +14,12 @@
 #     - Performance analysis (tracking fairness metrics over time)
 #     - Quality improvement (identifying patterns in low-quality responses)
 #
+# UPDATES (2026-09-17):
+#   - Changed response_id from Many2one('llm.assistant.message') to Integer.
+#     The llm.assistant.message model is not a dependency of this module,
+#     and the field is used as a plain integer ID in ft_dataset.py (compared
+#     against good.answer.vote.answer_id, which is Integer). Using Many2one
+#     caused an install-time AssertionError because the comodel was unknown.
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -36,10 +42,10 @@ class FairnessAudit(models.Model):
     # =========================================================================
     # 1. Basic Fields
     # =========================================================================
-    response_id = fields.Many2one(
-        'llm.assistant.message',
-        string='AI Response',
-        help="The AI response that was evaluated."
+    response_id = fields.Integer(
+        string='AI Response ID',
+        help="The ID of the AI response that was evaluated. "
+             "Matches good.answer.vote.answer_id."
     )
 
     field_id = fields.Many2one(
@@ -175,10 +181,10 @@ class FairnessFlag(models.Model):
     # =========================================================================
     # 1. Basic Fields
     # =========================================================================
-    response_id = fields.Many2one(
-        'llm.assistant.message',
-        string='AI Response',
-        help="The AI response that was flagged."
+    response_id = fields.Integer(
+        string='AI Response ID',
+        help="The ID of the AI response that was flagged. "
+             "Matches good.answer.vote.answer_id."
     )
 
     field_id = fields.Many2one(
