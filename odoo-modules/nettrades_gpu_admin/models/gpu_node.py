@@ -9,7 +9,7 @@
 #
 # RELATIONSHIPS:
 #   - cluster_id -> gpu.cluster (the cluster this node belongs to)
-#   - booking_ids -> gpu_sharing_schedule (bookings for this node)
+#   - booking_ids -> gpu.sharing.schedule (bookings for this node)
 #
 # KEY FEATURES:
 #   - Hardware inventory (GPUs, VRAM, OS, TEE capabilities)
@@ -357,14 +357,14 @@ class GPUNode(models.Model):
     # =========================================================================
 
     booking_ids = fields.One2many(
-        'gpu_sharing_schedule',
+        'gpu.sharing.schedule',
         'node_id',
         string='Bookings',
         help="All bookings for this GPU node."
     )
 
     current_booking_id = fields.Many2one(
-        'gpu_sharing_schedule',
+        'gpu.sharing.schedule',
         string='Current Booking',
         help="The currently active booking for this node."
     )
