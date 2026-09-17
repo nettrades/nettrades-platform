@@ -110,7 +110,7 @@ ATTRS MIGRATION (2026-09-17):
                         <field name="gpu_overflow_threshold" invisible="not gpu_overflow_enabled"/>
                         <field name="use_nettrades_ai_for_training"/>
                         <field name="nettrades_ai_url"/>
-                        <field name="nettrades_ai_api_key" password="True"/>
+                        <field name="nettrades_ai_api_key" widget="password"/>
                     </group>
 
                     <!-- PERFORMANCE -->

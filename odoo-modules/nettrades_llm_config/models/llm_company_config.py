@@ -87,7 +87,6 @@ class LLMCompanyConfig(models.Model):
 
     api_key = fields.Char(
         string='API Key',
-        password=True,
         copy=False,
         help="Company-specific API key for the provider. "
              "If not set, the provider's default API key is used."
@@ -169,7 +168,6 @@ class LLMCompanyConfig(models.Model):
 
     nettrades_ai_api_key = fields.Char(
         string='NETTRADES.AI API Key',
-        password=True,
         copy=False,
         help="API key for authenticating with NETTRADES.AI."
     )
