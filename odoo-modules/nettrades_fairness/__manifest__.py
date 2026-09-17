@@ -58,9 +58,9 @@
     'data': [
         'security/fairness_security.xml',
         'security/ir.model.access.csv',
-        'views/fairness_config_views.xml',
         'views/fairness_audit_views.xml',
         'views/fairness_dashboard_views.xml',
+        'views/fairness_config_views.xml',
         # 'data/cron_data.xml',   # Deferred - no cron jobs defined yet
     ],
     'installable': True,
