@@ -19,6 +19,12 @@
 #   The cycle record provides traceability for the self-improving system,
 #   allowing administrators to see what changes were made, when, and why.
 #
+# UPDATES (2026-09-17):
+#   - Added company_id field (Many2one to res.company) for multi-company
+#     isolation. Required by the record rule in nettrades_loop_security.xml
+#     which uses the domain:
+#         ['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]
+#     Without this field, that rule would raise a ParseError at install.
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -67,7 +73,22 @@ class LoopCycle(models.Model):
     )
 
     # =========================================================================
-    # 2. TRIGGER INFORMATION
+    # 2. COMPANY (multi-company isolation)
+    # =========================================================================
+
+    company_id = fields.Many2one(
+        'res.company',
+        string='Company',
+        default=lambda self: self.env.company,
+        required=True,
+        index=True,
+        help="Company this cycle belongs to. Used for multi-company isolation. "
+             "Must point to res.company so it matches user.company_id in the "
+             "record rule domain."
+    )
+
+    # =========================================================================
+    # 3. TRIGGER INFORMATION
     # =========================================================================
 
     trigger_event_id = fields.Many2one(
@@ -84,7 +105,7 @@ class LoopCycle(models.Model):
     )
 
     # =========================================================================
-    # 3. TRAINING INFORMATION
+    # 4. TRAINING INFORMATION
     # =========================================================================
 
     dataset_id = fields.Many2one(
@@ -107,7 +128,7 @@ class LoopCycle(models.Model):
     )
 
     # =========================================================================
-    # 4. DEPLOYMENT INFORMATION
+    # 5. DEPLOYMENT INFORMATION
     # =========================================================================
 
     model_id = fields.Char(
@@ -127,7 +148,7 @@ class LoopCycle(models.Model):
     )
 
     # =========================================================================
-    # 5. METRICS AND RESULTS
+    # 6. METRICS AND RESULTS
     # =========================================================================
 
     metrics = fields.Json(
@@ -156,7 +177,7 @@ class LoopCycle(models.Model):
     )
 
     # =========================================================================
-    # 6. TIMESTAMPS
+    # 7. TIMESTAMPS
     # =========================================================================
 
     started_at = fields.Datetime(
@@ -170,7 +191,7 @@ class LoopCycle(models.Model):
     )
 
     # =========================================================================
-    # 7. COMPUTED FIELDS
+    # 8. COMPUTED FIELDS
     # =========================================================================
 
     duration_seconds = fields.Float(
@@ -190,7 +211,7 @@ class LoopCycle(models.Model):
                 record.duration_seconds = 0.0
 
     # =========================================================================
-    # 8. ACTIONS
+    # 9. ACTIONS
     # =========================================================================
 
     def action_view_details(self):
