@@ -163,16 +163,17 @@ validate_one_module() {
     [[ -f "$manifest" ]] || return 0
 
     # -------------------------------------------------------------------------
-    # Extract every quoted string that looks like a relative file path.
-    # We look for strings ending in one of the extensions that can legitimately
-    # appear in a manifest's data, demo, or assets sections.
-    #
-    # The regex catches both single and double quoted strings. It allows
-    # subdirectories and hyphens. It excludes URL-like strings (which contain
-    # "://") because those are never local file references.
+    # BUG A FIX: Strip Python comments before extracting paths.
+    # 'sed s/#.*$//' removes everything from the first '#' to end-of-line.
+    # This stops commented-out manifest entries (e.g. '# views/foo.xml')
+    # from being treated as active references.
     # -------------------------------------------------------------------------
+    local cleaned
+    cleaned="$(sed 's/#.*$//' "$manifest")"
+
     local paths
-    paths="$(grep -oE "['\"][a-zA-Z0-9_][a-zA-Z0-9_./-]*\.(xml|csv|yml|yaml|js|css|scss)['\"]" "$manifest" \
+    paths="$(echo "$cleaned" \
+        | grep -oE "['\"][a-zA-Z0-9_][a-zA-Z0-9_./-]*\.(xml|csv|yml|yaml|js|css|scss)['\"]" \
         | tr -d "\"'" \
         | sort -u)"
 
@@ -181,21 +182,26 @@ validate_one_module() {
     while IFS= read -r rel_path; do
         [[ -z "$rel_path" ]] && continue
 
-        # Skip absolute paths and anything that looks like a URL or scheme
+        # Skip absolute paths and URLs
         [[ "$rel_path" == /* ]] && continue
         [[ "$rel_path" == *"://"* ]] && continue
         [[ "$rel_path" =~ ^[a-z]+: ]] && continue
 
         # ---------------------------------------------------------------------
-        # Determine the effective path within the module directory.
-        #
-        # - For data/demo entries, paths are relative to the module directory
-        #   (e.g. 'views/foo.xml').
-        # - For assets entries, paths use the format '<module_name>/path'
-        #   (e.g. 'my_module/static/src/js/foo.js'). Strip the leading
-        #   '<module_name>/' segment so we can resolve against the module
-        #   directory the same way Odoo does.
+        # BUG B FIX: Skip asset paths belonging to OTHER modules.
+        # Odoo asset paths have the form <module_name>/static/...
+        # If the first segment is not this module's name, the file belongs
+        # to that other module — not our responsibility to validate.
         # ---------------------------------------------------------------------
+        if [[ "$rel_path" == */static/* ]]; then
+            local first_seg="${rel_path%%/*}"
+            if [[ "$first_seg" != "$module_name" ]]; then
+                continue
+            fi
+        fi
+
+        # Strip the current module's own prefix for asset paths,
+        # so '<module_name>/static/...' resolves to './static/...' locally.
         local effective_path="$rel_path"
         if [[ "$rel_path" == "$module_name/"* ]]; then
             effective_path="${rel_path#"$module_name/"}"
