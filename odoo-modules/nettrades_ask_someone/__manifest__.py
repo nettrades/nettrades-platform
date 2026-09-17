@@ -42,6 +42,7 @@
     ],
     'data': [
         'security/ir.model.access.csv',
+        'security/nettrades_ask_someone_security.xml',
         'views/ask_someone_config_views.xml',
         'views/expert_session_views.xml',
         'data/expert_agreement_template.xml',    # updated agreement with AI training transparency

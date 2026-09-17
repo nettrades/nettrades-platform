@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ============================================================================
+    NETTRADES Ask Someone - Security Rules
+    ============================================================================
+    FILE: odoo-modules/nettrades_ask_someone/security/nettrades_ask_someone_security.xml
+
+    Tenant isolation rules for expert sessions. The expert.session model
+    lives in this module, so its record rules belong here.
+    ============================================================================
+-->
+<odoo>
+
+    <!-- Tenant isolation for expert sessions. -->
+    <record id="rule_company_expert_sessions" model="ir.rule">
+        <field name="name">Tenant: Expert Sessions - Own Company Only</field>
+        <field name="model_id" ref="model_expert_session"/>
+        <field name="domain_force">[('requester_id.company_id','=',user.company_id.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+</odoo>

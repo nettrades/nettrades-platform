@@ -196,7 +196,11 @@
          The model has a 'requester_id' Many2one field. Whatever model it
          points to (nettrades.user or res.users) provides 'company_id',
          so this domain resolves. -->
-    <record id="rule_company_expert_sessions" model="ir.rule">
+    <!-- MOVED to nettrades_ask_someone/security/
+     The expert.session model now lives in nettrades_ask_someone,
+     so its tenant-isolation rule moves with it. See:
+       nettrades_ask_someone/security/nettrades_ask_someone_security.xml
+<record id="rule_company_expert_sessions" model="ir.rule">
         <field name="name">Tenant: Expert Sessions - Own Company Only</field>
         <field name="model_id" ref="nettrades_core.model_expert_session"/>
         <field name="domain_force">[('requester_id.company_id','=',user.company_id.id)]</field>
@@ -205,6 +209,7 @@
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
     </record>
+-->
 
     <!-- qualified_professional: Professionals belong to a company via partner -->
     <record id="rule_company_qualified_professionals" model="ir.rule">

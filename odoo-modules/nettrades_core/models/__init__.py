@@ -61,7 +61,6 @@ def _safe_import(module_name):
 # ALL ORIGINAL IMPORTS - every one preserved, only the `.py` suffix removed
 # =============================================================================
 # Original imports (from your file, with `.py` extension):
-#   from . import expert_session.py
 #   from . import nettrades_company
 #   from . import nettrades_experience
 #   from . import nettrades_field
@@ -84,7 +83,6 @@ def _safe_import(module_name):
 # are kept as comments - they document a previous refactor.
 # =============================================================================
 
-from . import expert_session           # expert.session - was: expert_session.py
 from . import nettrades_company
 from . import nettrades_experience
 from . import nettrades_field

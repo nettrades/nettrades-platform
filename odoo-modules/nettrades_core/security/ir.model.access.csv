@@ -1,5 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_expert_session_user,expert.session.user,model_expert_session,base.group_user,1,1,1,1
 access_nettrades_company_user,nettrades.company.user,model_nettrades_company,base.group_user,1,1,1,1
 access_nettrades_experience_user,nettrades.experience.user,model_nettrades_experience,base.group_user,1,1,1,1
 access_nettrades_field_user,nettrades.field.user,model_nettrades_field,base.group_user,1,1,1,1
