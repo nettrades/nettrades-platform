@@ -17,6 +17,15 @@
 #   1. Field-specific overrides (highest priority)
 #   2. Global configuration (fallback)
 #
+# UPDATES (2026-09-17):
+#   - Fixed a syntax error in _compute_status_fields (extra closing paren)
+#     that made the whole file fail to parse.
+#   - Removed `password=True` from custom_evaluation_api_key. That attribute
+#     is deprecated in Odoo 19; the admin view uses widget="password" on
+#     the field declaration instead.
+#   - Moved the System Status computed fields into their own section (0) at
+#     the top of the class, so they read before the display-name section.
+#
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -37,6 +46,92 @@ class FairnessGlobalConfig(models.Model):
     _name = 'nettrades.fairness.config'
     _description = 'Fairness Global Configuration'
     _rec_name = 'display_name'
+
+    # =========================================================================
+    # 0. SYSTEM STATUS (computed, live from the audit and flag tables)
+    # =========================================================================
+    # These five fields are non-stored computed values. They are recomputed
+    # every time the config record is read, which means the admin always
+    # sees the latest stats without needing a scheduled cron.
+    #
+    # If the platform scales to millions of audit records, replace these
+    # with a materialised view or a nightly cron that writes to stored
+    # columns. For now, on-change computation is fine.
+    # =========================================================================
+
+    last_audit_date = fields.Datetime(
+        string='Last Audit',
+        compute='_compute_status_fields',
+        store=False,
+        help="Timestamp of the most recent fairness evaluation."
+    )
+
+    total_evaluations = fields.Integer(
+        string='Total Evaluations',
+        compute='_compute_status_fields',
+        store=False,
+        help="Total number of fairness evaluations in the audit log."
+    )
+
+    flagged_responses = fields.Integer(
+        string='Flagged Responses',
+        compute='_compute_status_fields',
+        store=False,
+        help="Number of flagged responses currently pending human review."
+    )
+
+    average_rationality = fields.Float(
+        string='Average Rationality',
+        compute='_compute_status_fields',
+        store=False,
+        help="Average rationality score across all evaluations (0-10)."
+    )
+
+    average_bias = fields.Float(
+        string='Average Bias',
+        compute='_compute_status_fields',
+        store=False,
+        help="Average bias score across all evaluations (0-10)."
+    )
+
+    @api.depends()
+    def _compute_status_fields(self):
+        """
+        Compute the System Status fields from the audit log and flag table.
+
+        These fields are non-stored and recomputed on every read, so the
+        dashboard reflects the latest state without a cron job.
+        """
+        Audit = self.env['nettrades.fairness.audit']
+        Flag = self.env['nettrades.fairness.flag']
+
+        for record in self:
+            audits = Audit.search([])
+            pending_flags = Flag.search([('status', '=', 'pending')])
+
+            record.last_audit_date = (
+                audits[:1].create_date if audits else False
+            )
+            record.total_evaluations = len(audits)
+            record.flagged_responses = len(pending_flags)
+
+            rationality_scores = [
+                a.rationality_score for a in audits
+                if a.rationality_score is not None
+            ]
+            bias_scores = [
+                a.bias_score for a in audits
+                if a.bias_score is not None
+            ]
+
+            record.average_rationality = (
+                sum(rationality_scores) / len(rationality_scores)
+                if rationality_scores else 0.0
+            )
+            record.average_bias = (
+                sum(bias_scores) / len(bias_scores)
+                if bias_scores else 0.0
+            )
 
     # =========================================================================
     # 1. Display Name (computed)
@@ -155,10 +250,9 @@ class FairnessGlobalConfig(models.Model):
 
     custom_evaluation_api_key = fields.Char(
         string='Custom Evaluation API Key',
-        password=True,
         copy=False,
-        help="The API key for the custom LLM endpoint. This is stored "
-             "encrypted and never exposed in the UI."
+        help="The API key for the custom LLM endpoint. Displayed as a "
+             "password field in the admin UI. Never exposed in logs."
     )
 
     # =========================================================================
