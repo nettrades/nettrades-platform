@@ -21,7 +21,7 @@ PURPOSE:
     <record id="action_fairness_dashboard" model="ir.actions.act_window">
         <field name="name">Fairness Dashboard</field>
         <field name="res_model">nettrades.fairness.audit</field>
-        <field name="view_mode">dashboard</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p>Monitor the fairness and rationality of AI responses.</p>
             <p>This dashboard shows:</p>
