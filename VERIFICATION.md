@@ -126,3 +126,9 @@ Expect: the installer completes with `ALL MODULES INSTALLED SUCCESSFULLY`.
 
 This is the acceptance test. If it passes on a fresh VM, the platform
 is deployable.
+
+The script 
+
+scripts/check-health.sh script
+
+Runs every check in VERIFICATION.md Level 1–4 and prints pass/fail. You run this once after every change
