@@ -1,43 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+=============================================================================
+NETTRADES Fairness - Audit and Flag Views
+=============================================================================
+FILE: odoo-modules/nettrades_fairness/views/fairness_audit_views.xml
+
+PURPOSE:
+  List, form, and search views for the two fairness models:
+    - nettrades.fairness.audit   (evaluation history)
+    - nettrades.fairness.flag    (flagged responses for review)
+
+UPDATES (2026-09-18):
+  - Rewrote against the actual model fields. The previous version referenced
+    `fairness.audit` (missing the `nettrades.` prefix) and the fields `name`
+    and `model_id`, none of which exist. That caused:
+        Model not found: fairness.audit
+=============================================================================
+-->
 <odoo>
-    <!-- Fairness audit: track bias and fairness metrics for models -->
+
+    <!-- =====================================================================
+         NETTRADES.FAIRNESS.AUDIT — Evaluation History
+         ===================================================================== -->
+
     <record id="view_fairness_audit_tree" model="ir.ui.view">
-        <field name="name">fairness.audit.tree</field>
-        <field name="model">fairness.audit</field>
+        <field name="name">nettrades.fairness.audit.tree</field>
+        <field name="model">nettrades.fairness.audit</field>
         <field name="arch" type="xml">
             <list string="Fairness Audits" editable="bottom">
-                <field name="name" string="Audit Name"/>
-                <field name="model_id" string="Model"/>
-                <field name="fairness_score" string="Score" sum="Average"/>
-                <field name="status" string="Status" widget="badge"/>
-                <field name="audit_date" string="Date"/>
-                <field name="user_id" string="Auditor"/>
+                <field name="create_date" string="Date"/>
+                <field name="field_id"/>
+                <field name="rationality_score" widget="float"/>
+                <field name="bias_score" widget="float"/>
+                <field name="is_passed" widget="boolean_toggle"/>
+                <field name="evaluation_model"/>
+                <field name="response_id" optional="hide"/>
             </list>
         </field>
     </record>
 
     <record id="view_fairness_audit_form" model="ir.ui.view">
-        <field name="name">fairness.audit.form</field>
-        <field name="model">fairness.audit</field>
+        <field name="name">nettrades.fairness.audit.form</field>
+        <field name="model">nettrades.fairness.audit</field>
         <field name="arch" type="xml">
             <form string="Fairness Audit">
                 <sheet>
-                    <group>
-                        <field name="name" placeholder="Audit title..."/>
-                        <field name="model_id" options="{'no_create': True}"/>
-                        <field name="user_id" readonly="1"/>
-                        <field name="audit_date" default="(context_today())"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="field_id" placeholder="Professional field..."/>
+                        </h1>
+                    </div>
+
+                    <group string="Scores">
+                        <group>
+                            <field name="rationality_score"/>
+                            <field name="bias_score"/>
+                        </group>
+                        <group>
+                            <field name="is_passed" widget="boolean_toggle"/>
+                            <field name="evaluation_model"/>
+                        </group>
                     </group>
-                    <group string="Results">
-                        <field name="fairness_score" widget="progressbar" help="0-100 score"/>
-                        <field name="status" widget="statusbar" statusbar_visible="draft,review,approved"/>
+
+                    <group string="Context">
+                        <field name="response_id"/>
+                        <field name="protected_attributes"/>
+                        <field name="create_date" readonly="1"/>
                     </group>
+
                     <notebook>
-                        <page string="Details" name="details">
-                            <field name="details" placeholder="Full audit report..." widget="text"/>
+                        <page string="Question">
+                            <field name="question_text"/>
                         </page>
-                        <page string="Recommendations" name="recs">
-                            <field name="recommendations" placeholder="Improvement suggestions..." widget="text"/>
+                        <page string="Response">
+                            <field name="response_text"/>
+                        </page>
+                        <page string="Rationale">
+                            <field name="rationale"/>
                         </page>
                     </notebook>
                 </sheet>
@@ -46,21 +85,147 @@
     </record>
 
     <record id="view_fairness_audit_search" model="ir.ui.view">
-        <field name="name">fairness.audit.search</field>
-        <field name="model">fairness.audit</field>
+        <field name="name">nettrades.fairness.audit.search</field>
+        <field name="model">nettrades.fairness.audit</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
-                <field name="model_id"/>
-                <field name="status"/>
-                <filter name="high_score" string="Score >= 80" domain="[('fairness_score','>=',80)]"/>
+                <field name="field_id"/>
+                <field name="evaluation_model"/>
+                <filter name="passed" string="Passed" domain="[('is_passed', '=', True)]"/>
+                <filter name="failed" string="Failed" domain="[('is_passed', '=', False)]"/>
+                <separator/>
+                <filter name="low_rationality" string="Low Rationality"
+                        domain="[('rationality_score', '&lt;', 5.0)]"/>
+                <filter name="high_bias" string="High Bias"
+                        domain="[('bias_score', '&gt;', 5.0)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_field" string="Field"
+                            context="{'group_by': 'field_id'}"/>
+                    <filter name="group_by_model" string="Evaluation Model"
+                            context="{'group_by': 'evaluation_model'}"/>
+                </group>
             </search>
         </field>
     </record>
 
-    <record id="action_fairness_audit" model="ir.actions.act_window">
-        <field name="name">Fairness Audits</field>
-        <field name="res_model">fairness.audit</field>
-        <field name="view_mode">tree,form</field>
+    <!-- =====================================================================
+         NETTRADES.FAIRNESS.FLAG — Flagged Responses
+         ===================================================================== -->
+
+    <record id="view_fairness_flag_tree" model="ir.ui.view">
+        <field name="name">nettrades.fairness.flag.tree</field>
+        <field name="model">nettrades.fairness.flag</field>
+        <field name="arch" type="xml">
+            <list string="Fairness Flags" editable="bottom">
+                <field name="create_date" string="Flagged"/>
+                <field name="field_id"/>
+                <field name="rationality_score"/>
+                <field name="bias_score"/>
+                <field name="status" widget="badge"/>
+                <field name="reviewed_by" optional="hide"/>
+            </list>
+        </field>
     </record>
+
+    <record id="view_fairness_flag_form" model="ir.ui.view">
+        <field name="name">nettrades.fairness.flag.form</field>
+        <field name="model">nettrades.fairness.flag</field>
+        <field name="arch" type="xml">
+            <form string="Fairness Flag">
+                <header>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="field_id" placeholder="Professional field..."/>
+                        </h1>
+                    </div>
+
+                    <group string="Scores">
+                        <group>
+                            <field name="rationality_score"/>
+                            <field name="bias_score"/>
+                        </group>
+                        <group>
+                            <field name="response_id"/>
+                            <field name="create_date" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <group string="Review">
+                        <field name="reviewed_by" readonly="1"/>
+                        <field name="reviewed_date" readonly="1"/>
+                    </group>
+
+                    <notebook>
+                        <page string="Reason">
+                            <field name="reason"/>
+                        </page>
+                        <page string="Review Notes">
+                            <field name="review_notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fairness_flag_search" model="ir.ui.view">
+        <field name="name">nettrades.fairness.flag.search</field>
+        <field name="model">nettrades.fairness.flag</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="field_id"/>
+                <field name="status"/>
+                <filter name="pending" string="Pending" domain="[('status', '=', 'pending')]"/>
+                <filter name="reviewed" string="Reviewed" domain="[('status', '=', 'reviewed')]"/>
+                <filter name="accepted" string="Accepted" domain="[('status', '=', 'accepted')]"/>
+                <filter name="rejected" string="Rejected" domain="[('status', '=', 'rejected')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_status" string="Status"
+                            context="{'group_by': 'status'}"/>
+                    <filter name="group_by_field" string="Field"
+                            context="{'group_by': 'field_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         ACTIONS
+         ===================================================================== -->
+
+    <record id="action_fairness_audit_list" model="ir.actions.act_window">
+        <field name="name">Audit Logs</field>
+        <field name="res_model">nettrades.fairness.audit</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No fairness evaluations yet.
+            </p>
+            <p>
+                Fairness audits are recorded automatically when the
+                LLM-as-Judge evaluates an AI response.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_fairness_flag_list" model="ir.actions.act_window">
+        <field name="name">Flags for Review</field>
+        <field name="res_model">nettrades.fairness.flag</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('status', '=', 'pending')]</field>
+        <field name="context">{'search_default_pending': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No pending flags.
+            </p>
+            <p>
+                Flags appear here when an AI response scores below the
+                rationality threshold or above the bias threshold.
+            </p>
+        </field>
+    </record>
+
 </odoo>
