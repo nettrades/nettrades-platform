@@ -863,7 +863,7 @@ flowchart TD
 
 * No PostgreSQL, no Odoo, no Redis, no LangGraph.
 
-The Nettrades Sovereign AI Platform has transaction control, error handling and state control with LanGraph, therefore when working with Odoo it relies on Odoo's ORM and database for transaction control. Since the agents' tools (odoo_tools.py) perform CRUD operations directly on Odoo, all transactional integrity is managed by Odoo's database. This provides ACID guarantees. But the Nettrades Sovereign AI Platform has its own nettrades_ tables to decouple from Odoo and make future upgrades easier. This also gives it the possibilty to couple with other enterprise systems in the future and maintain transaction control and error handling.  
+The Nettrades Sovereign AI Platform has transaction control, error handling and state control with LanGraph, therefore when working with Odoo it relies on Odoo's ORM and database for transaction control. Since the agents' tools (odoo_tools.py) perform CRUD operations directly on Odoo, all transactional integrity is managed by Odoo's database. This provides ACID guarantees. To prevent privilege escalation, the agent inherit the permissions of the human who triggered it. The Nettrades Sovereign AI Platform has its own nettrades_ tables too decouple from Odoo and make future upgrades easier and integration with other enterprise systems easier, while maintaining transaction control and error handling.  
 
 
 #### WireGuard
@@ -1013,35 +1013,46 @@ For more detailed help, see the [Full Documentation](docs/index.md).
 
 ## Technology Stack
 
+### Currently Implemented
+
 | Layer | Component | Technology | Version | License | Notes |
 |---------|-------------|-------------|---------|-------------|-------------|
 | `Business Logic` | ERP / CRM / HR | Odoo | 19 CE | LGPL-3 | Core business logic |
 | `Job Queue` | Async processing | OCA queue_job | 19.0 | LGPL-3 | Background jobs |
-| `Payments` | Payment processing | OCA payment_stripe | 19.0 | LGPL-3 | Payment integration |
+| `Payments` | Payment processing | Odoo & OCA payment_stripe | 19.0 | LGPL-3 | Payment integration |
 | `Database` | Primary database | PostgreSQL + pgvector | 17 | PostgreSQL | Vector embeddings |
 | `Cache` | Session / Rate limiting | Valkey | 8 | BSD-3 | High-performance cache |
 | `Object Storage` | Files / Models | MinIO / S3 | Latest | AGPL-3 | Model artifacts |
 | `Agent Orchestration` | Multi-agent framework | LangGraph | Latest | MIT | Stateful agents |
 | `Agent State` | Checkpointing | LangGraph Checkpoint Postgres | Latest | MIT | Durable workflows |
 | `GPU Management` | Cluster management | NVIDIA Dynamo | Latest | Apache-2.0 | GPU orchestration |
-| `Fine-Tuning` | Model training | Unsloth / Axolotl | Latest | Apache-2.0 | LLM fine-tuning |
+| `Fine-Tuning` | Model training | Unsloth | Latest | Apache-2.0 | LLM fine-tuning |
 | `Inference` | LLM serving | vLLM, llama.cpp, SGLang | Latest | MIT | High-performance inference |
 | `Ingress` | Reverse proxy | Traefik | Latest | MIT | Dynamic routing |
-| `Git / CI` | Source control / CI | Forgejo | Latest | MIT | Self-hosted Git |
-| `GitOps` | Continuous delivery | Argo CD | Latest | Apache-2.0 | Declarative deployments |
-| `OS` | Kubernetes OS | Talos Linux | Latest | MPL-2.0 | Immutable, secure |
-| `Orchestration` | Container orchestration | Kubernetes | Latest | Apache-2.0 | Container management |
-| `CNI` | Networking | Cilium | Latest | Apache-2.0 | eBPF networking |
-| `Storage` | Persistent volumes | Longhorn | Latest | Apache-2.0 | Distributed block storage |
-| `Load Balancing` | Bare-metal LB | MetalLB | Latest | Apache-2.0 | Load balancing |
-| `Certificates` | TLS management | cert-manager | Latest | Apache-2.0 | Automated certificates |
 | `Database Operator` | PostgreSQL operator | CloudNativePG | Latest | Apache-2.0 | PostgreSQL management |
-| `GPU Operator` | NVIDIA GPU management | NVIDIA GPU Operator | Latest | Apache-2.0 | GPU provisioning |
-| `Distributed Computing` | Ray on K8s | KubeRay | Latest | Apache-2.0 | Distributed training |
 | `VPN` | Secure networking | WireGuard | Latest | GPL-2.0 | Secure tunnels |
 | `Sandboxing` | Container isolation | gVisor | Latest | pache-2.0 | Secure containers (CPU services) |
 | `Metrics` | Monitoring | Prometheus | Latest | Apache-2.0 | Metrics collection |
 | `Dashboards` | Visualisation | Grafana | Latest | AGPL-3.0 | Monitoring dashboards |
+| `Git / CI` | Source control / CI | Forgejo | Latest | MIT | Self-hosted Git |
+| `GitOps` | Continuous delivery | Argo CD | Latest | Apache-2.0 | Declarative deployments |
+
+The system currently uses hub, sub-hub, spoke architecture with docker containers which scales well already. 
+While running distributed inferencing, the KV cache is physically resident on the chosen backend. The LangGraph supervisor agent along with NVIDIA Dynamo choose which machines to use for the most efficient utilisation of compute and governed by the configuration set by the company administrator. That way they could also recover graceful when one of the machines is switched off, as LangGraph's uses checkpoints held using PostgresSaver in the PostGreSQL database to drain-and-restart the conversation onto new machines. To maintain this level of control, Kubernetes are not currently being used but the system is designed to work with them for application that need less control over the hardware.
+
+### Partially Implemented
+
+| Layer | Component | Technology | Version | License | Notes |
+|---------|-------------|-------------|---------|-------------|-------------|
+| `Orchestration` | Container orchestration | Kubernetes | Latest | Apache-2.0 | Container management |
+| `OS` | Kubernetes OS | Talos Linux | Latest | MPL-2.0 | Immutable, secure |
+| `Load Balancing` | Bare-metal LB | MetalLB | Latest | Apache-2.0 | Load balancing |
+| `CNI` | Networking | Cilium | Latest | Apache-2.0 | eBPF networking |
+| `Distributed Computing` | Ray on K8s | KubeRay | Latest | Apache-2.0 | Distributed training |
+| `Fine-Tuning` | Model training | Axolotl | Latest | Apache-2.0 | LLM fine-tuning |
+| `GPU Operator` | NVIDIA GPU management | NVIDIA GPU Operator | Latest | Apache-2.0 | GPU provisioning (currently NVIDIA drivers are installed by the NETTRADES Launcher & deployment scripts) |
+| `Storage` | Persistent volumes | Longhorn | Latest | Apache-2.0 | Distributed block storage |
+| `Certificates` | TLS management | cert-manager | Latest | Apache-2.0 | Automated certificates (currently Traefik manages certificates) |
 
 📖 Full architecture details are in the docs/developer/ folder.
 
