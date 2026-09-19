@@ -12,7 +12,7 @@ NETTRADES is an open-source project built by a community of contributors. The pr
 
 ## Core Principles
 
-- **Open Source**: All code is open-source and available under the AGPL-3.0 and LGPL-3.0 licenses.
+- **Open Source**: All code is open-source and available under the AGPL-3.0 
 - **Community-Driven**: Contributions are welcome from anyone.
 - **Transparency**: Decisions are made in public forums (GitHub Issues/Discussions).
 - **Meritocracy**: Contributors are recognised based on their contributions.
@@ -121,12 +121,12 @@ The project has several community channels:
 
 ## Licensing
 
-NETTRADES.AI uses a dual-licensing approach:
+NETTRADES uses a dual-licensing approach:
 
 | Component | License |
 |-----------|---------|
 | `src/` (core orchestrator, agent, training scripts) | **AGPL-3.0** |
-| `odoo-modules/` (custom Odoo plugins) | **LGPL-3.0** |
+| `odoo-modules/` (custom Odoo plugins) | **AGPL-3.0** |
 | `third-party/` | Original licenses |
 
 [Full License Information →](license.txt)
@@ -149,17 +149,12 @@ The project roadmap is maintained in the [Roadmap](docs/governance/roadmap.md) p
 
 ---
 
-## History
-
-NETTRADES.AI was founded in 2025 by the NETTRADES team. The project was created to build an open-source autonomous enterprise platform that combines AI-powered job matching, a distributed GPU marketplace, and self-improving AI.
-
----
 
 ## Contributing to Governance
 
 If you're interested in becoming a maintainer or contributing to the project's governance, please:
 
-1. **Contribute** to the project for at least 6 months
+1. **Contribute** to the project for at least a year
 2. **Demonstrate** commitment and technical expertise
 3. **Open** an issue or discuss with existing maintainers
 
