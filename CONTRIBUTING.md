@@ -14,7 +14,7 @@ If any part of your contribution was created with the assistance of generative A
 2. You must disclose such use to the Project at the time of submission.
 3. You must ensure that the terms of any AI tools used do not prohibit or restrict the use of the tool's output in a way that is inconsistent with the CLA.
 
-2. **Accept the CLA:** When you open a Pull Request, our automated validation assistant (`@cla-assistant`) will prompt you to cryptographically authorize the [Contributor License Agreement](LEGAL/Contributor-License-Agreement.md).
+2. **Accept the CLA:** When you open a Pull Request, our automated validation assistant (`@cla-assistant`) will prompt you to cryptographically authorize the [Contributor License Agreement](Contributor-License-Agreement.md).
 
 **All contributors must sign our CLA before their pull request can be merged.**
 
