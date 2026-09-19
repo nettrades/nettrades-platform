@@ -6,7 +6,7 @@
 
 ## Introduction
 
-Thank you for your interest in contributing to the **NETTRADES Platform** (the "Project"). This Contributor License Agreement ("Agreement") is a legally binding agreement between you ("You" or "Contributor") and **NETTRADES AI (PVT) LIMITED** ("NETTRADES", "We", or "Us").
+Thank you for your interest in contributing to the **NETTRADES Platform** (the "Project"). This Contributor License Agreement ("Agreement") is a legally binding agreement between you ("You" or "Contributor") and **NETTRADES Foundation** ("NETTRADES", "We", or "Us").
 
 This Agreement is for your protection as a Contributor, as well as the protection of NETTRADES and its users. It does not change your rights to use your own Contributions for any other purpose.
 
