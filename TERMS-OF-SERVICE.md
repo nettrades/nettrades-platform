@@ -1,9 +1,9 @@
-# NETTRADES.AI Terms of Service
+# NETTRADES Terms of Service
 
 **Last Updated: [Date]**
 
 ## 1. Acceptance of Terms
-By accessing or using the NETTRADES.AI platform ("the Service"), you agree
+By accessing or using the NETTRADES platform ("the Service"), you agree
 to be bound by these Terms of Service.  If you do not agree, do not use the
 Service.
 
@@ -11,7 +11,7 @@ Service.
 THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY
 KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
-NON-INFRINGEMENT.  NETTRADES AI (PVT) LIMITED DOES NOT WARRANT THAT THE
+NON-INFRINGEMENT.  NETTRADES DOES NOT WARRANT THAT THE
 SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE.  YOU USE THE SERVICE
 AT YOUR SOLE RISK.
 
@@ -26,7 +26,7 @@ ON THE SERVICE; (c) ANY CONTENT OBTAINED FROM THE SERVICE; OR (d)
 UNAUTHORISED ACCESS, USE, OR ALTERATION OF YOUR TRANSMISSIONS OR CONTENT.
 
 ## 4. Indemnification
-You agree to defend, indemnify, and hold harmless NETTRADES AI (PVT) LIMITED
+You agree to defend, indemnify, and hold harmless NETTRADES
 and its officers, directors, employees, agents, and affiliates from and
 against any and all claims, damages, obligations, losses, liabilities, costs,
 or debt, and expenses (including but not limited to legal fees) arising from:

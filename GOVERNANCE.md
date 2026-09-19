@@ -1,12 +1,12 @@
 # Project Governance
 
-This document describes how the NETTRADES.AI project is governed, how decisions are made, and how you can participate in the project's direction.
+This document describes how the NETTRADES project is governed, how decisions are made, and how you can participate in the project's direction.
 
 ---
 
 ## Overview
 
-NETTRADES.AI is an open-source project built by a community of contributors. The project is governed by a **BDFL (Benevolent Dictator for Life)** model, with maintainers who help guide the project's direction.
+NETTRADES is an open-source project built by a community of contributors. The project is governed by a **BDFL (Benevolent Dictator for Life)** model, with maintainers who help guide the project's direction.
 
 ---
 
@@ -171,7 +171,7 @@ If you have questions about project governance, please:
 
 - Open a [GitHub Discussion](https://github.com/nettrades/nettrades-platform/discussions)
 - Join our [Discord](https://discord.gg/nettrades)
-- Email [governance@nettrades.ai](mailto:governance@nettrades.ai)
+- Email [governance@nettrades.ai](mailto:governance@nettrades.org)
 
 ---
 

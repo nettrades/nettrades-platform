@@ -1,32 +1,12 @@
-# Contributing to NETTRADES Platform
+# Contributing to NETTRADES
 
-Thank you for your interest in contributing to the NETTRADES Platform! We welcome contributions of all kinds: code, documentation, testing, and community support.
+Thank you for your interest in improving the NETTRADES Platform. To maintain a secure, legally defensible, and ethically sound ecosystem for sovereign AI automation, all contributors are required to sign our Contributor License Agreement (CLA) before any code or documentation modifications can be merged into our branches.
 
----
+## Our Contribution Workflow
 
-## Contributor License Agreement (CLA)
+1. **Review our Ethical Stance:** Ensure your pull request aligns perfectly with our [Ethical Use Statement](ETHICAL-STATEMENT.md).
 
-**All contributors must sign our CLA before their pull request can be merged.**
-
-When you open your first pull request, the **CLA Assistant bot** will automatically comment with a link to sign the CLA. Click the link, read the agreement, and click "I agree" to sign.
-
-**Why we require a CLA:**
-
-1. Your contributions are licensed under the project's open-source licenses (AGPL-3.0 and LGPL-3.0).
-2. You are granting the project the rights to use your work.
-3. We can re-license contributions under the commercial license if needed.
-
-**What happens when you sign:**
-
-1. The CLA Assistant bot records your GitHub username and timestamp.
-2. You only need to sign once — future contributions are automatically approved.
-3. The PR status check updates to green, allowing the PR to be merged.
-
-**Corporate Contributors:** If you are contributing on behalf of your employer, please ensure you have the authority to bind your employer to the CLA. For a Corporate CLA, contact legal@nettrades.ai.
-
----
-
-## AI-Generated Contributions
+3. **Disclosure of Tooling:** If you utilized generative AI workflows or agentic code generation systems to engineer your contribution, you must explicitly disclose this in your PR description following the guidelines in Section 6 of the CLA.
 
 If any part of your contribution was created with the assistance of generative AI tools:
 
@@ -34,7 +14,19 @@ If any part of your contribution was created with the assistance of generative A
 2. You must disclose such use to the Project at the time of submission.
 3. You must ensure that the terms of any AI tools used do not prohibit or restrict the use of the tool's output in a way that is inconsistent with the CLA.
 
----
+2. **Accept the CLA:** When you open a Pull Request, our automated validation assistant (`@cla-assistant`) will prompt you to cryptographically authorize the [Contributor License Agreement](LEGAL/Contributor-License-Agreement.md).
+
+**All contributors must sign our CLA before their pull request can be merged.**
+
+When you open your first pull request, the **CLA Assistant bot** will automatically comment with a link to sign the CLA. Click the link, read the agreement, and click "I agree" to sign.
+
+**What happens when you sign:**
+
+1. The CLA Assistant bot records your GitHub username and timestamp.
+2. You only need to sign once — future contributions are automatically approved.
+3. The PR status check updates to green, allowing the PR to be merged.
+
+**Corporate Contributors:** If you are contributing on behalf of your employer, please ensure you have the authority to bind your employer to the CLA. For a Corporate CLA, contact legal@nettrades.org
 
 ## How to Contribute
 
@@ -88,14 +80,15 @@ A maintainer will review your PR and may request changes. Once approved, your PR
 
 - Open an issue on GitHub.
 - Join our community Discord.
-- Email us at dev@nettrades.ai.
+- Email us at dev@nettrades.org
 
 ---
 
-## No Warranty
+No Warranty and Limitation of Liability
 
-YOUR CONTRIBUTIONS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL NETTRADES AI (PVT) LIMITED BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM YOUR CONTRIBUTION OR USE OF THE SOFTWARE.
+1. **No Warranty:** YOUR CONTRIBUTIONS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
 
+2. **Limitation of Liability:** IN NO EVENT SHALL NETTRADES, ITS AFFILIATES, ITS SUBSIDIARIES, OR ITS AUTHORIZED LICENSEES BE LIABLE TO YOU OR ANY THIRD PARTY FOR ANY CLAIM, DIRECT DAMAGES, INDIRECT DAMAGES, SPECIAL DAMAGES, INCIDENTAL DAMAGES, OR CONSEQUENTIAL DAMAGES ARISING FROM YOUR CONTRIBUTION, THE USE OF THE SOFTWARE PLATFORM, OR THE INTERACTION OF YOUR CODE WITH THE BASE WORK, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 ---
 
 Thank you for contributing to the NETTRADES Platform!

@@ -451,27 +451,23 @@ Admins can switch modes instantly from the Launcher dashboard. Changes take effe
 | **Security Audits** |	Regular security review and updates |
 
 
-## License
+## ⚖️ Dual-Licensing Framework
 
-The NETTRADES Sovereign AI Platform is **dual-licensed**:
+The NETTRADES Sovereign AI Platform is a dual-licensed AI infrastructure ecosystem designed to balance public collaboration with enterprise security constraints:
 
-### 1. AGPL-3.0 (Open Source)
-
-- **Free to use and modify**
-- **Requires you to release your modifications** under the same license if you make the software available over a network
-- **No use restrictions** — subject to the AGPL-3.0 copyleft terms
+### 1. Open-Source Edition (AGPL-3.0)
+* **Default Status:** Free to download, modify, and host.
+* **Copyleft Conditions:** Subject to the full terms of the GNU Affero General Public License v3.0. If you modify this source code and make its features accessible to users over a network, you are contractually obligated to release your complete modified codebase to the public under the same license.
+* **Defensive Patent Check:** Subject to the multi-layered enforcement rules defined in our [Ethical Use Statement](ETHICAL-STATEMENT.md).
 
 📄 [View the full AGPL-3.0 license](LICENSE.txt)
 
-### 2. Commercial License (Paid)
 
-- **No obligation to release source code** — keep your modifications proprietary.
-- **Includes use restrictions** — prohibits military, surveillance and harmful use.
-- **Includes KYC, audit rights and enterprise support**
+### 2. Commercial Edition (Paid)
+* **Proprietary Autonomy:** Completely exempts your organization from the source-code disclosure rules of the AGPL-3.0. You can maintain your modifications, custom agent configurations, and proprietary enterprise database schemas as private assets.
+* **Contractual Enforcement:** Legally binds corporate users to our ethical restrictions via enforceable contract law, identity checks (KYC), and platform audit verifications.
 
-For enterprises that cannot or do not wish to comply with the AGPL-3.0 copyleft obligations, a commercial license is available.
-
-📄 [View the commercial license terms](COMMERCIAL-LICENSE.md)
+For enterprise pricing matrices or to apply for a commercial deployment key, route your inquiry to **legal@nettrades.org**.
 
 
 ### Which License Do I Need?
