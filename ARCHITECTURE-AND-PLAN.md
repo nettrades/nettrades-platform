@@ -6,7 +6,7 @@
 
 ---
 
-## 1. Finished Solution — Mermaid Architecture Diagram
+## 1. Finished Solution Architecture Diagram
 
 ```mermaid
 flowchart TB
