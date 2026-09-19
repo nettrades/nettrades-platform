@@ -81,7 +81,7 @@ The Nettrades Platform builds the Sovereign AI Infrastructure for the Autonomous
 
 ### Deploy in minutes, not months
 
-It is recommended to install The NETTRADES Sovereign AI Platform on a Ubuntu 24.04 machine but if you have a Windows machine, you could enable WSL2 and then install Ubuntu 24.04
+The NETTRADES Sovereign AI Platform Hub and Sub Hub should be installed on a Ubuntu 24.04 machine. But if just want to see what it looks like on a Windows machine, you could: 
 
 Enable virtualisation in the BIOS.
 
@@ -97,13 +97,13 @@ PS C:\WINDOWS\system32> Enable-WindowsOptionalFeature -Online -FeatureName Micro
 
 (These could also be enabled via Start > Turn Windows features on or off )
 
-Or install WSL via the Microsoft Store app:
+Then install WSL via the Microsoft Store app:
 
 * Open your Windows Start Menu and launch the Microsoft Store app.
 * Search for "Windows Subsystem for Linux" (or Ubuntu).
 * Click Get or Install 
 
-Restarted the computer and then run Powershell as an administrator and run:
+Or restarted the computer and then run Powershell as an administrator to update WSL
 
 ```bash
 
@@ -151,7 +151,7 @@ Go to Start and open WSL
 
 
 
-After this point run the commands in WSL terminal window not in powershell
+After this point run the commands in WSL terminal window NOT in powershell
 
 In a Ubuntu 24.04 or WSL terminal window run:
 
@@ -190,6 +190,32 @@ npm start
 # This will launch the NETTRADES Sovereign AI PLATFORM
 
 ```
+
+
+### Accessing Your Platform
+
+During development the administration passwords are in the file:
+
+nettrades-platform\deploy\docker\.env 
+
+(The platform uses the .env and the docker-compose.xml file not the odoo.config file)
+
+Once the installation is complete find the passwords in the nettrades-platform/deploy/docker/.env file, open your browser and go to:
+
+| Service | URL | Username | Password |
+|---------|-------------|---------|-------------|
+| Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
+| NVIDIA Dynamo API | http://YourDomainOrIP:8001/v1 or http://localhost:8001/v1 | (API Key) | DYNAMO_API_KEY in the .env file |
+| Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
+| Prometheus | http://YourDomainOrIP:9090 or http://localhost:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
+| NETTRADES-UI Chat | http://YourDomainOrIP:3002 or http://localhost:3002 | No login required yet | N/A  |
+| llama.cpp UI | http://YourDomainOrIP:8080 or http://localhost:8080 | No login required | PROMETHEUS_PASSWORD in the .env file  |
+| Forgejo | http://YourDomainOrIP:3000 or http://localhost:3000 | Set in after installation | Set in after installation  |
+
+Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestration, model serving, admin console), you don't need to use Forgejo. It is provided for customers who want to self-host Git capabilities or want to use it for Git Actions to deloy Kubernetes cluster with Argo CD. I you need Forgejo, just uncomment it in the file nettrades-platform\deploy\dockernettrades-platform\deploy\docker\docker-compose.yaml file 
+
+For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
+
 
 ### One-Click NETTRADES Launcher
 
@@ -591,30 +617,6 @@ You cannot run both on the same deployment. They represent different infrastruct
 | Storage | Local volumes | Longhorn (distributed) |
 | Networking | Simple bridge | Cilium + MetalLB |
 
-
-### Accessing Your Platform
-
-All the administration passwords are in the file:
-
-nettrades-platform\deploy\docker\.env 
-
-(The platform uses the .env and the docker-compose.xml file not the odoo.config file)
-
-Once the installation is complete find the passwords in the nettrades-platform/deploy/docker/.env file, open your browser and go to:
-
-| Service | URL | Username | Password |
-|---------|-------------|---------|-------------|
-| Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
-| NVIDIA Dynamo API | http://YourDomainOrIP:8001/v1 or http://localhost:8001/v1 | (API Key) | DYNAMO_API_KEY in the .env file |
-| Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
-| Prometheus | http://YourDomainOrIP:9090 or http://localhost:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
-| NETTRADES-UI Chat | http://YourDomainOrIP:3002 or http://localhost:3002 | No login required yet | N/A  |
-| llama.cpp UI | http://YourDomainOrIP:8080 or http://localhost:8080 | No login required | PROMETHEUS_PASSWORD in the .env file  |
-| Forgejo | http://YourDomainOrIP:3000 or http://localhost:3000 | Set in after installation | Set in after installation  |
-
-For detailed step-by-step instructions, see the [Full Documentation](docs/index.md).
-
-Forgejo is optional. If you only need the Sovereign AI platform (GPU orchestration, model serving, admin console), you don't need to use Forgejo. It is provided for customers who want to self-host Git capabilities or want to use it for Git Actions to deloy Kubernetes cluster with Argo CD. They could uncomment it in the nettrades-platform\deploy\dockernettrades-platform\deploy\docker\docker-compose.yaml file if they need Forgejo
 
 
 ### Passwords And Configuration
