@@ -2,6 +2,7 @@ from odoo import fields, models
 
 class AskSomeoneConfig(models.TransientModel):
     _name = 'ask.someone.config'
+    _description = 'Ask Someone Configuration'
     _inherit = 'res.config.settings'
 
     distance_weight = fields.Float(default=0.4, config_parameter='ask_someone.distance_weight')
