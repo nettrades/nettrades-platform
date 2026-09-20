@@ -39,12 +39,13 @@ class GpuCredit(models.Model):
         required=True,
         help="The user who owns these credits."
     )
-
-    department_id = fields.Many2one(
-        'hr.department',
-        string='Department',
-        help="The department that allocated these credits."
-    )
+# The department_id field is optional, unused, and only added for "department-based allocation." If you ever want it back, add 'hr' to the depends section in the manifest
+#
+#   department_id = fields.Many2one(
+#       'hr.department',
+#       string='Department',
+#       help="The department that allocated these credits."
+#   )
 
     total_credits = fields.Float(
         string='Total Credits',
