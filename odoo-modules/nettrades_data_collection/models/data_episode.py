@@ -327,7 +327,25 @@ class DataEpisode(models.Model):
         return dataset
 
     # =========================================================================
-    # 10. STATISTICS
+    # 10. NAME FIELD
+    # =========================================================================
+
+    name = fields.Char(
+        string='Episode Name',
+        compute='_compute_name',
+        store=True,
+        help="Human-readable name derived from the field and episode number.",
+    )
+
+    @api.depends('field_id', 'create_date')
+    def _compute_name(self):
+        for episode in self:
+            field_name = episode.field_id.name if episode.field_id else 'Episode'
+            date_str = episode.create_date.strftime('%Y-%m-%d') if episode.create_date else 'new'
+            episode.name = f"{field_name} - {date_str}"
+
+    # =========================================================================
+    # 11. STATISTICS
     # =========================================================================
 
     def get_quality_stats(self):
