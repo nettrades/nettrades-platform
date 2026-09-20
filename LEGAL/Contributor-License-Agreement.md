@@ -11,7 +11,7 @@ This Agreement is for your protection as a Contributor, as well as the protectio
 
 By signing this Agreement, You grant NETTRADES the rights to use Your Contributions as described below and You grant NETTRADES broad intellectual property rights to manage, commercialize, license and sublicense your contributions under the project's ethical guidelines.
 
-**In return, NETTRADES agrees that it shall not use Your Contributions in any way that is contrary to the public benefit or inconsistent with its ethical principles, as defined in the Project's [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md).**
+**In return, NETTRADES agrees that it shall not use Your Contributions in any way that is contrary to the public benefit or inconsistent with its ethical principles, as defined in the Project's [ETHICAL-STATEMENT.md](../ETHICAL-STATEMENT.md).**
 
 ## 1. Definitions
 
@@ -34,7 +34,7 @@ Subject to the terms and conditions of this Agreement, You hereby grant to NETTR
    - The GNU Lesser General Public License v3.0 (LGPL-3.0)
    - Proprietary, closed-source commercial licenses granted to enterprise customers, Affiliates, Subsidiaries, or Authorized Licensees.
    
-**In return, NETTRADES agrees that it shall not use Your Contributions in any way that is contrary to the public benefit or inconsistent with its ethical principles, as defined in the Project's [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md).**
+**In return, NETTRADES agrees that it shall not use Your Contributions in any way that is contrary to the public benefit or inconsistent with its ethical principles, as defined in the Project's [ETHICAL-STATEMENT.md](../ETHICAL-STATEMENT.md).**
 
 ## 3. Grant of Patent License and Defensive Assignment
 

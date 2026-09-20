@@ -5,7 +5,8 @@ No obligation to release source code — keep your modifications proprietary.
 Includes use restrictions — prohibits military, surveillance and harmful use.
 Includes KYC, audit rights and enterprise support
 
-A copy of which could be found here: https://raw.githubusercontent.com/nettrades/nettrades-platform/main/COMMERCIAL-LICENSE.md
+
+The NETTRADES Commercial License Notice could be found here: https://raw.githubusercontent.com/nettrades/nettrades-platform/main/COMMERCIAL-LICENSE.md
 
 And 
 

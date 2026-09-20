@@ -18,7 +18,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE NETTRADES FOUNDATION, ITS
 ## 4. Indemnification
 You agree to defend, indemnify, and hold harmless the Foundation and its corporate network from and against any and all civil claims, financial damages, regulatory obligations, court losses, liabilities, and legal expenses (including reasonable attorney fees) arising from:
 (a) Your physical deployment setup and client-facing access execution of the Service;
-(b) Your violation of any condition contained within these Terms or our [Ethical Use Statement](ETHICAL-STATEMENT.md);
+(b) Your violation of any condition contained within these Terms or our [Ethical Use Statement](../ETHICAL-STATEMENT.md);
 (c) Any direct or contributory copyright or patent infringement actions caused by custom code components injected into your local repository fork.
 
 ## 5. Autonomous Multi-Agent Systems & Expert Training Networks

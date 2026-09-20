@@ -21,11 +21,11 @@ Thank you for using NETTRADES.AI! This document explains how to get help and sup
 
 ### 1. Check the Documentation
 
-The [NETTRADES.AI Documentation](https://nettrades.github.io/nettrades-platform/) covers:
+The NETTRADES covers:
 
 - [User Guide](docs/user.md) – For end-users
 - [Developer Guide](docs/developer/index.md) – For developers
-- [Operations Guide](docs/operations/index.md) – For system administrators
+- [Governance Guide](docs/governance/index.md) – For governance
 - [FAQ](docs/user/faq.md) – Frequently asked questions
 
 ### 2. Search GitHub Issues

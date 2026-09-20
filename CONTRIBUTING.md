@@ -5,7 +5,7 @@ Thank you for your interest in improving the NETTRADES Platform. To maintain a s
 ## Our Contribution Workflow
 
 1. **Review our Ethical Stance:** Ensure your pull request aligns perfectly with our [Ethical Use Statement](ETHICAL-STATEMENT.md).
-2. **Accept the CLA:** When you open a Pull Request, our automated validation assistant (`@cla-assistant`) will prompt you to cryptographically authorize the [Contributor License Agreement](Contributor-License-Agreement.md).
+2. **Accept the CLA:** When you open a Pull Request, our automated validation assistant (`@cla-assistant`) will prompt you to cryptographically authorize the [Contributor License Agreement](LEGAL/Contributor-License-Agreement.md).
 3. **Disclosure of Tooling:** If you utilized generative AI workflows or agentic code generation systems to engineer your contribution, you must explicitly disclose this in your PR description following the guidelines in Section 6 of the CLA.
 
 If any part of your contribution was created with the assistance of generative AI tools:
