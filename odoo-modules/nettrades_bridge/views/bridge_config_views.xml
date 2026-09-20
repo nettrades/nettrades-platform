@@ -66,7 +66,7 @@ PURPOSE:
                     <!-- ==========================================================
                     REMOTE BRAIN
                     ========================================================== -->
-                    <group string="Remote Brain Connection" attrs="{'invisible': [('bridge_mode', '=', 'local')]}">
+                    <group string="Remote Brain Connection" invisible="bridge_mode == 'local'">
                         <field name="remote_brain_url" placeholder="https://api.nettrades.ai"/>
                         <field name="remote_brain_api_key" widget="password"/>
                     </group>
@@ -74,20 +74,20 @@ PURPOSE:
                     <!-- ==========================================================
                     FEATURE FLAGS
                     ========================================================== -->
-                    <group string="Remote Feature Flags" attrs="{'invisible': [('bridge_mode', '=', 'local')]}">
-                        <field name="enable_remote_recruitment"/>
-                        <field name="enable_remote_freelance"/>
-                        <field name="enable_remote_gpu"/>
-                        <field name="enable_remote_vision"/>
-                        <field name="enable_remote_action"/>
+                    <group string="Remote Feature Flags" invisible="bridge_mode == 'local'">
+	                <field name="enable_remote_recruitment"/>
+	                <field name="enable_remote_freelance"/>
+	                <field name="enable_remote_gpu"/>
+	                <field name="enable_remote_vision"/>
+       	                <field name="enable_remote_action"/>
                     </group>
 
                     <!-- ==========================================================
                     GPU OVERFLOW
                     ========================================================== -->
                     <group string="GPU Overflow Configuration">
-                        <field name="gpu_overflow_enabled"/>
-                        <field name="gpu_overflow_threshold" attrs="{'invisible': [('gpu_overflow_enabled', '=', False)]}"/>
+	                <field name="gpu_overflow_enabled"/>
+	                <field name="gpu_overflow_threshold" invisible="not gpu_overflow_enabled"/>
                     </group>
 
                     <!-- ==========================================================
@@ -111,7 +111,7 @@ PURPOSE:
                     ========================================================== -->
                     <group string="Health Check">
                         <field name="health_check_enabled"/>
-                        <field name="health_check_interval" attrs="{'invisible': [('health_check_enabled', '=', False)]}"/>
+                        <field name="health_check_interval" invisible="not health_check_enabled"/>
                     </group>
                 </sheet>
             </form>
