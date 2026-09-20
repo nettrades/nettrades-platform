@@ -1,8 +1,5 @@
 # README-AGENT
 
-If you are an AI agent (Claude, DeepSeek, GPT) picking up this project,
-start here.
-
 ## What this project is
 
 The NETTRADES Sovereign AI Platform. A distributed, self-hosted AI

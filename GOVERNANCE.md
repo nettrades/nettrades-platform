@@ -1,177 +1,62 @@
-# Project Governance
+# Project Governance & Architecture Policy
 
-This document describes how the NETTRADES project is governed, how decisions are made, and how you can participate in the project's direction.
+**Version:** 2.1  
+**Last Updated:** September 2026
+
+This document describes how the NETTRADES project is structurally governed, how engineering decisions are verified, and how you can participate in the project's long-term technical direction.
 
 ---
 
-## Overview
-
-NETTRADES is an open-source project built by a community of contributors. The project is governed by a **BDFL (Benevolent Dictator for Life)** model, with maintainers who help guide the project's direction.
+## Strategic Overview
+NETTRADES is an enterprise-grade sovereign AI infrastructure platform designed to achieve data autonomy. The repository development plane balances open-source copyleft distributions with a robust institutional holding and monetization layer governed by the **NETTRADES Foundation**, an independent corporate body established under the regulatory framework of the Qatar Financial Centre (QFC), utilizing its specialized English common law system.
 
 ---
 
 ## Core Principles
-
-- **Open Source**: All code is open-source and available under the AGPL-3.0 
-- **Community-Driven**: Contributions are welcome from anyone.
-- **Transparency**: Decisions are made in public forums (GitHub Issues/Discussions).
-- **Meritocracy**: Contributors are recognised based on their contributions.
-- **Sustainability**: The project is funded through commercial licensing and sponsorships.
+- **Open Source:** Core components are open-source and distributed under the **GNU AGPL-3.0**.
+- **Sovereign Privacy:** We ensure organizations retain unhindered authority over their model weights and internal relational database states.
+- **Transactional Transparency:** System updates and module configurations are executed transparently via our public GitHub tracks.
+- **Defensive Integrity:** We use an institutional patent pool managed by the Foundation to proactively shield our architecture from corporate patent trolls.
 
 ---
 
-## Roles & Responsibilities
+## Core Corporate & Project Roles
 
-### 1. Founder / BDFL
-
-The founder is the ultimate decision-maker for the project. They:
-
-- Define the project's vision and direction
-- Make final decisions on major technical and strategic issues
-- Have the final say on contentious issues
+### 1. The Foundation Council
+The supreme governing panel of the NETTRADES Foundation. The Council defines long-term network vision, manages international patent assets, maintains compliance with our contractually binding ethical use protocols, and authorizes regional licensing frameworks.
 
 ### 2. Maintainers
+Experienced community and enterprise developers with write-access to core branch indices. They:
+- Review and merge pull requests matching our compliance guidelines.
+- Triage structural bugs and optimize heterogeneous model fallback speeds.
+- Enforce mandatory Contributor License Agreement (CLA) signature logging on incoming merges.
 
-Maintainers are experienced contributors who have demonstrated commitment to the project. They:
-
-- Review and merge pull requests
-- Triage and respond to issues
-- Mentor new contributors
-- Help guide the project's technical direction
-
-**Current Maintainers:**
-
-- [@nettrades](https://github.com/nettrades) – Founder
-
-### 3. Contributors
-
-Contributors are anyone who submits code, documentation, or other resources to the project. They:
-
-- Submit pull requests
-- Report bugs
-- Suggest features
-- Help other users
-
-### 4. Community Members
-
-Community members are users of the platform who participate in discussions, answer questions, and help others. They:
-
-- Ask questions and provide feedback
-- Help other users
-- Promote the project
+### 3. Open-Source Contributors
+Independent developers who expand the codebase, document API models, or fix configuration bugs. All contributors must accept the `Contributor-License-Agreement.md` prior to branching code.
 
 ---
 
-## Decision-Making Process
+## Technical Licensing Architecture
+To fuel ongoing model R&D, compute expansion, and core development payroll, the NETTRADES ecosystem utilizes a multi-entity dual-licensing framework:
 
-### 1. Consensus
-
-For most decisions, the project aims for consensus among maintainers and contributors. This means:
-
-- Discussing the issue in GitHub Issues or Discussions
-- Reaching a general agreement
-- Implementing the agreed solution
-
-### 2. Voting
-
-For contentious issues, a vote may be held:
-
-- Maintainers vote on the issue
-- Each maintainer has one vote
-- The decision is made by majority vote
-
-### 3. BDFL Decision
-
-For major strategic issues, the founder may make the final decision after consulting with maintainers and the community.
+| Repository Path Component | Default Open-Source Tier | Alternate Corporate Pathway |
+| :--- | :--- | :--- |
+| `src/` (Core supervisor agent, hybrid router) | **GNU AGPL-3.0** | Paid Commercial EULA (Copyleft Exempt) |
+| `odoo-modules/` (GPU admin panels, local fine-tuning) | **GNU AGPL-3.0** | Paid Commercial EULA (Copyleft Exempt) |
+| `third-party/` (System configurations, dependencies) | Original Upstream Open-Source Licenses | Original Upstream Open-Source Licenses |
 
 ---
 
-## Contribution Process
-
-Contributions follow a standard open-source workflow:
-
-1. **Fork** the repository
-2. **Create** a branch
-3. **Make** your changes
-4. **Submit** a pull request
-5. **Review** by maintainers
-6. **Merge** into `main`
-
-[Full Contributing Guide →](docs/governance/contributing.md)
+## Funding & Infrastructure Support
+The operational ecosystem is sustained through distinct monetization vectors managed outside of the core trust repository:
+1. **Commercial Enterprise EULAs:** Paid licensing agreements issued via authorized regional networks to allow closed-source proprietary manipulation.
+2. **Wholesale Revenue Slicing:** A structured arm's-length royalty system to expand high-density GPU infrastructure.
+3. **Upstream Engineering SLAs:** SLA-backed premium support agreements
 
 ---
 
-## Code of Conduct
-
-All participants are expected to follow the [Code of Conduct](docs/governance/code-of-conduct.md).
-
----
-
-## Community
-
-The project has several community channels:
-
-- **Discord**: Real-time chat and support
-- **GitHub Issues**: Bug reports and feature requests
-- **GitHub Discussions**: Questions and suggestions
-
-[Join the community →](https://discord.gg/nettrades)
-
----
-
-## Licensing
-
-NETTRADES uses a dual-licensing approach:
-
-| Component | License |
-|-----------|---------|
-| `src/` (core orchestrator, agent, training scripts) | **AGPL-3.0** |
-| `odoo-modules/` (custom Odoo plugins) | **AGPL-3.0** |
-| `third-party/` | Original licenses |
-
-[Full License Information →](license.txt)
-
----
-
-## Funding
-
-The project is funded through:
-
-- **Commercial licensing** – Enterprises pay for AGPL exemptions
-- **Support contracts** – Paid support and consulting
-- **Sponsorships** – Corporate sponsorships (future)
-
----
-
-## Roadmap
-
-The project roadmap is maintained in the [Roadmap](docs/governance/roadmap.md) page.
-
----
-
-
-## Contributing to Governance
-
-If you're interested in becoming a maintainer or contributing to the project's governance, please:
-
-1. **Contribute** to the project for at least a year
-2. **Demonstrate** commitment and technical expertise
-3. **Open** an issue or discuss with existing maintainers
-
----
-
-## Questions?
-
-If you have questions about project governance, please:
-
-- Open a [GitHub Discussion](https://github.com/nettrades/nettrades-platform/discussions)
-- Join our [Discord](https://discord.gg/nettrades)
-- Email [governance@nettrades.ai](mailto:governance@nettrades.org)
-
----
-
-## Next Steps
-
-- [Contributing Guide →](docs/governance/contributing.md)
-- [Roadmap →](docs/governance/roadmap.md)
-- [License →](license.txt)
+## Questions and Governance Disputes
+For structural inquiries or governance communications, connect with our administration loops:
+- **GitHub Discussions:** https://github.com
+- **Discord Infrastructure Channel:** [Join the NETTRADES Chat Mesh](https://discord.gg)
+- **Official Foundation Inbox:** governance@nettrades.org
