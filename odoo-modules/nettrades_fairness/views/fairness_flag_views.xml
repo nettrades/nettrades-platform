@@ -44,9 +44,9 @@ PURPOSE:
             <form>
                 <header>
                     <button name="action_accept" string="Accept" type="object" class="btn-primary"
-                            attrs="{'invisible': [('status', 'in', ['accepted', 'rejected'])]}"/>
+                            invisible="status in ('accepted', 'rejected')"/>
                     <button name="action_reject" string="Reject" type="object" class="btn-danger"
-                            attrs="{'invisible': [('status', 'in', ['accepted', 'rejected'])]}"/>
+                            invisible="status in ('accepted', 'rejected')"/>
                     <field name="status" widget="statusbar"/>
                 </header>
                 <sheet>
