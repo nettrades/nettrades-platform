@@ -78,7 +78,6 @@ class NettradesBridgeConfig(models.Model):
     remote_brain_api_key = fields.Char(
         string='Remote Brain API Key',
         help="The API key for authenticating with the remote brain.",
-        password=True,
         copy=False,
     )
 

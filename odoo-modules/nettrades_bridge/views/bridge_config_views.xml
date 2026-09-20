@@ -68,7 +68,7 @@ PURPOSE:
                     ========================================================== -->
                     <group string="Remote Brain Connection" attrs="{'invisible': [('bridge_mode', '=', 'local')]}">
                         <field name="remote_brain_url" placeholder="https://api.nettrades.ai"/>
-                        <field name="remote_brain_api_key" password="True"/>
+                        <field name="remote_brain_api_key" widget="password"/>
                     </group>
 
                     <!-- ==========================================================
