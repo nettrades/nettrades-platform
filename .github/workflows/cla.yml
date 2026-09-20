@@ -1,9 +1,3 @@
-
----
-
-## Updated `.github/workflows/cla.yml`
-
-```yaml
 # =============================================================================
 # FILE: .github/workflows/cla.yml
 # =============================================================================
@@ -16,7 +10,7 @@
 # - main: Stable, production-ready code. Enterprise customers clone this.
 # - dev-deployment1: Active development branch. All PRs target this.
 # - Signatures are stored in main (stable storage).
-# - CLA document is read from dev-deployment1 (where it lives).
+# - CLA document is read from dev-deployment1 inside the /LEGAL subfolder.
 # =============================================================================
 
 name: "CLA Assistant"
@@ -45,7 +39,7 @@ permissions:
 
 # Concurrency control prevents overlapping CLA checks
 concurrency:
-  group: cla-${{ github.event.pull_request.number || github.event.merge_group.head_sha }}
+  group: cla-\${{ github.event.pull_request.number || github.event.merge_group.head_sha }}
   cancel-in-progress: true
 
 jobs:
@@ -64,7 +58,7 @@ jobs:
         id: sign-or-recheck
         uses: actions-ecosystem/action-regex-match@v2
         with:
-          text: ${{ github.event.comment.body }}
+          text: \${{ github.event.comment.body }}
           # Matches either:
           #   - "I have read the CLA Document and I hereby sign the CLA"
           #   - "recheck"
@@ -86,9 +80,9 @@ jobs:
           github.event_name == 'merge_group'
         uses: contributor-assistant/github-action@v2.6.1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
           # Optional: Personal Access Token for remote signature storage
-          # PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_SIGN_TOKEN }}
+          # PERSONAL_ACCESS_TOKEN: \${{ secrets.CLA_SIGN_TOKEN }}
         with:
           # ------------------------------------------------------------------
           # Signature Storage
@@ -96,8 +90,8 @@ jobs:
           # Signatures are stored in the MAIN branch (stable storage)
           path-to-signatures: 'signatures/version1/cla.json'
 
-          # CLA document is read from dev-deployment1 (where your CLA file lives)
-          path-to-document: 'https://raw.githubusercontent.com/nettrades/nettrades-platform/dev-deployment1/Contributor-License-Agreement.md'
+          # CLA document is read from the /LEGAL directory on dev-deployment1 branch
+          path-to-document: 'https://raw.githubusercontent.com/nettrades/nettrades-platform/dev-deployment1/LEGAL/Contributor-License-Agreement.md'
 
           # Signatures are committed to the MAIN branch
           branch: 'main'
@@ -135,7 +129,7 @@ jobs:
 
             Before we can review your PR, please sign our Contributor License Agreement (CLA).
 
-            📄 [Read the full CLA](https://github.com/nettrades/nettrades-platform/blob/dev-deployment1/Contributor-License-Agreement.md)
+            📄 [Read the full CLA](https://github.com/nettrades/nettrades-platform/blob/dev-deployment1/LEGAL/Contributor-License-Agreement.md)
 
             **To sign**, comment on this PR with the following exact phrase:
 
