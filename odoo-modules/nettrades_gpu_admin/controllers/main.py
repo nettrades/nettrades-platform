@@ -208,7 +208,7 @@ class GpuAdminController(http.Controller):
 
     @http.route(
         '/api/v1/gpu/register',
-        type='json',
+        type='jsonrpc',
         auth='public',          # Public endpoint, but token-based auth is applied
         methods=['POST'],
         csrf=False,
@@ -433,7 +433,7 @@ class GpuAdminController(http.Controller):
     # 2. WIREGUARD PEER LIST (Internal, Odoo Authenticated)
     # =========================================================================
 
-    @http.route('/api/v1/gpu/peers', type='json', auth='user', methods=['GET'])
+    @http.route('/api/v1/gpu/peers', type='jsonrpc', auth='user', methods=['GET'])
     def get_wireguard_peers(self):
         """
         Return every active GPU node's WireGuard public key and allowed IPs.
@@ -479,7 +479,7 @@ class GpuAdminController(http.Controller):
     # 3. ADMINISTRATOR ACTIONS (Odoo Authenticated + Group Checks)
     # =========================================================================
 
-    @http.route('/api/v1/admin/scan_network', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/scan_network', type='jsonrpc', auth='user', methods=['POST'])
     def scan_network(self, **kwargs):
         """
         Scan the network for GPU-equipped machines.
@@ -515,7 +515,7 @@ class GpuAdminController(http.Controller):
             _logger.error(f"Network scan failed: {e}")
             return {'error': f'Network scan failed: {str(e)}'}
 
-    @http.route('/api/v1/admin/install_node', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/install_node', type='jsonrpc', auth='user', methods=['POST'])
     def install_node(self, **kwargs):
         """
         Install the GPU agent on a remote host.
@@ -560,7 +560,7 @@ class GpuAdminController(http.Controller):
             _logger.error(f"Node installation failed: {e}")
             return {'error': f'Node installation failed: {str(e)}'}
 
-    @http.route('/api/v1/admin/remove_node', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/remove_node', type='jsonrpc', auth='user', methods=['POST'])
     def remove_node(self, **kwargs):
         """
         Remove a GPU node from the cluster.
@@ -607,7 +607,7 @@ class GpuAdminController(http.Controller):
     # 4. FINE-TUNING ENDPOINTS (Admin)
     # =========================================================================
 
-    @http.route('/api/v1/admin/finetune/start', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/finetune/start', type='jsonrpc', auth='user', methods=['POST'])
     def start_finetune(self, **kwargs):
         """
         Start a fine-tuning job.
@@ -705,7 +705,7 @@ class GpuAdminController(http.Controller):
                 'error': str(e),
             }, 500
 
-    @http.route('/api/v1/admin/finetune/status', type='json', auth='user', methods=['GET'])
+    @http.route('/api/v1/admin/finetune/status', type='jsonrpc', auth='user', methods=['GET'])
     def get_finetune_status(self, **kwargs):
         """
         Get the status of a fine-tuning job.
@@ -743,7 +743,7 @@ class GpuAdminController(http.Controller):
             'fine_tuned_model_id': job.fine_tuned_model_id,
         }
 
-    @http.route('/api/v1/admin/finetune/deploy', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/finetune/deploy', type='jsonrpc', auth='user', methods=['POST'])
     def deploy_finetuned_model(self, **kwargs):
         """
         Deploy a fine-tuned model.

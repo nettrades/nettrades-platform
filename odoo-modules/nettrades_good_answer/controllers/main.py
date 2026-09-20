@@ -6,7 +6,7 @@ _logger = logging.getLogger(__name__)
 
 class GoodAnswerController(http.Controller):
 
-    @http.route('/api/v1/good_answer/vote', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/good_answer/vote', type='jsonrpc', auth='user', methods=['POST'])
     def vote(self, **kwargs):
         answer_id = kwargs.get('answer_id')
         answer_model = kwargs.get('answer_model')

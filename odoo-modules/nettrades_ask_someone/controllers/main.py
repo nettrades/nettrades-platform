@@ -31,7 +31,7 @@ _logger = logging.getLogger(__name__)
 
 class AskSomeoneController(http.Controller):
 
-    @http.route('/api/v1/ask_someone/request', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/ask_someone/request', type='jsonrpc', auth='user', methods=['POST'])
     def request_expert(self, **kwargs):
         """
         Create a new expert session request.
