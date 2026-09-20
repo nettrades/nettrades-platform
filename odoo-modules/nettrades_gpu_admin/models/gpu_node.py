@@ -271,15 +271,6 @@ class GPUNode(models.Model):
         help="Internal: Company trusted network. Uses Docker runtime. Public: Untrusted freelancer network. Uses gVisor runtime."
     )
 
-    # Backward compatibility alias - points to gpu_pool
-    pool = fields.Selection(
-        related='gpu_pool',
-        string='Pool',
-        readonly=False,
-        store=True,
-        help='Backward compatibility alias for the GPU pool field.'
-    )
-
     # =========================================================================
     # 9. CONTAINER RUNTIME
     # =========================================================================
