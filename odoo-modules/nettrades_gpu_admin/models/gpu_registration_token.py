@@ -156,9 +156,10 @@ class GpuRegistrationToken(models.Model):
     # Constraints
     # =========================================================================
 
-    _sql_constraints = [
-        ('token_hash_unique', 'UNIQUE(token_hash)', 'Token hash must be unique.'),
-    ]
+    _token_hash_unique = models.Constraint(
+        'UNIQUE(token_hash)',
+        'Token hash must be unique.'
+    )
 
     @api.constrains('expires_at')
     def _check_expires_at(self):

@@ -21,7 +21,6 @@ _logger = logging.getLogger(__name__)
 class GpuPricing(models.Model):
     _name = 'gpu.pricing'
     _description = 'GPU Pricing'
-    _rec_name = 'node_id'
     _order = 'current_price_per_hour ASC'
 
     # =========================================================================

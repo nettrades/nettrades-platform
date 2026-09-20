@@ -16,6 +16,7 @@
 #   - New model for internal credit accounting
 # =============================================================================
 
+from datetime import timedelta
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 import logging
@@ -26,7 +27,6 @@ _logger = logging.getLogger(__name__)
 class GpuCredit(models.Model):
     _name = 'gpu.credit'
     _description = 'GPU Credit Allocation (Internal)'
-    _rec_name = 'user_id'
     _order = 'remaining_credits DESC'
 
     # =========================================================================
@@ -122,10 +122,14 @@ class GpuCredit(models.Model):
     # CONSTRAINTS
     # =========================================================================
 
-    _sql_constraints = [
-        ('unique_user', 'unique(user_id)', 'Each user can have only one credit record.'),
-        ('non_negative_credits', 'CHECK(remaining_credits >= 0)', 'Credits cannot be negative.'),
-    ]
+    _unique_user = models.Constraint(
+        'UNIQUE(user_id)',
+        'Each user can have only one credit record.'
+    )
+    _non_negative_credits = models.Constraint(
+        'CHECK(remaining_credits >= 0)',
+        'Credits cannot be negative.'
+    )
 
     # =========================================================================
     # METHODS
