@@ -98,11 +98,11 @@ UPDATES (2026-09-18):
                         domain="[('rationality_score', '&lt;', 5.0)]"/>
                 <filter name="high_bias" string="High Bias"
                         domain="[('bias_score', '&gt;', 5.0)]"/>
-                <group expand="0" string="Group By">
+                <group string="Group By">
                     <filter name="group_by_field" string="Field"
-                            context="{'group_by': 'field_id'}"/>
+                        context="{'group_by': 'field_id'}"/>
                     <filter name="group_by_model" string="Evaluation Model"
-                            context="{'group_by': 'evaluation_model'}"/>
+                        context="{'group_by': 'evaluation_model'}"/>
                 </group>
             </search>
         </field>
@@ -182,11 +182,11 @@ UPDATES (2026-09-18):
                 <filter name="reviewed" string="Reviewed" domain="[('status', '=', 'reviewed')]"/>
                 <filter name="accepted" string="Accepted" domain="[('status', '=', 'accepted')]"/>
                 <filter name="rejected" string="Rejected" domain="[('status', '=', 'rejected')]"/>
-                <group expand="0" string="Group By">
+                <group string="Group By">
                     <filter name="group_by_status" string="Status"
-                            context="{'group_by': 'status'}"/>
+                        context="{'group_by': 'status'}"/>
                     <filter name="group_by_field" string="Field"
-                            context="{'group_by': 'field_id'}"/>
+                        context="{'group_by': 'field_id'}"/>
                 </group>
             </search>
         </field>
