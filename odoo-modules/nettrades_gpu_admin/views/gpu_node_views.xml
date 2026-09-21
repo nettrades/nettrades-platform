@@ -41,7 +41,7 @@
         <field name="arch" type="xml">
             <form string="GPU Node">
                 <header>
-                    <button name="action_remove_node" string="Remove Node" type="object" class="btn-danger" confirm="Are you sure you want to permanently remove this node from the cluster?" help="This action will remove the node from WireGuard and GPUStack, and delete its record."/>
+                    <button name="action_remove_node" string="Remove Node" type="object" class="btn-danger" confirm="Are you sure you want to permanently remove this node from the cluster?" help="This action will remove the node from WireGuard, and delete its record."/>
                     <button name="action_reassign_pool" string="Reassign Pool" type="object" class="btn-primary" help="Move this node to a different pool (Internal/Public)."/>
                     <field name="status" widget="statusbar" statusbar_visible="online,offline,degraded,maintenance"/>
                 </header>
@@ -99,13 +99,13 @@
                                 <field name="scheduled_share" help="Whether this node is scheduled for public sharing."/>
                             </group>
                         </page>
-                        <page string="GPUStack" help="Integration with GPUStack.">
-                            <field name="gpustack_worker_id" help="Worker ID assigned by GPUStack."/>
-                        </page>
+                        <!--<page string="Dynamo" help="Integration with Dynamo.">
+                            <field name="Dynamo_worker_id" help="Worker ID assigned by Dynamo."/>
+                        </page>-->
                         <!-- ========== Pool & Isolation ========== -->
                         <page string="Pool &amp; Isolation">
                             <group string="Pool Assignment">
-                                <field name="pool"
+                                <field name="gpu_pool"
                                        help="Internal: used only by company employees, free, multi-GPU. Public: shared with NETTRADES marketplace, earns tokens."/>
                                 <field name="container_runtime"
                                        help="gVisor is recommended for all pools - it provides syscall-level isolation without memory hoarding. Docker is for trusted internal pools only."/>

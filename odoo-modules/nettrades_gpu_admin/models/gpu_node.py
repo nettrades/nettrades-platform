@@ -347,18 +347,18 @@ class GPUNode(models.Model):
     # 12. BOOKINGS
     # =========================================================================
 
-    booking_ids = fields.One2many(
-        'gpu.sharing.schedule',
-        'node_id',
-        string='Bookings',
-        help="All bookings for this GPU node."
-    )
+    #booking_ids = fields.One2many(
+    #    'gpu.sharing.schedule',
+    #    'node_id',
+    #    string='Bookings',
+    #    help="All bookings for this GPU node."
+    #)
 
-    current_booking_id = fields.Many2one(
-        'gpu.sharing.schedule',
-        string='Current Booking',
-        help="The currently active booking for this node."
-    )
+    #current_booking_id = fields.Many2one(
+    #    'gpu.sharing.schedule',
+    #    string='Current Booking',
+    #    help="The currently active booking for this node."
+    #)
 
     # =========================================================================
     # 13. COMPUTED FIELDS
@@ -608,7 +608,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
         self.ensure_one()
         return (
             self.status == 'online' and
-            not self.current_booking_id and
+            # not self.current_booking_id and
             self.state == 'active'
         )
 
