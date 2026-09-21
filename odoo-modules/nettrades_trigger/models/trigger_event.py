@@ -72,17 +72,9 @@ class TriggerEvent(models.Model):
         help="JSON blob containing the evaluation data that triggered this event."
     )
 
-    # =========================================================================
-    # 4. Links
-    # =========================================================================
-    cycle_id = fields.Many2one(
-        'loop.cycle',
-        string='Cycle',
-        help="The self-improvement cycle initiated by this event."
-    )
 
     # =========================================================================
-    # 5. Timestamps
+    # 4. Timestamps
     # =========================================================================
     fired_at = fields.Datetime(
         string='Fired At',
@@ -97,7 +89,7 @@ class TriggerEvent(models.Model):
     )
 
     # =========================================================================
-    # 6. Helper Methods
+    # 5. Helper Methods
     # =========================================================================
     def action_process(self):
         """
