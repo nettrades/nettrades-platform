@@ -8,8 +8,8 @@
             <list string="Training Pipelines">
                 <field name="name"/>
                 <field name="field_id"/>
-                <field name="ab_testing_enabled" widget="boolean_toggle"/>
-                <field name="ab_traffic_split"/>
+                <field name="provider_id"/>
+                <field name="base_model_id"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
@@ -29,11 +29,17 @@
                             <field name="field_id" options="{'no_create': True}"/>
                             <field name="active" widget="boolean_toggle"/>
                         </group>
-                        <group string="A/B Testing">
-                            <field name="ab_testing_enabled"/>
-                            <field name="ab_traffic_split" invisible="not ab_testing_enabled"/>
-                            <field name="ab_promotion_threshold" invisible="not ab_testing_enabled"/>
-                        </group>
+                    </group>
+                    <group string="Provider &amp; Model">
+                        <field name="provider_id" options="{'no_create': True}"/>
+                        <field name="base_model_id"
+                               options="{'no_create': True}"
+                               domain="[('provider_id', '=', provider_id)]"/>
+                    </group>
+                    <group string="A/B Testing">
+                        <field name="ab_testing_enabled"/>
+                        <field name="ab_traffic_split" invisible="not ab_testing_enabled"/>
+                        <field name="ab_promotion_threshold" invisible="not ab_testing_enabled"/>
                     </group>
                     <notebook>
                         <page string="Dataset Filters">
@@ -58,11 +64,12 @@
             <search>
                 <field name="name"/>
                 <field name="field_id"/>
+                <field name="provider_id"/>
                 <filter name="active" string="Active" domain="[('active','=',True)]"/>
-                <filter name="ab_enabled" string="A/B Enabled"
-                        domain="[('ab_testing_enabled','=',True)]"/>
                 <filter name="group_by_field" string="Field"
                         context="{'group_by':'field_id'}"/>
+                <filter name="group_by_provider" string="Provider"
+                        context="{'group_by':'provider_id'}"/>
             </search>
         </field>
     </record>
