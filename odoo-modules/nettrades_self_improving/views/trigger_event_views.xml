@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_trigger_event_tree" model="ir.ui.view">
+        <field name="name">trigger.event.tree</field>
+        <field name="model">trigger.event</field>
+        <field name="arch" type="xml">
+            <list string="Trigger Events">
+                <field name="name"/>
+                <field name="trigger_id"/>
+                <field name="fired_at"/>
+                <field name="status" widget="badge"/>
+                <field name="cycle_id"/>
+                <field name="processed_at"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_trigger_event_form" model="ir.ui.view">
+        <field name="name">trigger.event.form</field>
+        <field name="model">trigger.event</field>
+        <field name="arch" type="xml">
+            <form string="Trigger Event">
+                <header>
+                    <button name="action_process" type="object"
+                            string="Process Now" class="btn-primary"
+                            invisible="status != 'pending'"/>
+                    <field name="status" widget="statusbar"
+                           statusbar_visible="pending,processed,failed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Trigger">
+                            <field name="trigger_id"/>
+                            <field name="fired_at"/>
+                            <field name="processed_at"/>
+                        </group>
+                        <group string="Cycle">
+                            <field name="cycle_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Evaluation Data">
+                            <field name="evaluation_data" widget="json"/>
+                        </page>
+                        <page string="Error" invisible="not error_message">
+                            <field name="error_message" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_trigger_event_search" model="ir.ui.view">
+        <field name="name">trigger.event.search</field>
+        <field name="model">trigger.event</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="trigger_id"/>
+                <field name="status"/>
+                <filter name="pending" string="Pending" domain="[('status','=','pending')]"/>
+                <filter name="processed" string="Processed" domain="[('status','=','processed')]"/>
+                <filter name="failed" string="Failed" domain="[('status','=','failed')]"/>
+                <filter name="group_by_status" string="Status"
+                        context="{'group_by':'status'}"/>
+                <filter name="group_by_trigger" string="Trigger"
+                        context="{'group_by':'trigger_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_trigger_event" model="ir.actions.act_window">
+        <field name="name">Trigger Events</field>
+        <field name="res_model">trigger.event</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

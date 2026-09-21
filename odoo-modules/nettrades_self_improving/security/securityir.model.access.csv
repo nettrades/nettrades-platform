@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_trigger_config_user,Access Trigger Config,model_trigger_config,base.group_user,1,0,0,0
+access_trigger_config_manager,Manage Trigger Config,model_trigger_config,group_self_improving_manager,1,1,1,1
+access_trigger_event_user,Access Trigger Event,model_trigger_event,base.group_user,1,0,0,0
+access_trigger_event_manager,Manage Trigger Event,model_trigger_event,group_self_improving_manager,1,1,1,1
+access_loop_cycle_user,Access Loop Cycle,model_loop_cycle,base.group_user,1,0,0,0
+access_loop_cycle_manager,Manage Loop Cycle,model_loop_cycle,group_self_improving_manager,1,1,1,1
+access_loop_orchestrator_user,Access Loop Orchestrator,model_loop_orchestrator,base.group_user,1,1,1,1
+access_training_pipeline_user,Access Training Pipeline,model_training_pipeline,base.group_user,1,0,0,0
+access_training_pipeline_manager,Manage Training Pipeline,model_training_pipeline,group_self_improving_manager,1,1,1,1
+access_self_improving_config_user,Access Self-Improving Config,model_self_improving_config,base.group_user,1,0,0,0
+access_self_improving_config_manager,Manage Self-Improving Config,model_self_improving_config,group_self_improving_manager,1,1,1,1

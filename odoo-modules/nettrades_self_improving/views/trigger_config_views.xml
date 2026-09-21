@@ -1,28 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- =====================================================================
-         TRIGGER CONFIG - LIST VIEW
-         ===================================================================== -->
+
     <record id="view_trigger_config_tree" model="ir.ui.view">
         <field name="name">trigger.config.tree</field>
         <field name="model">trigger.config</field>
         <field name="arch" type="xml">
-            <list string="Trigger Configurations" editable="bottom">
-                <field name="name" string="Trigger"/>
-                <field name="trigger_type" string="Type"/>
-                <field name="comparison_operator" string="Operator"/>
-                <field name="threshold_value" string="Threshold"/>
-                <field name="time_window_hours" string="Window (h)"/>
-                <field name="min_samples" string="Min Samples"/>
-                <field name="field_id" string="Field"/>
+            <list string="Triggers" editable="bottom">
+                <field name="name"/>
+                <field name="trigger_type"/>
+                <field name="comparison_operator"/>
+                <field name="threshold_value"/>
+                <field name="time_window_hours"/>
+                <field name="min_samples"/>
+                <field name="field_id"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
     </record>
 
-    <!-- =====================================================================
-         TRIGGER CONFIG - FORM VIEW
-         ===================================================================== -->
     <record id="view_trigger_config_form" model="ir.ui.view">
         <field name="name">trigger.config.form</field>
         <field name="model">trigger.config</field>
@@ -30,9 +25,7 @@
             <form string="Trigger Configuration">
                 <sheet>
                     <div class="oe_title">
-                        <h1>
-                            <field name="name" placeholder="Trigger name..."/>
-                        </h1>
+                        <h1><field name="name" placeholder="Trigger name..."/></h1>
                     </div>
                     <group>
                         <group>
@@ -43,17 +36,14 @@
                             <field name="field_id" options="{'no_create': True}"/>
                         </group>
                     </group>
-
                     <group string="Condition">
                         <field name="comparison_operator"/>
                         <field name="threshold_value"/>
                     </group>
-
                     <group string="Evaluation Window">
                         <field name="time_window_hours"/>
                         <field name="min_samples"/>
                     </group>
-
                     <group string="Description">
                         <field name="description" nolabel="1" colspan="2"/>
                     </group>
@@ -62,9 +52,6 @@
         </field>
     </record>
 
-    <!-- =====================================================================
-         TRIGGER CONFIG - SEARCH VIEW
-         ===================================================================== -->
     <record id="view_trigger_config_search" model="ir.ui.view">
         <field name="name">trigger.config.search</field>
         <field name="model">trigger.config</field>
@@ -75,22 +62,22 @@
                 <field name="field_id"/>
                 <filter name="active" string="Active" domain="[('active','=',True)]"/>
                 <filter name="inactive" string="Inactive" domain="[('active','=',False)]"/>
-                <group expand="0" string="Group By">
-                    <filter name="group_by_type" string="Trigger Type"
-                            context="{'group_by':'trigger_type'}"/>
-                    <filter name="group_by_field" string="Field"
-                            context="{'group_by':'field_id'}"/>
-                </group>
+                <filter name="group_by_type" string="Trigger Type"
+                        context="{'group_by':'trigger_type'}"/>
+                <filter name="group_by_field" string="Field"
+                        context="{'group_by':'field_id'}"/>
             </search>
         </field>
     </record>
 
-    <!-- =====================================================================
-         ACTION
-         ===================================================================== -->
     <record id="action_trigger_config" model="ir.actions.act_window">
-        <field name="name">Trigger Configurations</field>
+        <field name="name">Triggers</field>
         <field name="res_model">trigger.config</field>
         <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Define a trigger condition.</p>
+            <p>Triggers initiate self-improvement cycles when met.</p>
+        </field>
     </record>
+
 </odoo>

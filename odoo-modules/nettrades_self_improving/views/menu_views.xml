@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_self_improving_root"
+              name="Self-Improving AI"
+              parent="nettrades_core.menu_nettrades_root"
+              sequence="60"/>
+
+    <menuitem id="menu_self_improving_config"
+              name="Configuration"
+              parent="menu_self_improving_root"
+              action="action_self_improving_config"
+              sequence="10"/>
+
+    <menuitem id="menu_self_improving_cycles"
+              name="Cycles"
+              parent="menu_self_improving_root"
+              action="action_loop_cycle"
+              sequence="20"/>
+
+    <menuitem id="menu_self_improving_triggers"
+              name="Triggers"
+              parent="menu_self_improving_root"
+              action="action_trigger_config"
+              sequence="30"/>
+
+    <menuitem id="menu_self_improving_trigger_events"
+              name="Trigger Events"
+              parent="menu_self_improving_root"
+              action="action_trigger_event"
+              sequence="40"/>
+
+    <menuitem id="menu_self_improving_pipelines"
+              name="Training Pipelines"
+              parent="menu_self_improving_root"
+              action="action_training_pipeline"
+              sequence="50"/>
+
+    <menuitem id="menu_self_improving_episodes"
+              name="Episodes"
+              parent="menu_self_improving_root"
+              action="action_self_improving_episodes"
+              sequence="60"/>
+
+</odoo>

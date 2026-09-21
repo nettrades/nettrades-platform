@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_training_pipeline_tree" model="ir.ui.view">
+        <field name="name">training.pipeline.tree</field>
+        <field name="model">training.pipeline</field>
+        <field name="arch" type="xml">
+            <list string="Training Pipelines">
+                <field name="name"/>
+                <field name="field_id"/>
+                <field name="ab_testing_enabled" widget="boolean_toggle"/>
+                <field name="ab_traffic_split"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_training_pipeline_form" model="ir.ui.view">
+        <field name="name">training.pipeline.form</field>
+        <field name="model">training.pipeline</field>
+        <field name="arch" type="xml">
+            <form string="Training Pipeline">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Pipeline name..."/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="field_id" options="{'no_create': True}"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="A/B Testing">
+                            <field name="ab_testing_enabled"/>
+                            <field name="ab_traffic_split" invisible="not ab_testing_enabled"/>
+                            <field name="ab_promotion_threshold" invisible="not ab_testing_enabled"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Dataset Filters">
+                            <field name="dataset_config" widget="json"/>
+                        </page>
+                        <page string="Training Configuration">
+                            <field name="training_config" widget="json"/>
+                        </page>
+                        <page string="GPU Requirements">
+                            <field name="gpu_requirements" widget="json"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_training_pipeline_search" model="ir.ui.view">
+        <field name="name">training.pipeline.search</field>
+        <field name="model">training.pipeline</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="field_id"/>
+                <filter name="active" string="Active" domain="[('active','=',True)]"/>
+                <filter name="ab_enabled" string="A/B Enabled"
+                        domain="[('ab_testing_enabled','=',True)]"/>
+                <filter name="group_by_field" string="Field"
+                        context="{'group_by':'field_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_training_pipeline" model="ir.actions.act_window">
+        <field name="name">Training Pipelines</field>
+        <field name="res_model">training.pipeline</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

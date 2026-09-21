@@ -177,11 +177,9 @@
                 <filter string="Failed" name="failed" domain="[('state', '=', 'failed')]"/>
                 <filter string="Cancelled" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
                 <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
-                <group string="Group By">
-                    <filter string="Provider" name="group_by_provider" context="{'group_by': 'provider_id'}"/>
-                    <filter string="Base Model" name="group_by_model" context="{'group_by': 'base_model_id'}"/>
-                    <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
-                </group>
+                <filter string="Provider" name="group_by_provider" context="{'group_by': 'provider_id'}"/>
+                <filter string="Base Model" name="group_by_model" context="{'group_by': 'base_model_id'}"/>
+                <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
             </search>
         </field>
     </record>

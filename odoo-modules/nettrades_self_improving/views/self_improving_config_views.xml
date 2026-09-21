@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_self_improving_config_form" model="ir.ui.view">
+        <field name="name">self.improving.config.form</field>
+        <field name="model">self.improving.config</field>
+        <field name="arch" type="xml">
+            <form string="Self-Improving AI Configuration">
+                <header>
+                    <button name="action_run_cycle" string="Run Cycle Now"
+                            type="object" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Self-Improving AI System</h1>
+                    </div>
+                    <group string="Loop Control">
+                        <field name="loop_enabled"/>
+                        <field name="loop_interval" invisible="not loop_enabled"/>
+                        <field name="auto_deploy" invisible="not loop_enabled"/>
+                        <field name="auto_rollback" invisible="not loop_enabled"/>
+                    </group>
+                    <group string="Data Quality Defaults">
+                        <field name="min_quality_score"/>
+                        <field name="min_votes_for_training"/>
+                        <field name="max_samples_per_dataset"/>
+                        <field name="include_expert_answers"/>
+                    </group>
+                    <group string="A/B Testing">
+                        <field name="ab_testing_enabled"/>
+                        <field name="ab_traffic_split" invisible="not ab_testing_enabled"/>
+                        <field name="promotion_threshold" invisible="not ab_testing_enabled"/>
+                        <field name="evaluation_window_days" invisible="not ab_testing_enabled"/>
+                    </group>
+                    <group string="Active Triggers" invisible="not loop_enabled">
+                        <field name="trigger_ids" nolabel="1">
+                            <list>
+                                <field name="name"/>
+                                <field name="trigger_type"/>
+                                <field name="threshold_value"/>
+                                <field name="active" widget="boolean_toggle"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group string="System Status">
+                        <field name="last_cycle_id"/>
+                        <field name="last_cycle_status"/>
+                        <field name="total_episodes"/>
+                        <field name="qualified_episodes"/>
+                        <field name="total_cycles"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_self_improving_config" model="ir.actions.act_window">
+        <field name="name">Self-Improving Configuration</field>
+        <field name="res_model">self.improving.config</field>
+        <field name="view_mode">form</field>
+        <field name="help" type="html">
+            <p>Configure the self-improving AI system.</p>
+        </field>
+    </record>
+
+    <record id="action_self_improving_episodes" model="ir.actions.act_window">
+        <field name="name">Episodes</field>
+        <field name="res_model">data.episode</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p>Collected interaction episodes. Raw material for training datasets.</p>
+        </field>
+    </record>
+
+</odoo>

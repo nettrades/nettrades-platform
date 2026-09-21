@@ -21,6 +21,16 @@
 #   - Integration with training data filtering
 #   - Audit logging for compliance
 #
+# UPDATES (2026-09-21):
+#   - _store_evaluation() now writes a composite fairness_score back to
+#     data.episode, if that model and field exist. The field is added by
+#     nettrades_self_improving. This write is defensive: it checks that
+#     the model is registered, that the field exists, and that the
+#     response_id refers to an existing episode before writing. If any
+#     check fails, the write is silently skipped and the audit record is
+#     still created. nettrades_fairness remains installable and functional
+#     without nettrades_self_improving.
+#
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -60,6 +70,9 @@ class FairnessEvaluator(models.TransientModel):
             answer (str): The AI's response.
             field_id (int, optional): The professional field ID.
             response_id (int, optional): The ID of the response record.
+                If this ID points to an existing data.episode and the
+                fairness_score field exists on that model, the composite
+                fairness score is written back to the episode.
 
         Returns:
             dict: Evaluation results with rationality_score, bias_score, rationale.
@@ -100,7 +113,7 @@ class FairnessEvaluator(models.TransientModel):
                 'error': str(e),
             }
 
-        # 6. Store the evaluation result
+        # 6. Store the evaluation result (and propagate to data.episode if possible)
         self._store_evaluation(
             question=question,
             answer=answer,
@@ -360,9 +373,26 @@ class FairnessEvaluator(models.TransientModel):
     # 5. Storage and Flagging
     # =========================================================================
 
-    def _store_evaluation(self, question, answer, field_id, response_id, rationality_score, bias_score, rationale, config):
+    def _store_evaluation(self, question, answer, field_id, response_id,
+                          rationality_score, bias_score, rationale, config):
         """
         Store the evaluation result in the audit log.
+
+        Additionally, if `data.episode` exists and has a `fairness_score`
+        field, and `response_id` points to an existing episode, write the
+        composite fairness score back to that episode. This is how the
+        self-improving training pipeline learns to filter biased or
+        irrational responses without a hard module dependency between
+        nettrades_fairness and nettrades_self_improving.
+
+        The composite score is:
+            fairness_score = rationality_score - bias_score
+        Rationality is 0-10 (higher is better), bias is 0-10 (higher is
+        worse). The result therefore ranges from -10 (worst possible) to
+        +10 (best possible).
+
+        If the write fails for any reason, we log it and continue — the
+        audit record itself is the primary artifact.
         """
         try:
             audit = self.env['nettrades.fairness.audit'].create({
@@ -377,10 +407,42 @@ class FairnessEvaluator(models.TransientModel):
                 'protected_attributes': config.protected_attributes,
             })
             _logger.info("Stored fairness evaluation: audit_id=%s", audit.id)
-            return audit
         except Exception as e:
             _logger.error("Failed to store fairness evaluation: %s", e)
             return None
+
+        # ---------------------------------------------------------------------
+        # Write fairness_score back to data.episode if possible.
+        # Defensive checks:
+        #   1. Is 'data.episode' a registered model?
+        #   2. Does that model have a 'fairness_score' field?
+        #   3. Does the response_id point to an existing episode?
+        # If any check fails, skip silently. This keeps nettrades_fairness
+        # installable without nettrades_self_improving.
+        # ---------------------------------------------------------------------
+        if response_id:
+            try:
+                Episode = self.env['data.episode']
+            except KeyError:
+                Episode = None
+
+            if Episode is not None and 'fairness_score' in Episode._fields:
+                episode = Episode.browse(response_id)
+                if episode.exists():
+                    composite = (rationality_score or 0.0) - (bias_score or 0.0)
+                    try:
+                        episode.write({'fairness_score': composite})
+                        _logger.info(
+                            "Wrote fairness_score=%.2f to data.episode %s (audit %s)",
+                            composite, episode.id, audit.id,
+                        )
+                    except Exception as e:
+                        _logger.warning(
+                            "Failed to write fairness_score to data.episode %s: %s",
+                            episode.id, e,
+                        )
+
+        return audit
 
     def _check_and_flag(self, evaluation, field_id, response_id, config, effective_config):
         """
