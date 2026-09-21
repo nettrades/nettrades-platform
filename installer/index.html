@@ -3034,7 +3034,8 @@
                     id: `local-${g.index || Date.now()}`,
                     name: g.name || 'Local GPU',
                     gpu_model: g.name || 'Unknown',
-                    vram_gb: g.memory ? parseInt(g.memory) : 0,
+                    // nvidia-smi reports vram in MB, and the Launcher converts it to GB:
+                    vram_gb: g.memory ? Math.round(parseInt(g.memory) / 1024) : 0,
                     status: 'available',
                     price_per_hour: 0,
                     last_heartbeat: new Date().toISOString(),
