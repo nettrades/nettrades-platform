@@ -711,6 +711,16 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
     # =========================================================================
     # 17. CRON JOBS
     # =========================================================================
+    # Both methods below are called by ir.cron records defined in
+    # data/cron.xml. They are scheduled automatically at the interval
+    # configured in that file (currently: hourly for the health watchdog,
+    # every 3 hours for the saturation alert).
+    #
+    # Both methods are class methods on gpu.node (not on gpu.cluster).
+    # The health watchdog walks nodes; the alert walks nodes. If in the
+    # future the alert needs cluster-level context, it can search
+    # gpu.cluster from here.
+    # =========================================================================
 
     def _cron_health_watchdog(self):
         """
@@ -739,7 +749,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
 
         _logger.info(f"GPU node health watchdog completed: {len(nodes)} nodes checked")
 
-        def _cron_high_utilisation_alert(self):
+    def _cron_high_utilisation_alert(self):
         """
         Scheduled cron job that alerts GPU administrators when the
         company's internal-pool capacity is saturated.
@@ -808,9 +818,7 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
                 )
             )
         lines.append("")
-        lines.append(
-            "Consider one of the following:"
-        )
+        lines.append("Consider one of the following:")
         lines.append("  1. Enable public marketplace overflow for this cluster.")
         lines.append("  2. Provision an additional node.")
         lines.append("  3. Reduce or pause non-critical jobs.")
