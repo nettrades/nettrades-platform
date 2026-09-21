@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Feedback on an annotation or episode -->
+
     <record id="view_data_feedback_tree" model="ir.ui.view">
         <field name="name">data.feedback.tree</field>
         <field name="model">data.feedback</field>
         <field name="arch" type="xml">
-            <list string="Feedback" editable="top">
-                <field name="name" string="Feedback"/>
-                <field name="annotation_id" string="Annotation"/>
-                <field name="episode_id" string="Episode"/>
-                <field name="rating" string="Rating" widget="priority"/>
-                <field name="user_id" string="User"/>
-                <field name="create_date" string="Date"/>
+            <list string="Feedback">
+                <field name="episode_id"/>
+                <field name="feedback_type"/>
+                <field name="value"/>
+                <field name="user_id"/>
+                <field name="create_date"/>
             </list>
         </field>
     </record>
@@ -23,14 +22,17 @@
             <form string="Feedback">
                 <sheet>
                     <group>
-                        <field name="name" placeholder="Feedback summary..."/>
-                        <field name="annotation_id" options="{'no_create': True}"/>
                         <field name="episode_id" options="{'no_create': True}"/>
-                        <field name="user_id" readonly="1"/>
+                        <field name="user_id"/>
+                        <field name="feedback_type"/>
                     </group>
-                    <group string="Details">
-                        <field name="rating" widget="star"/>
-                        <field name="feedback_text" placeholder="Detailed feedback..." widget="text"/>
+                    <group string="Value">
+                        <field name="value"/>
+                        <field name="source_model"/>
+                        <field name="source_id"/>
+                    </group>
+                    <group string="Comment">
+                        <field name="comment" nolabel="1"/>
                     </group>
                 </sheet>
             </form>
@@ -42,10 +44,11 @@
         <field name="model">data.feedback</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
-                <field name="annotation_id"/>
                 <field name="episode_id"/>
-                <filter name="high_rating" string="Rating >= 4" domain="[('rating','>=',4)]"/>
+                <field name="user_id"/>
+                <field name="feedback_type"/>
+                <filter name="high_value" string="Value &gt;= 4" domain="[('value','&gt;=',4)]"/>
+                <filter name="good_answer" string="Good Answer" domain="[('feedback_type','=','good_answer')]"/>
             </search>
         </field>
     </record>
@@ -53,6 +56,7 @@
     <record id="action_data_feedback" model="ir.actions.act_window">
         <field name="name">Feedback</field>
         <field name="res_model">data.feedback</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
+
 </odoo>

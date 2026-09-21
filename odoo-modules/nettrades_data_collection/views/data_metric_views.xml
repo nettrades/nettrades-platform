@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Metrics track quantitative measures (accuracy, performance, etc.) -->
+
     <record id="view_data_metric_tree" model="ir.ui.view">
         <field name="name">data.metric.tree</field>
         <field name="model">data.metric</field>
         <field name="arch" type="xml">
-            <list string="Metrics" editable="top">
-                <field name="name" string="Metric Name"/>
-                <field name="value" string="Value" sum="Total"/>
-                <field name="date" string="Date"/>
-                <field name="episode_id" string="Episode"/>
-                <field name="unit" string="Unit"/>
+            <list string="Metrics">
+                <field name="metric_type"/>
+                <field name="metric_value"/>
+                <field name="field_id"/>
+                <field name="create_date"/>
             </list>
         </field>
     </record>
@@ -22,16 +21,13 @@
             <form string="Metric">
                 <sheet>
                     <group>
-                        <field name="name"/>
-                        <field name="episode_id" options="{'no_create': True}"/>
+                        <field name="metric_type"/>
+                        <field name="metric_value"/>
+                        <field name="field_id"/>
+                        <field name="create_date" readonly="1"/>
                     </group>
-                    <group>
-                        <field name="value" placeholder="Numeric value"/>
-                        <field name="unit" placeholder="e.g., %, count, ms"/>
-                        <field name="date" default="(context_today())"/>
-                    </group>
-                    <group string="Description">
-                        <field name="description" placeholder="Additional notes..." widget="text"/>
+                    <group string="Metadata">
+                        <field name="metadata" widget="json" nolabel="1"/>
                     </group>
                 </sheet>
             </form>
@@ -43,10 +39,12 @@
         <field name="model">data.metric</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
-                <field name="episode_id"/>
-                <field name="date" filter="date"/>
-                <filter name="high_value" string="Value > 100" domain="[('value','>',100)]"/>
+                <field name="metric_type"/>
+                <field name="field_id"/>
+                <filter name="quality" string="Quality Metrics"
+                        domain="[('metric_type','in',['quality_avg','rationality_avg','bias_avg'])]"/>
+                <filter name="performance" string="Performance"
+                        domain="[('metric_type','in',['latency_p50','latency_p95','latency_p99'])]"/>
             </search>
         </field>
     </record>
@@ -54,6 +52,7 @@
     <record id="action_data_metric" model="ir.actions.act_window">
         <field name="name">Metrics</field>
         <field name="res_model">data.metric</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
+
 </odoo>

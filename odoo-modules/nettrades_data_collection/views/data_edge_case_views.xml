@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Edge cases represent exceptional situations in data -->
+
     <record id="view_data_edge_case_tree" model="ir.ui.view">
         <field name="name">data.edge_case.tree</field>
         <field name="model">data.edge_case</field>
         <field name="arch" type="xml">
-            <list string="Edge Cases" editable="top">
-                <field name="name" string="Case"/>
-                <field name="severity" string="Severity" widget="badge"/>
-                <field name="episode_id" string="Episode"/>
-                <field name="description" string="Description"/>
-                <field name="state" string="Status"/>
+            <list string="Edge Cases">
+                <field name="detection_type"/>
+                <field name="episode_id"/>
+                <field name="similarity_score"/>
+                <field name="is_confirmed" widget="boolean_toggle"/>
+                <field name="create_date"/>
             </list>
         </field>
     </record>
@@ -22,16 +22,13 @@
             <form string="Edge Case">
                 <sheet>
                     <group>
-                        <field name="name" placeholder="Edge case title..."/>
                         <field name="episode_id"/>
-                        <field name="state" widget="statusbar"/>
+                        <field name="detection_type"/>
+                        <field name="similarity_score"/>
+                        <field name="is_confirmed"/>
                     </group>
-                    <group string="Details">
-                        <field name="severity" selection="[('low','Low'),('medium','Medium'),('high','High')]"/>
-                        <field name="description" placeholder="Describe the edge case..." widget="text"/>
-                    </group>
-                    <group string="Mitigation">
-                        <field name="mitigation_notes" placeholder="How to handle..." widget="text"/>
+                    <group string="Notes">
+                        <field name="notes" nolabel="1"/>
                     </group>
                 </sheet>
             </form>
@@ -43,10 +40,10 @@
         <field name="model">data.edge_case</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
                 <field name="episode_id"/>
-                <field name="severity"/>
-                <filter name="high_severity" string="High Severity" domain="[('severity','=','high')]"/>
+                <field name="detection_type"/>
+                <filter name="confirmed" string="Confirmed" domain="[('is_confirmed','=',True)]"/>
+                <filter name="novel" string="Novel Pattern" domain="[('detection_type','=','novel_pattern')]"/>
             </search>
         </field>
     </record>
@@ -54,6 +51,7 @@
     <record id="action_data_edge_case" model="ir.actions.act_window">
         <field name="name">Edge Cases</field>
         <field name="res_model">data.edge_case</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
+
 </odoo>
