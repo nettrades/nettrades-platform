@@ -18,7 +18,8 @@
 #   - WireGuard mesh subnet configuration
 #   - Computed fields for cluster-wide statistics (node count, VRAM, earnings)
 #   - Methods for WireGuard config generation and peer management
-#   - Time-based sharing schedule integration for auto‑switching payment mode
+#   - Time-based sharing schedule integration for auto-switching payment mode
+#   - Chatter (audit trail) via mail.thread
 #
 # UPDATES (2026-08-10):
 #   - Added payment_mode, platform_fee_percent, min/max booking hours
@@ -28,6 +29,17 @@
 #   - Added total_tokens_served, total_earnings fields and compute method
 #   - Added get_peers_for_wireguard() and _revoke_wireguard_peer() methods
 #   - Removed all GPUStack references (replaced by NVIDIA Dynamo)
+#
+# UPDATES (2026-09-21):
+#   - Added `status` field (draft/active/archived) with tracking enabled.
+#   - Added `active` field (Boolean) for Odoo-standard archival.
+#   - Added `action_scan_network()` and `action_generate_controller_keys()`
+#     public action methods for the header buttons in the form view.
+#   - Added `_inherit = ['mail.thread', 'mail.activity.mixin']` so the
+#     model supports chatter (message_follower_ids, activity_ids,
+#     message_ids) and the `tracking=True` parameter on the status field.
+#     Without this inherit, the form view's chatter div caused a
+#     ParseError at install time.
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -47,10 +59,16 @@ class GPUCluster(models.Model):
 
     This model stores all configuration for a GPU cluster, including
     WireGuard settings, trust/payment modes, and cluster-wide statistics.
+
+    Inherits mail.thread and mail.activity.mixin so that:
+      - Configuration changes are tracked (status field has tracking=True)
+      - The form view can display the chatter audit trail
+      - Followers can be notified of cluster lifecycle events
     """
     _name = 'gpu.cluster'
     _description = 'Company GPU Cluster'
     _rec_name = 'name'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     # =========================================================================
     # 1. BASIC IDENTIFICATION FIELDS
@@ -71,6 +89,33 @@ class GPUCluster(models.Model):
         help="A human-readable name for this GPU cluster."
     )
 
+    status = fields.Selection(
+        [
+            ('draft', 'Draft'),
+            ('active', 'Active'),
+            ('archived', 'Archived'),
+        ],
+        string='Status',
+        default='draft',
+        required=True,
+        tracking=True,
+        help="""Lifecycle state of the cluster:
+            - Draft: The cluster is being configured but is not yet in use.
+              Nodes cannot be onboarded while the cluster is in Draft.
+            - Active: The cluster is running, accepting nodes, and serving
+              inference workloads.
+            - Archived: The cluster has been decommissioned. Its records are
+              preserved for audit but it no longer accepts new nodes.
+        """
+    )
+
+    active = fields.Boolean(
+        string='Active',
+        default=True,
+        help="Uncheck to archive this cluster. Archived clusters are hidden "
+             "from default views but their records are preserved."
+    )
+
     # =========================================================================
     # 2. TRUST MODE CONFIGURATION
     # =========================================================================
@@ -84,6 +129,7 @@ class GPUCluster(models.Model):
         string='Trust Mode',
         required=True,
         default='company_multi_gpu',
+        tracking=True,
         help="""Determines the network topology and security level:
             - Trusted - Multi-GPU: Full WireGuard mesh. Used for company
               internal clusters with multiple GPUs. Supports vLLM tensor
@@ -233,7 +279,7 @@ class GPUCluster(models.Model):
     )
 
     # =========================================================================
-    # 6. PAYMENT & ECONOMICS FIELDS (NEW)
+    # 6. PAYMENT & ECONOMICS FIELDS
     # =========================================================================
 
     payment_mode = fields.Selection(
@@ -544,7 +590,6 @@ PrivateKey = {private_key}
         peer manager daemon.
 
         Called by the WireGuard peer manager via the /api/v1/gpu/peers endpoint.
-
         Returns:
             list: A list of dictionaries with 'public_key', 'allowed_ips',
                 and 'endpoint' keys.
@@ -604,7 +649,7 @@ PrivateKey = {private_key}
         return True
 
     # =========================================================================
-    # 11. NETWORK SCANNING (optional, zero-touch provisioning)
+    # 11. NETWORK SCANNING
     # =========================================================================
 
     def _scan_network_for_gpus(self, subnet=None):
@@ -779,3 +824,127 @@ PrivateKey = {private_key}
                         node.status = 'offline'
 
         _logger.info("GPU cluster health watchdog completed")
+
+    # =========================================================================
+    # 16. UI ACTIONS (called by buttons in gpu_cluster_views.xml)
+    # =========================================================================
+    # These public action methods wrap the existing private helpers so that
+    # the admin can invoke them from buttons in the cluster form view. Each
+    # returns an Odoo action notification that Odoo renders as a toast in
+    # the UI.
+    #
+    # Design note: the private methods (_scan_network_for_gpus,
+    # _generate_wireguard_config) return raw data or raise exceptions.
+    # The public wrappers convert those into UI-friendly notifications
+    # without leaking internals (like which subnet was scanned).
+    # =========================================================================
+
+    def action_scan_network(self):
+        """
+        Public UI action: scan the registered subnets for GPU-equipped
+        machines and report the count to the user.
+
+        This is the wrapper around `_scan_network_for_gpus`. It is called
+        by the "Scan Network" button in the cluster form view. It does not
+        onboard the discovered machines — it only reports them. Onboarding
+        happens through the registration-token flow.
+
+        Returns:
+            dict: An ir.actions.client display_notification action.
+        """
+        self.ensure_one()
+
+        try:
+            discovered = self._scan_network_for_gpus()
+        except Exception as e:
+            _logger.error("Network scan failed for cluster %s: %s", self.name, e)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Scan Failed'),
+                    'message': _('Network scan failed: %s') % str(e),
+                    'type': 'danger',
+                    'sticky': False,
+                }
+            }
+
+        if not discovered:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Network Scan Complete'),
+                    'message': _('No machines found on the registered subnets. '
+                                 'Check that the subnets are correct and that '
+                                 'nmap is installed.'),
+                    'type': 'info',
+                    'sticky': False,
+                }
+            }
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Network Scan Complete'),
+                'message': _('Found %s machine(s). Use the registration tokens '
+                             'to onboard them as GPU nodes.') % len(discovered),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def action_generate_controller_keys(self):
+        """
+        Public UI action: generate a new WireGuard key pair for the cluster
+        controller.
+
+        WARNING: This overwrites the existing keys. Any node currently
+        connected to the cluster will lose its tunnel until it re-registers.
+        The button in the UI carries a confirmation prompt before calling
+        this method.
+
+        Returns:
+            dict: An ir.actions.client display_notification action.
+        """
+        self.ensure_one()
+
+        had_keys = bool(self.wireguard_controller_public_key)
+
+        # Clear existing keys so that `_generate_wireguard_config` treats
+        # this as a fresh generation and does not short-circuit.
+        self.write({
+            'wireguard_controller_private_key': False,
+            'wireguard_controller_public_key': False,
+        })
+
+        try:
+            self._generate_wireguard_config()
+        except Exception as e:
+            _logger.error("WireGuard key generation failed for cluster %s: %s", self.name, e)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Key Generation Failed'),
+                    'message': str(e),
+                    'type': 'danger',
+                    'sticky': False,
+                }
+            }
+
+        message = _('New WireGuard key pair generated for cluster %s.') % self.name
+        if had_keys:
+            message += ' ' + _('All previously connected nodes must re-register.')
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('WireGuard Keys Generated'),
+                'message': message,
+                'type': 'warning' if had_keys else 'success',
+                'sticky': False,
+            }
+        }

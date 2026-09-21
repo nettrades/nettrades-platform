@@ -6,11 +6,33 @@
     The administrator can set trust mode, WireGuard parameters,
     view connected GPU nodes, configure token economics, and
     launch fine-tuning jobs.
+
     FUTURE IMPROVEMENT: add a "Test WireGuard Connection" button.
+
+    UPDATES (2026-09-21):
+      - Removed gpustack_server_url and gpustack_api_key fields. GPUStack
+        was replaced by NVIDIA Dynamo, and those fields no longer exist on
+        the model.
+      - Removed the "Fine-Tuning" notebook page. It referenced
+        dataset_id / base_model / training_mode fields that were never
+        added to the model, and the action_start_finetune method which
+        was never implemented.
+      - Fixed the GPU Nodes nested list: `pool` -> `gpu_pool`.
+      - Un-commented total_earnings in the Token Economics page.
+      - The two header buttons (Scan Network, Generate WireGuard Keys)
+        now have public methods to call: action_scan_network() and
+        action_generate_controller_keys().
+      - The statusbar and active toggle now reflect real fields on the
+        model: `status` and `active`.
+      - Defined menu_gpu_root, action_gpu_cluster, and
+        action_gpu_cluster_config inline. Previously these were expected
+        from views/menu_items.xml, but that file is commented out in the
+        manifest, so the module failed to install with:
+            External ID not found: nettrades_gpu_admin.menu_gpu_root
 -->
 <odoo>
     <!-- =====================================================================
-         GPU CLUSTER VIEWS
+         GPU CLUSTER TREE VIEW
          ===================================================================== -->
     <record id="view_gpu_cluster_tree" model="ir.ui.view">
         <field name="name">gpu.cluster.tree</field>
@@ -22,22 +44,36 @@
                 <field name="wireguard_mesh_subnet"/>
                 <field name="trust_mode" widget="badge"/>
                 <field name="status" widget="badge"/>
-                <field name="node_count" sum="Total"/>
-                <field name="active" widget="boolean"/>
+                <field name="node_count" sum="Total Nodes"/>
+                <field name="online_node_count"/>
+                <field name="total_vram_gb"/>
+                <field name="available_vram_gb"/>
+                <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
     </record>
 
-    <!-- Form View -->
+    <!-- =====================================================================
+         GPU CLUSTER FORM VIEW
+         ===================================================================== -->
     <record id="view_gpu_cluster_form" model="ir.ui.view">
         <field name="name">gpu.cluster.form</field>
         <field name="model">gpu.cluster</field>
         <field name="arch" type="xml">
             <form string="GPU Cluster Configuration">
                 <header>
-                    <button name="action_scan_network" string="Scan Network" type="object" class="btn-primary" help="Scans the network for new GPU nodes and registers them automatically."/>
-                    <button name="action_generate_controller_keys" string="Generate WireGuard Keys" type="object" help="Generates a new WireGuard key pair for the cluster controller. This will overwrite existing keys."/>
-                    <field name="status" widget="statusbar" statusbar_visible="draft,active,archived"/>
+                    <button name="action_scan_network"
+                            string="Scan Network"
+                            type="object"
+                            class="btn-primary"
+                            help="Scans the registered subnets for GPU-equipped machines and reports what it finds. Discovered machines are onboarded via registration tokens, not by this button."/>
+                    <button name="action_generate_controller_keys"
+                            string="Generate WireGuard Keys"
+                            type="object"
+                            confirm="This will overwrite the existing WireGuard keys. All currently connected nodes will lose their tunnel until they re-register. Continue?"
+                            help="Generates a new WireGuard key pair for the cluster controller. Overwrites any existing keys."/>
+                    <field name="status" widget="statusbar"
+                           statusbar_visible="draft,active,archived"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -45,42 +81,59 @@
                             <field name="name" placeholder="Cluster Name..."/>
                         </h1>
                     </div>
+
+                    <!-- ==========================================================
+                         TOP-LEVEL FIELDS
+                         ========================================================== -->
                     <group>
                         <group>
                             <field name="company_id" groups="base.group_multi_company"/>
-                            <field name="trust_mode" help="Select 'Trusted Multi-GPU' for internal company clusters, or 'Untrusted Public' for freelancer/ public sharing pools."/>
-                            <field name="active" help="Uncheck to archive this cluster (nodes will be deactivated)."/>
+                            <field name="trust_mode"
+                                   help="Select 'Trusted Multi-GPU' for internal company clusters, or 'Untrusted Public' for freelancer/public sharing pools."/>
+                            <field name="active"
+                                   help="Uncheck to archive this cluster. Its nodes will be deactivated."/>
                         </group>
                         <group>
-                            <field name="wireguard_mesh_subnet" help="The IP subnet for the WireGuard mesh network (e.g., 10.0.0.0/24). Must not overlap with other networks."/>
-                            <field name="controller_endpoint" placeholder="Public IP or DNS:51820" help="The public endpoint (IP:port) of the WireGuard controller."/>
-                            <field name="wireguard_controller_public_key" help="The WireGuard public key of the cluster controller (generated automatically)."/>
-                            <field name="gpustack_server_url" placeholder="http://gpustack:8000" help="URL of the GPUStack server for worker registration."/>
-                            <field name="gpustack_api_key" password="True" help="API key for authenticating with GPUStack."/>
+                            <field name="wireguard_mesh_subnet"
+                                   help="The IP subnet for the WireGuard mesh network (e.g., 10.100.0.0/24). Must not overlap with other networks."/>
+                            <field name="controller_endpoint"
+                                   placeholder="Public IP or DNS:51820"
+                                   help="The public endpoint (IP:port) of the WireGuard controller."/>
+                            <field name="wireguard_controller_public_key"
+                                   help="The WireGuard public key of the cluster controller (generated automatically)."/>
                         </group>
                     </group>
+
                     <notebook>
-                        <!-- Configuration -->
+                        <!-- ==================================================
+                             CONFIGURATION
+                             ================================================== -->
                         <page string="Configuration">
-                            <group string="Trust Mode &amp; GPUStack">
+                            <group string="Trust Mode">
                                 <field name="trust_mode"
                                        help="Trusted - Multi-GPU: full WireGuard mesh, allows NCCL across nodes, gVisor isolation recommended. Untrusted - Public Sharing: hub-and-spoke WireGuard, gVisor isolation required."/>
-                                <field name="gpustack_server_url"
-                                       help="URL of the GPUStack server (e.g. http://gpustack:80)."/>
-                                <field name="gpustack_api_key" password="True"
-                                       help="API key used to authenticate with GPUStack."/>
+                            </group>
+                            <group string="Cluster Statistics">
+                                <field name="node_count"/>
+                                <field name="online_node_count"/>
+                                <field name="total_vram_gb"/>
+                                <field name="available_vram_gb"/>
+                                <field name="total_gpu_count"/>
                             </group>
                             <div class="text-muted" colspan="2">
                                 <p><b>Next steps after creating the cluster:</b></p>
                                 <ul>
-                                    <li>Use the <b>Scan Network</b> button to discover GPU-equipped machines.</li>
-                                    <li>Configure the <b>WireGuard</b> tab to generate controller keys and set the mesh subnet.</li>
-                                    <li>Visit <b>GPU Manager -> Multi-Modal &amp; Edge Settings</b> to enable vision, robotics, IoT, or edge-device features.</li>
+                                    <li>Set the status to <b>Active</b> when the cluster is ready to accept nodes.</li>
+                                    <li>Use the <b>Scan Network</b> button in the header to discover GPU-equipped machines.</li>
+                                    <li>Configure the <b>WireGuard</b> tab and generate the controller keys.</li>
+                                    <li>Visit <b>GPU Manager -&gt; Multi-Modal &amp; Edge Settings</b> to enable vision, robotics, IoT, or edge-device features.</li>
                                 </ul>
                             </div>
                         </page>
 
-                        <!-- WireGuard -->
+                        <!-- ==================================================
+                             WIREGUARD
+                             ================================================== -->
                         <page string="WireGuard">
                             <group string="Mesh Configuration">
                                 <field name="wireguard_mesh_subnet"
@@ -95,13 +148,15 @@
                                        help="Public key of the controller. Share this with worker nodes."/>
                             </group>
                             <div class="text-muted" colspan="2">
-                                <p><b>Security:</b> WireGuard requires Linux kernel >= 6.19.14 (or >=6.18.24)
+                                <p><b>Security:</b> WireGuard requires Linux kernel &gt;= 6.19.14 (or &gt;= 6.18.24)
                                 to mitigate CVE-2026-31579. The controller deploy script checks this
                                 automatically.</p>
                             </div>
                         </page>
 
-                        <!-- Registered Subnets -->
+                        <!-- ==================================================
+                             REGISTERED SUBNETS
+                             ================================================== -->
                         <page string="Registered Subnets">
                             <field name="registered_subnet_ids"
                                    help="Subnets that will be scanned when the 'Scan Network' button is pressed.">
@@ -112,75 +167,188 @@
                             </field>
                         </page>
 
-                        <!-- GPU Nodes -->
+                        <!-- ==================================================
+                             GPU NODES
+                             ================================================== -->
                         <page string="GPU Nodes">
                             <field name="node_ids" context="{'default_cluster_id': id}">
                                 <list>
                                     <field name="hostname"/>
                                     <field name="ip_address"/>
-                                    <field name="pool"
-                                           help="Internal: free, company-wide, multi-GPU. Public: shared with NETTRADES marketplace, earns tokens."/>
+                                    <field name="gpu_pool"
+                                           help="Internal: free, company-wide, multi-GPU. Public: shared with the NETTRADES marketplace, earns tokens."/>
                                     <field name="gpu_count"/>
                                     <field name="total_vram_gb" string="VRAM (GB)"/>
-                                     <!-- <field name="status" widget="badge"/>  -->
                                     <field name="reputation_score"/>
                                     <field name="token_earnings" widget="monetary"/>
-                                    <button name="action_remove_node" string="Remove"
-                                            type="object" icon="fa-trash"
-                                            confirm="Permanently remove this node? WireGuard peer will be revoked."
+                                    <button name="action_remove_node"
+                                            string="Remove"
+                                            type="object"
+                                            icon="fa-trash"
+                                            confirm="Permanently remove this node? Its WireGuard peer will be revoked."
                                             help="Removes the node from the cluster and revokes its WireGuard access."/>
                                 </list>
                             </field>
                         </page>
 
-                        <!-- Token Economics -->
+                        <!-- ==================================================
+                             TOKEN ECONOMICS
+                             ================================================== -->
                         <page string="Token Economics">
                             <group string="Earnings">
                                 <field name="total_tokens_served"/>
-                                <!--  <field name="total_earnings" widget="monetary"/>  -->
+                                <field name="total_earnings"/>
+                            </group>
+                            <group string="Payment Configuration">
+                                <field name="payment_mode"/>
+                                <field name="platform_fee_percent"/>
+                                <field name="min_booking_hours"/>
+                                <field name="max_booking_hours"/>
+                                <field name="auto_approve_bookings"/>
+                            </group>
+                            <group string="Token Details">
+                                <field name="token_symbol"/>
+                                <field name="token_contract"/>
+                                <field name="token_network"/>
+                            </group>
+                            <group string="Fiat Details">
+                                <field name="fiat_currency"/>
+                                <field name="fiat_gateway"/>
+                            </group>
+                            <group string="Internal Credits">
+                                <field name="default_credits_per_user"/>
+                                <field name="credit_reset_interval"/>
                             </group>
                         </page>
 
-                        <!-- Fine-Tuning (only for trusted clusters) -->
-                        <page string="Fine-Tuning"
-                              attrs="{'invisible': [('trust_mode', 'not in', ['company_multi_gpu', 'company_single_gpu'])]}">
-                            <group string="Training Configuration">
-                                <field name="dataset_id" string="Dataset" domain="[('field_id.company_id', '=', company_id)]" help="Select a fine-tuning dataset that was prepared from Good Answer feedback."/>
-                                <field name="base_model" string="Base Model" help="Hugging Face model identifier (e.g. deepseek-ai/DeepSeek-R1-Distill-Qwen-14B)."/> 
-                                <field name="training_mode" string="Mode" help="Multi-GPU uses Axolotl FSDP2 across the internal WireGuard mesh. Single-GPU uses Unsloth."/> 
-                                <field name="gpu_ids" widget="many2many_tags" domain="[('cluster_id', '=', id), ('pool', '=', 'internal')]" help="Select one or more internal-pool GPUs to use for training."/>
-                            </group>
-                            <button name="action_start_finetune" string="Start Fine-Tuning"
-                                    type="object" class="btn-primary"
-                                    help="Launch a fine-tuning job on the selected GPUs."/>
-                        </page>
+                        <!-- ==================================================
+                             FINE-TUNING (deferred)
+
+                             This page was removed on 2026-09-21 because it
+                             referenced fields that were never added to the
+                             model (`dataset_id`, `base_model`,
+                             `training_mode`) and a method that was never
+                             implemented (`action_start_finetune`).
+
+                             When the training pipeline is wired into the
+                             cluster model, restore this page with the real
+                             field names. The `gpu_ids` Many2many field on
+                             the model is a good starting point for the
+                             GPU-selection widget.
+                             ================================================== -->
                     </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
                     <field name="activity_ids"/>
                     <field name="message_ids"/>
-                </div>                
+                </div>
             </form>
         </field>
     </record>
 
-    <!-- Search View -->
+    <!-- =====================================================================
+         GPU CLUSTER SEARCH VIEW
+         ===================================================================== -->
     <record id="view_gpu_cluster_search" model="ir.ui.view">
         <field name="name">gpu.cluster.search</field>
         <field name="model">gpu.cluster</field>
         <field name="arch" type="xml">
             <search string="Search GPU Clusters">
-                <field name="name" string="Cluster Name" help="Search by cluster name."/>
+                <field name="name" string="Cluster Name"
+                       help="Search by cluster name."/>
                 <field name="trust_mode"/>
-                <filter name="active" string="Active" domain="[('active','=',True)]" help="Show only active clusters."/>
-                <filter name="inactive" string="Inactive" domain="[('active','=',False)]" help="Show archived clusters."/>
-                <separator/>
-                <filter name="company" string="Company" domain="[]" context="{'group_by':'company_id'}" help="Group by company."/>
+                <field name="company_id"/>
+                <filter name="filter_active" string="Active"
+                        domain="[('active','=',True)]"
+                        help="Show only active (non-archived) clusters."/>
+                <filter name="filter_inactive" string="Archived"
+                        domain="[('active','=',False)]"
+                        help="Show only archived clusters."/>
+                <filter name="filter_draft" string="Draft"
+                        domain="[('status','=','draft')]"
+                        help="Show clusters still being configured."/>
+                <filter name="filter_running" string="Running"
+                        domain="[('status','=','active')]"
+                        help="Show clusters that are running and accepting nodes."/>
+                <filter name="filter_public" string="Public Sharing"
+                        domain="[('trust_mode','=','public_untrusted')]"
+                        help="Show clusters open to public sharing."/>
+                <filter name="group_by_company" string="Company"
+                        context="{'group_by':'company_id'}"/>
+                <filter name="group_by_trust_mode" string="Trust Mode"
+                        context="{'group_by':'trust_mode'}"/>
+                <filter name="group_by_status" string="Status"
+                        context="{'group_by':'status'}"/>
             </search>
         </field>
     </record>
-    <menuitem id="menu_gpu_cluster" name="GPU Clusters" parent="menu_gpu_root" sequence="10"/>
-    <menuitem id="menu_gpu_cluster_list" name="All Clusters" parent="menu_gpu_cluster" action="action_gpu_cluster"/>
-    <menuitem id="menu_gpu_cluster_config" name="Configuration" parent="menu_gpu_cluster" action="action_gpu_cluster_config"/>
+
+    <!-- =====================================================================
+         ACTIONS
+
+         These action records define the entry points used by the menus
+         below. They were previously expected from views/menu_items.xml,
+         but that file is commented out in the manifest, so they are
+         defined here inline.
+         ===================================================================== -->
+    <record id="action_gpu_cluster" model="ir.actions.act_window">
+        <field name="name">GPU Clusters</field>
+        <field name="res_model">gpu.cluster</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No GPU clusters yet.
+            </p>
+            <p>
+                A GPU cluster groups the GPU nodes that belong to a single
+                company or office. Create one to start registering nodes.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_gpu_cluster_config" model="ir.actions.act_window">
+        <field name="name">Cluster Configuration</field>
+        <field name="res_model">gpu.cluster</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="help" type="html">
+            <p>
+                Configure the WireGuard mesh, trust mode, and payment
+                settings for this cluster.
+            </p>
+        </field>
+    </record>
+
+    <!-- =====================================================================
+         MENUS
+
+         The root "GPU Manager" menu is defined here. All other GPU-related
+         menus in this module (and in the sibling modules that depend on
+         this one) will be attached under it.
+
+         The root itself is attached under the main NETTRADES app menu,
+         which is defined in nettrades_core.
+         ===================================================================== -->
+    <menuitem id="menu_gpu_root"
+              name="GPU Manager"
+              parent="nettrades_core.menu_nettrades_root"
+              sequence="30"/>
+
+    <menuitem id="menu_gpu_cluster"
+              name="GPU Clusters"
+              parent="menu_gpu_root"
+              sequence="10"/>
+
+    <menuitem id="menu_gpu_cluster_list"
+              name="All Clusters"
+              parent="menu_gpu_cluster"
+              action="action_gpu_cluster"
+              sequence="10"/>
+
+    <menuitem id="menu_gpu_cluster_config"
+              name="Configuration"
+              parent="menu_gpu_cluster"
+              action="action_gpu_cluster_config"
+              sequence="20"/>
 </odoo>
