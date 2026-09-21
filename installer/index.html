@@ -2400,7 +2400,7 @@
                             <h4>${n.name || 'GPU Node'}</h4>
                             <p style="font-size:13px;color:#8a9bb5;">${n.gpu_model || 'Unknown'} • ${n.vram_gb || '?'} GB</p>
                             <p style="font-size:16px;font-weight:600;color:#00d4ff;">$${n.price_per_hour || '0'}/hr</p>
-                            <button class="btn-primary" style="margin-top:8px;width:100%;" onclick="bookGPU('${n.id}')">Book Now</button>
+                            <button class="btn-primary" style="margin-top:8px;width:100%;" onclick="bookGPU('${n.id}')">Rent Now</button>
                         </div>
                     `).join('')}
                     ${state.gpuNodes.filter(n => n.status === 'available').length === 0 ? '<div class="empty-state" style="grid-column:1/-1;"><p>No GPU nodes available for booking.</p></div>' : ''}
@@ -3208,7 +3208,7 @@
                                 <div class="gpu-specs">${escapeHtml(listing.model || '')} • ${listing.vram || '?'}GB VRAM</div>
                                 <div class="gpu-price">$${listing.price || '0.00'}/hour</div>
                                 <div class="gpu-owner">Owner: ${escapeHtml(listing.owner || 'Unknown')}</div>
-                                <button class="btn btn-primary" onclick="bookGPU('${listing.id}')" style="margin-top:8px;font-size:12px;padding:4px 12px;">Book Now</button>
+                                <button class="btn btn-primary" onclick="bookGPU('${listing.id}')" style="margin-top:8px;font-size:12px;padding:4px 12px;">Rent Now</button>
                             </div>
                         `).join('');
                     } else {
