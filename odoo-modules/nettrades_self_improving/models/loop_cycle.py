@@ -1,8 +1,21 @@
 # -*- coding: utf-8 -*-
-from odoo import fields, models, api, _
+# =============================================================================
+# NETTRADES Self-Improving - Loop Cycle Model
+# =============================================================================
+# FILE: odoo-modules/nettrades_self_improving/models/loop_cycle.py
+#
+# UPDATES (2026-09-21):
+#   - Removed `dataset_record_count` related field. It referenced
+#     `llm.training.dataset.record_count`, which does not exist. The count
+#     is carried on `episode_count` (local field, set by the orchestrator
+#     when the dataset is built).
+#   - Replaced `deployment_id` (Many2one llm.provider) with `result_model_id`
+#     (Many2one llm.model). The fine-tuned artifact is an llm.model, not a
+#     provider. The provider is already available via `training_job_id.provider_id`.
+# =============================================================================
 
-# States the cycle can be in. Order matters only for readability;
-# the state machine in loop_orchestrator drives transitions.
+from odoo import fields, models, api
+
 CYCLE_STATES = [
     ('pending',             'Pending'),
     ('evaluating_triggers', 'Evaluating Triggers'),
@@ -38,27 +51,39 @@ class LoopCycle(models.Model):
     trigger_event_id = fields.Many2one('trigger.event', string='Trigger Event')
     trigger_name = fields.Char(related='trigger_event_id.trigger_id.name', store=True)
 
-    # What fired the cycle: 'manual' or 'trigger'
     origin = fields.Selection(
         [('manual', 'Manual'), ('trigger', 'Trigger'), ('cron', 'Cron')],
         default='manual',
     )
 
-    dataset_id = fields.Many2one('llm.training.dataset')
-    training_job_id = fields.Many2one('llm.training.job')
-    deployment_id = fields.Many2one('llm.provider')
-    model_id = fields.Char()
+    # Links to the artifacts produced by this cycle
+    dataset_id = fields.Many2one('llm.training.dataset', string='Training Dataset')
+    training_job_id = fields.Many2one('llm.training.job', string='Training Job')
+    result_model_id = fields.Many2one(
+        'llm.model',
+        string='Fine-Tuned Model',
+        readonly=True,
+        help="The llm.model produced by the training job, if training completed.",
+    )
+    model_id = fields.Char(
+        string='Model Name',
+        readonly=True,
+        help="Name of the resulting model as reported by the provider.",
+    )
     deployed_agents = fields.Text()
 
-    dataset_record_count = fields.Integer(related='dataset_id.record_count', store=True)
-
     # JSON blobs
-    state_data = fields.Json(help="State-machine scratch pad. Persists between resume runs.")
+    state_data = fields.Json(
+        help="State-machine scratch pad. Persists between resume runs.",
+    )
     metrics = fields.Json()
     results = fields.Json()
 
     # Results
-    episode_count = fields.Integer()
+    episode_count = fields.Integer(
+        string='Dataset Records',
+        help="Number of episodes included in the training dataset.",
+    )
     improvement = fields.Float(string='Improvement (%)')
     error_message = fields.Text()
 
@@ -75,7 +100,6 @@ class LoopCycle(models.Model):
             else:
                 rec.duration_seconds = 0.0
 
-    # Terminal states — orchestrator stops driving the cycle here.
     TERMINAL_STATES = ('completed', 'failed', 'skipped')
 
     def is_terminal(self):
