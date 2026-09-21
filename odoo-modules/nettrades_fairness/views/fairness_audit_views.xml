@@ -229,4 +229,14 @@ UPDATES (2026-09-21):
         </field>
     </record>
 
+    <!-- =====================================================================
+    MENU ITEMS
+    ===================================================================== -->
+
+    <menuitem id="menu_fairness_audit_log"
+              name="Audit Logs"
+              parent="nettrades_fairness.menu_fairness_root"
+              action="action_fairness_audit_list"
+              sequence="30"/>
+
 </odoo>

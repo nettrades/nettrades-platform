@@ -115,9 +115,4 @@
               name="Field Configurations"
               parent="menu_fairness_root"
               action="action_fairness_field_config"/>
-
-    <menuitem id="menu_fairness_audit_log"
-              name="Audit Logs"
-              parent="menu_fairness_root"
-              action="action_fairness_audit_log"/>
 </odoo>

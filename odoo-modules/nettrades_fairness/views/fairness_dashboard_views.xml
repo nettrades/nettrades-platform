@@ -67,9 +67,4 @@ PURPOSE:
               action="action_fairness_flags"
               sequence="20"/>
 
-    <menuitem id="menu_fairness_audit_log"
-              name="Audit Logs"
-              parent="nettrades_fairness.menu_fairness_root"
-              action="action_fairness_audit_log"
-              sequence="30"/>
 </odoo>
