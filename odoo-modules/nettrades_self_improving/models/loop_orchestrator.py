@@ -5,18 +5,14 @@
 # FILE: odoo-modules/nettrades_self_improving/models/loop_orchestrator.py
 #
 # UPDATES (2026-09-22):
-#   - Per-trigger pipeline execution. When multiple triggers fire in one
-#     cycle, each is processed sequentially: build dataset, submit job,
-#     wait for completion, record result, move to next.
-#   - Per-trigger results accumulate in cycle.results (JSON array).
-#   - Explicit wait semantics: handlers set self._should_wait = True to
-#     break out of the drive loop when waiting for external work, instead
-#     of looping repeatedly on the same poll.
-#   - _state_evaluating_model aggregates across all per-trigger results
-#     and chooses the final cycle status:
-#       * all skipped  → cycle skipped
-#       * all failed   → cycle failed
-#       * any completed → cycle completed (even with partial failures)
+#   - Per-trigger pipeline execution. When multiple triggers fire, each is
+#     processed sequentially: build dataset, submit job, poll, record
+#     result, advance queue.
+#   - Wait signalling uses RETURN VALUES, not instance attributes. Odoo
+#     recordsets do not reliably support arbitrary instance attributes
+#     across method calls, so `self._should_wait` was replaced with
+#     `return 'wait'` from the handler.
+#   - Per-trigger results accumulate in cycle.results.
 # =============================================================================
 
 from odoo import fields, models, api, _
@@ -37,8 +33,6 @@ class LoopOrchestrator(models.TransientModel):
     _name = 'loop.orchestrator'
     _description = 'Self-Improving Loop Orchestrator'
 
-    # Safety valve for the drive loop. With the wait-flag mechanism below,
-    # we should never need more than ~3 steps per trigger plus setup.
     MAX_STEPS_PER_RUN = 200
 
     # -------------------------------------------------------------------------
@@ -73,15 +67,13 @@ class LoopOrchestrator(models.TransientModel):
     @api.model
     def _drive_cycle(self, cycle):
         """
-        Advance the cycle until a terminal state, a wait point, or the
+        Advance the cycle until a terminal state, a wait signal, or the
         step budget is exhausted.
 
-        Handlers signal "we are waiting for external work" by setting
-        self._should_wait = True. That breaks the drive loop without
-        looping on a poll that will return the same answer.
+        A handler returns the string 'wait' to signal "external work is
+        in progress; stop driving now". Anything else (including None)
+        means "continue immediately".
         """
-        self._should_wait = False
-
         for step in range(self.MAX_STEPS_PER_RUN):
             if cycle.is_terminal():
                 return cycle
@@ -92,7 +84,7 @@ class LoopOrchestrator(models.TransientModel):
                 return cycle
 
             try:
-                handler(cycle)
+                result = handler(cycle)
             except Exception as e:
                 _logger.exception(
                     "Handler for state '%s' raised: %s", cycle.status, e,
@@ -100,8 +92,7 @@ class LoopOrchestrator(models.TransientModel):
                 self._fail(cycle, str(e))
                 return cycle
 
-            if self._should_wait:
-                self._should_wait = False
+            if result == 'wait':
                 _logger.info(
                     "Cycle %s paused in state '%s' (waiting for external work)",
                     cycle.id, cycle.status,
@@ -194,7 +185,7 @@ class LoopOrchestrator(models.TransientModel):
         to training. If the queue is empty, advance to evaluating_model.
 
         Triggers that can't produce a dataset (no pipeline, no data) are
-        recorded as 'skipped' in cycle.results and the queue advances.
+        recorded as 'skipped' in cycle.results, and the queue advances.
         """
         state_data = dict(cycle.state_data or {})
         queue = list(state_data.get('queue', []))
@@ -207,14 +198,12 @@ class LoopOrchestrator(models.TransientModel):
         trigger_id = queue.pop(0)
         trigger = self.env['trigger.config'].browse(trigger_id)
         if not trigger.exists():
-            # Trigger was deleted between evaluation and processing
             self._record_result(
                 cycle, trigger_id, 'skipped',
                 error='Trigger no longer exists',
             )
             state_data['queue'] = queue
             cycle.state_data = state_data
-            # Stay in building_dataset to process next
             return
 
         # Commit the popped queue to state before doing any work.
@@ -233,7 +222,6 @@ class LoopOrchestrator(models.TransientModel):
                 error='No pipeline available for this field',
             )
             self._clear_current(cycle)
-            # Stay in building_dataset to process next
             return
 
         dataset, count = pipeline.create_dataset()
@@ -255,11 +243,10 @@ class LoopOrchestrator(models.TransientModel):
         state_data['current_dataset_id'] = dataset.id
         cycle.state_data = state_data
 
-        # Update the cycle's top-level pointers for UI convenience.
         cycle.write({
             'dataset_id': dataset.id,
             'episode_count': (cycle.episode_count or 0) + count,
-            'training_job_id': False,  # ready for a fresh submission
+            'training_job_id': False,
             'status': 'training',
         })
 
@@ -301,8 +288,7 @@ class LoopOrchestrator(models.TransientModel):
 
             cycle.training_job_id = job.id
             # Hold — next pass will poll.
-            self._should_wait = True
-            return
+            return 'wait'
 
         # ------------------------------------------------------------------
         # Poll phase
@@ -314,10 +300,8 @@ class LoopOrchestrator(models.TransientModel):
         try:
             job.action_check_status()
         except Exception as e:
-            # Provider may be temporarily unreachable. Don't fail the cycle.
             _logger.warning("Status check for job %s failed: %s", job.id, e)
-            self._should_wait = True
-            return
+            return 'wait'
 
         job.invalidate_recordset(['state', 'result_model_id', 'trained_model_name'])
 
@@ -343,7 +327,7 @@ class LoopOrchestrator(models.TransientModel):
             return
 
         # Still running — wait for the next cron pass.
-        self._should_wait = True
+        return 'wait'
 
     # -------------------------------------------------------------------------
     # State: evaluating_model
@@ -373,7 +357,6 @@ class LoopOrchestrator(models.TransientModel):
             )
             return
 
-        # At least one job completed. Partial failures are OK — record them.
         metrics = {
             'evaluated_at': fields.Datetime.now().isoformat(),
             'completed_count': len(completed),
@@ -382,14 +365,14 @@ class LoopOrchestrator(models.TransientModel):
             'total_triggers': len(results),
         }
 
-        # Include the most recent completed job's provider metrics if any.
         last_completed = completed[-1] if completed else None
         if last_completed and last_completed.get('job_id'):
             job = self.env['llm.training.job'].browse(last_completed['job_id'])
-            if job.exists() and job.training_metrics:
-                metrics['training_metrics'] = job.training_metrics
-            if job.exists() and job.final_cost:
-                metrics['final_cost'] = job.final_cost
+            if job.exists():
+                if job.training_metrics:
+                    metrics['training_metrics'] = job.training_metrics
+                if job.final_cost:
+                    metrics['final_cost'] = job.final_cost
 
         cycle.metrics = metrics
         cycle.status = 'deploying'
@@ -400,12 +383,8 @@ class LoopOrchestrator(models.TransientModel):
     def _state_deploying(self, cycle):
         """
         Deployment is a no-op in the llm_training architecture. The
-        fine-tuned models exist as `llm.model` records (referenced by
-        result_model_id on each job). Promoting them to production is
-        an administrator action, not something the loop does.
-
-        We do populate cycle.result_model_id with the last completed
-        model for convenience in the UI.
+        fine-tuned models exist as `llm.model` records. Promoting them
+        to production is an administrator action.
         """
         results = cycle.results or []
         completed = [r for r in results if r.get('status') == 'completed']
@@ -429,10 +408,6 @@ class LoopOrchestrator(models.TransientModel):
     # Helpers
     # -------------------------------------------------------------------------
     def _pick_pipeline_for_trigger(self, trigger):
-        """
-        Choose a training.pipeline for a specific trigger. Prefer the
-        trigger's field; fall back to the first active pipeline.
-        """
         if trigger.field_id:
             pipeline = self.env['training.pipeline'].search([
                 ('field_id', '=', trigger.field_id.id),
@@ -448,9 +423,6 @@ class LoopOrchestrator(models.TransientModel):
     def _record_result(self, cycle, trigger_id, status, error=None, **extra):
         """
         Append a per-trigger result to cycle.results.
-
-        trigger_id may be None (e.g. if state_data was corrupted). We
-        still record the entry so the failure is visible.
         """
         trigger_name = ''
         if trigger_id:
