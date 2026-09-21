@@ -81,7 +81,7 @@ The Nettrades Platform builds the Sovereign AI Infrastructure for the Autonomous
 
 ### Deploy in minutes, not months
 
-The NETTRADES Sovereign AI Platform Hub and Sub Hub should be installed on a Ubuntu 24.04 machine. But if just want to see what it looks like on a Windows machine, you could: 
+The main NETTRADES Sovereign AI Platform Hub and Sub Hubs should be installed on a Ubuntu 24.04 machine. Or partitian the drive for dual boot and have Ubuntu 24.04 on one of the partitians so that the NVIDIA Dynamo workers have direct access to the hardware, because the NVIDIA Dynamo workers can not run on WSL. But if you just want to see what it looks like on a Windows machine in WSL, you could: 
 
 Enable virtualisation in the BIOS.
 
