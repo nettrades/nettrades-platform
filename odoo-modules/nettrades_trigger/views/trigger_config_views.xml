@@ -1,56 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Trigger configurations define what events trigger actions -->
+    <!-- =====================================================================
+         TRIGGER CONFIG - LIST VIEW
+         ===================================================================== -->
     <record id="view_trigger_config_tree" model="ir.ui.view">
         <field name="name">trigger.config.tree</field>
         <field name="model">trigger.config</field>
         <field name="arch" type="xml">
-            <list string="Trigger Configs" editable="bottom">
+            <list string="Trigger Configurations" editable="bottom">
                 <field name="name" string="Trigger"/>
-                <field name="event_type" string="Event Type"/>
-                <field name="action" string="Action"/>
+                <field name="trigger_type" string="Type"/>
+                <field name="comparison_operator" string="Operator"/>
+                <field name="threshold_value" string="Threshold"/>
+                <field name="time_window_hours" string="Window (h)"/>
+                <field name="min_samples" string="Min Samples"/>
+                <field name="field_id" string="Field"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
     </record>
 
+    <!-- =====================================================================
+         TRIGGER CONFIG - FORM VIEW
+         ===================================================================== -->
     <record id="view_trigger_config_form" model="ir.ui.view">
         <field name="name">trigger.config.form</field>
         <field name="model">trigger.config</field>
         <field name="arch" type="xml">
             <form string="Trigger Configuration">
                 <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Trigger name..."/>
+                        </h1>
+                    </div>
                     <group>
-                        <field name="name" placeholder="Trigger name..."/>
-                        <field name="active" widget="boolean_toggle"/>
+                        <group>
+                            <field name="trigger_type"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="field_id" options="{'no_create': True}"/>
+                        </group>
                     </group>
-                    <group string="Conditions">
-                        <field name="event_type" selection="[('data_updated','Data Updated'),('cycle_completed','Cycle Completed'),('time_based','Time Based')]"/>
-                        <field name="action" placeholder="e.g., send_email, start_cycle"/>
+
+                    <group string="Condition">
+                        <field name="comparison_operator"/>
+                        <field name="threshold_value"/>
                     </group>
-                    <group string="Parameters">
-                        <field name="params" placeholder='{"key":"value"}' widget="json"/>
+
+                    <group string="Evaluation Window">
+                        <field name="time_window_hours"/>
+                        <field name="min_samples"/>
+                    </group>
+
+                    <group string="Description">
+                        <field name="description" nolabel="1" colspan="2"/>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
 
+    <!-- =====================================================================
+         TRIGGER CONFIG - SEARCH VIEW
+         ===================================================================== -->
     <record id="view_trigger_config_search" model="ir.ui.view">
         <field name="name">trigger.config.search</field>
         <field name="model">trigger.config</field>
         <field name="arch" type="xml">
             <search>
                 <field name="name"/>
-                <field name="event_type"/>
+                <field name="trigger_type"/>
+                <field name="field_id"/>
                 <filter name="active" string="Active" domain="[('active','=',True)]"/>
+                <filter name="inactive" string="Inactive" domain="[('active','=',False)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_type" string="Trigger Type"
+                            context="{'group_by':'trigger_type'}"/>
+                    <filter name="group_by_field" string="Field"
+                            context="{'group_by':'field_id'}"/>
+                </group>
             </search>
         </field>
     </record>
 
+    <!-- =====================================================================
+         ACTION
+         ===================================================================== -->
     <record id="action_trigger_config" model="ir.actions.act_window">
         <field name="name">Trigger Configurations</field>
         <field name="res_model">trigger.config</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 </odoo>
