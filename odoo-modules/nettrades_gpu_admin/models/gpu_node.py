@@ -739,6 +739,117 @@ Endpoint = {cluster.controller_endpoint or 'CHANGE_ME:51820'}
 
         _logger.info(f"GPU node health watchdog completed: {len(nodes)} nodes checked")
 
+        def _cron_high_utilisation_alert(self):
+        """
+        Scheduled cron job that alerts GPU administrators when the
+        company's internal-pool capacity is saturated.
+
+        The rule:
+          - Consider only nodes in `gpu_pool = 'internal'` that are online.
+          - If there are at least two such nodes, and EVERY one of them
+            is above 90% GPU utilisation, post a message to the internal
+            pool's supervisor (the GPU administrator group) suggesting
+            they consider overflow to the marketplace or provisioning
+            another node.
+
+        The 90% threshold and the "at least two nodes" guard exist to
+        avoid false alarms:
+          - A single node at 99% is often the owner running a batch job.
+          - Two or more nodes all saturated simultaneously is a real
+            capacity signal.
+
+        Notifications go through the chatter of the gpu.node records
+        (which inherits mail.thread), so administrators get an inbox
+        notification without needing a separate alerting channel.
+
+        Called hourly by ir.cron (id: cron_gpu_utilisation_alert).
+        """
+        _logger.info("Running high GPU utilisation alert")
+
+        internal_nodes = self.search([
+            ('gpu_pool', '=', 'internal'),
+            ('status', '=', 'online'),
+        ])
+
+        if len(internal_nodes) < 2:
+            _logger.info(
+                "Only %s internal-pool node(s) online — skipping alert",
+                len(internal_nodes),
+            )
+            return
+
+        # Every online internal-pool node must be above the threshold
+        # for the alert to fire.
+        saturated = internal_nodes.filtered(
+            lambda n: (n.gpu_utilisation_pct or 0.0) >= 90.0
+        )
+
+        if len(saturated) < len(internal_nodes):
+            _logger.info(
+                "Pool not saturated: %s of %s internal nodes above 90%%",
+                len(saturated), len(internal_nodes),
+            )
+            return
+
+        # Build the alert body
+        lines = [
+            "⚠️ Internal GPU pool is saturated.",
+            "",
+            "All %s online internal-pool GPU node(s) are above 90%% utilisation:" % len(internal_nodes),
+        ]
+        for node in internal_nodes:
+            lines.append(
+                "  • %s (%s) — %.1f%% GPU utilisation, last seen %s"
+                % (
+                    node.name,
+                    node.hostname or 'unknown host',
+                    node.gpu_utilisation_pct or 0.0,
+                    node.last_seen or 'never',
+                )
+            )
+        lines.append("")
+        lines.append(
+            "Consider one of the following:"
+        )
+        lines.append("  1. Enable public marketplace overflow for this cluster.")
+        lines.append("  2. Provision an additional node.")
+        lines.append("  3. Reduce or pause non-critical jobs.")
+
+        body = "\n".join(lines)
+
+        # Post the alert to the chatter of each saturated node. Because
+        # gpu.node inherits mail.thread, message_post() writes to the
+        # node's own chatter and notifies followers. The GPU admin group
+        # is not automatically a follower of every node, so we also
+        # notify the group explicitly by resolving its members and
+        # adding them as recipients.
+        try:
+            admin_group = self.env.ref(
+                'nettrades_gpu_admin.group_gpu_administrator',
+                raise_if_not_found=False,
+            )
+            partner_ids = admin_group.users.mapped('partner_id').ids if admin_group else []
+        except Exception:
+            partner_ids = []
+
+        for node in internal_nodes:
+            try:
+                node.message_post(
+                    body=body,
+                    subject="⚠️ Internal GPU pool saturated",
+                    partner_ids=partner_ids,
+                    subtype_xmlid='mail.mt_comment',
+                )
+            except Exception as e:
+                _logger.warning(
+                    "Failed to post saturation alert on node %s: %s",
+                    node.name, e,
+                )
+
+        _logger.info(
+            "High GPU utilisation alert fired for %s internal nodes",
+            len(internal_nodes),
+        )
     # =========================================================================
     # 18. CONSTRAINTS AND VALIDATION
     # =========================================================================

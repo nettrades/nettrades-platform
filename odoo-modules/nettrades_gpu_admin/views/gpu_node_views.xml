@@ -76,7 +76,7 @@
                         <page string="GPUs" help="Detailed GPU inventory from nvidia-smi.">
                             <field name="gpus" widget="json" help="JSON array with GPU details: index, name, memory_mb, utilisation, temperature."/>
                         </page>
-                        <page string="Network" attrs="{'invisible': [('wireguard_public_key', '=', False)]}" help="WireGuard and TEE configuration.">
+                        <page string="Network" invisible="not wireguard_public_key" help="WireGuard and TEE configuration.">
                             <group>
                                 <field name="wireguard_public_key" help="Node's WireGuard public key (generated locally, private key never stored)."/>
                                 <field name="wireguard_assigned_ip" help="IP address assigned on the WireGuard mesh network."/>
@@ -99,9 +99,6 @@
                                 <field name="scheduled_share" help="Whether this node is scheduled for public sharing."/>
                             </group>
                         </page>
-                        <!--<page string="Dynamo" help="Integration with Dynamo.">
-                            <field name="Dynamo_worker_id" help="Worker ID assigned by Dynamo."/>
-                        </page>-->
                         <!-- ========== Pool & Isolation ========== -->
                         <page string="Pool &amp; Isolation">
                             <group string="Pool Assignment">
@@ -124,7 +121,7 @@
                                 automatically reconfigures WireGuard to hub-and-spoke mode (/32).
                                 Changing back to Internal restores full mesh connectivity.</p>
                             </div>
-                            <div class="text-muted" attrs="{'invisible': [('os', '!=', 'darwin')]}">
+                            <div class="text-muted" invisible="os != 'darwin'">
                                 <p><b>macOS Detected:</b> Public GPU sharing is not available on this machine.
                                 Apple Silicon GPUs cannot be isolated with gVisor or Kata Containers.
                                 This node can only be assigned to Pool A (Internal).</p>
@@ -190,7 +187,7 @@
                                 <ul>
                                     <li>The <b>NETTRADES GPU Agent</b> is installed and running on the node.</li>
                                     <li><b>WireGuard</b> is active (public key and assigned IP are visible in the "Network" tab).</li>
-                                    <li><b>GPUStack worker</b> is registered (GPUStack Worker ID is not empty).</li>
+                                    <li><b>Dynamo worker</b> is registered (Dynamo Worker ID is not empty).</li>
                                     <li><b>Container runtime</b> is set to <b>gVisor</b> (recommended) or Docker (trusted internal only).</li>
                                     <li>If you see <b>TEE capabilities</b> all False, that is normal for consumer hardware.</li>
                                     <li>If the node is an <b>edge device</b>, enable "Edge Device Support" in Multi-Modal &amp; Edge Settings.</li>
