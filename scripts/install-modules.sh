@@ -386,6 +386,7 @@ MODULES=(
     "nettrades_good_answer"
     "nettrades_fairness"
     "nettrades_data_collection"
+    "nettrades_trigger"
     "nettrades_loop"
     "nettrades_self_improving_config"
 )

@@ -36,6 +36,7 @@
         'web',
         'queue_job',
         'nettrades_core',
+        'nettrades_trigger',
         'nettrades_data_collection',
     ],
     'data': [
