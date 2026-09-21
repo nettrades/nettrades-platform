@@ -763,11 +763,12 @@ ipcMain.handle('vpn-remove-peer', async (event, username) => {
 // Platform Status (combines Docker status and service health)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// AFTER:
 ipcMain.handle('get-platform-status', async () => {
     // Get Docker compose status
     const dockerStatus = await getDockerStatus();
     // Get system health
-    const health = await ipcMain.handle('system-health');
+    const health = await computeSystemHealth();             // ← plain function call
     return {
         running: dockerStatus.running,
         services: dockerStatus.services || [],
@@ -2216,7 +2217,7 @@ ipcMain.handle('get-discovered-nodes', () => {
 // System Health & Monitoring
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('system-health', async () => {
+async function computeSystemHealth() {
     const serverUrl = await getServerUrlInternal();
     const health = { services: {}, gpus: [], models: [], uptime: process.uptime() };
 
@@ -2238,13 +2239,13 @@ ipcMain.handle('system-health', async () => {
         health.services.dynamo = response.ok ? 'healthy' : 'unhealthy';
     } catch { health.services.dynamo = 'unhealthy'; }
 
-    // Get GPU info
     health.gpus = detectGPUs();
-
-    // Get models
     health.models = listModels();
-
     return health;
+}
+
+ipcMain.handle('system-health', async () => {
+    return computeSystemHealth();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
