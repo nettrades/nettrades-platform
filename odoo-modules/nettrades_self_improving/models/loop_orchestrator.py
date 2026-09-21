@@ -4,17 +4,23 @@
 # =============================================================================
 # FILE: odoo-modules/nettrades_self_improving/models/loop_orchestrator.py
 #
-# UPDATES (2026-09-21):
-#   - _state_training: uses llm.training.job.action_submit() and
-#     action_check_status(), and looks at job.state (not job.status).
-#   - _state_evaluating_model: reads job.training_metrics.
-#   - _state_deploying: no-op. The fine-tuned model is created by the
-#     provider as job.result_model_id. We just record it on the cycle.
+# UPDATES (2026-09-22):
+#   - Per-trigger pipeline execution. When multiple triggers fire in one
+#     cycle, each is processed sequentially: build dataset, submit job,
+#     wait for completion, record result, move to next.
+#   - Per-trigger results accumulate in cycle.results (JSON array).
+#   - Explicit wait semantics: handlers set self._should_wait = True to
+#     break out of the drive loop when waiting for external work, instead
+#     of looping repeatedly on the same poll.
+#   - _state_evaluating_model aggregates across all per-trigger results
+#     and chooses the final cycle status:
+#       * all skipped  → cycle skipped
+#       * all failed   → cycle failed
+#       * any completed → cycle completed (even with partial failures)
 # =============================================================================
 
 from odoo import fields, models, api, _
 import logging
-import json
 
 _logger = logging.getLogger(__name__)
 
@@ -22,11 +28,18 @@ _logger = logging.getLogger(__name__)
 class LoopOrchestrator(models.TransientModel):
     """
     Resumable state machine driving a self-improvement cycle.
+
+    A single cycle may process multiple fired triggers. Each trigger
+    gets its own dataset, its own training job, and its own entry in
+    cycle.results. The cycle completes when every fired trigger has
+    been processed.
     """
     _name = 'loop.orchestrator'
     _description = 'Self-Improving Loop Orchestrator'
 
-    MAX_STEPS_PER_RUN = 50
+    # Safety valve for the drive loop. With the wait-flag mechanism below,
+    # we should never need more than ~3 steps per trigger plus setup.
+    MAX_STEPS_PER_RUN = 200
 
     # -------------------------------------------------------------------------
     # Entry point
@@ -45,6 +58,8 @@ class LoopOrchestrator(models.TransientModel):
             'origin': origin,
             'started_at': fields.Datetime.now(),
             'status': 'pending',
+            'state_data': {},
+            'results': [],
         })
 
         if trigger_event:
@@ -57,7 +72,17 @@ class LoopOrchestrator(models.TransientModel):
     # -------------------------------------------------------------------------
     @api.model
     def _drive_cycle(self, cycle):
-        for _ in range(self.MAX_STEPS_PER_RUN):
+        """
+        Advance the cycle until a terminal state, a wait point, or the
+        step budget is exhausted.
+
+        Handlers signal "we are waiting for external work" by setting
+        self._should_wait = True. That breaks the drive loop without
+        looping on a poll that will return the same answer.
+        """
+        self._should_wait = False
+
+        for step in range(self.MAX_STEPS_PER_RUN):
             if cycle.is_terminal():
                 return cycle
 
@@ -69,12 +94,25 @@ class LoopOrchestrator(models.TransientModel):
             try:
                 handler(cycle)
             except Exception as e:
-                _logger.exception("Handler for state '%s' raised: %s", cycle.status, e)
+                _logger.exception(
+                    "Handler for state '%s' raised: %s", cycle.status, e,
+                )
                 self._fail(cycle, str(e))
                 return cycle
 
-        _logger.info("Cycle %s paused in state '%s' (waiting for external work)",
-                     cycle.id, cycle.status)
+            if self._should_wait:
+                self._should_wait = False
+                _logger.info(
+                    "Cycle %s paused in state '%s' (waiting for external work)",
+                    cycle.id, cycle.status,
+                )
+                return cycle
+
+        _logger.warning(
+            "Cycle %s hit MAX_STEPS_PER_RUN=%s in state '%s' — "
+            "state machine may be stuck",
+            cycle.id, self.MAX_STEPS_PER_RUN, cycle.status,
+        )
         return cycle
 
     def _fail(self, cycle, message):
@@ -92,13 +130,30 @@ class LoopOrchestrator(models.TransientModel):
         })
 
     # -------------------------------------------------------------------------
-    # State handlers
+    # State: pending
     # -------------------------------------------------------------------------
     def _state_pending(self, cycle):
         cycle.status = 'evaluating_triggers'
 
+    # -------------------------------------------------------------------------
+    # State: evaluating_triggers
+    # -------------------------------------------------------------------------
     def _state_evaluating_triggers(self, cycle):
+        """
+        Determine which triggers fired and seed the per-trigger queue.
+
+        If this cycle came from a specific trigger.event, we use that one
+        trigger only. Otherwise we evaluate every active trigger.
+        """
         if cycle.trigger_event_id:
+            trigger = cycle.trigger_event_id.trigger_id
+            if not trigger:
+                self._fail(cycle, "Trigger event has no trigger")
+                return
+            cycle.state_data = {
+                'queue': [trigger.id],
+                'results': [],
+            }
             cycle.status = 'collecting_data'
             return
 
@@ -109,9 +164,19 @@ class LoopOrchestrator(models.TransientModel):
             self._finish(cycle, 'skipped')
             return
 
-        cycle.state_data = {'fired_trigger_ids': [t.id for t in fired]}
+        cycle.state_data = {
+            'queue': [t.id for t in fired],
+            'results': [],
+        }
+        _logger.info(
+            "Cycle %s: %s trigger(s) fired — queue: %s",
+            cycle.id, len(fired), [t.name for t in fired],
+        )
         cycle.status = 'collecting_data'
 
+    # -------------------------------------------------------------------------
+    # State: collecting_data
+    # -------------------------------------------------------------------------
     def _state_collecting_data(self, cycle):
         try:
             if 'data.collector' in self.env:
@@ -120,109 +185,237 @@ class LoopOrchestrator(models.TransientModel):
             _logger.warning("Data collection raised, continuing: %s", e)
         cycle.status = 'building_dataset'
 
+    # -------------------------------------------------------------------------
+    # State: building_dataset (one trigger per entry)
+    # -------------------------------------------------------------------------
     def _state_building_dataset(self, cycle):
-        pipeline = self._pick_pipeline(cycle)
+        """
+        Pop the next trigger from the queue, build its dataset, and move
+        to training. If the queue is empty, advance to evaluating_model.
+
+        Triggers that can't produce a dataset (no pipeline, no data) are
+        recorded as 'skipped' in cycle.results and the queue advances.
+        """
+        state_data = dict(cycle.state_data or {})
+        queue = list(state_data.get('queue', []))
+
+        if not queue:
+            _logger.info("Cycle %s: queue empty, advancing to evaluation", cycle.id)
+            cycle.status = 'evaluating_model'
+            return
+
+        trigger_id = queue.pop(0)
+        trigger = self.env['trigger.config'].browse(trigger_id)
+        if not trigger.exists():
+            # Trigger was deleted between evaluation and processing
+            self._record_result(
+                cycle, trigger_id, 'skipped',
+                error='Trigger no longer exists',
+            )
+            state_data['queue'] = queue
+            cycle.state_data = state_data
+            # Stay in building_dataset to process next
+            return
+
+        # Commit the popped queue to state before doing any work.
+        state_data['queue'] = queue
+        state_data['current_trigger_id'] = trigger_id
+        cycle.state_data = state_data
+
+        pipeline = self._pick_pipeline_for_trigger(trigger)
         if not pipeline:
-            _logger.info("No pipeline available for cycle %s", cycle.id)
-            self._finish(cycle, 'skipped')
+            _logger.info(
+                "Cycle %s: no pipeline for trigger '%s'",
+                cycle.id, trigger.name,
+            )
+            self._record_result(
+                cycle, trigger_id, 'skipped',
+                error='No pipeline available for this field',
+            )
+            self._clear_current(cycle)
+            # Stay in building_dataset to process next
             return
 
         dataset, count = pipeline.create_dataset()
         if not dataset or count == 0:
-            _logger.info("No data available for cycle %s", cycle.id)
-            self._finish(cycle, 'skipped')
+            _logger.info(
+                "Cycle %s: no data for trigger '%s'",
+                cycle.id, trigger.name,
+            )
+            self._record_result(
+                cycle, trigger_id, 'skipped',
+                error='No qualifying data',
+            )
+            self._clear_current(cycle)
             return
 
+        # Persist the pipeline/dataset for the training state.
+        state_data = dict(cycle.state_data or {})
+        state_data['current_pipeline_id'] = pipeline.id
+        state_data['current_dataset_id'] = dataset.id
+        cycle.state_data = state_data
+
+        # Update the cycle's top-level pointers for UI convenience.
         cycle.write({
             'dataset_id': dataset.id,
-            'episode_count': count,
+            'episode_count': (cycle.episode_count or 0) + count,
+            'training_job_id': False,  # ready for a fresh submission
             'status': 'training',
         })
 
+    # -------------------------------------------------------------------------
+    # State: training (one trigger's job per entry)
+    # -------------------------------------------------------------------------
     def _state_training(self, cycle):
         """
-        Submit the training job once, then poll its state on each pass.
-
-        The job's state transitions are driven by the provider:
-            draft -> validating -> preparing -> queued -> training
-                  -> completed | failed | cancelled
+        First entry: submit a job for the current trigger.
+        Subsequent entries: poll until the job finishes.
+        On completion or failure: record result, advance queue.
         """
         # ------------------------------------------------------------------
-        # First entry: submit a job.
+        # Submit phase
         # ------------------------------------------------------------------
         if not cycle.training_job_id:
-            pipeline = self._pick_pipeline(cycle)
-            if not pipeline:
-                self._fail(cycle, "Pipeline missing when entering training state")
+            state_data = cycle.state_data or {}
+            pipeline_id = state_data.get('current_pipeline_id')
+            dataset_id = state_data.get('current_dataset_id')
+            trigger_id = state_data.get('current_trigger_id')
+
+            if not pipeline_id or not dataset_id or not trigger_id:
+                self._record_result(
+                    cycle, trigger_id, 'failed',
+                    error='Missing pipeline/dataset reference in state_data',
+                )
+                self._clear_current(cycle)
                 return
 
-            job = pipeline.submit_training_job(cycle.dataset_id.id)
+            pipeline = self.env['training.pipeline'].browse(pipeline_id)
+            job = pipeline.submit_training_job(dataset_id)
             if not job:
-                self._fail(
-                    cycle,
-                    "Training job submission returned None. "
-                    "Check that the training pipeline has a provider "
-                    "and a base model configured.",
+                self._record_result(
+                    cycle, trigger_id, 'failed',
+                    error='Job submission returned None',
                 )
+                self._clear_current(cycle)
                 return
 
             cycle.training_job_id = job.id
-            # Hold in 'training'; the resume cron will poll again.
+            # Hold — next pass will poll.
+            self._should_wait = True
             return
 
         # ------------------------------------------------------------------
-        # Subsequent passes: poll status.
+        # Poll phase
         # ------------------------------------------------------------------
         job = cycle.training_job_id
+        state_data = cycle.state_data or {}
+        trigger_id = state_data.get('current_trigger_id')
 
-        # Ask the provider for the current state.
         try:
             job.action_check_status()
         except Exception as e:
+            # Provider may be temporarily unreachable. Don't fail the cycle.
             _logger.warning("Status check for job %s failed: %s", job.id, e)
-            # Don't fail the cycle — the provider may just be unreachable
-            # this poll. Try again on the next pass.
+            self._should_wait = True
             return
 
-        # Refresh cached state after the call.
         job.invalidate_recordset(['state', 'result_model_id', 'trained_model_name'])
 
         if job.state == 'completed':
-            cycle.result_model_id = job.result_model_id.id if job.result_model_id else False
-            cycle.model_id = job.trained_model_name or False
-            cycle.status = 'evaluating_model'
-        elif job.state in ('failed', 'cancelled'):
-            self._fail(cycle, f"Training job {job.id} ended in state '{job.state}'")
-        # else: still running, hold.
+            entry_extra = {
+                'job_id': job.id,
+                'job_state': job.state,
+                'result_model_id': job.result_model_id.id if job.result_model_id else None,
+                'result_model_name': job.trained_model_name or None,
+            }
+            self._record_result(cycle, trigger_id, 'completed', **entry_extra)
+            self._clear_current(cycle)
+            return
 
+        if job.state in ('failed', 'cancelled'):
+            self._record_result(
+                cycle, trigger_id, 'failed',
+                error=f"Job ended in state '{job.state}'",
+                job_id=job.id,
+                job_state=job.state,
+            )
+            self._clear_current(cycle)
+            return
+
+        # Still running — wait for the next cron pass.
+        self._should_wait = True
+
+    # -------------------------------------------------------------------------
+    # State: evaluating_model
+    # -------------------------------------------------------------------------
     def _state_evaluating_model(self, cycle):
-        """Read the training metrics reported by the provider."""
-        job = cycle.training_job_id
+        """
+        Aggregate per-trigger results and decide the cycle's final status.
+        """
+        results = list(cycle.results or [])
+        completed = [r for r in results if r.get('status') == 'completed']
+        failed = [r for r in results if r.get('status') == 'failed']
+        skipped = [r for r in results if r.get('status') == 'skipped']
+
+        if not completed and not failed and skipped:
+            _logger.info("Cycle %s: all triggers skipped", cycle.id)
+            self._finish(cycle, 'skipped')
+            return
+
+        if not completed and failed:
+            _logger.info(
+                "Cycle %s: all %s attempted job(s) failed",
+                cycle.id, len(failed),
+            )
+            self._fail(
+                cycle,
+                f"All {len(failed)} job(s) failed. See results for details.",
+            )
+            return
+
+        # At least one job completed. Partial failures are OK — record them.
         metrics = {
             'evaluated_at': fields.Datetime.now().isoformat(),
+            'completed_count': len(completed),
+            'failed_count': len(failed),
+            'skipped_count': len(skipped),
+            'total_triggers': len(results),
         }
-        if job:
-            if job.training_metrics:
+
+        # Include the most recent completed job's provider metrics if any.
+        last_completed = completed[-1] if completed else None
+        if last_completed and last_completed.get('job_id'):
+            job = self.env['llm.training.job'].browse(last_completed['job_id'])
+            if job.exists() and job.training_metrics:
                 metrics['training_metrics'] = job.training_metrics
-            if job.result_model_id:
-                metrics['result_model_id'] = job.result_model_id.id
-                metrics['result_model_name'] = job.result_model_id.name
-            if job.final_cost:
+            if job.exists() and job.final_cost:
                 metrics['final_cost'] = job.final_cost
 
         cycle.metrics = metrics
         cycle.status = 'deploying'
 
+    # -------------------------------------------------------------------------
+    # State: deploying
+    # -------------------------------------------------------------------------
     def _state_deploying(self, cycle):
         """
-        Deployment is a no-op in the llm_training architecture.
+        Deployment is a no-op in the llm_training architecture. The
+        fine-tuned models exist as `llm.model` records (referenced by
+        result_model_id on each job). Promoting them to production is
+        an administrator action, not something the loop does.
 
-        The fine-tuned model exists as `cycle.result_model_id` (an
-        llm.model). To "deploy" it, an administrator edits the provider
-        configuration to point at the new model — that is a manual step.
-        If the platform later gains an automated deployment mechanism,
-        wire it in here.
+        We do populate cycle.result_model_id with the last completed
+        model for convenience in the UI.
         """
+        results = cycle.results or []
+        completed = [r for r in results if r.get('status') == 'completed']
+        if completed:
+            last = completed[-1]
+            if last.get('result_model_id'):
+                cycle.result_model_id = last['result_model_id']
+            if last.get('result_model_name'):
+                cycle.model_id = last['result_model_name']
+
         self._finish(cycle, 'completed')
 
         if cycle.trigger_event_id:
@@ -235,17 +428,62 @@ class LoopOrchestrator(models.TransientModel):
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
-    def _pick_pipeline(self, cycle):
-        if cycle.trigger_event_id and cycle.trigger_event_id.trigger_id.field_id:
-            field = cycle.trigger_event_id.trigger_id.field_id
+    def _pick_pipeline_for_trigger(self, trigger):
+        """
+        Choose a training.pipeline for a specific trigger. Prefer the
+        trigger's field; fall back to the first active pipeline.
+        """
+        if trigger.field_id:
             pipeline = self.env['training.pipeline'].search([
-                ('field_id', '=', field.id),
+                ('field_id', '=', trigger.field_id.id),
                 ('active', '=', True),
             ], limit=1)
             if pipeline:
                 return pipeline
 
-        return self.env['training.pipeline'].search([('active', '=', True)], limit=1)
+        return self.env['training.pipeline'].search(
+            [('active', '=', True)], limit=1,
+        )
+
+    def _record_result(self, cycle, trigger_id, status, error=None, **extra):
+        """
+        Append a per-trigger result to cycle.results.
+
+        trigger_id may be None (e.g. if state_data was corrupted). We
+        still record the entry so the failure is visible.
+        """
+        trigger_name = ''
+        if trigger_id:
+            trigger = self.env['trigger.config'].browse(trigger_id)
+            if trigger.exists():
+                trigger_name = trigger.name
+
+        entry = {
+            'trigger_id': trigger_id,
+            'trigger_name': trigger_name,
+            'status': status,
+        }
+        if error:
+            entry['error'] = error
+        entry.update({k: v for k, v in extra.items() if v is not None})
+
+        results = list(cycle.results or [])
+        results.append(entry)
+        cycle.results = results
+
+    def _clear_current(self, cycle):
+        """
+        Clear the current-trigger pointers and return to building_dataset
+        to process the next item in the queue.
+        """
+        state_data = dict(cycle.state_data or {})
+        state_data.pop('current_trigger_id', None)
+        state_data.pop('current_dataset_id', None)
+        state_data.pop('current_pipeline_id', None)
+        cycle.state_data = state_data
+
+        cycle.training_job_id = False
+        cycle.status = 'building_dataset'
 
     # -------------------------------------------------------------------------
     # Cron: resume stalled cycles

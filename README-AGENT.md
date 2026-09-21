@@ -69,6 +69,8 @@ Fix `nettrades_gpu_admin` first. Then `nettrades_bridge` will install.
 9. **When in doubt, ask the user.** Do not guess. Do not "improve"
    the architecture without discussing it.
 
+10. Always provide honest answers.
+
 ## The one rule that matters most
 
 The user has been through a long debugging session. They are patient
