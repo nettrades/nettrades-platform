@@ -104,6 +104,19 @@ function execCommand(command) {
 }
 
 // -----------------------------------------------------------------------------
+// Helper: Promise-based exec helper
+// -----------------------------------------------------------------------------
+
+function execPromise(cmd) {
+    return new Promise((resolve, reject) => {
+        exec(cmd, (error, stdout, stderr) => {
+            if (error) reject({ error, stderr });
+            else resolve({ stdout, stderr });
+        });
+    });
+}
+
+// -----------------------------------------------------------------------------
 // Tenant Types and Runtime Configuration
 // -----------------------------------------------------------------------------
 
@@ -2238,6 +2251,18 @@ async function computeSystemHealth() {
         const response = await fetch(`${serverUrl}:8001/v1/models`);
         health.services.dynamo = response.ok ? 'healthy' : 'unhealthy';
     } catch { health.services.dynamo = 'unhealthy'; }
+
+    // ── NEW: Check PostgreSQL ──
+    try {
+        const { stdout } = await execPromise(
+            `docker compose -f ${COMPOSE_FILE} exec -T postgres pg_isready -U odoo -d odoo`
+        );
+        health.services.postgres = stdout.includes('accepting connections')
+            ? 'healthy'
+            : 'unhealthy';
+    } catch {
+        health.services.postgres = 'unhealthy';
+    }
 
     health.gpus = detectGPUs();
     health.models = listModels();
