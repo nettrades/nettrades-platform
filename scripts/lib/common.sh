@@ -108,6 +108,10 @@ confirm_force_production() {
     if [[ "${FORCE:-false}" != "true" ]]; then
         return 0
     fi
+    if [[ "${AUTO:-false}" == "true" ]]; then
+        log_warning "Auto mode: skipping interactive confirmation for --force on production Phase $phase_name"
+        return 0
+    fi
     if [[ "$env" == "production" ]]; then
         echo ""
         echo "      WARNING      "
@@ -223,13 +227,18 @@ import sys
 file, pattern, repl = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(file, 'r') as f:
     lines = f.readlines()
+found = False
 with open(file, 'w') as f:
     for line in lines:
         if line.startswith(pattern + '='):
             # Use repr to safely quote the replacement (handles all special chars)
             f.write(f'{pattern}={repr(repl)}\n')
+            found = True
         else:
             f.write(line)
+    # Append the key if it was not present in the file
+    if not found:
+        f.write(f'{pattern}={repr(repl)}\n')
 " "$file" "$pattern" "$replacement"
 }
 
@@ -339,13 +348,12 @@ pull_with_retry() {
         attempt=$((attempt + 1))
     done
 
-    echo "All $max_attempts attempts failed. Trying fallback mirror: $fallback_mirror" >&2
-    if docker pull "$image" --registry-mirror="$fallback_mirror" 2>/dev/null; then
-        echo "Successfully pulled $image via fallback mirror"
-        return 0
-    fi
-
-    echo "ERROR: Failed to pull $image after all retries and fallback." >&2
+    # NOTE: --registry-mirror is not a valid `docker pull` flag. Mirrors are
+    # configured at the daemon level in /etc/docker/daemon.json. The fallback
+    # below tries the plain image name one more time, which succeeds if a
+    # mirror has been configured there.
+    echo "All $max_attempts attempts failed. Please check the daemon-level mirror configuration." >&2
+    echo "ERROR: Failed to pull $image after all retries." >&2
     return 1
 }
 
