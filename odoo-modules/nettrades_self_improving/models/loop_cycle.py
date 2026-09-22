@@ -31,6 +31,9 @@ CYCLE_STATES = [
 
 
 class LoopCycle(models.Model):
+    """
+    Self-Improving Loop Cycle - tracks a single improvement cycle.
+    """
     _name = 'loop.cycle'
     _description = 'Self-Improving Loop Cycle'
     _order = 'create_date DESC'
