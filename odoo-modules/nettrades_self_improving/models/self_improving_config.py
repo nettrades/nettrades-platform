@@ -1,4 +1,15 @@
 # -*- coding: utf-8 -*-
+# =============================================================================
+# NETTRADES Self-Improving Config - Configuration Model
+# =============================================================================
+# FILE: odoo-modules/nettrades_self_improving/models/self_improving_config.py
+#
+# PURPOSE:
+#   This model stores the administration configuration for the self-improving
+#   system. All settings are configurable via the Odoo admin interface.
+#
+# =============================================================================
+
 from odoo import fields, models, api, _
 from odoo.exceptions import ValidationError
 import logging
@@ -7,10 +18,14 @@ _logger = logging.getLogger(__name__)
 
 
 class SelfImprovingConfig(models.Model):
+    """
+    Self-Improving AI Configuration - Administration settings.
+    """
     _name = 'self.improving.config'
     _description = 'Self-Improving AI Configuration'
     _rec_name = 'display_name'
 
+    # Display Name
     display_name = fields.Char(compute='_compute_display_name', store=True)
 
     @api.depends('loop_enabled')
@@ -80,6 +95,7 @@ class SelfImprovingConfig(models.Model):
             raise ValidationError(_("Only one Self-Improving Configuration is allowed."))
         return super().create(vals_list)
 
+    # Default Values
     @api.model
     def default_get(self, fields_list):
         defaults = super().default_get(fields_list)
@@ -99,6 +115,7 @@ class SelfImprovingConfig(models.Model):
         })
         return defaults
 
+    # Helper Methods
     @api.model
     def get_config(self):
         config = self.search([], limit=1)
