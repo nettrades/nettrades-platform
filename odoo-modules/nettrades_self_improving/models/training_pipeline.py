@@ -4,6 +4,11 @@
 # =============================================================================
 # FILE: odoo-modules/nettrades_self_improving/models/training_pipeline.py
 #
+# PURPOSE:
+#   This model configures and manages the training pipeline for the
+#   self-improving system. It defines how training data is prepared,
+#   how fine-tuning jobs are submitted, and how models are deployed.
+#
 # UPDATES (2026-09-21):
 #   - Rewrote create_dataset() against the real llm.training.dataset API.
 #     Data lives in attachment_ids (JSONL file), not a `data` field. Count
