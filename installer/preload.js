@@ -162,6 +162,7 @@ contextBridge.exposeInMainWorld('api', {
 
     detectGpu: () => ipcRenderer.invoke('detect-gpu'),
     detectHardware: () => ipcRenderer.invoke('detect-hardware'),
+    detectHardwareProfile: () => ipcRenderer.invoke('detect-hardware-profile'),
 
     // ──────────────────────────────────────────────────────────────────────────
     // GPU management (local registration and job handling)
