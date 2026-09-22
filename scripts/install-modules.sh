@@ -387,6 +387,8 @@ MODULES=(
     "nettrades_fairness"
     "nettrades_data_collection"
     "nettrades_self_improving"
+    "nettrades_self_wireguard"
+    "nettrades_self_onboarding"
 )
 
 if [[ -n "$MODULES_LIST" ]]; then
