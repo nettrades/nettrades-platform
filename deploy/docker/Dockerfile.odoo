@@ -44,4 +44,3 @@ COPY odoo-modules/ /mnt/extra-addons/
 # Set the correct ownership
 USER odoo
 
-# Addons path is configured in odoo.conf
