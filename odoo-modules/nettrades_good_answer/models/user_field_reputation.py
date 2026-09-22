@@ -92,12 +92,12 @@ class UserFieldReputation(models.Model):
                 ('reputation_points', '>=', field.reputation_threshold_for_charging),
             ])
             for rep in reps:
-                existing = self.env['qualified.professional'].search([
+                existing = self.env['qualified_professional'].search([
                     ('partner_id', '=', rep.partner_id.id),
                     ('field_id', '=', field.id),
                 ], limit=1)
                 if not existing:
-                    self.env['qualified.professional'].create({
+                    self.env['qualified_professional'].create({
                         'partner_id': rep.partner_id.id,
                         'field_id': field.id,
                         'is_active': True,
