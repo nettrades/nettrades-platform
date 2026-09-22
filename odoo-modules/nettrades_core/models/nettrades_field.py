@@ -312,7 +312,7 @@ class NettradesField(models.Model):
         """
         for field in self:
             # Count active qualified professionals
-            qualified = self.env['qualified.professional'].search([
+            qualified = self.env['qualified_professional'].search([
                 ('field_id', '=', field.id),
                 ('is_active', '=', True),
             ])
@@ -346,7 +346,7 @@ class NettradesField(models.Model):
         """
         self.ensure_one()
 
-        qualified = self.env['qualified.professional'].search([
+        qualified = self.env['qualified_professional'].search([
             ('field_id', '=', self.id),
             ('is_active', '=', True),
         ])
@@ -366,7 +366,7 @@ class NettradesField(models.Model):
         self.ensure_one()
 
         # Check if the user is a qualified professional in this field
-        is_qualified = self.env['qualified.professional'].search([
+        is_qualified = self.env['qualified_professional'].search([
             ('field_id', '=', self.id),
             ('partner_id', '=', user.id),
             ('is_active', '=', True),
