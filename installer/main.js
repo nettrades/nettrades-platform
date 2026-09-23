@@ -2591,7 +2591,7 @@ ipcMain.handle('install-modules', async (event, modules) => {
 
     // Prepare module list as comma-separated
     const moduleList = modules.join(',');
-    const cmd = `bash ${scriptPath} --force --auto --modules ${moduleList}`;
+    const cmd = `bash ${scriptPath} --force --auto --modules=${moduleList}`;
 
     return new Promise((resolve) => {
         const proc = spawn('bash', ['-c', cmd], {
