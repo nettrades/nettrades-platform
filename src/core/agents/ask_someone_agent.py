@@ -587,7 +587,7 @@ def create_ask_someone_agent() -> StateGraph:
     async def record_feedback(state: AskSomeoneState) -> AskSomeoneState:
         """Record user rating and feedback."""
         request_id = state.get("request_id")
-        rating = state.get("rating", 0)
+        rating = state.get("rating_by_requester", 0)
         feedback = state.get("feedback", "")
         is_good_answer = state.get("is_good_answer", False)
 
