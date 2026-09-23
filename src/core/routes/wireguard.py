@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/routes/wireguard.py
 """WireGuard management endpoints."""
 
 import os

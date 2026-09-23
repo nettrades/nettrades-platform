@@ -1,3 +1,4 @@
+# FILE: deploy\kubernetes\talos\talos-proxmox\variables.tf
 variable "proxmox_api_url" {
   type      = string
   sensitive = true

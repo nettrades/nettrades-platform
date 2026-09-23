@@ -1,3 +1,4 @@
+# FILE: deploy\kubernetes\talos\talos-proxmox\main.tf
 terraform {
   required_providers {
     proxmox = {

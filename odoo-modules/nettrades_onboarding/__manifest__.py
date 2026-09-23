@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: odoo-modules/nettrades_onboarding/__manifest__.py
 # Section F.2 - Smart Onboarding
 {
     'name': 'NETTRADES Smart Onboarding',

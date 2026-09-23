@@ -1,3 +1,4 @@
+# FILE: odoo-modules/nettrades_good_answer/models/ft_training_job.py
 from odoo import fields, models
 
 class FTTrainingJob(models.Model):

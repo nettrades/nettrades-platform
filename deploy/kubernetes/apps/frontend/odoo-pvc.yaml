@@ -1,6 +1,7 @@
 # =============================================================================
-# Section: G – Odoo PersistentVolumeClaim.
+# Section: G ï¿½ Odoo PersistentVolumeClaim.
 # ReadWriteMany is required for 3 Odoo replicas sharing the same filestore.
+# FILE: deploy/kubernetes/apps/frontend/odoo-pvc.yaml
 # =============================================================================
 apiVersion: v1
 kind: PersistentVolumeClaim

@@ -2,6 +2,9 @@
 # Section: H – GPUStack server for company internal deployments.
 # Uses the same image as the central server but exposed only on the internal
 # WireGuard mesh (ClusterIP, no external ingress).
+# GPUSTACK HAS BEEN REMOVED AND REPLACED WITH NVIDIA DYNAMO SO THIS FILE NEEDS TO BE CHANGED
+#
+# FILE: deploy/kubernetes/distributed-gpu/controller/gpustack-company-server.yaml
 # =============================================================================
 # This server is only accessible on the internal WireGuard mesh.
 apiVersion: apps/v1

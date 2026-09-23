@@ -2,6 +2,7 @@
 # NETTRADES Universal Enterprise Proxy Framework - Registry
 # =============================================================================
 # FILE: src/core/odoo_proxy/connectors/registry.py
+#
 # PURPOSE: Provides a registry for all available enterprise connectors.
 #          Connectors are registered by name and can be retrieved dynamically.
 #

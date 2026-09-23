@@ -1,3 +1,4 @@
+# FILE: # FILE: odoo-modules/nettrades_notifications/models/user_notification.py
 from odoo import fields, models
 
 class UserNotification(models.Model):

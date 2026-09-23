@@ -1,3 +1,4 @@
+# FILE: # FILE: odoo-modules/nettrades_onboarding/controllers/onboarding.py
 import json, io, logging
 import pdfplumber
 from odoo import http

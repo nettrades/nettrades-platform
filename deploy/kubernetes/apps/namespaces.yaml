@@ -1,6 +1,7 @@
 # =============================================================================
-# Section: G – Namespace definitions with Pod Security labels.
+# Section: G ï¿½ Namespace definitions with Pod Security labels.
 # Pod Security labels are applied to restrict container capabilities.
+# FILE: deploy/kubernetes/namespaces.yaml
 # =============================================================================
 apiVersion: v1
 kind: Namespace

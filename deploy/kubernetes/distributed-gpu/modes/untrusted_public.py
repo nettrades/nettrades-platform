@@ -1,6 +1,11 @@
 # Section H - Untrusted public sharing (freelancer GPU).
 # Hub-and-spoke WireGuard with AllowedIPs restricted to the controller only.
 # GPUStack worker runs inside gVisor isolation (nvproxy GPU support).
+#
+# FILE: deploy/kubernetes/distributed-gpu/modes/untrusted_public.py
+#
+# gpustack has been replaced with NVIDIA Dynamo so this file needs to be changed
+# =============================================================================
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from wg_setup import generate_keys, create_config, apply_config

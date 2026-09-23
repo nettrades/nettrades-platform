@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: odoo-modules/nettrades_core/models/nettrades_user_match.py
 # Section A-F - Stores AI-generated match scores between a job and a candidate.
 from odoo import fields, models
 

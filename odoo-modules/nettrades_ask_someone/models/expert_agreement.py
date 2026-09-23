@@ -1,3 +1,4 @@
+# FILE: odoo-modules\nettrades_ask_someone\models\expert_agreement.py
 from odoo import fields, models
 
 class ExpertAgreement(models.Model):

@@ -1,6 +1,9 @@
 #!/bin/bash
 # =============================================================================
 # NETTRADES.AI – Central GPU Controller Deployment
+# GPUSTACK HAS BEEN REMOVED AND REPLACED WITH NVIDIA DYNAMO SO THIS FILE NEEDS TO BE CHANGED
+#
+# FILE: deploy/kubernetes/distributed-gpu/controller/deploy-controller.sh
 # =============================================================================
 # Installs WireGuard, checks kernel version for CVE-2026-31579,
 # deploys GPUStack server, builds and deploys the WireGuard peer manager,

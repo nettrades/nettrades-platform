@@ -2,6 +2,7 @@
 # Section: G – Per-node Talos config patch.
 # Assigns a static IP to the eth1 (internal) interface.
 # The eth0 interface uses DHCP for Proxmox host connectivity.
+# FILE: deploy\kubernetes\talos\talos-proxmox\patches\controlplane.yaml.tpl
 # =============================================================================
 machine:
   network:

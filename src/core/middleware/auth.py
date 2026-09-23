@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/middleware/auth.py
 """JWT authentication middleware for Odoo OAuth 2.0."""
 
 import os

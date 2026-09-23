@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # Section H - Container runtime isolation for GPU nodes.
+# FILE: deploy/kubernetes/distributed-gpu/isolate.py
 # =============================================================================
 # gVisor is the preferred runtime for ALL GPU pools (Trusted & Untrusted).
 # It uses a userspace kernel (Sentry) that intercepts syscalls, providing

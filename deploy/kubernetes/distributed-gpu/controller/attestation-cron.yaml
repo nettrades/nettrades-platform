@@ -1,4 +1,5 @@
 # =============================================================================
+# GPUSTACK HAS BEEN REMOVED AND REPLACED WITH NVIDIA DYNAMO SO THIS FILE NEEDS TO BE CHANGED
 # Section: H – Canary attestation CronJob.
 # Every hour, sends a known prompt to each public GPU node and verifies the
 # response.  Failed attestations decrement the node's reputation score.
@@ -6,6 +7,8 @@
 # attacker can special-case the canary prompt.  For security-critical workloads,
 # hardware-backed Confidential Computing (NVIDIA H100/H200 TEE) is required,
 # but consumer GPUs do not support this.
+#
+# FILE: deploy/kubernetes/distributed-gpu/controller/attestation-cron.yaml
 # =============================================================================
 apiVersion: batch/v1
 kind: CronJob

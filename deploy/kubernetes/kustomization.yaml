@@ -3,6 +3,7 @@
 # Purpose:  Root kustomization that Argo CD watches.
 #           Every sub-folder is a separate Kustomize overlay.
 # =============================================================================
+# FILE: deploy/kubernetes/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 

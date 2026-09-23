@@ -1,5 +1,6 @@
 # =============================================================================
-# Section: G – Outputs printed after `tofu apply`.
+# Section: G ï¿½ Outputs printed after `tofu apply`.
+# FILE: deploy\kubernetes\talos\talos-proxmox\outputs.tf
 # =============================================================================
 output "control_plane_ips" { value = var.control_plane_ips }
 output "worker_ips"        { value = var.worker_ips }

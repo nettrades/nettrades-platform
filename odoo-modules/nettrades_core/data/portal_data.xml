@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--  FILE: odoo-modules/nettrades_core/data/portal_data.xml -->
 <odoo>
     <!-- Enable self-signup for portal users -->
     <record id="auth_signup_auth_signup" model="res.config.settings">

@@ -1,3 +1,5 @@
+# FILE: third-party\llm_training\__manifest__.py
+# =============================================================================
 {
     "name": "LLM Training Management",
     "summary": """

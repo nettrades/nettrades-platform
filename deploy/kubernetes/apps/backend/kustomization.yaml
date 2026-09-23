@@ -1,5 +1,6 @@
 # =============================================================================
-# Section: G – Kustomize overlay for the backend namespace.
+# Section: G ï¿½ Kustomize overlay for the backend namespace.
+# FILE: deploy/kubernetes/apps/backend/kustomization.yaml
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

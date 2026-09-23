@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/middleware/metrics.py
 """Metrics tracking middleware."""
 
 import time

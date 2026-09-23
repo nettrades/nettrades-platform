@@ -1,6 +1,8 @@
 # =============================================================================
 # Section: C, G – MCP-Odoo bridge server.
 # Connects the LangGraph agent to Odoo's JSON-RPC API.
+#
+# FILE: deploy/kubernetes/apps/ai/mcp-deployment.yaml
 # =============================================================================
 apiVersion: apps/v1
 kind: Deployment

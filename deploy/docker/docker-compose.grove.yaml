@@ -2,6 +2,8 @@
 # Grove Observability – Optional (future scaling)
 # Unifies Prometheus, Loki, and Tempo into a single observability platform
 # =============================================================================
+# FILE: deploy/docker/docker-compose.grove.yaml
+# =============================================================================
 services:
   grove:
     image: grove/grove:latest

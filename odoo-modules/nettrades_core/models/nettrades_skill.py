@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: odoo-modules/nettrades_core/models/nettrades_skill.py
 # Section A-F - Simple skill model used for Many2many tagging on partner profiles.
 from odoo import fields, models
 

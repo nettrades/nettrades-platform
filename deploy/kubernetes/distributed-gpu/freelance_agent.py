@@ -1,5 +1,6 @@
 # =============================================================================
 # Freelance Agent - matches freelancers to projects, generates proposals.
+# FILE: deploy/kubernetes/distributed-gpu/freelance_agent.py
 # =============================================================================
 import json, logging
 from langgraph.graph import StateGraph, END, START

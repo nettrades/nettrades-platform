@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # NETTRADES AI GPU Agent - runs on every GPU node.
+# FILE: deploy/kubernetes/distributed-gpu/agent.py
 # =============================================================================
 # This agent detects GPUs, generates a hardware-bound node ID, registers with
 # Odoo, brings up WireGuard, and starts the GPUStack worker inside the

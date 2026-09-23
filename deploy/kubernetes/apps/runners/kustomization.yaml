@@ -1,6 +1,8 @@
 # =============================================================================
-# Section: G – Placeholder for Forgejo runners. 
+# Section: G ï¿½ Placeholder for Forgejo runners. 
 # Placeholder for Forgejo runners.
+#
+# FILE: deploy/kubernetes/apps/runners/kustomization.yaml
 # =============================================================================
 # Add runner deployment manifests when CI/CD pipelines are activated.
 # Forgejo runners can be registered via the Forgejo instance UI or custom

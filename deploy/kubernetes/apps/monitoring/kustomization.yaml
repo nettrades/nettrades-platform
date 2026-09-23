@@ -5,6 +5,8 @@
 # via a Helm release in deploy-k8s-base.sh.  This kustomization is a placeholder
 # for future GitOps-managed monitoring resources such as ServiceMonitors,
 # PrometheusRules, or additional Grafana dashboards.
+#
+# FILE: deploy/kubernetes/apps/monitoring/kustomization.yaml
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

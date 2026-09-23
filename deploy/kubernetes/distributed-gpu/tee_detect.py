@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # Section H - TEE / Confidential Computing Auto-Detection
+# FILE: deploy/kubernetes/distributed-gpu/tee_detect.py
 # =============================================================================
 # Detects whether the GPU node supports hardware-backed Trusted Execution
 # Environments.  The detection runs once during agent startup and the

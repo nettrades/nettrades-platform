@@ -1,3 +1,4 @@
+# FILE: odoo-modules/nettrades_ask_someone/models/ask_someone_config.py
 from odoo import fields, models
 
 class AskSomeoneConfig(models.TransientModel):

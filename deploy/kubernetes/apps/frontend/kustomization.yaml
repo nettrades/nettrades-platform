@@ -1,5 +1,6 @@
 # =============================================================================
 # Frontend namespace overlay 
+# FILE: deploy/kubernetes/apps/frontend/kustomization.yaml
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

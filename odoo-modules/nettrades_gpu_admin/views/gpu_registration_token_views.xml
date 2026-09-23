@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--  FILE: odoo-modules/nettrades_gpu_admin/views/gpu_registration_token_views.xml  -->
 <odoo>
     <!-- Existing view definitions remain -->
     <record id="view_gpu_registration_token_form" model="ir.ui.view">

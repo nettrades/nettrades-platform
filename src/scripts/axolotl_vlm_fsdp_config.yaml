@@ -1,5 +1,6 @@
 # =============================================================================
 # Axolotl FSDP2 + QLoRA config for Vision-Language Models (VLM)
+# FILE: src/scripts/axolotl_vlm_fsdp_config.yaml
 # =============================================================================
 # This config is used when the administrator enables multi-modal fine-tuning
 # for a professional field and selects Axolotl as the backend.

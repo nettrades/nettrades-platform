@@ -1,5 +1,6 @@
 # =============================================================================
 # Lead-Gen Agent - monitors platform activity, scores and creates leads.
+# FILE: deploy/kubernetes/distributed-gpu/lead_gen_agent.py
 # =============================================================================
 import json, logging
 from langgraph.graph import StateGraph, END, START

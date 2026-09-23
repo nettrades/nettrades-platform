@@ -1,4 +1,5 @@
 <!-- Add onboarding fields to partner form -->
+<!-- FILE: src/views/res_partner_views.xml -->
 <odoo>
     <record id="view_partner_form_inherit_onboarding" model="ir.ui.view">
         <field name="name">res.partner.form.inherit.onboarding</field>

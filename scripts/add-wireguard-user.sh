@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # add-wireguard-user.sh – Generate WireGuard client configurations
+# FILE: scripts/add-wireguard-user.sh
 # =============================================================================
 # Usage: add-wireguard-user.sh <username>
 # Example: add-wireguard-user.sh alice

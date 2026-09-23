@@ -1,6 +1,7 @@
 # =============================================================================
 # Section: G – Grafana configuration overrides for the kube-prometheus-stack
 # Helm chart.  Used with `helm install --values grafana-values.yaml`.
+# FILE: deploy/kubernetes/apps/monitoring/grafana-values.yaml
 # =============================================================================
 grafana:
   adminPassword: changeme               # Override in production

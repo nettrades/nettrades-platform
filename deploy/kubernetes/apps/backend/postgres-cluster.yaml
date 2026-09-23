@@ -1,6 +1,7 @@
 # =============================================================================
-# Section: G – PostgreSQL HA cluster via CloudNativePG.
+# Section: G ï¿½ PostgreSQL HA cluster via CloudNativePG.
 # Three instances for high availability, pgvector enabled for RAG embeddings.
+# FILE: deploy/kubernetes/apps/backend/postgres-cluster.yaml
 # =============================================================================
 # CNPG PostgreSQL cluster with pgvector
 apiVersion: postgresql.cnpg.io/v1

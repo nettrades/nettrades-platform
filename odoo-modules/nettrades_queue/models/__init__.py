@@ -1,0 +1,1 @@
+# FILE: odoo-modules/nettrades_queue/controllers/__init__.py

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # NETTRADES Self-Improving - data.episode Extension
+# FILE: odoo-modules/nettrades_self_improving/models/data_episode_extension.py
 # =============================================================================
 # Adds quality-signal fields to data.episode. Any module that produces a
 # quality signal writes to these fields; the training pipeline reads them.

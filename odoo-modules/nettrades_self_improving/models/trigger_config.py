@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: odoo-modules/nettrades_self_improving/models/trigger_config.py
 from odoo import fields, models, api, _
 from odoo.exceptions import ValidationError
 import logging

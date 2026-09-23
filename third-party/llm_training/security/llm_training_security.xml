@@ -1,3 +1,5 @@
+<!--  FILE: third-party\llm_training\security\llm_training_security.xml -->
+
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <!-- Record Rules -->

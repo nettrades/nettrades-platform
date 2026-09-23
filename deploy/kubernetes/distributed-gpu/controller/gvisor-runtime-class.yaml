@@ -5,6 +5,8 @@
 # gVisor uses a userspace kernel (Sentry) rather than a hardware VM,
 # avoiding memory hoarding and KVM requirements.
 #
+# FILE: deploy/kubernetes/distributed-gpu/controller/gvisor-runtime-class.yaml
+#
 # Installation prerequisites:
 #   1. Install runsc on every GPU worker node:
 #      curl -fsSL https://gvisor.dev/archive/runsc > /usr/local/bin/runsc

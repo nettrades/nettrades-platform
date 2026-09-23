@@ -1,8 +1,12 @@
 # =============================================================================
-# Section: H – WireGuard peer manager DaemonSet.
+# Section: H ï¿½ WireGuard peer manager DaemonSet.
 # Runs on the controller node, uses wgctrl-go to programmatically add/remove
 # WireGuard peers based on Odoo's gpu.node table.
 # hostNetwork is required to manage the host's wg0 interface.
+# THIS IS A VERY OLD FILE GPUSTACK HAS BEEN REPLACED BY NVIDIA DYNAMO SO THIS COULD BE REMOVED 
+# AND REPLACED WITH THE NVIDIA DYNAMO FILE
+#
+# FILE: deploy/kubernetes/apps/gpustack/wg-peer-manager.yaml
 # =============================================================================
 apiVersion: apps/v1
 kind: DaemonSet

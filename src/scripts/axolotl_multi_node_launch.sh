@@ -1,3 +1,4 @@
+# FILE: src/scripts/axolotl_multi_node_launch.sh
 #!/bin/bash
 # =============================================================================
 # Axolotl Multi-Node Training Launcher (WireGuard mesh)

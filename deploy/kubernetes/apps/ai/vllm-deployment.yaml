@@ -1,6 +1,10 @@
 # =============================================================================
 # Section: G (optional) - vLLM GPU Inference Deployment (optional, commented out by default)
 # =============================================================================
+# FILE: deploy/kubernetes/apps/ai/vllm-deployment.yaml
+#
+# THIS IS A VERY OLD FILE
+#
 # REASON FOR BEING COMMENTED OUT:
 #   This is a safety default so that the platform starts without requiring
 #   a GPU.  Applying it unconditionally would cause the vLLM pod to stay
@@ -9,11 +13,13 @@
 #
 # AUTO-DETECTION:
 #   The LangGraph agent already auto-detects the best inference backend
-#   at runtime (priority: GPUStack → vLLM → llama.cpp).  You do NOT need
-#   to enable vLLM for the platform to work.  GPUStack or llama.cpp will
+#   at runtime (priority: NVIDIA DYNAMO with vLLM → llama.cpp).  
+#   WE NO LONGER USE VLLM ON ITS OWN ANY MORE, IT IS EMBEDDED IN NVIDIA DYNAMO 
+#   You do NOT need to enable vLLM for the platform to work.  
+#   NVIDIA DYNAMO with vLLM or llama.cpp will
 #   be used automatically if available.
 #
-# WHEN TO ENABLE:
+# WHEN TO ENABLE IF YOU WANT TO USE vLLM DIRECTLY:
 #   1. You have at least one Kubernetes worker node with a supported
 #      NVIDIA GPU.
 #   2. You have installed the NVIDIA GPU Operator (v26.3.1+).
@@ -31,7 +37,7 @@
 #      environment variable in the LangGraph deployment:
 #        - name: VLLM_BASE_URL
 #          value: http://vllm.ai.svc.cluster.local:8000/v1
-#      and remove or clear GPUSTACK_SERVER_URL.
+#      and remove or clear DYNAMO SERVER URL.
 #   4. Apply:  kubectl apply -k apps/ai/
 #
 # AFTER ENABLING:
@@ -60,7 +66,7 @@
 #           image: vllm/vllm-openai:v0.6.3.post1
 #           args:
 #             - --model
-#             - deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+#             - deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
 #             - --api-key
 #             - $(VLLM_API_KEY)
 #             - --tensor-parallel-size

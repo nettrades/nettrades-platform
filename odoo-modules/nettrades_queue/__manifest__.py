@@ -1,3 +1,4 @@
+# FILE: odoo-modules/nettrades_queue/__manifest__.py
 {
     'name': 'NETTRADES Queue Job',
     'version': '1.0',

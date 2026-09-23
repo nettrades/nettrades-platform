@@ -1,4 +1,4 @@
-# odoo-modules/nettrades_bridge/controllers/route_controller.py
+# FILE: odoo-modules/nettrades_bridge/controllers/route_controller.py
 
 from odoo import http
 from odoo.http import request

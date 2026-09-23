@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # manage-spoke.sh – Add or remove a spoke from the hub's WireGuard network
+# FILE: scripts/manage-spoke.sh
 # =============================================================================
 # Usage: manage-spoke.sh add <spoke-name> <spoke-public-key> <spoke-ip>
 #        manage-spoke.sh remove <spoke-name>

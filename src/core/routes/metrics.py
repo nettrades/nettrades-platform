@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/routes/metrics.py
 """Prometheus metrics endpoint."""
 
 from fastapi import APIRouter, Response

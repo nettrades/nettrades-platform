@@ -1,0 +1,1 @@
+# FILE: odoo-modules/nettrades_fairness/controllers/__init__.py

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: # FILE: odoo-modules/nettrades_core/models/nettrades_good_answer.py
 from odoo import fields, models, api
 
 class NettradesGoodAnswer(models.Model):

@@ -2,6 +2,7 @@
 # NETTRADES Universal Enterprise Proxy Framework - Salesforce Connector
 # =============================================================================
 # FILE: src/core/odoo_proxy/connectors/salesforce.py
+#
 # PURPOSE: Implements the AbstractEnterpriseConnector interface for Salesforce.
 #          This connector uses Salesforce's REST API to interact with the
 #          Salesforce backend.

@@ -1,5 +1,5 @@
 /** @odoo-module **/
-
+/** FILE: third-party\website_sale_marketplace\static\src\marketplace_product_management\marketplace_webclient.js **/
 import { ActionContainer } from "@web/webclient/actions/action_container";
 import { MainComponentsContainer } from "@web/core/main_components_container";
 import { useOwnDebugContext } from "@web/core/debug/debug_context";

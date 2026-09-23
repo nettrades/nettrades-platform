@@ -4,6 +4,9 @@
 # =============================================================================
 # Deploys a GPUStack server on the company's internal Kubernetes namespace
 # and generates WireGuard mesh configuration for GPU worker nodes.
+# GPUSTACK HAS BEEN REMOVED AND REPLACED WITH NVIDIA DYNAMO SO THIS FILE NEEDS TO BE CHANGED
+#
+# FILE: deploy/kubernetes/distributed-gpu/controller/install-gpustack-company.sh
 # =============================================================================
 set -euo pipefail
 trap 'echo "ERROR: Company installer failed at line $LINENO." >&2' ERR

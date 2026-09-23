@@ -2,6 +2,7 @@
 # NETTRADES Universal Enterprise Proxy Framework - Odoo Connector
 # =============================================================================
 # FILE: src/core/odoo_proxy/connectors/odoo.py
+#
 # PURPOSE: Implements the AbstractEnterpriseConnector interface for Odoo.
 #          This connector uses Odoo's JSON-RPC API to interact with the
 #          Odoo backend.

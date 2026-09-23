@@ -1,3 +1,5 @@
+# FILE: third-party\llm_training\models\llm_training_job.py
+
 import logging
 
 from odoo import api, fields, models

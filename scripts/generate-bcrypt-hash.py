@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# FILE: scripts/generate-bcrypt-hash.py
 
 """
 generate-bcrypt-hash.py

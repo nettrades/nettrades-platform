@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/routes/invoke.py
 """Main inference endpoint."""
 
 import os

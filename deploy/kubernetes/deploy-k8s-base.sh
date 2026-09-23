@@ -2,6 +2,8 @@
 # =============================================================================
 # NETTRADES.AI – Kubernetes Base Deployment (Valkey edition)
 # =============================================================================
+# FILE: deploy/kubernetes/deploy-k8s-base.sh
+# =============================================================================
 # This script creates all namespaces, installs the CNPG operator,
 # deploys the PostgreSQL cluster (with scheduled backups), Valkey,
 # and all application manifests via Kustomize. It also installs

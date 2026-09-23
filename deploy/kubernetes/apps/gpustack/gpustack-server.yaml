@@ -1,3 +1,8 @@
+# THIS IS A VERY OLD FILE GPUSTACK HAS BEEN REPLACED BY NVIDIA DYNAMO SO THIS COULD BE REMOVED 
+# AND REPLACED WITH THE NVIDIA DYNAMO dynamo-server.yaml FILE.  FOR NOW, KEPT IT FOR REFERENCE.
+# TO HELP GENERATE THE dynamo-server.yaml FILE
+#
+# FILE: deploy/kubernetes/apps/gpustack/gpustack-server.yaml
 # =============================================================================
 # Section: H – Central GPUStack server – Kubernetes central deployment
 # Orchestrates all inference workloads across the distributed GPU fleet.

@@ -1,5 +1,6 @@
 # =============================================================================
 # Section: G – Input variables for the Talos/Proxmox module.
+# FILE: deploy\kubernetes\talos\variables.tf
 # =============================================================================
 variable "proxmox_api_url"          { type = string, sensitive = true }
 variable "proxmox_api_token_id"     { type = string, sensitive = true }

@@ -2,6 +2,8 @@
 <!--
     NETTRADES Ask Someone - Expert Agreement Template
     ================================================
+    FILE: odoo-modules/nettrades_ask_someone/data/expert_agreement_template.xml
+    
     This is the legal agreement that professionals must sign before
     they can charge for their services.  The agreement text is displayed
     to the user in a modal when they click "Enable GPU Sharing" or

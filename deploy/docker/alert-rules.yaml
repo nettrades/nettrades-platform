@@ -1,6 +1,8 @@
 # =============================================================================
 # NETTRADES.AI – Single-VM Docker Compose deployment (Valkey edition)
 # =============================================================================
+# FILE: deploy/docker/alert-rules.yaml
+# =============================================================================
 # All services are production-ready, with pinned versions for stability.
 # Forgejo 15.0 LTS is supported until July 2027.
 # GPUStack v2.1.2 is the current stable release.

@@ -1,9 +1,11 @@
 /*
 =============================================================================
-Section: H – WireGuard Peer Manager
+Section: H ï¿½ WireGuard Peer Manager
 Purpose:  Syncs WireGuard peers on the controller node with Odoo's gpu.node
           table.  Uses wgctrl-go to programmatically add/remove peers.
           Runs as a DaemonSet (hostNetwork) inside the K8s cluster.
+
+FILE: deploy/kubernetes/distributed-gpu/controller/wg-peer-manager/main.go
 =============================================================================
 */
 package main

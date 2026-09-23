@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: odoo-modules/nettrades_self_improving/models/trigger_event.py
 from odoo import fields, models, api, _
 import logging
 

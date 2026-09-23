@@ -1,4 +1,4 @@
-# src/core/security/__init__.py
+# FILE: src/core/security/__init__.py
 """
 Security utilities: authentication, authorization, auditing.
 """

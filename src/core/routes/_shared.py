@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/routes/_shared.py
 """Shared helper functions for routes."""
 
 from prometheus_client import Counter

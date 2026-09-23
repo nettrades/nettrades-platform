@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # Self-Improving Service - Entry Point
+# FILE: src/core/self_improving_service.py
 # =============================================================================
 
 import asyncio

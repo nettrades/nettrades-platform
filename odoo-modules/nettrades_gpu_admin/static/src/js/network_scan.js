@@ -1,4 +1,5 @@
 /** @odoo-module **/
+/** FILE: odoo-modules/nettrades_gpu_admin/static/src/js/network_scan.js **/
 import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";

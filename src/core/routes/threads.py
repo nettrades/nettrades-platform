@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/routes/threads.py
 """Thread management endpoints for agent-chat-ui compatibility."""
 
 import uuid

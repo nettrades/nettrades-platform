@@ -2,6 +2,8 @@
 <!--
     NETTRADES Good Answer - Autonomous Cron Jobs
     ============================================
+    FILE: odoo-modules/nettrades_good_answer/data/cron.xml
+    
     Process Feedback: runs hourly, collects unprocessed Good Answer feedback
     and exports it into fine-tuning datasets.
     Reputation Decay: runs daily, reduces reputation points by 1% for

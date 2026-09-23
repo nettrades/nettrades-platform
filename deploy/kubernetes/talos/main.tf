@@ -3,6 +3,7 @@
 # Purpose:  Creates control-plane and worker VMs using the Telmate Proxmox
 #           provider.  Talos uses per-node config patches for networking;
 #           Proxmox cloud-init is intentionally NOT used.
+# FILE: deploy\kubernetes\talos\main.tf
 # =============================================================================
 terraform {
   required_providers {

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--  FILE: odoo-modules/nettrades_self_improving/views/training_pipeline_views.xml -->
 <odoo>
 
     <record id="view_training_pipeline_tree" model="ir.ui.view">

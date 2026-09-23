@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: odoo-modules/nettrades_core/__manifest__.py
 {
     'name': 'NETTRADES Core',
     'version': '1.0.0',

@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    ============================================================================
+    NETTRADES Ask Someone - View
+    ============================================================================
+    FILE: odoo-modules/nettrades_ask_someone/views/expert_session_views.xml
+    ============================================================================
+-->
 <odoo>
     <!-- List View for Expert Sessions -->
     <record id="view_expert_session_list" model="ir.ui.view">

@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # NETTRADES.AI – Talos Infrastructure Bootstrap
+# FILE: deploy\kubernetes\talos\talos-proxmox\deploy-infra.sh
 # =============================================================================
 # Run after `tofu apply`.  Applies per-node Talos configs, bootstraps the
 # Kubernetes control plane, retrieves kubeconfig, and installs Cilium,

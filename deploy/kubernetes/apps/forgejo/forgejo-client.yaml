@@ -1,6 +1,7 @@
 # =============================================================================
 # Section: G – Forgejo client instance (tenant-facing Git repositories).
 # Uses its own database in the CNPG cluster.
+# FILE: deploy/kubernetes/apps/forgejo/forgejo-client.yaml
 # =============================================================================
 apiVersion: apps/v1
 kind: Deployment

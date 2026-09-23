@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/routes/__init__.py
 """Route modules for the LangGraph FastAPI application."""
 
 from .health import router as health_router

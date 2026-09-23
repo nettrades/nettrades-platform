@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# FILE: scripts/audit-views.py
 """
 Audit NETTRADES view files against their model definitions.
 

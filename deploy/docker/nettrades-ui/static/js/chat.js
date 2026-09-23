@@ -1,6 +1,7 @@
 // ============================================================================
 // NETTRADES AI Router – Chat Application
 // Inspired by llama.cpp UI, ChatGPT, Claude, DeepSeek
+// FILE: deploy/docker/nettrades-ui/static/js/chat.js
 // ============================================================================
 
 // ─── State ────────────────────────────────────────────────────────────────────

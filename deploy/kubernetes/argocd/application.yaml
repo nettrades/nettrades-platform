@@ -1,6 +1,7 @@
 # =============================================================================
 # Section: G – Argo CD Application that watches this repository.
 # When the config repo changes, Argo CD automatically syncs the cluster state.
+# FILE: deploy/kubernetes/argocd/application.yaml
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application

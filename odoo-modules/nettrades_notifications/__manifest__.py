@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: # FILE: odoo-modules/nettrades_notifications/__manifest__.py
 # Section F.8 - Notifications, Reviews & Disputes
 {
     'name': 'NETTRADES Notifications & Reviews',

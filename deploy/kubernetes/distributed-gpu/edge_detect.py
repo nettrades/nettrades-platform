@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # Edge-Device Detection - identifies Jetson, Raspberry Pi, and Coral TPU.
+# FILE: deploy/kubernetes/distributed-gpu/edge_detect.py
 # =============================================================================
 import subprocess, logging, os
 

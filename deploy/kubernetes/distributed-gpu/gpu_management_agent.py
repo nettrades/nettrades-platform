@@ -1,5 +1,6 @@
 # =============================================================================
 # GPU-Management Agent - monitors GPU health, suggests scaling actions.
+# FILE: deploy/kubernetes/distributed-gpu/gpu_management_agent.py
 # =============================================================================
 import json, logging
 from langgraph.graph import StateGraph, END, START

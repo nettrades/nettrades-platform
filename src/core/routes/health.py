@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/routes/health.py
 """Health check endpoint."""
 
 from fastapi import APIRouter

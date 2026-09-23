@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # NETTRADES GPU Admin - Multi-Modal & Edge-Device Configuration
+#
+# FILE: odoo-modules/nettrades_gpu_admin/models/multimodal_config.py
 # =============================================================================
 # This transient model (res.config.settings) holds system-wide toggles for
 # multimodal inferencing, robotics, and IoT features. Each feature requires

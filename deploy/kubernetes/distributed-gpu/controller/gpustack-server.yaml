@@ -3,6 +3,9 @@
 # =============================================================================
 # Identical to apps/gpustack/gpustack-server.yaml.  Built-in observability
 # is disabled via GPUSTACK_GRAFANA_URL.
+# GPUSTACK HAS BEEN REMOVED AND REPLACED WITH NVIDIA DYNAMO SO THIS FILE NEEDS TO BE CHANGED
+#
+# FILE: deploy/kubernetes/distributed-gpu/controller/gpustack-server.yaml
 # =============================================================================
 apiVersion: apps/v1
 kind: Deployment

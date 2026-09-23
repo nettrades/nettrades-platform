@@ -3,6 +3,8 @@
 # The LangGraph agent auto-detects the inference backend.  If GPUStack
 # or vLLM are available, they take priority.  Set LLM_BASE_URL to this
 # service only when no other backend is configured.
+#
+# FILE: deploy/kubernetes/apps/ai/llama-cpp.yaml
 # =============================================================================
 apiVersion: v1
 kind: PersistentVolumeClaim

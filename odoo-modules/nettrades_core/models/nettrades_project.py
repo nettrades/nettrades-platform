@@ -1,3 +1,4 @@
+# FILE: # FILE: odoo-modules/nettrades_core/models/nettrades_project.py
 from odoo import fields, models
 
 class NettradesProject(models.Model):

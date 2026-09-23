@@ -1,4 +1,5 @@
 /** @odoo-module **/
+/** FILE: odoo-modules/nettrades_gpu_admin/static/src/js/dashboard.js **/
 import { Component, useState, onWillStart } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";

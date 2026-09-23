@@ -1,3 +1,5 @@
+# FILE: deploy/docker/nettrades-ui/Dockerfile
+
 FROM python:3.12-slim
 
 WORKDIR /app

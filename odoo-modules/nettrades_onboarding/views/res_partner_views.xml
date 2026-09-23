@@ -1,4 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!-- Add onboarding fields to partner form -->
+<!--  FILE: odoo-modules/nettrades_onboarding/views/res_partner_views.xml -->
 <odoo>
     <record id="view_partner_form_inherit_onboarding" model="ir.ui.view">
         <field name="name">res.partner.form.inherit.onboarding</field>

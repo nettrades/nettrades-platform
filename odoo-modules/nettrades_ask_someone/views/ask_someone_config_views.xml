@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    ============================================================================
+    NETTRADES Ask Someone - View
+    ============================================================================
+    FILE: odoo-modules/nettrades_ask_someone/views/ask_someone_config_views.xml
+    ============================================================================
+-->
 <odoo>
     <record id="ask_someone_config_form" model="ir.ui.view">
         <field name="name">ask.someone.config.form</field>

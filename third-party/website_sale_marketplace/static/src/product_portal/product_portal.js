@@ -1,5 +1,5 @@
 /** @odoo-module **/
-
+/** FILE: third-party\website_sale_marketplace\static\src\product_portal\product_portal.js **/
 import { WebClient } from "@web/webclient/webclient";
 import { _t } from "@web/core/l10n/translation";
 import { whenReady } from "@odoo/owl";

@@ -2,6 +2,8 @@
 # Section: G – Example Terraform variables for the Talos/Proxmox module.
 # Copy this file to terraform.tfvars and replace the placeholder values.
 # NEVER commit the real terraform.tfvars to version control.
+#
+# FILE: deploy\kubernetes\talos\talos-proxmox\terraform.tfvars.example
 # =============================================================================
 proxmox_api_url          = "https://192.168.1.100:8006/api2/json"
 proxmox_api_token_id     = "your-token-id"

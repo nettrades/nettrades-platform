@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # NETTRADES AI GPU Agent – One-line installer for Linux and macOS
+# FILE: deploy/kubernetes/distributed-gpu/install-agent.sh
 # =============================================================================
 # Detects the operating system and installs WireGuard, gVisor (Linux only),
 # and all agent files.  Prompts for the Odoo API key and starts the agent

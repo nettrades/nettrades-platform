@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # NETTRADES Good Answer - User Field Reputation model
+# FILE: odoo-modules/nettrades_good_answer/models/user_field_reputation.py
 # =============================================================================
 # Tracks a user's reputation points for a single professional field.
 # Points are earned through "Good Answer" votes.  When a user's reputation

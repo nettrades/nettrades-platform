@@ -2,7 +2,7 @@
 # =============================================================================
 # [MODULE NAME] - Controllers Package
 # =============================================================================
-# FILE:    odoo-modules/[module]/controllers/__init__.py
+# FILE: odoo-modules/nettrades_ask_someone/controllers/__init__.py
 #
 # PURPOSE:
 #   This file imports all HTTP controllers for the module.

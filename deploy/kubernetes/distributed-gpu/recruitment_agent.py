@@ -1,5 +1,6 @@
 # =============================================================================
 # Recruitment Agent - matches candidates to job postings.
+# FILE: deploy/kubernetes/distributed-gpu/recruitment_agent.py
 # =============================================================================
 # This agent is a LangGraph sub-graph.  It receives a job ID, searches for
 # matching freelancers/job-seekers, calls the LLM for ranking, and creates

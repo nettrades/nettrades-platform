@@ -1,6 +1,8 @@
 # =============================================================================
 # NETTRADES.AI – Prometheus scrape configuration
 # =============================================================================
+# FILE: deploy/docker/prometheus.yml
+# =============================================================================
 # All endpoints are internal to the Docker Compose network or Kubernetes
 # cluster and require no authentication in production.
 #

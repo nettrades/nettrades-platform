@@ -1,5 +1,6 @@
 # =============================================================================
 # Section: G – Kustomize overlay for the private registry.
+# FILE: deploy/kubernetes/apps/registry/kustomization.yaml
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

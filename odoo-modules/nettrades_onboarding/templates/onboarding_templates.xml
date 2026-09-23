@@ -1,4 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!-- Section F.2 - Portal template for the onboarding flow -->
+<!--  FILE: odoo-modules/nettrades_onboarding/templates/onboarding_templates.xml -->
 <odoo>
     <template id="onboarding_page" name="Onboarding wizard">
         <t t-call="website.layout">

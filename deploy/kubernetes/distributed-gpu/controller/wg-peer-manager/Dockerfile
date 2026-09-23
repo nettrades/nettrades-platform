@@ -1,6 +1,8 @@
 # =============================================================================
-# Section: H – Container image for the WireGuard peer manager.
+# Section: H ï¿½ Container image for the WireGuard peer manager.
 # Build: docker build -t wg-peer-manager:latest .
+#
+# FILE: deploy/kubernetes/distributed-gpu/controller/wg-peer-manager/Dockerfile
 # =============================================================================
 FROM golang:1.21-alpine AS builder
 WORKDIR /src

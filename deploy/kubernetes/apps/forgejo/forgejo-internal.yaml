@@ -1,6 +1,7 @@
 # =============================================================================
 # Section: G – Forgejo internal instance (developer code repository).
 # Uses CNPG as the database backend.
+# FILE: deploy/kubernetes/apps/forgejo/forgejo-internal.yaml
 # =============================================================================
 apiVersion: apps/v1
 kind: Deployment

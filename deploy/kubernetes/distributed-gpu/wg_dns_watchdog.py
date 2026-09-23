@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # Section H - WireGuard DNS Re-Resolution Watchdog
+# FILE: deploy/kubernetes/distributed-gpu/wg_dns_watchdog.py
 # =============================================================================
 # WireGuard resolves the endpoint hostname to an IP address only once, at
 # startup.  If the peer's public IP changes (common for freelancers with

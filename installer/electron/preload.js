@@ -1,3 +1,4 @@
+// FILE: installer/electron/preload.js
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {

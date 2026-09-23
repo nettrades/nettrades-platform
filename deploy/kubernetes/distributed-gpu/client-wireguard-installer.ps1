@@ -1,5 +1,6 @@
 # =============================================================================
 # NETTRADES AI – Windows WireGuard & GPU Agent Installer
+# FILE: deploy/kubernetes/distributed-gpu/client-wireguard-installer.ps1
 # =============================================================================
 # Installs WireGuard, copies all agent Python modules, registers a scheduled
 # task for DNS re-resolution, and starts the agent as a Windows service.

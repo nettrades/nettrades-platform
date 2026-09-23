@@ -1,6 +1,7 @@
 # =============================================================================
 # Section: G – Daily CNPG backup (gap #23 fix).
 # Runs at 2 AM UTC, retains backups according to the cluster retention policy.
+# FILE: deploy/kubernetes/apps/backend/postgres-scheduled-backup.yaml
 # =============================================================================
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup

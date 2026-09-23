@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: src/core/routes/assistants.py
 """Assistants list endpoint for agent-chat-ui compatibility."""
 
 from fastapi import APIRouter

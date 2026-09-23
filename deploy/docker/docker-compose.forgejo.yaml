@@ -1,6 +1,8 @@
   # =========================================================================
   # 6. FORGEJO 15.0 LTS - Self-hosted Git Server (disabled by default)
   # =========================================================================
+  # FILE: deploy/docker/docker-compose.forgejo.yaml
+# =============================================================================
   forgejo:
     image: forgejo/forgejo:15.0
     ports:

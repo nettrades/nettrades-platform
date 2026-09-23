@@ -1,3 +1,4 @@
+# FILE: odoo-modules/nettrades_good_answer/controllers/main.py
 from odoo import http
 from odoo.http import request
 import logging

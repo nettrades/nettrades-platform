@@ -1,7 +1,9 @@
 # =============================================================================
-# Section: G – Traefik Ingress resources.
+# Section: G ï¿½ Traefik Ingress resources.
 # TLS certificates are automatically provisioned by cert-manager via Let's Encrypt.
 # Sticky sessions for Odoo ensure the same user reaches the same backend pod.
+#
+# FILE: deploy/kubernetes/ingress/ingress.yaml
 # =============================================================================
 apiVersion: networking.k8s.io/v1
 kind: Ingress

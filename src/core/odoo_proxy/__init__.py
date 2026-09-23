@@ -1,4 +1,4 @@
-# src/core/odoo_proxy/__init__.py
+# FILE: src/core/odoo_proxy/__init__.py
 """
 Odoo proxy service – exposes Odoo APIs via REST.
 """

@@ -1,4 +1,7 @@
 # Section F.2 - Extends res.partner with onboarding fields and a completeness score
+#
+# FILE: odoo-modules/nettrades_onboarding/models/res_partner.py
+#
 # Add-on 1: Smart Onboarding & Profile Enhancement
 # Purpose: Simplify registration; help users build complete profiles; allow import from LinkedIn/GitHub.
 # F2 Features

@@ -1,5 +1,6 @@
 #!/bin/bash
 # Quick health check
+# FILE: scripts/check-health.sh
 set -u
 echo "Containers:"
 docker compose -f deploy/docker/docker-compose.yaml ps --format "table {{.Name}}\t{{.Status}}"

@@ -1,5 +1,6 @@
 # =============================================================================
 # Section H - WireGuard interface management for the GPU agent.
+# FILE: deploy/kubernetes/distributed-gpu/wg_setup.py
 # 
 # =============================================================================
 import subprocess

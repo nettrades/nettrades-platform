@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # NETTRADES Good Answer - Dataset Contribution model
+# FILE: odoo-modules/nettrades_good_answer/models/ft_dataset_contribution.py
 # =============================================================================
 # Records which professionals contributed expert answers to a fine-tuning
 # dataset.  Used later to award indirect reputation points when an AI

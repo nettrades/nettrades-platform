@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# FILE: odoo-modules/nettrades_self_improving/__manifest__.py
 {
     'name': 'NETTRADES Self-Improving',
     'version': '1.0.0',

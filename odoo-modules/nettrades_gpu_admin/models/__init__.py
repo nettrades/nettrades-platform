@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
 # GPU Admin Models
+# FILE: odoo-modules/nettrades_gpu_admin/models/__init__.py
 # =============================================================================
 
 # Base model - MUST BE FIRST
