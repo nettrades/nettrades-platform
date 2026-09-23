@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+=============================================================================
+NETTRADES Bridge - Menu Definitions
+=============================================================================
+FILE: odoo-modules/nettrades_bridge/views/menu_views.xml
+
+PURPOSE:
+  Defines all menu items for the bridge module. This file is listed LAST in
+  the manifest's data list so that all actions referenced below have already
+  been registered in ir.model.data by the time these menuitems are parsed.
+
+  Do NOT move any <menuitem> back into the view files — Odoo resolves the
+  action reference immediately, and any menuitem that precedes its action
+  (in the same or an earlier-loaded file) will fail with
+  "External ID not found in the system".
+=============================================================================
+-->
+<odoo>
+    <!-- Root menu: no action, so safe to define anywhere -->
+    <menuitem id="menu_bridge_root"
+              name="Bridge"
+              parent="nettrades_core.menu_nettrades_root"
+              sequence="50"/>
+
+    <!-- Config: action_bridge_config defined in bridge_config_views.xml -->
+    <menuitem id="menu_bridge_config"
+              name="Global Configuration"
+              parent="menu_bridge_root"
+              action="action_bridge_config"
+              sequence="10"/>
+
+    <!-- Company config: action_bridge_company_config in bridge_company_config_views.xml -->
+    <menuitem id="menu_bridge_company_config"
+              name="Company Configuration"
+              parent="menu_bridge_root"
+              action="action_bridge_company_config"
+              sequence="20"/>
+
+    <!-- Routes: action_nettrades_bridge_route in bridge_route_views.xml -->
+    <menuitem id="menu_bridge_route"
+              name="Bridge Routes"
+              parent="menu_bridge_root"
+              action="action_nettrades_bridge_route"
+              sequence="30"/>
+
+    <!-- Usage: action_bridge_usage in bridge_usage_log_views.xml -->
+    <menuitem id="menu_bridge_usage"
+              name="Usage Logs"
+              parent="menu_bridge_root"
+              action="action_bridge_usage"
+              sequence="40"/>
+</odoo>

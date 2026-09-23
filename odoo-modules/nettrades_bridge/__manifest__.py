@@ -69,13 +69,16 @@
         # Security
         'security/bridge_security.xml',
         'security/ir.model.access.csv',
-
-        # Views
+    
+        # Views (actions first, then forms/lists)
         'views/bridge_config_views.xml',
         'views/bridge_company_config_views.xml',
         'views/bridge_route_views.xml',
         'views/bridge_usage_log_views.xml',
-
+    
+        # Menus (must load AFTER all actions)
+        'views/menu_views.xml',
+    
         # Data
         'data/bridge_cron_data.xml',
     ],

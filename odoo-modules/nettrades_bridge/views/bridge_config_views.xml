@@ -24,11 +24,6 @@ PURPOSE:
     <!-- =============================================================
     MENU
     ============================================================ -->
-    <menuitem id="menu_bridge_root" name="Bridge" parent="nettrades_core.menu_nettrades_root" sequence="50"/>
-
-    <menuitem id="menu_bridge_config" name="Global Configuration" parent="menu_bridge_root" action="action_bridge_config"/>
-    <menuitem id="menu_bridge_company_config" name="Company Configuration" parent="menu_bridge_root" action="action_bridge_company_config"/>
-    <menuitem id="menu_bridge_usage" name="Usage Logs" parent="menu_bridge_root" action="action_bridge_usage"/>
 
     <!-- ACTION -->
     <record id="action_bridge_config" model="ir.actions.act_window">
