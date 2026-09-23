@@ -1,7 +1,7 @@
 # =============================================================================
 # NETTRADES Universal Enterprise Connector Framework - Exceptions
 # =============================================================================
-# FILE: src/connectors/exceptions.py
+# FILE: src/core/odoo_proxy/connectors/exceptions.py
 # =============================================================================
 
 class ConnectorError(Exception):

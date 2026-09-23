@@ -1,7 +1,7 @@
 # =============================================================================
 # NETTRADES Universal Enterprise Connector Framework
 # =============================================================================
-# FILE: src/connectors/__init__.py
+# FILE: src/core/odoo_proxy/connectors/__init__.py
 # PURPOSE: Exports all connector framework components.
 # =============================================================================
 

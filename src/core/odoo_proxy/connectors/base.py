@@ -1,7 +1,7 @@
 # =============================================================================
 # NETTRADES Universal Enterprise Proxy Framework - Base Interface
 # =============================================================================
-# FILE: src/core/proxy_framework/base.py
+# FILE: src/core/odoo_proxy/connectors/base.py        
 # PURPOSE: Defines the abstract interface that all enterprise connectors must
 #          implement. This enables the platform to work with Odoo, Salesforce,
 #          SAP, Oracle, and any other enterprise system.

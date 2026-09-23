@@ -1,7 +1,7 @@
 # =============================================================================
 # NETTRADES Universal Enterprise Proxy Framework - SAP Connector (Stub)
 # =============================================================================
-# FILE: src/core/proxy_framework/connectors/sap.py
+# FILE: src/core/odoo_proxy/connectors/sap.py
 # PURPOSE: Implements the AbstractEnterpriseConnector interface for SAP.
 #          This is a stub that will be fully implemented when SAP integration
 #          is required.
