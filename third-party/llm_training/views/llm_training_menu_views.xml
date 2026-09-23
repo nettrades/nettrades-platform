@@ -1,5 +1,5 @@
-<!--  FILE: third-party\llm_training\views\llm_training_menu_views.xml -->
 <?xml version="1.0" encoding="utf-8" ?>
+<!--  FILE: third-party\llm_training\views\llm_training_menu_views.xml -->
 <odoo>
     <!-- Main Training Menu (under LLM root menu) -->
     <menuitem

@@ -1,5 +1,5 @@
-<!--  FILE: third-party\website_sale_marketplace\security\security.xml -->
 <?xml version="1.0" encoding="utf-8"?>
+<!--  FILE: third-party\website_sale_marketplace\security\security.xml -->
 <odoo>
     <data noupdate="1">
 

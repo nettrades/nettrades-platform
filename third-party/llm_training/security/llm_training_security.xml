@@ -1,6 +1,5 @@
-<!--  FILE: third-party\llm_training\security\llm_training_security.xml -->
-
 <?xml version="1.0" encoding="utf-8" ?>
+<!--  FILE: third-party\llm_training\security\llm_training_security.xml -->
 <odoo>
     <!-- Record Rules -->
     <record id="llm_training_dataset_rule_all" model="ir.rule">
