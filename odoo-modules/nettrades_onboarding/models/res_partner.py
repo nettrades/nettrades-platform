@@ -22,7 +22,12 @@ class ResPartner(models.Model):
         ('skills', 'Skills & Experience'),
         ('complete', 'Complete'),
     ], default='new', help="Tracks the user's progress through the onboarding wizard.")
-    profile_completeness = fields.Integer(compute='_compute_completeness', store=True, help="Percentage of profile fields that are filled (0-100).)
+
+    profile_completeness = fields.Integer(
+    compute='_compute_completeness',
+    store=True,
+    help="Percentage of profile fields that are filled (0-100)."
+    )
 
     @api.depends('name', 'email', 'phone', 'professional_summary',
                  'skill_ids', 'experience_ids', 'resume_pdf')

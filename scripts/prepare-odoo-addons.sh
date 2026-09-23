@@ -362,6 +362,17 @@ find odoo-modules third-party -name '*.py' -print0 | while IFS= read -r -d '' f;
 done
 
 # -----------------------------------------------------------------------------
+# Runs a compile check on the whole tree before a build - Shows any Python file that has a syntax error
+# -----------------------------------------------------------------------------
+find odoo-modules third-party -name '*.py' -not -path '*/node_modules/*' -print0 | \
+while IFS= read -r -d '' f; do
+    python3 -m py_compile "$f" 2>/dev/null || {
+        echo "SYNTAX ERROR: $f"
+        python3 -m py_compile "$f" 2>&1 | tail -3
+    }
+done
+
+# -----------------------------------------------------------------------------
 # Convert line endings to LF for all text files in Odoo modules
 # -----------------------------------------------------------------------------
 log_step "Converting line endings to LF in Odoo modules..."
