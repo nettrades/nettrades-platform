@@ -16,15 +16,11 @@ GROUPS:
 <odoo>
     <record id="group_bridge_admin" model="res.groups">
         <field name="name">Bridge Administrator</field>
-        <!-- Odoo 19: category_id was removed; privilege_id is the replacement.
-             If base.privilege_hidden does not exist, delete this line. -->
-        <field name="privilege_id" ref="base.privilege_hidden"/>
         <field name="implied_ids" eval="[(4, ref('base.group_system'))]"/>
     </record>
 
     <record id="group_bridge_user" model="res.groups">
         <field name="name">Bridge User</field>
-        <field name="privilege_id" ref="base.privilege_hidden"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
 </odoo>
