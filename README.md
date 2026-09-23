@@ -66,7 +66,7 @@ PURPOSE:
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
-**Organisations could decide to keep everything local or they could decides which types of requests are processed locally and which types of requests are routed to remote providers or to a GPU market place, at peak time, based on the administrative settings, set by the organisations administrator.**
+**Organisations could decide to keep everything local or they could decide which types of requests are processed locally and which types of requests are routed to remote providers or to a GPU market place, at peak time, based on the administrative settings, set by the organisations administrator.**
 
 **In the past, enterprises faced a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 
