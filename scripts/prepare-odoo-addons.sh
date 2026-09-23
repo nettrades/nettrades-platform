@@ -334,6 +334,34 @@ for module_dir in "$TARGET"/*/; do
 done
 
 # -----------------------------------------------------------------------------
+# Parsing all XML files to catch syntax errors before Docker build
+# -----------------------------------------------------------------------------
+
+log_step "Parsing all XML files to catch syntax errors before Docker build..."
+PARSE_ERRORS=0
+while IFS= read -r -d '' f; do
+    if ! python3 -c "import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])" "$f" 2>/dev/null; then
+        log_error "  ✗ Invalid XML: ${f#$TARGET/}"
+        PARSE_ERRORS=$((PARSE_ERRORS + 1))
+    fi
+done < <(find "$TARGET" -type f -name "*.xml" -print0)
+if [ "$PARSE_ERRORS" -gt 0 ]; then
+    log_error "$PARSE_ERRORS XML file(s) failed to parse. Aborting."
+    exit 1
+fi
+log_success "All XML files parse cleanly"
+
+# -----------------------------------------------------------------------------
+# Find unterminated strings
+# -----------------------------------------------------------------------------
+find odoo-modules third-party -name '*.py' -print0 | while IFS= read -r -d '' f; do
+    if ! python3 -m py_compile "$f" 2>/dev/null; then
+        echo "SYNTAX ERROR: $f"
+        python3 -m py_compile "$f" 2>&1 | tail -3
+    fi
+done
+
+# -----------------------------------------------------------------------------
 # Convert line endings to LF for all text files in Odoo modules
 # -----------------------------------------------------------------------------
 log_step "Converting line endings to LF in Odoo modules..."
