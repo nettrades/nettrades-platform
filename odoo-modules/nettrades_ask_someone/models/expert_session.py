@@ -41,6 +41,12 @@ class ExpertSession(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'create_date DESC'
 
+    reviewed_at = fields.Datetime(string='Reviewed At')
+    is_approved = fields.Boolean(string='Approved')
+    review_notes = fields.Text(string='Review Notes')
+    rating = fields.Integer(string='User Rating')
+    feedback = fields.Text(string='User Feedback')
+
     # =========================================================================
     # 1. BASIC IDENTIFICATION
     # =========================================================================
