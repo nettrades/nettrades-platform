@@ -1,5 +1,5 @@
-<!--  FILE: third-party\website_sale_marketplace\static\src\marketplace_product_management\marketplace_webclient.xml -->
 <?xml version="1.0" encoding="UTF-8"?>
+<!--  FILE: third-party\website_sale_marketplace\static\src\marketplace_product_management\marketplace_webclient.xml -->
 <templates xml:space="preserve">
     <t t-name="website_sale_marketplace.MarketplaceWebClient">
         <div class="o_web_client h-100">
