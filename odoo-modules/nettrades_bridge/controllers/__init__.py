@@ -10,3 +10,5 @@
 # =============================================================================
 
 from . import bridge_controller
+from . import discovery
+from . import route_controller
