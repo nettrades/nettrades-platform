@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!--
 =============================================================================
 NETTRADES Bridge - Bridge Route Views
@@ -5,7 +6,6 @@ NETTRADES Bridge - Bridge Route Views
 FILE: odoo-modules/nettrades_bridge/views/bridge_route_views.xml
 =============================================================================
 -->
-<?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
 

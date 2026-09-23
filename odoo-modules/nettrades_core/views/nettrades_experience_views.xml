@@ -1,5 +1,5 @@
-<!--  FILE: odoo-modules/nettrades_core/views/nettrades_experience_views.xml -->
 <?xml version="1.0" encoding="utf-8"?>
+<!--  FILE: odoo-modules/nettrades_core/views/nettrades_experience_views.xml -->
 <odoo>
     <record id="view_nettrades_experience_tree" model="ir.ui.view">
         <field name="name">nettrades.experience.tree</field>

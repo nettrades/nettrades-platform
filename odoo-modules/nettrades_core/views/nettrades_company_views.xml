@@ -1,5 +1,5 @@
-<!--  FILE: odoo-modules/nettrades_core/views/nettrades_company_views.xml -->
 <?xml version="1.0" encoding="utf-8"?>
+<!--  FILE: odoo-modules/nettrades_core/views/nettrades_company_views.xml -->
 <odoo>
     <!-- List View for Companies -->
     <record id="view_nettrades_company_list" model="ir.ui.view">
