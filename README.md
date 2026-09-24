@@ -70,11 +70,11 @@ PURPOSE:
 
 **In the past, enterprises faced a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 
-**Now they just install Ubuntu Linux on a computer and run the commands below and deploy the entire NETTRADES Sovereign AI Infrastructure in a few minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
+**Now they just install Ubuntu Linux on a computer and run the commands below and deploy the entire NETTRADES Sovereign AI Infrastructure in minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
 The Nettrades Platform builds the Sovereign AI Infrastructure for the Autonomous Enterprises of the future. 
 
-**Where they use their spare GPU capacity to talk to their organisations data.** 
+**They could then use their spare GPU capacity to talk to their organisations data.** 
 
 
 
@@ -1816,31 +1816,6 @@ graph TB
 | Availability | 99.0% | 99.5% | 99.9% | 99.95% | 99.99% |
 
 
-### Routing Logic
-
-The routing logic is based on the configuration set for the company or the organisation on the administration screens. 
-
-```mermaid
-
-flowchart TD
-    A[Incoming Request] --> B{Intent?}
-    B -->|Recruitment| C{Local Talent Available?}
-    C -->|Yes| D[Process Locally]
-    C -->|No| E[Route to Hub]
-    B -->|GPU| F{Local GPU < Threshold?}
-    F -->|Yes| G[Process Locally]
-    F -->|No| H[Route to Hub for Overflow]
-    B -->|Vision / Action| I{Feature Flag?}
-    I -->|Local| J[Process Locally]
-    I -->|Remote| K[Route to Hub]
-    D --> L[Return Response]
-    E --> L
-    G --> L
-    H --> L
-    J --> L
-    K --> L
-
-```
 
 ### Self-Improving AI Loop
 
@@ -1945,81 +1920,9 @@ flowchart LR
 ## User Workflow: NETTRADES Platform
 
 
-### 1. Complete End-to-End Workflow
 
-```mermaid
-graph TD
-    START([User Logs In]) --> A{User Type?}
 
-    A -->|Company / Employer| B[Post Job / Project]
-    A -->|Freelancer| C[Search Jobs / Projects]
-    A -->|Expert| D[Offer Expert Services]
-    A -->|Admin| F[Manage System Configuration]
-
-    B --> G[LangGraph Recruitment Agent]
-    C --> H[LangGraph Freelance Agent]
-    D --> I[Ask Someone Module]
-    F --> K[Administration UI]
-
-    G --> L[Search Candidates]
-    H --> M[Match with Projects]
-    I --> N[Expert Consultation Flow]
-
-    L --> O[Local Talent Available?]
-    M --> O
-    N --> P[Expert Available?]
-
-    O -->|Yes| Q[Process Locally]
-    O -->|No| R[Route to Hub nettrades_bridge]
-
-    P -->|Yes| S[Connect with Expert]
-    P -->|No| T[Search Global Experts]
-
-    S --> U[Escrow Payment]
-    U --> V[Consultation Session]
-    V --> W[Session Complete]
-
-    Q --> X[Return Results]
-    R --> Y[Global Talent Pool]
-    Y --> X
-
-    W --> Z[Good Answer Vote?]
-    X --> Z
-    Z -->|Yes| AA[Vote Recorded]
-    Z -->|No| AB[Session Ends]
-
-    AA --> AC[nettrades_good_answer]
-    AC --> AD[Reputation Updated]
-    AD --> AE[Karma Threshold Met?]
-    AE -->|Yes| AF[User Qualified]
-    AE -->|No| AG[Continue]
-
-    AF --> AH[Autonomous Administration]
-    AH --> AI[GPU Health Watchdog]
-    AH --> AJ[Utilisation Alerts]
-    AH --> AK[Auto Qualification]
-
-    AI --> AL[GPU Cluster Management]
-    AL --> AM[Share GPU Resources]
-    AM --> AN[Earn Tokens]
-
-    AN --> AO[Spend Tokens on Inference]
-    AO --> AP[NVIDIA Dynamo Inference]
-    AP --> AQ[Return Results]
-
-    AF --> AR[Fine-Tuning Pipeline]
-    AR --> AS[Unsloth/Axolotl Training]
-    AS --> AT[Model Improved]
-    AT --> AU[Deploy to LangGraph Agents]
-
-    AU --> AV[Self-Improving Loop]
-    AV --> AW[Monitor Performance]
-    AW --> AX[Trigger Detection]
-    AX --> AY[New Cycle]
-    AY --> AR
-```
-
-### 2. Detailed Ask Someone Workflow
+### 1. Detailed Ask Someone Workflow
 
 ```mermaid
 graph TD
@@ -2073,7 +1976,7 @@ graph TD
 
 ```
 
-### 3. Good Answer Voting Workflow
+### 2. Good Answer Voting Workflow
 
 ```mermaid
 graph TD
@@ -2117,7 +2020,7 @@ graph TD
     AB --> AC[New Cycle]
 ```
 
-### 4. Distributed GPU Functionality Workflow
+### 3. Distributed GPU Functionality Workflow
 
 ```mermaid
 graph TD
@@ -2161,7 +2064,7 @@ graph TD
     AA --> AB[Cluster Scaled]
 ```
 
-### 5. Self-Improving Loop with GPU Integration
+### 4. Self-Improving Loop with GPU Integration
 
 ```mermaid
 graph TD
@@ -2211,31 +2114,26 @@ graph TD
     Execute -->|"Feedback Loop"| Monitor
 ```
 
-### 6. Complete System Workflow with All Components
+### 5. Complete System Workflow with All Components
 
 ```mermaid
 graph TB
     subgraph UserLayer["User Layer"]
         U1["Company / Employer"]
-        U2["Freelancer / Job Seeker"]
         U3["Expert / Professional"]
-        U4["Researcher"]
         U5["System Administrator"]
     end
 
     subgraph FrontendLayer["Frontend Layer"]
-        F1["Odoo Website / Portal"]
-        F2["Mobile PWA"]
-        F3["AI Chatbot Widget"]
+        F1["Odoo CE Admin / Portal"]
+        F2["NETTRADES Launcher"]
+        F3["AI Chatbot UI"]
         F4["VS Code Extension"]
         F5["REST API / GraphQL"]
     end
 
     subgraph OrchestrationLayer["Orchestration Layer (LangGraph)"]
         O1["Supervisor Agent"]
-        O2["Recruitment Agent"]
-        O3["Freelance Agent"]
-        O4["Lead Gen Agent"]
         O5["GPU Management Agent"]
         O6["Vision Agent"]
         O7["Action Agent"]
@@ -2257,8 +2155,6 @@ graph TB
         C5["nettrades_NVIDIA Dynamo_adapter"]
         C6["nettrades_queue"]
         C7["nettrades_notifications"]
-        C8["nettrades_job_matching"]
-        C9["nettrades_lead_scoring"]
         C10["nettrades_chatbot"]
     end
 
@@ -2320,8 +2216,8 @@ graph TB
     MonitoringLayer --> TrainingLayer
 ```
 
-### 7. Key Workflow Sequences
-#### 7.1 Ask Someone Flow
+### 6. Key Workflow Sequences
+#### 6.1 Ask Someone Flow
 
 ```mermaid
 sequenceDiagram
@@ -2357,7 +2253,7 @@ sequenceDiagram
 ```
 
 
-#### 7.2 GPU Sharing & Inference Flow
+#### 6.2 GPU Sharing & Inference Flow
 
 ```mermaid
 sequenceDiagram
@@ -2392,7 +2288,7 @@ sequenceDiagram
     Bridge-->>User: Return result
 ```
 
-#### 7.3 Good Answer Flow
+#### 6.3 Good Answer Flow
 
 ```mermaid
 sequenceDiagram
@@ -2473,7 +2369,7 @@ graph TB
 
 ```
 
-## 8. File Locations Summary
+## 7. File Locations Summary
 
 | Component | File Path |
 |---------|-------------|
@@ -2496,7 +2392,7 @@ graph TB
 | Self-Improving Config | odoo-modules/nettrades_self_improving_config/models/ |
 | Bridge | odoo-modules/nettrades_bridge/models/ |
 
-## 9. Summary of Workflows
+## 8. Summary of Workflows
 
 | Workflow | Key Modules  | Key Features |
 |---------|----------|-------------|
