@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # =============================================================================
-# LLM Knowledge – Models
+# LLM Knowledge - Models
 # =============================================================================
 # FILE: third-party/odoo_llm/llm_knowledge/models/__init__.py
 #
@@ -12,6 +12,11 @@
 #   Do NOT include the .py extension when importing Python modules.
 #   The correct syntax is: from . import filename (without .py)
 #
+# NOTE:
+#   This file must contain only ASCII characters. An earlier version
+#   contained a Windows-1252 en-dash byte (0x96) in the header comment,
+#   which caused scripts/prepare-odoo-addons.sh to abort at the UTF-8
+#   verification step. Keep the comments plain ASCII.
 # =============================================================================
 
 from . import ir_attachment
