@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_res_partner_user,res.partner.user,model_res_partner,base.group_user,1,1,1,1
+access_res_partner_skill_user,res.partner.skill.user,model_res_partner_skill,base.group_user,1,1,1,1
+access_res_partner_experience_user,res.partner.experience.user,model_res_partner_experience,base.group_user,1,1,1,1
+access_res_partner_admin,res.partner.admin,model_res_partner,base.group_system,1,1,1,1
+access_res_partner_skill_admin,res.partner.skill.admin,model_res_partner_skill,base.group_system,1,1,1,1
+access_res_partner_experience_admin,res.partner.experience.admin,model_res_partner_experience,base.group_system,1,1,1,1
