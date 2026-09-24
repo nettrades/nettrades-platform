@@ -5,6 +5,7 @@
 {
     'name': 'Marketplace',
     'version': '19.0.0.0.2',
+    "author": "ERPGAP/PROMPTEQUATION LDA",
     'category': 'Sales',
     'license': 'AGPL-3',
     'summary': 'Post, Sell, its your marketplace',
