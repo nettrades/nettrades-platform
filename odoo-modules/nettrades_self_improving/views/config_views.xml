@@ -4,63 +4,33 @@
 =============================================================================
 NETTRADES Self-Improving Configuration - Admin Views
 =============================================================================
-FILE: odoo-modules/nettrades_self_improving_config/views/config_views.xml
+FILE: odoo-modules/nettrades_self_improving/views/config_views.xml
 
 PURPOSE:
-  This file defines the administration views for the self-improving system.
-
-  The views provide:
-    - A configuration form for loop settings
-    - A dashboard for monitoring cycles
+  Administration views for the self-improving system:
+    - Configuration form for loop settings
+    - Dashboard (kanban) for monitoring cycles
     - Trigger management
     - Manual cycle triggering
 
-  All settings are configurable via the Odoo admin interface.
+UPDATES (2026-09-24):
+  - Migrated all attrs="{'invisible': [('X', '=', False)]}" expressions to
+    the Odoo 17+ inline syntax: invisible="not X".
+  - Moved all <menuitem> elements to the END of the file, after the
+    <record> elements that define the actions they reference. Odoo resolves
+    action references immediately when parsing a <menuitem>, so a menu that
+    precedes its action in the same file raises:
+        External ID not found in the system: <module>.<action>
+    The previous layout had menus first and worked only because the module
+    was never fully reinstalled after this ordering was introduced.
 =============================================================================
 -->
 <odoo>
 
     <!-- ==========================================================
-    MENU
+    ACTIONS (must be defined BEFORE the menus that reference them)
     ========================================================== -->
-    <menuitem id="menu_self_improving_root"
-              name="Self-Improving AI"
-              parent="nettrades_core.menu_nettrades_root"
-              sequence="60"/>
 
-    <menuitem id="menu_self_improving_config"
-              name="Configuration"
-              parent="menu_self_improving_root"
-              action="action_self_improving_config"
-              sequence="10"/>
-
-    <menuitem id="menu_self_improving_dashboard"
-              name="Dashboard"
-              parent="menu_self_improving_root"
-              action="action_self_improving_dashboard"
-              sequence="20"/>
-
-    <menuitem id="menu_self_improving_triggers"
-              name="Triggers"
-              parent="menu_self_improving_root"
-              action="action_trigger_config"
-              sequence="30"/>
-
-    <menuitem id="menu_self_improving_cycles"
-              name="Cycles"
-              parent="menu_self_improving_root"
-              action="action_loop_cycle"
-              sequence="40"/>
-
-    <menuitem id="menu_self_improving_episodes"
-              name="Episodes"
-              parent="menu_self_improving_root"
-              action="action_data_episode"
-              sequence="50"/>
-
-    <!-- ==========================================================
-    ACTION: Configuration
-    ========================================================== -->
     <record id="action_self_improving_config" model="ir.actions.act_window">
         <field name="name">Self-Improving Configuration</field>
         <field name="res_model">self.improving.config</field>
@@ -149,9 +119,9 @@ PURPOSE:
                     <!-- Loop Control -->
                     <group string="Loop Control">
                         <field name="loop_enabled"/>
-                        <field name="loop_interval" attrs="{'invisible': [('loop_enabled', '=', False)]}"/>
-                        <field name="auto_deploy" attrs="{'invisible': [('loop_enabled', '=', False)]}"/>
-                        <field name="auto_rollback" attrs="{'invisible': [('loop_enabled', '=', False)]}"/>
+                        <field name="loop_interval" invisible="not loop_enabled"/>
+                        <field name="auto_deploy" invisible="not loop_enabled"/>
+                        <field name="auto_rollback" invisible="not loop_enabled"/>
                     </group>
 
                     <!-- Data Quality -->
@@ -165,14 +135,14 @@ PURPOSE:
                     <!-- A/B Testing -->
                     <group string="A/B Testing">
                         <field name="ab_testing_enabled"/>
-                        <field name="ab_traffic_split" attrs="{'invisible': [('ab_testing_enabled', '=', False)]}"/>
-                        <field name="promotion_threshold" attrs="{'invisible': [('ab_testing_enabled', '=', False)]}"/>
-                        <field name="evaluation_window_days" attrs="{'invisible': [('ab_testing_enabled', '=', False)]}"/>
+                        <field name="ab_traffic_split" invisible="not ab_testing_enabled"/>
+                        <field name="promotion_threshold" invisible="not ab_testing_enabled"/>
+                        <field name="evaluation_window_days" invisible="not ab_testing_enabled"/>
                     </group>
 
                     <!-- Triggers -->
                     <group string="Active Triggers">
-                        <field name="trigger_ids" attrs="{'invisible': [('loop_enabled', '=', False)]}"/>
+                        <field name="trigger_ids" invisible="not loop_enabled"/>
                     </group>
 
                     <!-- Status -->
@@ -238,5 +208,43 @@ PURPOSE:
             </kanban>
         </field>
     </record>
+
+    <!-- ==========================================================
+    MENUS (must come AFTER the actions they reference)
+    ========================================================== -->
+    <menuitem id="menu_self_improving_root"
+              name="Self-Improving AI"
+              parent="nettrades_core.menu_nettrades_root"
+              sequence="60"/>
+
+    <menuitem id="menu_self_improving_config"
+              name="Configuration"
+              parent="menu_self_improving_root"
+              action="action_self_improving_config"
+              sequence="10"/>
+
+    <menuitem id="menu_self_improving_dashboard"
+              name="Dashboard"
+              parent="menu_self_improving_root"
+              action="action_self_improving_dashboard"
+              sequence="20"/>
+
+    <menuitem id="menu_self_improving_triggers"
+              name="Triggers"
+              parent="menu_self_improving_root"
+              action="action_trigger_config"
+              sequence="30"/>
+
+    <menuitem id="menu_self_improving_cycles"
+              name="Cycles"
+              parent="menu_self_improving_root"
+              action="action_loop_cycle"
+              sequence="40"/>
+
+    <menuitem id="menu_self_improving_episodes"
+              name="Episodes"
+              parent="menu_self_improving_root"
+              action="action_data_episode"
+              sequence="50"/>
 
 </odoo>
