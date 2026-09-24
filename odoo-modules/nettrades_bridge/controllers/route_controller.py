@@ -6,7 +6,7 @@ from odoo.http import request
 
 class RouteController(http.Controller):
 
-    @http.route('/api/bridge/route/decide', type='json', auth='user', methods=['POST'])
+    @http.route('/api/bridge/route/decide', type='jsonrpc', auth='user', methods=['POST'])
     def decide_route(self, **kwargs):
         """
         API endpoint for LangGraph agents to get a route decision.
