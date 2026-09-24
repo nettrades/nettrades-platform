@@ -6,8 +6,20 @@ NETTRADES Bridge - Cron Jobs
 FILE: odoo-modules/nettrades_bridge/data/bridge_cron_data.xml
 
 PURPOSE:
-  This file defines the cron jobs for the bridge module.
-  Currently used for health check monitoring.
+  Defines scheduled jobs for the bridge module. Currently one health
+  check job that runs every 5 minutes.
+
+UPDATES (2026-09):
+  - Removed `doall` and `numbercall`. Both fields were removed from
+    ir.cron in Odoo 17. Their presence causes:
+        ValueError: Invalid field 'doall' in 'ir.cron'
+    at module load time.
+
+  - The `code` field still calls `model._cron_health_check()`. That
+    method does not currently exist on `nettrades.bridge.config`, so
+    the cron will fail silently when it fires. Either implement the
+    method on the model, or disable the cron (active=False) until the
+    health-check logic is written.
 =============================================================================
 -->
 <odoo>
@@ -18,8 +30,6 @@ PURPOSE:
         <field name="code">model._cron_health_check()</field>
         <field name="interval_number">5</field>
         <field name="interval_type">minutes</field>
-        <field name="doall" eval="False"/>
-        <field name="numbercall">-1</field>
         <field name="priority">10</field>
         <field name="user_id" ref="base.user_root"/>
         <field name="active" eval="True"/>
