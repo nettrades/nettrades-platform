@@ -4,6 +4,17 @@
 NETTRADES Bridge - Bridge Route Views
 =============================================================================
 FILE: odoo-modules/nettrades_bridge/views/bridge_route_views.xml
+
+UPDATES (2026-09):
+  - Migrated all deprecated dictionary-form conditional visibility
+    expressions (the ones that paired a separate attribute name with a
+    dictionary of conditions) to the inline form supported by Odoo 17+.
+    Examples of the current style:
+        invisible="not use_gpu_marketplace"
+        invisible="external_provider != 'custom'"
+  - Search view: replaced the <group expand="0" string="Group By"> wrapper
+    with top-level <filter> elements. The expand attribute is rejected by
+    Odoo 19's RELAXNG schema.
 =============================================================================
 -->
 <odoo>
@@ -73,7 +84,7 @@ FILE: odoo-modules/nettrades_bridge/views/bridge_route_views.xml
                         <notebook>
 
                             <!-- ==============================================
-                            PAGE 1: ROUTING RULES (OLD LOGIC - Admin Config)
+                            PAGE 1: ROUTING RULES
                             ============================================== -->
                             <page string="Routing Rules">
                                 <group string="Local Infrastructure">
@@ -91,7 +102,7 @@ FILE: odoo-modules/nettrades_bridge/views/bridge_route_views.xml
                                 </group>
 
                                 <group string="GPU Marketplace Settings"
-                                       attrs="{'invisible': [('use_gpu_marketplace', '=', False)]}">
+                                       invisible="not use_gpu_marketplace">
                                     <group>
                                         <field name="marketplace_min_rating"/>
                                         <field name="marketplace_max_price"/>
@@ -102,14 +113,14 @@ FILE: odoo-modules/nettrades_bridge/views/bridge_route_views.xml
                                 </group>
 
                                 <group string="External API Settings"
-                                       attrs="{'invisible': [('use_external_api', '=', False)]}">
+                                       invisible="not use_external_api">
                                     <group>
                                         <field name="external_provider"/>
                                         <field name="external_model"/>
                                     </group>
                                     <group>
                                         <field name="external_api_url"
-                                               attrs="{'invisible': [('external_provider', '!=', 'custom')]}"/>
+                                               invisible="external_provider != 'custom'"/>
                                         <field name="external_api_key" password="True"/>
                                     </group>
                                 </group>
@@ -136,7 +147,7 @@ FILE: odoo-modules/nettrades_bridge/views/bridge_route_views.xml
                                 </group>
 
                                 <group string="Cost Settings"
-                                       attrs="{'invisible': [('route_by_cost', '=', False)]}">
+                                       invisible="not route_by_cost">
                                     <group>
                                         <field name="local_cost_per_token"/>
                                         <field name="remote_cost_per_token"/>
@@ -155,18 +166,18 @@ FILE: odoo-modules/nettrades_bridge/views/bridge_route_views.xml
                             </page>
 
                             <!-- ==============================================
-                            PAGE 2: LOAD BALANCING (NEW LOGIC - Dynamo)
+                            PAGE 2: LOAD BALANCING (NEW LOGIC - NVIDIA Dynamo)
                             ============================================== -->
                             <page string="Load Balancing">
                                 <group>
                                     <group>
                                         <field name="load_balancing_enabled"/>
                                         <field name="load_balancing_strategy"
-                                               attrs="{'invisible': [('load_balancing_enabled', '=', False)]}"/>
+                                               invisible="not load_balancing_enabled"/>
                                     </group>
                                     <group>
                                         <field name="weight"
-                                               attrs="{'invisible': [('load_balancing_strategy', '!=', 'weighted')]}"/>
+                                               invisible="load_balancing_strategy != 'weighted'"/>
                                     </group>
                                 </group>
                                 <group string="GPU Requirements">
@@ -245,12 +256,17 @@ FILE: odoo-modules/nettrades_bridge/views/bridge_route_views.xml
                     <separator/>
                     <filter name="marketplace" string="GPU Marketplace" domain="[('use_gpu_marketplace','=',True)]"/>
                     <filter name="external_api" string="External API" domain="[('use_external_api','=',True)]"/>
-                    <group expand="0" string="Group By">
-                        <filter name="group_by_type" string="Type" context="{'group_by':'route_type'}"/>
-                        <filter name="group_by_status" string="Health" context="{'group_by':'health_status'}"/>
-                        <filter name="group_by_target" string="Target" context="{'group_by':'target_type'}"/>
-                        <filter name="group_by_routing" string="Routing Mode" context="{'group_by':'routing_mode'}"/>
-                    </group>
+                    <!--
+                        Group-by filters are declared as top-level <filter>
+                        elements. In Odoo 17+ they are grouped automatically
+                        under a "Group By" menu; no wrapper element is needed.
+                        The older <group expand="0" string="Group By"> wrapper
+                        is rejected by Odoo 19's RELAXNG validation.
+                    -->
+                    <filter name="group_by_type" string="Type" context="{'group_by':'route_type'}"/>
+                    <filter name="group_by_status" string="Health" context="{'group_by':'health_status'}"/>
+                    <filter name="group_by_target" string="Target" context="{'group_by':'target_type'}"/>
+                    <filter name="group_by_routing" string="Routing Mode" context="{'group_by':'routing_mode'}"/>
                 </search>
             </field>
         </record>
