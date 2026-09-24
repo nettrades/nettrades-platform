@@ -3,10 +3,23 @@
 # =============================================================================
 # PURPOSE:
 #   mDNS/Avahi discovery controller for automatic node discovery.
-#   Uses python-avahi to broadcast and discover NETTRADES nodes on the local network.
+#   Uses python-avahi to broadcast and discover NETTRADES nodes on the local
+#   network.
 #
 #   This complements the existing WireGuard bridge by providing automatic
 #   peer discovery without manual configuration.
+#
+# UPDATES (2026-09):
+#   - Odoo 19 forbids storing arbitrary attributes on model instances at
+#     construction time (the ORM instantiates recordsets itself and calls
+#     __init__ with no arguments on a fresh empty recordset). The
+#     DiscoveryService model therefore no longer overrides __init__; its
+#     runtime state (thread handle, running flag, peer cache) lives in a
+#     module-level dict keyed by database name, so that a single Odoo
+#     process serving multiple databases does not share state between them.
+#   - @route(type='json') is deprecated in Odoo 19. Replaced with
+#     @route(type='jsonrpc').
+#   - Removed the unused 'Response' import.
 # =============================================================================
 
 import json
@@ -15,8 +28,8 @@ import threading
 import time
 from datetime import datetime, timedelta
 
-from odoo import http, models, fields, _
-from odoo.http import request, Response
+from odoo import http, models, fields
+from odoo.http import request
 
 try:
     import avahi
@@ -30,13 +43,41 @@ except ImportError:
     _logger.warning('python-avahi or dbus not available. mDNS discovery disabled.')
 
 
+# =============================================================================
+# Module-level runtime state
+# =============================================================================
+# The discovery service is a process-level singleton. Odoo 19 will not let
+# us hold state on the model instance (see header comment), so we keep it
+# here, keyed by database name. The Odoo process is loaded once, but a
+# single process may serve more than one database; keying by dbname avoids
+# cross-database bleed.
+# =============================================================================
+
+_DISCOVERY_STATE = {}
+
+
+def _get_runtime(env):
+    """Return the mutable runtime state dict for this database."""
+    dbname = env.cr.dbname
+    state = _DISCOVERY_STATE.get(dbname)
+    if state is None:
+        state = {
+            'thread': None,
+            'running': False,
+            'peers': {},
+            'advertised_capabilities': {},
+        }
+        _DISCOVERY_STATE[dbname] = state
+    return state
+
+
 class DiscoveryController(http.Controller):
 
     # =========================================================================
     # REST API Endpoints
     # =========================================================================
 
-    @http.route('/api/bridge/discovery/peers', type='json', auth='user', methods=['GET'])
+    @http.route('/api/bridge/discovery/peers', type='jsonrpc', auth='user', methods=['GET'])
     def get_discovered_peers(self):
         """
         Get all discovered peers from the cache.
@@ -58,7 +99,7 @@ class DiscoveryController(http.Controller):
             } for p in peers]
         }
 
-    @http.route('/api/bridge/discovery/advertise', type='json', auth='user', methods=['POST'])
+    @http.route('/api/bridge/discovery/advertise', type='jsonrpc', auth='user', methods=['POST'])
     def advertise_node(self, **kwargs):
         """
         Advertise this node's capabilities to the network.
@@ -73,7 +114,7 @@ class DiscoveryController(http.Controller):
         discovery_service.update_advertisement(capabilities)
         return {'success': True, 'message': 'Advertisement updated'}
 
-    @http.route('/api/bridge/discovery/status', type='json', auth='user', methods=['GET'])
+    @http.route('/api/bridge/discovery/status', type='jsonrpc', auth='user', methods=['GET'])
     def discovery_status(self):
         """
         Get the status of the discovery service.
@@ -106,12 +147,9 @@ class DiscoveryService(models.Model):
         ('unique_peer', 'unique(peer_id)', 'Peer ID must be unique'),
     ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._discovery_thread = None
-        self._running = False
-        self._peers = {}
-        self._advertised_capabilities = {}
+    # NOTE: Do NOT add a custom __init__ here. Odoo 19 instantiates model
+    # recordsets itself, and any instance state must live elsewhere (see
+    # _DISCOVERY_STATE and _get_runtime above).
 
     # =========================================================================
     # mDNS Service Methods
@@ -123,25 +161,29 @@ class DiscoveryService(models.Model):
             _logger.warning('Cannot start discovery: avahi not available')
             return False
 
-        if self._running:
+        state = _get_runtime(self.env)
+        if state['running']:
             return True
 
-        self._running = True
-        self._discovery_thread = threading.Thread(target=self._discovery_loop, daemon=True)
-        self._discovery_thread.start()
+        state['running'] = True
+        state['thread'] = threading.Thread(target=self._discovery_loop, daemon=True)
+        state['thread'].start()
         _logger.info('mDNS discovery service started')
         return True
 
     def stop_discovery(self):
         """Stop the mDNS discovery service"""
-        self._running = False
-        if self._discovery_thread:
-            self._discovery_thread.join(timeout=5)
+        state = _get_runtime(self.env)
+        state['running'] = False
+        thread = state['thread']
+        if thread is not None:
+            thread.join(timeout=5)
         _logger.info('mDNS discovery service stopped')
         return True
 
     def _discovery_loop(self):
         """Main discovery loop - runs in background thread"""
+        state = _get_runtime(self.env)
         # Get DBus connection
         try:
             bus = dbus.SystemBus()
@@ -171,12 +213,12 @@ class DiscoveryService(models.Model):
             self._advertise_service(bus, server)
 
             # Keep the thread alive
-            while self._running:
+            while state['running']:
                 time.sleep(1)
 
         except DBusException as e:
             _logger.error(f'mDNS discovery error: {e}')
-            self._running = False
+            state['running'] = False
 
     def _advertise_service(self, bus, server):
         """Advertise this node's NETTRADES service via mDNS"""
@@ -187,17 +229,18 @@ class DiscoveryService(models.Model):
 
             # Create the service entry
             group = dbus.Interface(
-                bus.get_object(avahi.DBUS_NAME,
-                               server.EntryGroupNew()),
+                bus.get_object(avahi.DBUS_NAME, server.EntryGroupNew()),
                 avahi.DBUS_INTERFACE_ENTRY_GROUP
             )
+
+            state = _get_runtime(self.env)
 
             # Build TXT record with capabilities
             txt_data = [
                 f'version={self._get_version()}',
                 f'gpus={self._get_gpu_count()}',
                 f'models={self._get_model_count()}',
-                f'capabilities={json.dumps(self._advertised_capabilities)}',
+                f'capabilities={json.dumps(state["advertised_capabilities"])}',
             ]
 
             group.AddService(
@@ -243,18 +286,21 @@ class DiscoveryService(models.Model):
 
     def update_advertisement(self, capabilities):
         """Update the advertised capabilities"""
-        self._advertised_capabilities.update(capabilities)
+        state = _get_runtime(self.env)
+        state['advertised_capabilities'].update(capabilities)
         # Re-advertise with updated capabilities
         self.stop_discovery()
         self.start_discovery()
 
     def get_advertised_capabilities(self):
         """Get the currently advertised capabilities"""
-        return self._advertised_capabilities
+        state = _get_runtime(self.env)
+        return state['advertised_capabilities']
 
     def is_running(self):
         """Check if the discovery service is running"""
-        return self._running
+        state = _get_runtime(self.env)
+        return state['running']
 
     # =========================================================================
     # Helper Methods
@@ -262,12 +308,12 @@ class DiscoveryService(models.Model):
 
     def _get_version(self):
         """Get the platform version"""
-        return request.env['ir.config_parameter'].sudo().get_param('nettrades.version', '1.0.0')
+        return self.env['ir.config_parameter'].sudo().get_param('nettrades.version', '1.0.0')
 
     def _get_gpu_count(self):
         """Get the number of available GPUs"""
-        return request.env['nettrades.gpu.node'].sudo().search_count([('status', '=', 'available')])
+        return self.env['nettrades.gpu.node'].sudo().search_count([('status', '=', 'available')])
 
     def _get_model_count(self):
         """Get the number of available models"""
-        return request.env['nettrades.llm.model'].sudo().search_count([])
+        return self.env['nettrades.llm.model'].sudo().search_count([])
