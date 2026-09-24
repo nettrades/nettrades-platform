@@ -13,7 +13,10 @@
     'data': [
         'security/ir.model.access.csv',
         'views/onboarding_wizard.xml',
-        'views/res_partner_views.xml',
+        # 'views/res_partner_views.xml',   # Removed — was inheriting a
+        #                                     non-existent view in
+        #                                     nettrades_core. The wizard
+        #                                     handles profile completion.
         'templates/onboarding_templates.xml',
     ],
     'controllers': ['controllers/onboarding.py'],
