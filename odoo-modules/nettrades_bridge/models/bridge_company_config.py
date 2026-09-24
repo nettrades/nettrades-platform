@@ -41,6 +41,14 @@ class NettradesBridgeCompanyConfig(models.Model):
         help="The company this configuration applies to."
     )
 
+    # Archived companies' configs are hidden from the default view but kept
+    # in the database so audit history is preserved. Set by the standard
+    # archive/unarchive actions in the Odoo UI.
+    active = fields.Boolean(
+        string='Active',
+        default=True,
+    )
+
     # -------------------------------------------------------------------------
     # 2. Override Settings (copied from global config)
     # -------------------------------------------------------------------------
