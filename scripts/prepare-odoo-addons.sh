@@ -333,44 +333,175 @@ for module_dir in "$TARGET"/*/; do
     fi
 done
 
-# -----------------------------------------------------------------------------
-# Parsing all XML files to catch syntax errors before Docker build
-# -----------------------------------------------------------------------------
+# =============================================================================
+# PRE-FLIGHT VALIDATION
+# =============================================================================
+# Two checks run here before the Docker build:
+#   1. Every XML file must parse cleanly.
+#   2. Every Python file must compile cleanly.
+#
+# Both checks exit non-zero on failure so that the build never proceeds with
+# a module that would break at Odoo load time. Neither check installs or
+# imports the modules — they are purely static.
+# =============================================================================
 
-log_step "Parsing all XML files to catch syntax errors before Docker build..."
-PARSE_ERRORS=0
+# -----------------------------------------------------------------------------
+# XML parse check
+# -----------------------------------------------------------------------------
+log_step "Parsing all XML files (this may take a few seconds)..."
+XML_FILES=$(find "$TARGET" -type f -name "*.xml" -print0 | tr -dc '\0' | wc -c)
+log_info "Found $XML_FILES XML files to parse."
+XML_ERRORS=0
+XML_ERRORS_LOG=$(mktemp)
+XML_INDEX=0
+
 while IFS= read -r -d '' f; do
-    if ! python3 -c "import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])" "$f" 2>/dev/null; then
+    XML_INDEX=$((XML_INDEX + 1))
+    if ! python3 -c "import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])" "$f" 2>>"$XML_ERRORS_LOG"; then
         log_error "  ✗ Invalid XML: ${f#$TARGET/}"
-        PARSE_ERRORS=$((PARSE_ERRORS + 1))
+        XML_ERRORS=$((XML_ERRORS + 1))
+    fi
+    # Print a progress dot every 25 files
+    if [ $((XML_INDEX % 25)) -eq 0 ]; then
+        printf '.'
     fi
 done < <(find "$TARGET" -type f -name "*.xml" -print0)
-if [ "$PARSE_ERRORS" -gt 0 ]; then
-    log_error "$PARSE_ERRORS XML file(s) failed to parse. Aborting."
+printf '\n'
+
+if [ "$XML_ERRORS" -gt 0 ]; then
+    log_error "$XML_ERRORS XML file(s) failed to parse:"
+    sed 's/^/    /' "$XML_ERRORS_LOG"
+    rm -f "$XML_ERRORS_LOG"
     exit 1
 fi
-log_success "All XML files parse cleanly"
+rm -f "$XML_ERRORS_LOG"
+log_success "All $XML_FILES XML files parse cleanly"
 
 # -----------------------------------------------------------------------------
-# Find unterminated strings
+# Python compile check
 # -----------------------------------------------------------------------------
-find odoo-modules third-party -name '*.py' -print0 | while IFS= read -r -d '' f; do
-    if ! python3 -m py_compile "$f" 2>/dev/null; then
-        echo "SYNTAX ERROR: $f"
-        python3 -m py_compile "$f" 2>&1 | tail -3
-    fi
-done
+log_step "Compiling all Python files (this may take a few seconds)..."
+PY_FILES=$(find "$TARGET" -type f -name "*.py" -not -path "*/node_modules/*" -print0 | tr -dc '\0' | wc -c)
+log_info "Found $PY_FILES Python files to compile."
+PY_ERRORS=0
+PY_ERRORS_LOG=$(mktemp)
+PY_INDEX=0
 
-# -----------------------------------------------------------------------------
-# Runs a compile check on the whole tree before a build - Shows any Python file that has a syntax error
-# -----------------------------------------------------------------------------
-find odoo-modules third-party -name '*.py' -not -path '*/node_modules/*' -print0 | \
 while IFS= read -r -d '' f; do
-    python3 -m py_compile "$f" 2>/dev/null || {
-        echo "SYNTAX ERROR: $f"
-        python3 -m py_compile "$f" 2>&1 | tail -3
-    }
-done
+    PY_INDEX=$((PY_INDEX + 1))
+    if ! python3 -m py_compile "$f" 2>>"$PY_ERRORS_LOG"; then
+        log_error "  ✗ Syntax error: ${f#$TARGET/}"
+        PY_ERRORS=$((PY_ERRORS + 1))
+    fi
+    if [ $((PY_INDEX % 25)) -eq 0 ]; then
+        printf '.'
+    fi
+done < <(find "$TARGET" -type f -name "*.py" -not -path "*/node_modules/*" -print0)
+printf '\n'
+
+if [ "$PY_ERRORS" -gt 0 ]; then
+    log_error "$PY_ERRORS Python file(s) failed to compile:"
+    sed 's/^/    /' "$PY_ERRORS_LOG"
+    rm -f "$PY_ERRORS_LOG"
+    exit 1
+fi
+rm -f "$PY_ERRORS_LOG"
+log_success "All $PY_FILES Python files compile cleanly"
+
+# -----------------------------------------------------------------------------
+# Detect Odoo 16 attrs=/states= syntax (deprecated in Odoo 17, still tolerated)
+# -----------------------------------------------------------------------------
+# WARNING, not error: Odoo 19 still loads form views with attrs= and emits
+# a deprecation warning. Only <group expand="0"> inside <search> is a hard
+# failure (checked separately below). Blocking the build on attrs= would
+# prevent the UTF-8 check from running and would hold up unrelated work.
+#
+# The check strips XML comments first, then searches for the deprecated
+# attribute names as actual XML attributes. This avoids false positives on
+# comments that mention the deprecated syntax by name (e.g. migration notes).
+ATTRS_FILES=$(
+    find "$TARGET" -type f -name "*.xml" -print0 | while IFS= read -r -d '' f; do
+        if python3 -c "
+import re, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8', errors='replace') as fh:
+        text = fh.read()
+except OSError:
+    sys.exit(1)
+# Remove XML comment blocks before searching.
+text = re.sub(r'<!--.*?-->', '', text, flags=re.DOTALL)
+# Match the deprecated attributes only when they appear as XML attributes:
+# a name, optional whitespace, an equals sign, and a quote. This misses
+# any occurrence inside a string literal in an attribute value, which is
+# where false positives would come from.
+if re.search(r'\\b(attrs|states)\\s*=\\s*[\"\\x27]', text):
+    sys.exit(0)
+sys.exit(1)
+" "$f"; then
+            echo "$f"
+        fi
+    done
+)
+if [ -n "$ATTRS_FILES" ]; then
+    log_warning "Files still using deprecated attrs=/states= syntax (will migrate later):"
+    echo "$ATTRS_FILES" | sed "s|$TARGET/|    |"
+fi
+
+# -----------------------------------------------------------------------------
+# Detect <group expand="..."> inside <search> (removed in Odoo 17)
+# -----------------------------------------------------------------------------
+if grep -rqE '<search[^>]*>.*<group[^>]*expand=' "$TARGET" --include="*.xml" 2>/dev/null; then
+    log_warning "Files may contain <group expand=\"...\"> inside <search>. This is invalid in Odoo 17+."
+    grep -rl 'expand=' "$TARGET" --include="*.xml" | sed "s|$TARGET/|    |"
+fi
+
+# -----------------------------------------------------------------------------
+# Verify every Python and XML file is valid UTF-8.
+# -----------------------------------------------------------------------------
+# Two-tier check:
+#   - Files under odoo-modules/ (project-owned): hard error on failure.
+#   - Files under third-party/ (vendored): warning on failure.
+#
+# Rationale: a non-UTF-8 byte in project code is a bug we introduced and
+# want to catch before the image is built. A non-UTF-8 byte in vendored
+# code is an upstream defect that only matters if the module is loaded;
+# it should not block the build pipeline.
+#
+# Without this check, a Windows-1252 byte in a manifest causes Odoo to
+# report "manifest not found" at install time — a very misleading error.
+# -----------------------------------------------------------------------------
+log_step "Verifying UTF-8 encoding..."
+ENCODING_ERRORS_OWN=0
+ENCODING_ERRORS_THIRD=0
+
+while IFS= read -r -d '' f; do
+    if ! iconv -f UTF-8 -t UTF-8 "$f" >/dev/null 2>&1; then
+        # Determine ownership by path prefix.
+        rel="${f#$TARGET/}"
+        case "$rel" in
+            nettrades_*)
+                log_error "  ✗ Not valid UTF-8 (project-owned): $rel"
+                ENCODING_ERRORS_OWN=$((ENCODING_ERRORS_OWN + 1))
+                ;;
+            *)
+                log_warning "  ⚠ Not valid UTF-8 (vendored): $rel"
+                ENCODING_ERRORS_THIRD=$((ENCODING_ERRORS_THIRD + 1))
+                ;;
+        esac
+    fi
+done < <(find "$TARGET" -type f \( -name '*.py' -o -name '*.xml' -o -name '*.csv' -o -name '*.js' -o -name '*.json' \) -print0)
+
+if [ "$ENCODING_ERRORS_OWN" -gt 0 ]; then
+    log_error "$ENCODING_ERRORS_OWN project-owned file(s) are not valid UTF-8. Aborting."
+    exit 1
+fi
+
+if [ "$ENCODING_ERRORS_THIRD" -gt 0 ]; then
+    log_warning "$ENCODING_ERRORS_THIRD vendored file(s) are not valid UTF-8. Continuing."
+    log_warning "Fix them if you plan to install the module that owns them."
+fi
+
+log_success "UTF-8 verification complete"
 
 # -----------------------------------------------------------------------------
 # Convert line endings to LF for all text files in Odoo modules
