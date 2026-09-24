@@ -274,3 +274,97 @@ class NettradesBridgeConfig(models.Model):
                     'sticky': False,
                 }
             }
+
+    # -------------------------------------------------------------------------
+    # 11. Scheduled Health Check
+    # -------------------------------------------------------------------------
+    def _cron_health_check(self):
+        """
+        Scheduled health check for the remote brain.
+
+        Called every 5 minutes by the ir.cron record defined in
+        `data/bridge_cron_data.xml`. Since the bridge config is a
+        singleton, the loop below iterates over exactly one record.
+
+        Behaviour:
+          - If `bridge_mode` is `local`, returns immediately. There is
+            nothing remote to check, and this is the default state, so
+            the common case is a fast no-op.
+          - If `health_check_enabled` is False, returns immediately.
+          - If `remote_brain_url` is empty, logs a warning once and
+            returns.
+          - Otherwise, sends a GET request to
+            `<remote_brain_url>/health` with a short timeout and logs
+            the result at INFO (healthy) or WARNING (unhealthy,
+            timeout, connection error).
+
+        Failure handling:
+          Every network exception is caught and logged. The cron will
+          never raise. This is deliberate: a transient network outage
+          should not abort the cron job or spam the Odoo error log.
+
+        Future work:
+          When you have a notification channel (email, internal
+          notification, or an on-screen status indicator), this method
+          should also record the outcome on the config record so the
+          UI can display "last checked: <time>, status: healthy/error".
+          That requires a couple of new fields on the model
+          (`last_health_check`, `last_health_status`). Not added yet.
+        """
+        # Imported lazily so that a missing `requests` package does not
+        # break module loading on install.
+        import requests
+
+        for config in self:
+            # Fast path: local mode never talks to a remote brain.
+            if config.bridge_mode == 'local':
+                _logger.debug(
+                    "Bridge health check: skipped (bridge_mode is 'local')"
+                )
+                continue
+
+            # Operator has explicitly disabled health checking.
+            if not config.health_check_enabled:
+                _logger.debug(
+                    "Bridge health check: skipped (health_check_enabled=False)"
+                )
+                continue
+
+            # Nothing to probe without a URL.
+            if not config.remote_brain_url:
+                _logger.warning(
+                    "Bridge health check: skipped (no remote_brain_url set)"
+                )
+                continue
+
+            url = f"{config.remote_brain_url.rstrip('/')}/health"
+            headers = {}
+            if config.remote_brain_api_key:
+                headers['X-API-Key'] = config.remote_brain_api_key
+
+            try:
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    _logger.info(
+                        "Bridge health check: remote brain at %s is healthy",
+                        config.remote_brain_url,
+                    )
+                else:
+                    _logger.warning(
+                        "Bridge health check: remote brain at %s returned %s",
+                        config.remote_brain_url,
+                        response.status_code,
+                    )
+            except requests.exceptions.Timeout:
+                _logger.warning(
+                    "Bridge health check: remote brain at %s timed out",
+                    config.remote_brain_url,
+                )
+            except requests.exceptions.RequestException as e:
+                _logger.warning(
+                    "Bridge health check: remote brain at %s unreachable: %s",
+                    config.remote_brain_url,
+                    e,
+                )
+
+        return True
