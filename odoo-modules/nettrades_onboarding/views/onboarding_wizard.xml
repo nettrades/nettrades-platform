@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Section F.2 - Onboarding wizard with progress indicator -->
-<!--  FILE: odoo-modules/nettrades_onboarding/views/onboarding_wizard.xml -->
+<!--
+=============================================================================
+NETTRADES Onboarding - Profile Completion Wizard
+=============================================================================
+FILE: odoo-modules/nettrades_onboarding/views/onboarding_wizard.xml
+
+PURPOSE:
+  A single-screen form that lets a partner complete their profile.
+  Displays a progress bar based on profile_completeness and offers
+  a "Extract from CV" button that calls the parse_cv controller.
+=============================================================================
+-->
 <odoo>
     <record id="view_onboarding_wizard" model="ir.ui.view">
         <field name="name">onboarding.wizard.form</field>
@@ -9,14 +19,24 @@
             <form string="Complete Your Profile">
                 <sheet>
                     <div class="text-center mb16">
-                        <h3>Profile Completeness: <field name="profile_completeness" widget="progressbar"/></h3>
+                        <h3>
+                            Profile Completeness:
+                            <field name="profile_completeness" widget="progressbar"/>
+                        </h3>
                     </div>
                     <group>
-                        <field name="user_type" invisible="1"/>
-                        <field name="professional_summary" placeholder="A short summary of your experience"/>
-                        <field name="skill_ids" widget="many2many_tags" placeholder="Add skills"/>
-                        <field name="resume_pdf" widget="binary" string="Upload CV (PDF)"/>
-                        <button name="parse_cv" type="object" string="Extract from CV" class="btn-secondary"/>
+                        <field name="professional_summary"
+                               placeholder="A short summary of your experience"/>
+                        <field name="skill_ids"
+                               widget="many2many_tags"
+                               placeholder="Add skills"/>
+                        <field name="resume_pdf"
+                               widget="binary"
+                               string="Upload CV (PDF)"/>
+                        <button name="action_parse_cv"
+                                type="object"
+                                string="Extract from CV"
+                                class="btn-secondary"/>
                     </group>
                 </sheet>
             </form>
