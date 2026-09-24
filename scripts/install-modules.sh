@@ -429,6 +429,14 @@ install_module() {
     cd "$PROJECT_ROOT/deploy/docker" || return 1
 
     # 120-second hard timeout. < /dev/null prevents hangs on stdin.
+    # Capture output to a temp file so we can inspect it for silent
+    # failures. Odoo returns exit code 0 when a module is skipped due to
+    # a bad manifest — "not installable, skipped" is a WARNING, not a
+    # hard error. Without this check, the script reports success when the
+    # module was never installed.
+    local out_file
+    out_file=$(mktemp)
+
     if stdbuf -oL -eL timeout 120s docker compose exec -T \
         -e PGPASSWORD="$POSTGRES_PASSWORD" \
         odoo odoo \
@@ -438,10 +446,24 @@ install_module() {
         --db_user=odoo \
         --db_password="$POSTGRES_PASSWORD" \
         "$flag" "$module" \
-        --stop-after-init </dev/null; then
+        --stop-after-init </dev/null 2>&1 | tee "$out_file"; then
+
+        # Even on exit code 0, check for signals that mean the module was
+        # not actually installed.
+        if grep -qE 'manifest not found|not installable, skipped|inconsistent states|Failed to load registry|ParseError|CRITICAL' "$out_file"; then
+            log_error "└─ ✗ ${module} was skipped or failed silently (exit code was 0)"
+            log_info "│  Matching lines:"
+            grep -E 'manifest not found|not installable, skipped|inconsistent states|Failed to load registry|ParseError|CRITICAL' "$out_file" \
+                | sed 's/^/│    /' || true
+            rm -f "$out_file"
+            cd "$PROJECT_ROOT"
+            return 1
+        fi
+
         local elapsed
         elapsed=$(elapsed_since "$start_ts")
         log_success "└─ ✓ ${module} ${action}ed successfully (${elapsed}s)"
+        rm -f "$out_file"
         cd "$PROJECT_ROOT"
         return 0
     else
