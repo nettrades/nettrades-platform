@@ -6,24 +6,24 @@ NETTRADES LLM Configuration - Company Configuration Views
 FILE: odoo-modules/nettrades_llm_config/views/llm_company_config_views.xml
 
 PURPOSE:
-  This file defines the Odoo admin interface for company-specific LLM
-  configuration. It provides a user-friendly way for administrators to
-  configure which LLM provider each company should use.
+  Odoo admin interface for company-specific LLM configuration. Lets an
+  administrator choose which LLM provider each company uses.
 
 LOAD ORDER (fixed 2026-09-17):
-  Actions must be defined BEFORE any <menuitem> that references them,
-  because Odoo processes XML top-to-bottom. The previous order put the
-  menuitems first, which raised an External ID error.
+  Actions are defined BEFORE the <menuitem> that references them, because
+  Odoo processes XML top-to-bottom and resolves action references immediately.
+  The previous layout put the menus first, which raised an External ID error.
 
   Order in this file:
     1. Action (defines action_llm_company_config)
     2. Views (define the view IDs)
     3. Menus (reference action_llm_company_config and each other)
 
-ATTRS MIGRATION (2026-09-17):
-  Replaced all attrs="{'invisible': [...]}" and attrs="{'required': [...]}"
-  with the Odoo 17+ inline syntax (invisible="...", required="..."), which
-  is cleaner and is the recommended form going forward.
+CONDITIONAL VISIBILITY (2026-09-17, 2026-09-24):
+  All conditional visibility uses Odoo 17+ inline expressions
+  (invisible="not x", required="x") rather than the deprecated dictionary
+  form. This is the recommended syntax and is enforced by the pre-flight
+  validation in scripts/prepare-odoo-addons.sh.
 =============================================================================
 -->
 <odoo>

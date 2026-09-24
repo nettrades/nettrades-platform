@@ -115,19 +115,18 @@
               nolabel="1"
             />
                     </group>
-<!--                    &lt;!&ndash; Show embeddings through the one2many relationship &ndash;&gt;-->
-<!--                    <group string="Embeddings" attrs="{'invisible': [('embedding_ids', '=', [])]}">-->
-<!--                        <field name="embedding_ids" readonly="1" nolabel="1">-->
-<!--                            <list>-->
-<!--                                <field name="embedding_model_id"/>-->
-<!--                            </list>-->
-<!--                        </field>-->
-<!--                    </group>-->
+                    <!--
+                        The "Embeddings" section is intentionally omitted.
+                        It previously listed embedding_ids through a
+                        one2many relationship, but that field was removed
+                        from llm.knowledge.chunk. If it is re-added later,
+                        use the inline visibility syntax, e.g.
+                            <group string="Embeddings" invisible="not embedding_ids">
+                    -->
                 </sheet>
             </form>
         </field>
     </record>
-
 
     <!-- Action -->
     <record id="action_llm_knowledge_chunk" model="ir.actions.act_window">
