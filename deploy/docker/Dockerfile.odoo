@@ -3,13 +3,24 @@
 # =============================================================================
 # FILE: deploy/docker/Dockerfile.odoo
 #
-# PURPOSE:
-#   This Dockerfile builds the Odoo 19 CE image with all NETTRADES custom
-#   modules included. It includes bridge, fairness, and self-improving modules.
+# UPDATES (2026-09):
+#   - Split pip installation into two stages. The first stage pre-installs
+#     pure-Python packages that Debian ships without RECORD files
+#     (typing-extensions, idna, charset-normalizer) using --ignore-installed
+#     so they land in /usr/local/lib/python3.12/dist-packages and shadow
+#     the Debian copies. Without this, pip tries to uninstall the Debian
+#     copies during stage 2 and aborts with "RECORD file not found".
 #
-# USAGE:
-#   docker build -f deploy/docker/Dockerfile.odoo -t nettrades/odoo:19.0 .
+#   - Stage 2 does NOT use --ignore-installed. This is critical: using it
+#     there causes pip to upgrade cryptography to 50.x, which is
+#     incompatible with the Debian-provided pyOpenSSL 23.2.0 that ships
+#     inside odoo:19.0. The symptom is
+#         AttributeError: module 'lib' has no attribute 'GEN_EMAIL'
+#     every time Odoo imports its mail server module.
 #
+#   - cryptography, pyOpenSSL, and cffi are deliberately NOT listed in
+#     either stage. pdfminer.six requires cryptography>=36 and Debian's
+#     41.0.7 satisfies that, so pip leaves the Debian stack alone.
 # =============================================================================
 
 FROM odoo:19.0
@@ -17,9 +28,7 @@ FROM odoo:19.0
 # Switch to root to install additional packages
 USER root
 
-# Install additional packages needed for fairness and data processing
-# Install WireGuard (wg) in the Odoo Container
-# The Odoo container needs the wg binary to satisfy the external dependency. 
+# Install system packages needed by the container
 RUN apt-get update && apt-get install -y \
     curl \
     git \
@@ -29,18 +38,47 @@ RUN apt-get update && apt-get install -y \
     iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages for fairness evaluation
-RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir \
+# -----------------------------------------------------------------------------
+# Stage 1: shadow Debian-provided pure-Python packages
+# -----------------------------------------------------------------------------
+# The odoo:19.0 base image installs several Python packages via apt. Those
+# packages have no RECORD file, so pip cannot uninstall them. Whenever a
+# transitive dependency in stage 2 needs a newer version of one of these,
+# pip tries to uninstall and fails.
+#
+# We fix this by installing our own newer copies into /usr/local/lib with
+# --ignore-installed. That path precedes /usr/lib/python3/dist-packages in
+# sys.path, so the newer copies shadow the Debian ones and pip is satisfied
+# without ever touching the Debian packages.
+#
+# Package list rationale:
+#   - typing-extensions  : required by openai, pydantic, anyio (>=4.14)
+#   - idna               : required by anyio, httpx2
+#   - charset-normalizer : required by pdfminer.six
+# -----------------------------------------------------------------------------
+RUN pip3 install --break-system-packages --no-cache-dir --ignore-installed \
+    'typing-extensions>=4.14' \
+    'idna>=3.7' \
+    'charset-normalizer>=3'
+
+# -----------------------------------------------------------------------------
+# Stage 2: install the remaining Python extras
+# -----------------------------------------------------------------------------
+# Deliberately WITHOUT --ignore-installed. Everything pip needs from Debian
+# is either already satisfied (cryptography 41.0.7, pyOpenSSL 23.2.0, cffi)
+# or has been pre-shadowed by stage 1.
+# -----------------------------------------------------------------------------
+RUN pip3 install --break-system-packages --no-cache-dir \
     pandas \
     numpy \
     scikit-learn \
     requests \
     openai \
-    anthropic
+    anthropic \
+    pdfplumber
 
 # Copy custom NETTRADES modules
 COPY odoo-modules/ /mnt/extra-addons/
 
 # Set the correct ownership
 USER odoo
-
