@@ -741,10 +741,6 @@ When starting a new DeepSeek context, open with:
 > 1. `https://raw.githubusercontent.com/nettrades/nettrades-platform/dev-deployment1/HANDOFF.md` — current install state, error classes, daily workflow
 > 2. `https://raw.githubusercontent.com/nettrades/nettrades-platform/dev-deployment1/ARCHITECTURE-AND-PLAN.md` — Mermaid architecture diagrams, distributed inference instructions, build plan
 >
-> Read both. Then read `https://raw.githubusercontent.com/nettrades/nettrades-platform/dev-deployment1/scripts/install-modules.sh` for the current install order and `https://raw.githubusercontent.com/nettrades/nettrades-platform/dev-deployment1/odoo-modules/nettrades_gpu_admin/controllers/main.py` for the last blocker.
->
-> The immediate goal is to install `nettrades_gpu_admin` and its dependent `nettrades_bridge`. The `AssertionError: is_model_definition(model_def)` fires during model registration, somewhere in `nettrades_gpu_admin/models/`. Use the diagnostic flow in HANDOFF.md section 3.
->
 > Work in small steps. After each change, run `./scripts/prepare-odoo-addons.sh --force`, restart Odoo with `docker compose stop/rm/up` (not `restart`), then install a single module. Paste both the command output and the log tail when reporting.
 
 ---

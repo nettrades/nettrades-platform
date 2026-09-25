@@ -1,49 +1,182 @@
-# NETTRADES Platform — Handoff to Next Context Window
+# NETTRADES Platform — Handoff
 
-**Created:** 2026-09-18
-**Branch:** `dev-deployment1`
-**Repository:** https://github.com/nettrades/nettrades-platform
-**Current state:** 10 of 12 Odoo modules install. 2 remaining failures diagnosed.
-
----
-
-## 1. Current Deployment State
-
-### Installed and Working
-
-| # | Module | Notes |
-|---|---|---|
-| 1 | `nettrades_core` | Core tables, users, companies, fields, reviews |
-| 2 | `nettrades_queue` | Job queue adapter |
-| 3 | `nettrades_notifications` | User notifications |
-| 4 | `nettrades_llm_config` | Provider configuration (`nettrades.llm.company.config`) |
-| 5 | `nettrades_ask_someone` | Expert sessions, qualified professionals |
-| 6 | `nettrades_good_answer` | Voting, feedback, fine-tuning pipeline |
-| 7 | `nettrades_fairness` | Rationality/bias scoring (syntax fixed) |
-| 8 | `nettrades_data_collection` | Episodes, annotations, metrics |
-| 9 | `nettrades_loop` | Self-improving cycle orchestration |
-| 10 | `nettrades_self_improving_config` | Config UI |
-
-### Still Failing
-
-| Module | Blocker | Where to Look |
-|---|---|---|
-| `nettrades_gpu_admin` | `AssertionError: is_model_definition(model_def)` during model load | `models/*.py` — probably a class with conflicting `_name`/`_inherit` |
-| `nettrades_bridge` | Cascades from `nettrades_gpu_admin` (it's a dependency) | Fix gpu_admin first |
-
-### Not Yet Attempted
-
-- `nettrades_onboarding`
-- `nettrades_trigger` (partially there — this context didn't finish diagnosing)
-- `nettrades_wireguard`
-- `nettrades_recruitment` (planned)
-- `nettrades_project` (planned)
-- `nettrades_crm` (planned)
-- `nettrades_marketplace` (planned)
+**Last updated:** 2026-09-24
+**Last verified state:** 13/13 Odoo modules install cleanly
+**Verified by:** `install-modules.sh --force --auto` at 2026-09-24 02:57 UTC
 
 ---
 
-## 2. Proposed Architecture
+## 1. What Works Right Now
+
+The following was confirmed by a clean run on 2026-09-24:
+
+- **`scripts/prepare-odoo-addons.sh --force`** runs to completion. Every
+  pre-flight check passes:
+  - Manifest validation: 57 modules, all references resolve.
+  - XML parse: 197 files, all parse cleanly.
+  - Python compile: 526 files, all compile cleanly.
+  - UTF-8 verification: all files valid, two-tier (see §4).
+  - Line-ending conversion: all files LF.
+  - Final line: `57 modules prepared`.
+- **`scripts/install-modules.sh --force --auto`** installs all 13 NETTRADES
+  modules without warnings about skips. Final line:
+  `ALL MODULES INSTALLED SUCCESSFULLY`.
+- **Docker stack**: 24/24 containers up, healthy. Traefik routes to LangGraph,
+  Odoo, odoo-proxy. PostgreSQL + pgvector healthy.
+- **Dockerfile.odoo**: two-stage pip install, correct cryptography/pyOpenSSL
+  versions (41.0.7 / 23.2.0). Verified with `from OpenSSL import crypto`.
+
+### The 13 installed modules
+
+```text
+
+nettrades_core
+
+nettrades_queue
+
+nettrades_notifications
+
+nettrades_llm_config
+
+nettrades_bridge
+
+nettrades_gpu_admin
+
+nettrades_ask_someone
+
+nettrades_good_answer
+
+nettrades_fairness
+
+nettrades_data_collection
+
+nettrades_self_improving
+
+nettrades_wireguard
+
+nettrades_onboarding
+```
+---
+
+
+## 2. What Changed
+
+### Fixes applied
+
+| Component | Fix |
+|---|---|
+| `Dockerfile.odoo` | Two-stage pip; `pdfplumber` added; no global `--ignore-installed` |
+| `scripts/prepare-odoo-addons.sh` | Added XML parse check, Python compile check, UTF-8 check, attrs= check, `<group expand>` check |
+| `scripts/install-modules.sh` | Added grep for silent skips (`not installable, skipped`, `manifest not found`, etc.) |
+| `nettrades_core/views/nettrades_user_views.xml` | Stripped BOM |
+| `nettrades_bridge/__manifest__.py` | Added `views/menu_views.xml` after all view files |
+| `nettrades_bridge/views/menu_views.xml` | Created — consolidated menuitems, loaded last |
+| `nettrades_bridge/views/bridge_config_views.xml` | Removed menuitems; migrated `invisible=` |
+| `nettrades_bridge/views/bridge_company_config_views.xml` | Migrated `invisible=`; added `active` field |
+| `nettrades_bridge/views/bridge_route_views.xml` | Migrated `invisible=`; removed `<group expand>`; search view rewritten |
+| `nettrades_bridge/models/bridge_company_config.py` | Added `active` field |
+| `nettrades_bridge/models/bridge_config.py` | Added `_cron_health_check()` stub |
+| `nettrades_bridge/data/bridge_cron_data.xml` | Removed `doall`, `numbercall` (removed in Odoo 17) |
+| `nettrades_bridge/controllers/discovery.py` | Removed `__init__` (forbidden by Odoo 19 ORM); moved state to module-level dict |
+| `nettrades_bridge/controllers/bridge_controller.py` | `type='json'` → `type='jsonrpc'` |
+| `nettrades_bridge/controllers/route_controller.py` | Same |
+| `nettrades_onboarding/__manifest__.py` | Fixed Windows-1252 em-dash in comment; removed dead `res_partner_views.xml` ref; removed non-standard `controllers` key |
+| `nettrades_onboarding/models/res_partner.py` | Added four missing fields (`professional_summary`, `skill_ids`, `experience_ids`, `resume_pdf`); added `action_parse_cv` method |
+| `nettrades_onboarding/models/res_partner_skill.py` | Created |
+| `nettrades_onboarding/models/res_partner_experience.py` | Created |
+| `nettrades_onboarding/security/ir.model.access.csv` | Added header row (was missing) |
+| `nettrades_onboarding/views/onboarding_wizard.xml` | Removed `user_type` (belongs to res.users); renamed button to `action_parse_cv` |
+| `nettrades_gpu_admin/views/multimodal_config_views.xml` | Migrated `invisible=`; removed `name` field (not on model) |
+| `nettrades_llm_config/views/llm_company_config_views.xml` | Reworded comment to avoid false-positive grep |
+| `nettrades_self_improving/views/config_views.xml` | Migrated `invisible=`; moved menuitems after actions (dead file, see §5) |
+| `third-party/llm_knowledge/models/__init__.py` | Fixed Windows-1252 en-dash |
+| `third-party/llm_knowledge/views/llm_knowledge_chunk_views.xml` | Reworded comment to avoid false-positive grep |
+
+### Bugs found and closed
+
+See `BUG-CATALOG.md` for the complete list with root causes. Summary:
+
+- Six instances of Windows-1252 bytes in files Odoo reads as UTF-8.
+- Five instances of `attrs=` / `states=` (Odoo 16 syntax).
+- One instance of `<group expand="0">` inside `<search>` (Odoo 16 syntax).
+- One instance of `<menuitem>` before its `<action>` in the same file.
+- One instance of a model `__init__` override (forbidden by Odoo 19).
+- One instance of a button calling a controller method instead of a model method.
+- One instance of `doall` / `numbercall` on `ir.cron` (removed in Odoo 17).
+- One instance of a missing `ir.model.access.csv` header row.
+- One instance of a Python syntax error (unterminated string).
+- One instance of a manifest parse failure (`manifest not found`).
+
+---
+
+
+
+## 3. Known Dead Code / Latent Problems
+
+These do not block the current build but are real.
+
+### nettrades_self_improving/views/config_views.xml is dead
+
+This file exists on disk but is not in the manifest. It declares the same XML IDs as `self_improving_config_views.xml`:
+
+```text
+
+view_self_improving_config_form
+action_self_improving_config
+```
+
+If you ever add it to the manifest, the module will fail with a duplicate ID error.
+
+**Recommended action:**  delete the file. It duplicates what's already in self_improving_config_views.xml and menu_views.xml (verify the latter before deleting). Nothing of value is lost.
+
+
+### Thread-safety issue in `discovery.py`
+
+`_get_version`, `_get_gpu_count`, `_get_model_count` are called from inside
+a background thread started by `start_discovery()`. They call `self.env[...]`,
+and Odoo cursors are not thread-safe.
+
+This does not fire today because `python-avahi` is not installed and `AVAHI_AVAILABLE` is `False`. The thread never starts. But when you install avahi and enable mDNS, this will fail with a `RuntimeError`.
+
+Fix when ready: resolve all env-dependent values before spawning the thread, pass them as plain Python data in the runtime state dict. Full example in the discovery.py comments.
+
+### `scripts/audit-views.py` false positives on nested One2many
+
+The audit script checks every `<field name="X"/>` inside `<arch>` against the view's root model. It does not switch context when entering a nested list inside a One2many or Many2many. So a form on `self.improving.config` with a nested list of `trigger.config` fields will report those fields as missing on `self.improving.config`.
+
+Fix when ready: track a model-context stack in `check_view_file`. When you descend into `<field name="X">` where X is a relational field, switch to the comodel; pop on exit. Requires extending `parse_model_fields()` to record `(model, field) → comodel` for relational fields.
+
+### `_sql_constraints` deprecation
+
+Every module load prints 3–5 warnings like:
+
+```text
+
+Model attribute '_sql_constraints' is no longer supported, 
+please define models.Constraint on the model.
+```
+
+Cosmetic in Odoo 19. Will break in Odoo 20. Batch migration: single commit across the codebase, ~4–6 hours.
+
+
+### Prometheus `/metrics` 404 on Odoo
+
+### Prometheus is scraping Odoo but Odoo does not expose `/metrics`. Either add the OCA `prometheus_exporter` module to the Odoo image or remove the scrape target from `prometheus.yml`. Not urgent.
+
+## 4. Open Work (Priority Order)
+
+### Immediate
+
+1. Delete `nettrades_self_improving/views/config_views.xml` after verifying nothing else references it. Low-risk cleanup.
+
+2. Verify `action_parse_cv` and `action_run_cycle` methods exist on `res.partner` and `self.improving.config` respectively. Buttons will silently fail on click if the methods don't exist.
+
+
+
+
+
+    
+## 5. Proposed Architecture
 
 The platform is a three-layer stack. Business logic lives in Odoo's ORM. Agent infrastructure lives in a separate database. Distributed inference runs across hub, sub-hubs, and spokes.
 
@@ -397,485 +530,12 @@ The platform is a three-layer stack. Business logic lives in Odoo's ORM. Agent i
 
 ---
 
-## 3. Instructions for the Next Context Window
 
-### Immediate Priorities
-
-1. **Fix `nettrades_gpu_admin`'s `AssertionError`.** This is the last hard blocker. Everything downstream (including `nettrades_bridge`) depends on it.
-2. **Get all 12 modules installing** cleanly on a fresh DB.
-3. **Rebuild the Launcher** and verify the Modules tab shows all 12 installed.
-
-### How to Diagnose the gpu_admin AssertionError
-
-The error is:
-```
-File "/usr/lib/python3/dist-packages/odoo/orm/model_classes.py", line 157, in add_to_registry
-assert is_model_definition(model_def)
-AssertionError
-```
-
-
-This fires when a class in a module's namespace inherits a base model but has an invalid `_name` / `_inherit` combination. Run these in order:
-
-**Step A — Get the real traceback:**
-
-```bash
-cd ~/nettrades-platform
-LATEST=$(ls -t logs/install-modules-*.log | head -1)
-LINE=$(grep -n "nettrades_gpu_admin reinstall failed" "$LATEST" | head -1 | cut -d: -f1)
-START=$((LINE - 150))
-sed -n "${START},${LINE}p" "$LATEST"
-
-```
-
-Look for the class name in the frames just above add_to_registry. That names the offending model.
-
-**Step B — Enumerate every model class in the module:**
-
-```bash
-
-cd ~/nettrades-platform
-for f in odoo-modules/nettrades_gpu_admin/models/*.py; do
-    echo "=== $f ==="
-    grep -nE "^\s*class |^\s*_name|^\s*_inherit" "$f"
-done
-```
-
-**Step C — Check for the known patterns that trigger the assertion:**
-
-| Pattern | How to detect | Fix |
-|---|---|---|
-| `scripts/nettrades-setup.sh` | Master orchestrator (phases 0–5) | |
-
-		
-| Model defined twice (same `_name` in two files) | Duplicate `_name = '...'` across the module | Delete one, or change one to `_inherit` |
-| Class `inherits models.Model, models.TransientModel` | Multiple bases | Choose one base |
-| _inherit is a class object, not a string | `_inherit = SomeClass` | Change to `_inherit = 'model.name'` |
-| Class inherits `models.AbstractModel` but declares `_name` matching an existing model | Grep model names | Rename or remove `_name` |
-| A controller file contains a class inheriting from `models.Model` | `grep -rn "class.*models.Model" controllers/` | Move the model to `models/`, or change to a plain class |
-
-**Step D — Check for cross-module clashes:**
-
-
-```bash
-
-cd ~/nettrades-platform
-# Every _name declared anywhere in the codebase
-for f in odoo-modules/*/models/*.py; do
-    grep -H "_name = " "$f" 2>/dev/null
-done | sed -E "s/.*_name = ['\"]([^'\"]+)['\"].*/\1/" | sort | uniq -d
-```
-
-Any output is a duplicate. Fix it.
-
-## Known Issues That Are Already Fixed (Do Not Re-Fix)
-
-Do NOT touch these — they're working:
-
-* `nettrades_core` menu parent references (`menu_nettrades_root`)
-
-* `nettrades_good_answer` CSV headers (`model_id:id`)
-
-* `nettrades_fairness` `res.groups` `category_id` (removed)
-
-* `nettrades_fairness` `_compute_status_fields` syntax (fixed)
-
-* `nettrades_fairness` `response_id` type (`Integer` not `Many2one('llm.assistant.message')`)
-
-* `nettrades_data_collection` `simulation.session` references (removed)
-
-* `nettrades_data_collection` CSV (`model_simulation_dataset`)
-
-* `nettrades_ask_someone` controller indentation on `return experts`
-
-* `nettrades_loop` `company_id` (added)
-
-* All `__init__.py` files — verified against actual folders
-
-* All non-UTF-8 characters (normalized to ASCII)
-
-* All CDATA in help fields (removed)
-
-* All `res.groups` `category_id` references (removed)
-
-Files That Are Sacred — Do Not Delete
-
-* `scripts/prepare-odoo-addons.sh` — the fail-loud validator. Recently hardened.
-
-* `scripts/install-modules.sh` — the ordered installer. Recently fixed.
-
-* `odoo-modules/nettrades_core/models/nettrades_vote.py` — was missing; unblocks 10 modules.
-
-* `odoo-modules/nettrades_ask_someone/security/nettrades_ask_someone_security.xml` — moved from core.
-
-## 4. Troubleshooting Playbook for Remaining Modules
-
-Use this when a module fails to install. The classes of error are finite; each has a signature.
-
-### Error Class 1 — `No matching record found for external id 'model_xxx'`
-
-**Symptom:**
-
-```text
-
-Exception: Module loading <mod> failed: file <mod>/security/ir.model.access.csv could not be processed:
-No matching record found for external id 'model_xxx'
-
-```
-
-**Cause:** The CSV's `model_id:id` column references a model that doesn't exist, or the model's _name doesn't match.
-
-**Fix:**
-
-1.     Grep for the actual `_name` values in the module:
-```bash
-
-    grep -hE "^\s*_name\s*=" odoo-modules/<mod>/models/*.py | sed -E "s/.*'([a-z_.]+)'.*/\1/"
-```
-2. For each, the correct XML ID is `model_<name_with_underscores>`.
-
-3. Update the CSV accordingly.
-
-Recent examples fixed: `nettrades_good_answer`, `nettrades_data_collection`, `nettrades_llm_config`.
-
-### Error Class 2 — `Field "X" does not exist in model "Y"`
-
-**Symptom:**
-
-```text
-
-odoo.tools.convert.ParseError: while parsing .../views/<file>.xml
-Error while validating view near:
-    <field name="X"/>
-Field "X" does not exist in model "Y"
-```
-
-**Cause:** A view references a field that the model doesn't declare.
-
-**Fix — three options:**
-
-1. **Rename in the view** — the field exists under a different name:
-
-```bash
-
-    grep -n "def _name\|= fields\." odoo-modules/<mod>/models/<model>.py | grep -i "keyword"
-```
-
-2. **Add the field to the model** if it's genuinely needed.
-
-3. **Remove the field from the view** if it's obsolete.
-
-**Recent examples fixed:** `last_audit_date` on `nettrades.fairness.config` (added as computed field), `response_id` on `nettrades.fairness.audit` (changed to Integer).
-
-### Error Class 3 — `AssertionError: Field X with unknown comodel_name 'Y'`
-
-**Symptom:**
-
-```text
-
-File ".../fields_relational.py", line 93, in setup_nonrelated
-    assert self.comodel_name in model.pool, \
-AssertionError: Field <model>.<field> with unknown comodel_name '<comodel>'
-
-```
-
-**Cause:** A Many2one, One2many, or Many2many field points at a model that isn't loaded.
-
-**Fix — two options:**
-
-1. **Add the module containing the comodel to** `depends`:
-
-```bash
-
-    grep -rn "_name = '<comodel>'" odoo-modules/
-
-```
-
-That tells you which module owns it. Add that module to depends.
-
-2. **Change the comodel** to a model that's already loaded, or remove the field.
-
-**Recent examples fixed:** `simulation.session` in `nettrades_data_collection`, `llm.assistant.message` in `nettrades_fairness`.
-
-
-### Error Class 4 — `AssertionError` (bare) in `add_to_registry`
-
-**Symptom:**
-
-```text
-
-File ".../model_classes.py", line 157, in add_to_registry
-    assert is_model_definition(model_def)
-AssertionError
-```
-
-
-**Cause:** A class in the module's namespace inherits a base model with an invalid _name / _inherit combination. **This is what's currently blocking** nettrades_gpu_admin.
-
-**Fix:** See section 3 above for the full diagnostic flow. The most common causes:
-
-* Model declared with _name twice
-
-* Class inheriting both models.Model and models.TransientModel
-
-* _inherit set to a Python class rather than a string
-
-* Model name clashes with an already-loaded module
-
-### Error Class 5 — ValueError: Invalid field 'X' in 'model'
-
-**Symptom:**
-
-```text
-
-File ".../odoo/orm/models.py", line 4660, in create
-    raise ValueError(f"Invalid field {field_name!r} in {self._name!r}")
-ValueError: Invalid field 'X' in 'model'
-
-```
-
-**Cause:** Usually in an XML data file — a <record> or <field> that references a nonexistent field on the model. In res.groups specifically, Odoo 19 removed category_id.
-
-**Fix:** Remove the invalid field reference from the XML.
-
-**Recent example fixed:** `category_id` in `nettrades_fairness/security/fairness_security.xml` (three occurrences).
-
-### Error Class 6 — Syntax errors
-
-**Symptom:**
-
-```text
-
-SyntaxError: 'return' outside function
-```
-
-or
-
-```text
-
-SyntaxError: invalid syntax
-```
-
-**Cause:** Editing accidents — a `def` line was deleted, indentation was wrong, or a stray character crept in.
-
-**Fix:** Run Python's parser on the file:
-
-```bash
-
-python3 -c "import ast; ast.parse(open('<file>').read())"
-```
-
-That gives you the exact line number.
-
-Recent examples fixed: `nettrades_ask_someone/controllers/main.py`, `nettrades_fairness/models/fairness_config.py`.
-
-### Error Class 7 — XML schema / RNG validation
-
-**Symptom:**
-
-```text
-
-odoo.tools.convert: The XML file '<file>' does not fit the required schema!
-AssertionError: Element odoo has extra content: <tag>, line N
-```
-
-**Cause:** The XML has a construct that Odoo 19's RelaxNG schema rejects. Common culprits:
-
-    CDATA blocks in `<field name="help">` (must be plain XML)
-
-    Deprecated `<tree>` tag (use `<list>` in Odoo 17+)
-
-    Unescaped `<`, `>`, `&` inside attribute values (use `&lt;`, `&gt;`, `&amp;`)
-
-**Fix:** Reorder, escape, or remove.
-
-**Recent examples fixed:** `nettrades_core` view files (CDATA removed, `<tree>` → `<list>`).
-
-### Error Class 8 — Duplicate XML ID
-
-**Symptom:**
-
-```text
-
-Duplicate id '<xmlid>' in module <module>
-```
-
-**Cause:** Two files in the same module declare the same id on a <record>, <menuitem>, etc.
-
-**Fix:**
-
-```bash
-
-grep -rn 'id="<xmlid>"' odoo-modules/<module>/
-```
-
-Remove one of them.
-
-Recent example fixed: `menu_fairness_audit_log` declared in both `fairness_dashboard_views.xml` and `fairness_config_views.xml`.
-
-### Error Class 9 — Non-UTF-8 characters
-
-**Symptom:**
-
-```text
-
-UnicodeDecodeError: 'utf-8' codec can't decode byte 0x97 in position NNN
-```
-
-or
-
-```text
-
-grep: <file>: binary file matches
-file: <file>: Non-ISO extended-ASCII text
-```
-
-**Cause:** A file was saved with Windows-1252 encoding instead of UTF-8. Usually from pasting from a browser or Word.
-
-**Fix:** Run the normalization script (see scripts/normalize-encoding.py if it exists; otherwise re-save the file from WSL VS Code):
-
-```bash
-
-python3 -c "
-from pathlib import Path
-p = Path('<file>')
-text = p.read_bytes().decode('cp1252', errors='replace')
-for a, b in [('\u2014', '-'), ('\u2019', \"'\"), ('\u201c', '\"'), ('\u201d', '\"'), ('\u00d7', 'x')]:
-    text = text.replace(a, b)
-p.write_text(text, encoding='utf-8')
-print('Fixed:', p)
-"
-```
-
-### Error Class 10 — `Module not found` for a dependency
-
-**Symptom:**
-
-```text
-
-module <mod>: <dep> is not installed
-```
-
-or the module silently fails with no visible error.
-
-**Cause:** The depends list references a module that isn't installed and isn't in the install order.
-
-**Fix:** Check install-modules.sh:
-
-```bash
-
-grep -A15 "MODULES=(" scripts/install-modules.sh
-```
-
-Add the missing dependency before the module that needs it.
-
-## 5. Daily Workflow
-
-Every time you edit a module and want to test:
-
-```bash
-
-cd ~/nettrades-platform
-
-# 1. Verify the file parses (Python)
-
-python3 -c "import ast; ast.parse(open('odoo-modules/<mod>/models/<file>.py').read())" && echo "OK"
-
-# 2. Verify the file parses (XML)
-
-python3 -c "import xml.etree.ElementTree as ET; ET.parse('odoo-modules/<mod>/views/<file>.xml')" && echo "OK"
-
-# 3. Verify no non-ASCII crept in
-
-grep -nP '[^\x00-\x7F]' odoo-modules/<mod>/models/<file>.py odoo-modules/<mod>/views/<file>.xml
-
-# 4. Rebuild the deploy tree (validator will fail loudly if manifests drift)
-
-./scripts/prepare-odoo-addons.sh --force
-
-# 5. Restart Odoo (bind mounts must be re-attached after prepare)
-
-cd deploy/docker
-docker compose stop odoo && docker compose rm -f odoo && docker compose up -d odoo
-sleep 12
-cd ../..
-
-# 6. Install just the module you changed
-
-./scripts/install-modules.sh --force --auto --modules=<mod> 2>&1 | tail -30
-
-# 7. If it fails, read the log
-
-LATEST=$(ls -t logs/install-modules-*.log | head -1)
-LINE=$(grep -n "Traceback\|AssertionError\|ValueError\|ParseError" "$LATEST" | head -1 | cut -d: -f1)
-sed -n "$((LINE - 20)),$((LINE + 40))p" "$LATEST"
-
-```
-
-
-**Critical:** Always use `docker compose stop/rm/up`, not docker compose restart. The bind mount to `deploy/docker/odoo-modules/` references an inode. After `prepare-odoo-addons.sh` deletes and recreates the directory, the old inode is gone and `restart` doesn't re-attach. Stop/rm/up forces a fresh mount.
-
-## 6. Key Files and Their Purpose
-
-	
-
-| Path | Purpose |
-|---|---|
-| `scripts/nettrades-setup.sh` | Master orchestrator (phases 0–5) |
-| `scripts/prepare-odoo-addons.sh` | Copies modules to Docker build context, validates manifests (fails loudly) |
-| `scripts/install-modules.sh` | Installs modules one at a time in dependency order |
-| `scripts/audit-views.py` | Scans views for field-reference errors |
-| `odoo-modules/` | Source of truth for Odoo modules |
-| `deploy/docker/odoo-modules/` | Copy used by the Odoo container (rebuilt by prepare-odoo-addons.sh) |
-| `deploy/docker/docker-compose.yaml` | Full stack definition |
-| `deploy/docker/.env` | Generated secrets, domains, ports |
-| `src/core/` | LangGraph supervisor, checkpointing, node health |
-| `src/core/odoo_proxy/` | Enterprise gateway (connectors) |
-| `installer/` | Electron launcher |
-| `logs/install-modules-*.log` | Per-run install logs |
-
-
-## 7. Launcher Notes
-
-The Launcher (Electron app in `installer/`) has a **Modules** tab that reads module state from Odoo's `ir.module.module` table. If it shows modules as "Available" instead of "Installed", that's because the module install failed. Fix the module in Odoo, and the Launcher will show it correctly.
-
-The Launcher's **System Check** tab runs `install-modules.sh` in the background. When it succeeds, all modules in the install list will be green.
-
-The Launcher's **Deploy** tab offers five profiles (Sovereign in a Box, Sovereign AI Router, Production, Kubernetes, Custom). All current deployments use the first profile.
-
-## 8. What to Do First in the Next Context
-
-1. Read this file.
-
-2. Run `git log --oneline -10` on `dev-deployment1` to see recent commits.
-
-3. Fix the `nettrades_gpu_admin` `AssertionError` using section 3's diagnostic flow.
-
-4. Get `nettrades_gpu_admin` and `nettrades_bridge` installing.
-
-5. Try `nettrades_trigger`, `nettrades_onboarding`, `nettrades_wireguard` — they haven't been attempted.
-
-6. Run the full 15-module install and confirm zero failures.
-
-7. Rebuild the Launcher (`cd installer && npm run build:linux && npm start`) and verify all modules show green.
-
-## 9. Contact Points for Deep-Dive Questions
-
-| Topic | Where to Look |
-|---|---|
-| Odoo module structure | `docs/developer/building-odoo-modules.md` |
-| Bridge architecture | `docs/developer/bridge-architecture.md` |
-| LangGraph supervisor | `src/core/supervisor.py, docs/developer/langgraph-supervisor-state-machine.md` |
-| Enterprise gateway | `src/core/odoo_proxy/main.py, src/connectors/*.py` |
-| Hub/spoke topology | `docs/operations/deployment-perspective-network-diagram.md` |
-| GPU admin | `odoo-modules/nettrades_gpu_admin/, docs/developer/nvidia-dynamo-integration.md` |
-| Self-improving loop | `docs/developer/self-improving-loop.md` |
 
 
 ## 10. Fairness Module Fixes (2026-09-18)
 
-The `nettrades_fairness` module has been the hardest to stabilise. Six
-distinct issues have been fixed in this session:
+The `nettrades_fairness` module has been the hardest to stabilise. 
 
   1. `res.groups` `category_id` — removed (Odoo 19 dropped the field)
   2. `response_id` comodel — changed from `Many2one('llm.assistant.message')`
@@ -897,55 +557,98 @@ distinct issues have been fixed in this session:
 
 ---
 
-## 11. Deprecation Warnings Being Ignored
 
-The following warnings appear on every module load and are NOT causing
-failures. Do not "fix" them unless you have a spare weekend:
 
-  • `Model attribute '_sql_constraints' is no longer supported` —
-    Odoo 19 renamed this to `models.Constraint`. The old form still
-    works. Migration is a separate, low-priority task.
 
-  • `@route(type='json') is a deprecated alias to @route(type='jsonrpc')` —
-    In Odoo 19, `type='json'` still works but should become `type='jsonrpc'`.
-    Fix in a future cleanup pass.
 
-  • `Field nettrades.fairness.config.custom_evaluation_api_key: unknown
-    parameter 'password'` — already fixed in this session by removing
-    `password=True`. Will not appear after the next install.
 
-  • `Missing not-null constraint on qualified_professional.verification_status` —
-    Cosmetic. Add `required=True` to the field eventually. Not blocking.
+## 13. Third-party modules
 
-  • `The model ask.someone.config has no _description` — Cosmetic.
-    Add `_description` to the model class in `nettrades_ask_someone`.
+* llm_knowledge and other llm_* third-party modules are copied into the image but only llm_training is a dependency of an installed module (nettrades_self_improving).
 
----
 
-## 12. Order to Install Modules (do not reorder)
+## 5. Untested Territory
 
-The `scripts/install-modules.sh` file contains the correct order. The key
-constraint: a module must come AFTER everything it depends on.
+The following is running but has never been exercised end-to-end:
+The buttons in forms
 
-Verified dependency edges:
+* `action_parse_cv` on `res.partner` — never clicked.
 
-  nettrades_core          → (none)
-  nettrades_queue         → (none)
-  nettrades_notifications → nettrades_core
-  nettrades_llm_config    → nettrades_core, llm
-  nettrades_ask_someone   → nettrades_core, payment, mail
-  nettrades_good_answer   → nettrades_core, llm, mail
-  nettrades_fairness      → nettrades_core, nettrades_good_answer
-  nettrades_data_collection → nettrades_core, nettrades_good_answer,
-                              nettrades_ask_someone
-  nettrades_loop          → nettrades_core, nettrades_data_collection
-  nettrades_self_improving_config → nettrades_core,
-                                     nettrades_data_collection,
-                                     nettrades_loop
-  nettrades_gpu_admin     → nettrades_core
-  nettrades_bridge        → nettrades_core, nettrades_gpu_admin
-  nettrades_trigger       → nettrades_data_collection
-  nettrades_wireguard     → nettrades_core
-  nettrades_onboarding    → nettrades_core
+* `action_run_cycle` on `self.improving.config` — never clicked.
 
-If you add a new module, add it to this list after all its dependencies.
+* `action_test_connection` on `nettrades.bridge.config` — never clicked.
+
+* `action_scan_network` and `action_generate_controller_keys` on `gpu.cluster` — never clicked.
+
+**Risk:** Each button calls a method that may not exist, may have a typo, or  may fail on first use. Odoo does not validate method references at install time.
+
+### Cron jobs
+
+* `cron_gpu_health_watchdog` and `cron_gpu_utilisation_alert` (in `nettrades_gpu_admin/data/cron.xml`).
+
+* `cron_bridge_health_check` (in `nettrades_bridge/data/bridge_cron_data.xml`).
+
+Risk: The bridge cron calls `model._cron_health_check()`. The method
+exists (added in this session) but returns `True` in all cases without
+actually doing anything meaningful for local mode. Fine.
+
+The GPU crons call `model._cron_health_watchdog()` and `model._cron_high_utilisation_alert()`. Those methods are defined on `gpu.node`. Whether the cron records reference the correct model — verify by checking `ir_cron.model_id` in the database. 
+
+### End-to-end inference
+
+LangGraph is running. Dynamo is running. llama.cpp is running. **No inference request has been sent through the full stack**. The LangGraph `/health` endpoint returns 200. That's not the same as a successful inference.
+
+**Test:** `POST /invoke` with a simple prompt. Untested.
+
+### The odoo-proxy
+
+Running on port 8090. Never received a real request. The `/jsonrpc` model whitelist issue (BUG-001) is present but has not manifested because no traffic exercises it.
+
+### The bridge routing logic
+
+`nettrades.bridge.routing` has a `route_request` method that decides local vs. remote. Never invoked. The remote brain URL is `https://api.nettrades.ai` which does not exist. `bridge_mode` defaults to `local`, so a request in default config would route locally — but the local call path is a stub that returns a hardcoded message.
+
+
+### The GPU marketplace
+
+`gpu.node`, `gpu.cluster`, `gpu.registration.token` all have models and views. No node has ever been registered. The token validation logic has never been exercised. 
+
+### The onboarding wizard
+
+`onboarding_wizard.xml` has never been opened in the UI. The `profile_completeness` compute is likely being evaluated (it's `store=True`) but no partner has ever been edited through this view.
+
+### The self-improving loop
+
+loop.orchestrator has an execute_cycle method referenced in the smoke test. Never run against real data.
+
+
+## Changes to be made soon:
+
+* A separate database nettrades_infra will be built.  DECISIONS.md ADR-002 mentions it. ENVIRONMENT.md says it's "(planned)". Right now agent state lives in the same database as Odoo.
+
+* Will soon have demos for distributed inferencing, therefore will be building the distributed inferencing. 
+
+* The installer/ (Electron launcher) will be a part of the shipped product. It builds and produces an AppImage / .deb / .exe   It is based on the STEAM game Launcher so that it is easy for children to use and use AI in their projects.
+
+* Currently the target deployment is PCs and Servers and eventually K8s, but the KV Cache is on the physical machines, so we need to see if Llama.cpp pipeline parallelism and NAVIDIA Dynamo could work with K8s or we need to use the supervisor agent to decide which machines will be used. The phase-k8s.sh script exists but it has been deferred.
+
+
+
+
+### Summary
+
+| Component  | Status  | 
+|---|---|
+| Base platform (13 modules installed) | ✅ Verified  |
+| Docker stack health | ✅ Verified  |
+| Pre-flight script | ✅ Verified  |
+| Installer script | ✅ Verified  |
+| Individual module UIs | Being Tested  |
+| Buttons | Being Tested  |
+| Cron jobs | Being Tested  |
+| End-to-end inference | Being Tested  |
+| Proxy endpoints | Being Tested  |
+| Bridge routing | Being Tested  |
+| GPU registration | Being Tested  |
+
+The platform is "installed" but not "used". The next milestone should involve actually opening the UI and clicking a few things — that will surface a different class of bug (runtime vs. install-time).

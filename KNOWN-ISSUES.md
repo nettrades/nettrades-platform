@@ -1,145 +1,100 @@
-# Known Issues and Deferred Work
 
-These are things we know about, have made a decision about, and are
-deliberately deferring. Do not "fix" them without reading the context.
+## Change List for Other Docs
 
-## Cosmetic / Non-Blocking
+I don't have the current contents of these, so here's what should change — apply manually.
 
-### `user.notification` missing not-null constraints
+### `KNOWN-ISSUES.md`
 
-The `nettrades_notifications` module declares `partner_id` and `title`
-as required fields, but the database columns allow NULL. This is
-because the module was added to the DB before the constraints were
-applied, and Odoo does not retroactively add constraints to existing
-columns.
+**Move from "Open" to "Recently Fixed":**
+- "nettrades_gpu_admin model registration AssertionError" → actually was an XML `attrs=` migration issue, not model registration.
+- Any items about `attrs=`, `states=`, `<group expand>`, `doall`, `numbercall`.
+- Any items about encoding / BOM / manifest-not-found.
+- Any items about `DiscoveryService.__init__`.
 
-**Impact:** New notification records can technically be created without
-a partner or title. Runtime validation catches this in the ORM, but
-the DB allows it.
+**Add to "Open":**
+- BUG-041 (duplicate IDs in dead `config_views.xml`).
+- BUG-042 (audit script false positive).
+- BUG-043 (thread-safety latent issue).
 
-**Fix:** A future migration can run `ALTER TABLE user_notification
-ALTER COLUMN partner_id SET NOT NULL;` after backfilling any NULL
-rows. Low priority.
+**Update the "P1.5" reference** to point at BUG-003 in the new catalog.
 
-### Odoo 19 deprecations
+### `DECISIONS.md`
 
-Several warnings appear on every module load:
+**Add an ADR** for the two-stage Dockerfile. Something like:
 
-- `_sql_constraints` — superseded by `models.Constraint`. Works but
-  is deprecated.
-- `@route(type='json')` — superseded by `type='jsonrpc'`. Works but
-  is deprecated.
-- `attrs="{'invisible': ...}"` — superseded by inline `invisible="..."`.
+> **ADR-011: Two-stage pip install in Dockerfile.odoo**
+>
+> **Context:** `pdfplumber` (needed by `nettrades_onboarding`) pulls
+> `pdfminer.six`, which depends on `cryptography`. Installing everything in
+> one `pip3 install` with `--ignore-installed` broke Debian's `pyOpenSSL
+> 23.2.0`. Removing `--ignore-installed` broke `typing-extensions`
+> uninstall.
+>
+> **Decision:** Two-stage install. Stage 1 uses `--ignore-installed` for
+> pure-Python packages Debian ships without RECORD files. Stage 2 uses
+> normal pip.
+>
+> **Consequences:** Every future Python dependency must be classified
+> before being added: does it need to shadow a Debian package? If yes,
+> stage 1. If no, stage 2. Adding to the wrong stage will re-break the
+> build.
 
-**Impact:** Warnings only. Not blocking.
+**Add an ADR** for the two-tier UTF-8 check. Same shape.
 
-**Fix:** A dedicated pass to migrate all three. Approximately 4–6
-hours of work. Do it in a single PR; do not mix with functional changes.
+### `COMPONENT-MAP.md`
 
-## Functional Gaps (Deliberate)
+Update the `prepare-odoo-addons.sh` entry to mention: XML parse, Python
+compile, UTF-8 check, `attrs=` check, `<group expand>` check.
 
-### `nettrades_fairness` — `response_id` is an Integer, not a Many2one
+Update the `install-modules.sh` entry to mention the grep for silent
+skips.
 
-The fairness audit and flag models originally referenced
-`llm.assistant.message` as a comodel. That module is not a dependency
-and the model doesn't exist there. It was changed to `Integer` because
-the field is used as an opaque ID (compared against
-`good.answer.vote.answer_id`, which is also an Integer).
+Add `nettrades_bridge/views/menu_views.xml` to the file list for that
+module.
 
-**Impact:** You cannot navigate from a fairness flag to the actual
-message record in the UI. You can still see the ID.
+Add `nettrades_onboarding/models/res_partner_skill.py` and
+`res_partner_experience.py`.
 
-**Fix:** Decide what the correct reference is (a `good.answer.vote`,
-a `llm.message`, or a future unified message model) and change the
-field back to a Many2one. Do this when you build the audit-log UI.
+### `VERIFICATION.md`
 
-### `nettrades_data_collection` — no simulation.session model
+Add to the acceptance criteria:
 
-The `SimulationDataset` model originally had `session_id` and
-`config_id` fields pointing at `simulation.session` and
-`simulation.config`. Neither model exists. The fields were removed.
+- `prepare-odoo-addons.sh --force` must complete with `N modules prepared`
+  (not abort at the UTF-8 check).
+- `install-modules.sh --force --auto` must exit 0 with `ALL MODULES
+  INSTALLED SUCCESSFULLY`.
+- The install summary table must show `Failed modules: 0` AND every module
+  in the log must be followed by `✓` (not `skipped`).
 
-**Impact:** Datasets cannot be linked to a simulation session.
+### `README-AGENT.md`
 
-**Fix:** Either build the simulation models (if they're still planned)
-or remove the concept entirely. Do not re-add the fields until the
-target models exist.
+Add a rule:
 
-### `nettrades_good_answer` — Fine-tune button on dataset forms
+> **Never trust `install-modules.sh` exit code 0 alone.** The script
+> captures output and greps for `not installable, skipped` — if the grep
+> fires, it returns 1 even though Odoo itself returned 0. If you are
+> inspecting the log manually, look for the `✓` marker per module, not
+> the summary line.
 
-The dataset form originally had a "Fine-tune" button that called
-`action_fine_tune()`. The method created a `nettrades_gpu_admin.job`
-record. That model does not exist. The button was removed.
+Also add:
 
-**Impact:** You cannot trigger fine-tuning from the dataset form.
+> **Before any `docker compose build odoo`,** run `./scripts/prepare-odoo-addons.sh
+> --force`. If it aborts, fix the reported files. Do not proceed.
 
-**Fix:** The actual fine-tuning pipeline lives in
-`ft.training.job` (which does exist). Rewrite `action_fine_tune()` to
-create an `ft.training.job` instead, or delete the feature entirely.
+---
 
-### Fine-tuning uses simulated GPU calls
+## Final Note
 
-`FTDataset.action_trigger_finetune()` and
-`FTTrainingJob` do not actually call a training backend. They log
-the job and mark it running.
+The state described here is the first **clean 13/13 install** of this
+project. Everything before it was partial. Treat this as a baseline. Save
+it:
 
-**Impact:** Fine-tuning is a UI skeleton. No actual training happens.
+```bash
+cd ~/nettrades-platform
+git add -A
+git commit -m "13/13 modules install cleanly after encoding + Odoo 17 syntax fixes"
 
-**Fix:** Implement the pipeline:
-1. Export dataset as JSONL (already done — `export_to_jsonl`)
-2. Run Data-Juicer (stub exists — `_run_data_juicer_pipeline`)
-3. Run DEITA scoring (stub exists — `_run_deita_scoring`)
-4. Submit to Unsloth or Axolotl via the training service
-5. Poll for completion
-6. Deploy the fine-tuned model as an `llm.provider`
-
-See HANDOFF.md §11 for the deprecation warnings list.
-
-## Architectural Debt
-
-### `nettrades_bridge` `_call_local_brain` is a stub
-
-The bridge routing service has a `_call_local_brain` method that
-returns a hardcoded `"Processed by local LangGraph agent"` response.
-It does not actually call the LangGraph supervisor.
-
-**Impact:** Bridge routing logs usage but does not route.
-
-**Fix:** Replace the stub with an HTTP call to
-`http://langgraph-server:8000/invoke`, passing the request through the
-graph's API. Handle streaming and errors.
-
-### `connectors/odoo.py` uses a fixed admin user
-
-The Odoo connector authenticates as `admin` for all operations, not
-as the requesting user. This breaks tenant isolation.
-
-**Impact:** All agent operations run as admin. Record rules do not
-apply. Cross-tenant reads are possible.
-
-**Fix:** Change the connector to accept a per-user session token
-(forwarded from the gateway) and authenticate Odoo calls as that user.
-See HANDOFF.md §5 (Phase 2) for the plan.
-
-
-### Also worth a quick check
-
-In the logs it says:
-text
-```
-│    odoo  | 2026-09-17 19:31:07,733 1 WARNING ? odoo.schema: Missing not-null constraint on user.notification.partner_id
-│    odoo  | 2026-09-17 19:31:07,733 1 WARNING ? odoo.schema: Missing not-null constraint on user.notification.title
-```
-
-Those warnings are from nettrades_notifications and they suggest the module's partner_id and title fields are supposed to be required but the DB column allows NULL. That's a separate issue and not blocking the install, but it means new user.notification records can be created without those fields — which will cause runtime errors later. Flagging it for future development.
-
-
-
-
-## Explicitly Out of Scope
-
-- Live video/audio streaming from spokes
-- Multi-region failover for the hub
-- On-prem Kubernetes support (single-VM only for now)
-- Mobile native apps (PWA is the mobile story)
-- Billing integration with Stripe (UI exists, backend stub)
+# Or if git isn't in use:
+tar czf ~/nettrades-platform-baseline-$(date +%Y%m%d).tar.gz \
+    --exclude='.venv' --exclude='node_modules' --exclude='third-party/odoo' \
+    -C ~ nettrades-platform
