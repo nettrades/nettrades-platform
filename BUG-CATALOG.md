@@ -549,6 +549,7 @@ import ast
 with open(path, 'rb') as f:
     content = f.read()
 ast.literal_eval(content.decode('utf-8'))
+```
 
 Prevention: Two-tier UTF-8 check added to prepare-odoo-addons.sh.
 Hard error on nettrades_*, warning on vendored files.

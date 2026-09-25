@@ -1,5 +1,9 @@
 
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/DECISIONS.md 
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/DECISIONS.md
+
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/BUG-CATALOG.md 
+
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/ARCHITECTURE-AND-PLAN.md
 
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/ENVIRONMENT.md 
 
@@ -15,19 +19,9 @@ https://raw.githubusercontent.com/nettrades/nettrades-platform/main/README.md
 
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/SUPPORT.md
 
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/EXPERT-AGREEMENT.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/LEGAL/TERMS-OF-SERVICE.md
 
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/README-LICENSING.md
-
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/README-QUICKSTART.md
-
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/Readme.txt
-
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/TERMS-OF-SERVICE.md
-
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/community.md
-
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/getting-started.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developers/getting-started.md
 
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/index.md
 
@@ -35,15 +29,13 @@ https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/mkdocs.
 
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/try-it-now.md
 
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/appendix/Database-Schema-Diagram.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developers/Database-Schema.md
 
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/appendix/Database-Schema-Diagram.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developers/environment-variables.md
 
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/appendix/environment-variables.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developers/glossary.md
 
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/appendix/glossary.md
-
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/appendix/index.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developers/index.md
 
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/LangGraph-Agent-State-Machine-Diagram.md
 
@@ -53,9 +45,7 @@ https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/develop
 
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/api-reference.md
 
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/architectural-perspective-logical-architecture-diagram.md
-
-https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/architecture-perspective-class-diagram.md
+https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developers/Logical-Solution-Architecture-Diagram.md
 
 https://raw.githubusercontent.com/nettrades/nettrades-platform/main/docs/developer/architecture.md
 

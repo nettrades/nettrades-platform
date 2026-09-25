@@ -1,6 +1,6 @@
 # README-AGENT
 
-## What this project is
+## 1. What this project is
 
 The NETTRADES Sovereign AI Platform. A distributed, self-hosted AI platform for enterprises and individuals. Combines:
 
@@ -23,7 +23,7 @@ The NETTRADES Sovereign AI Platform. A distributed, self-hosted AI platform for 
 
 
 
-## 1. Rules you must follow
+## 2. Rules you must follow
 
 1. **Always use `git` for every change.** Never edit a file and leave it uncommitted. The user's history matters.
 
@@ -101,7 +101,7 @@ If you propose a fix, be explicit about whether it blocks the current milestone.
 
 
 
-## 2. Environment & Toolchain
+## 3. Environment & Toolchain
 
 ### Host
 
@@ -194,7 +194,7 @@ This means the newline was lost during paste, so the second line was interpreted
 
 
 
-## 3. Odoo Modules
+## 4. Odoo Modules
 
 
 ### How to add a field to a Odoo model and expose it in a view
@@ -798,11 +798,11 @@ If you add a new module, add it to this list after all its dependencies.
 
 
 
-## 4. Anti-Patterns Observed
+## 5. Anti-Patterns Observed
 
 These cost time in the session. A fresh window should avoid repeating them.
 
-### Guessing at Dockerfile fixes and rebuilding
+### 1. Guessing at Dockerfile fixes and rebuilding
 
 Three rounds of Dockerfile edits each introduced new failures:
 
@@ -852,7 +852,7 @@ should trace to a specific error message or a specific verified diagnostic.
 
 
 
-## 5. Key Files and Their Purpose
+## 6. Key Files and Their Purpose
 
 
 
@@ -888,7 +888,7 @@ should trace to a specific error message or a specific verified diagnostic.
 
 
 
-## 6. Launcher Notes
+## 7. Launcher Notes
 
 The Launcher (Electron app in `installer/`) has a **Modules** tab that reads module state from Odoo's `ir.module.module` table. If it shows modules as "Available" instead of "Installed", that's because the module install failed. Fix the module in Odoo, and the Launcher will show it correctly.
 
@@ -898,7 +898,7 @@ The Launcher's **Deploy** tab offers five profiles (Sovereign in a Box, Sovereig
 
 
 
-## 7. Contact Points for Deep-Dive questions and for any code review
+## 8. Contact Points for Deep-Dive questions and for any code review
 
 | Topic | Where to Look |
 |---|---|
@@ -919,7 +919,7 @@ The Launcher's **Deploy** tab offers five profiles (Sovereign in a Box, Sovereig
 
 
 
-## 8. Project Narrative — The Pivot
+## 9. Project Narrative — The Pivot
 
 The owner shared a critical piece of context that a fresh window needs to understand: the project pivoted.
 
@@ -988,7 +988,7 @@ The first questions should be:
 5. Any new files or logs to share? — New context is more valuable than re-reading old docs.
 
 
-## 9. Meta 
+## 10. Meta 
 
 The platform's plumbing is solid. Thirteen modules install. The stack starts, health checks pass, logs are clean, errors are handled. This is genuinely hard-won
 
