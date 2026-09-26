@@ -47,11 +47,11 @@ The NETTRADES Sovereign AI Platform. A distributed, self-hosted AI platform for 
 
 11. Do not provide quick fixes. Prefer complete fixes even if they take longer.
 
-12. DO NOT REMOVE EXISTING FUNCTIONALITY THAT IS STILL NEEDED. A very long time and a lot of effort has been invested in building the functionality. Do not remove it.
+12. DO NOT REMOVE EXISTING FUNCTIONALITY THAT IS STILL NEEDED AND WORKING UNLESS ASKED TO DO SO. A very long time and a lot of effort has been invested in building the functionality.
 
 13. DO NOT REMOVE EXISTING COMMENTS. Comments preserve context for future developers and sessions. Every regenerated file has kept its original comments and added new ones. Match this style.
 
-14. Regenerate full files when asked for regenerated code. Keep all the existing comments and functionality that is still needed.
+14. Regenerate full files when asked for regenerated code. Keep all the existing comments and functionality that is still needed and working unless asked to remove it.
 
     
 
@@ -1033,6 +1033,6 @@ Across the debugging session that produced this state:
 
 #### The most important things:
 
-Do not burden the developer with noise. Be honest and direct. Be specific. Be wrong less often. When you're wrong, say so immediately and learn. Do not remove comments or functionality that is still needed. Do not guess, ask for files and run scripts to versify. 
+Do not burden the developer with noise. Be honest and direct. Be specific. Be wrong less often. When you're wrong, say so immediately and learn. Do not remove comments or functionality that is still needed and working. Do not guess, ask for files and run scripts to versify. 
 
 
