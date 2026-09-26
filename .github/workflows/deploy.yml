@@ -1,73 +1,79 @@
 # =============================================================================
-# NETTRADES Platform - Deployment Workflow
+# NETTRADES Platform - Manual Deployment Workflow
 # =============================================================================
 # FILE: .github/workflows/deploy.yml
 # =============================================================================
 #
 # Copyright (c) 2026 NETTRADES FOUNDATION. All rights reserved.
-# 
+#
 # This file is part of the NETTRADES Sovereign AI Platform.
-# 
-# The NETTRADES Sovereign AI Platform is a dual-licensed enterprise ecosystem. 
-# This file is distributed as open-source software under the terms of the 
-# GNU Affero General Public License v3.0 (AGPL-3.0) as published by the Free 
+#
+# The NETTRADES Sovereign AI Platform is a dual-licensed enterprise ecosystem.
+# This file is distributed as open-source software under the terms of the
+# GNU Affero General Public License v3.0 (AGPL-3.0) as published by the Free
 # Software Foundation, version 3 of the License, or (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful, but WITHOUT 
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
-# FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License v3.0 for 
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License v3.0 for
 # more details.
-# 
-# You should have received a copy of the GNU Affero General Public License v3.0 
+#
+# You should have received a copy of the GNU Affero General Public License v3.0
 # along with this program. If not, see <https://gnu.org>.
-# 
+#
 # CONTRIBUTOR NOTICE:
-# All contributions to this repository are contractually subject to the NETTRADES 
-# Contributor License Agreement (CLA). Any submission or pull request implies 
-# cryptographic authorization of the CLA terms, including generative AI disclosures 
+# All contributions to this repository are contractually subject to the NETTRADES
+# Contributor License Agreement (CLA). Any submission or pull request implies
+# cryptographic authorization of the CLA terms, including generative AI disclosures
 # and the Foundation's defensive patent framework.
-# 
+#
 # ALTERNATIVE ENTERPRISE LICENSING:
-# Commercial developers, corporate entities, or sovereign institutions wishing to 
-# exempt their infrastructure deployment from the copyleft source-disclosure 
-# requirements of the AGPL-3.0 must purchase a paid Commercial Alternative license. 
-# Closed-source commercial exploitation, custom multi-agent extensions, and premium 
-# SLAs are governed strictly under the split-jurisdiction architecture of the 
-# NETTRADES Foundation (administered via the laws of England & Wales or the Qatar 
+# Commercial developers, corporate entities, or sovereign institutions wishing to
+# exempt their infrastructure deployment from the copyleft source-disclosure
+# requirements of the AGPL-3.0 must purchase a paid Commercial Alternative license.
+# Closed-source commercial exploitation, custom multi-agent extensions, and premium
+# SLAs are governed strictly under the split-jurisdiction architecture of the
+# NETTRADES Foundation (administered via the laws of England & Wales or the Qatar
 # Financial Centre common law framework, depending on licensee domicile).
-# 
+#
 # For commercial licensing onboarding, corporate procurement, or KYC verifications:
 # - Licensing Portal: https://nettrades.org
 # - Legal & Compliance Division: legal@nettrades.org
-# 
+#
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-NETTRADES-Commercial
 # =============================================================================
 #
 # PURPOSE:
-#   This workflow handles deployment of the NETTRADES platform to staging
-#   and production environments. It uses the same phase-based scripts that
-#   users run manually, ensuring consistency between manual and automated
-#   deployments.
+#   Manual-only deployment workflow. This is triggered from the GitHub Actions
+#   UI (workflow_dispatch), NOT automatically on push. Use this when you want
+#   to deploy a specific ref to staging or production on demand.
 #
-#   The workflow supports:
-#   - Staging deployments (on push to develop/main)
-#   - Production deployments (on release)
-#   - WireGuard peer management for secure access
-#   - Health checks after deployment
+#   Automatic deployment on push is handled by ci-cd.yml. This separation
+#   prevents two workflows from racing to deploy to the same server.
+#
+# BRANCHING STRATEGY:
+#   - main:              Stable, production-ready code. Enterprise customers clone this.
+#   - dev-deployment1:   Active development branch. All PRs target this.
+#   - Signatures stored in main. CLA document read from dev-deployment1.
+#
+# STATUS (2026-09):
+#   - All deploy jobs are COMMENTED OUT because there are no servers yet.
+#   - The Slack notification job is COMMENTED OUT because no webhook exists.
+#   - Uncomment the relevant jobs once you have:
+#       1. A staging server with SSH access
+#       2. A production server with SSH access
+#       3. Repository secrets: STAGING_SSH_KEY, STAGING_HOST, STAGING_USER,
+#          STAGING_PATH, and the PRODUCTION_* equivalents
+#       4. Optional: SLACK_WEBHOOK_URL for notifications
 #
 # USAGE:
-#   This workflow runs automatically on push to the specified branches.
-#   Manual triggering is also supported via the GitHub Actions UI.
+#   Trigger manually from GitHub: Actions → Manual Deploy → Run workflow
 # =============================================================================
-name: Deploy Platform
+name: Manual Deploy
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-  release:
-    types: [published]
+  # Manual trigger only. This workflow does NOT run on push.
+  # Automatic deployment is handled by ci-cd.yml.
   workflow_dispatch:
     inputs:
       environment:
@@ -87,110 +93,131 @@ jobs:
   # =========================================================================
   # 1. DEPLOY TO STAGING
   # =========================================================================
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-24.04
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    environment: staging
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
-
-      - name: Add SSH host key
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Deploy via nettrades-setup.sh
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
-            cd ${{ secrets.STAGING_PATH }}
-            git pull
-            ./scripts/nettrades-setup.sh deploy --auto --force
-          EOF
-
-      - name: Add WireGuard peer for staging access
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
-            /usr/local/bin/wireguard-manager.sh add staging-${{ github.sha }} 2>/dev/null || true
-          EOF
-
-      - name: Health check
-        run: |
-          curl -f http://${{ secrets.STAGING_HOST }}:8069/web/health || exit 1
-          curl -f http://${{ secrets.STAGING_HOST }}:8000/health || exit 1
+  # DISABLED: No staging server configured yet.
+  # To enable:
+  #   1. Add repository secrets: STAGING_SSH_KEY, STAGING_HOST,
+  #      STAGING_USER, STAGING_PATH
+  #   2. Uncomment the job below
+  #   3. Verify GitHub runner has network access to STAGING_HOST
+  # =========================================================================
+#  deploy-staging:
+#    name: Deploy to Staging
+#    runs-on: ubuntu-24.04
+#    if: ${{ github.event.inputs.environment == 'staging' }}
+#    environment: staging
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v5
+#
+#      - name: Setup SSH
+#        uses: webfactory/ssh-agent@v0.10.0
+#        with:
+#          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+#
+#      - name: Add SSH host key
+#        run: |
+#          mkdir -p ~/.ssh
+#          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+#
+#      - name: Deploy via nettrades-setup.sh
+#        run: |
+#          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+#            cd ${{ secrets.STAGING_PATH }}
+#            git pull
+#            ./scripts/nettrades-setup.sh deploy --auto --force
+#          EOF
+#
+#      - name: Add WireGuard peer for staging access
+#        run: |
+#          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+#            /usr/local/bin/wireguard-manager.sh add staging-${{ github.sha }} 2>/dev/null || true
+#          EOF
+#
+#      - name: Health check
+#        run: |
+#          curl -f http://${{ secrets.STAGING_HOST }}:8069/web/health || exit 1
+#          curl -f http://${{ secrets.STAGING_HOST }}:8000/health || exit 1
 
   # =========================================================================
   # 2. DEPLOY TO PRODUCTION
   # =========================================================================
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-24.04
-    if: github.event_name == 'release'
-    environment: production
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
-
-      - name: Add SSH host key
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Deploy via nettrades-setup.sh (upgrade mode)
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
-            cd ${{ secrets.PRODUCTION_PATH }}
-            git pull
-            ./scripts/nettrades-setup.sh all --auto --upgrade --force
-          EOF
-
-      - name: Add WireGuard peer for production access
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
-            /usr/local/bin/wireguard-manager.sh add production-${{ github.sha }} 2>/dev/null || true
-          EOF
-
-      - name: Health check
-        run: |
-          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/odoo/health || exit 1
-          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/langgraph/health || exit 1
+  # DISABLED: No production server configured yet.
+  # To enable:
+  #   1. Add repository secrets: PRODUCTION_SSH_KEY, PRODUCTION_HOST,
+  #      PRODUCTION_USER, PRODUCTION_PATH, PRODUCTION_DOMAIN
+  #   2. Uncomment the job below
+  # =========================================================================
+#  deploy-production:
+#    name: Deploy to Production
+#    runs-on: ubuntu-24.04
+#    if: ${{ github.event.inputs.environment == 'production' }}
+#    environment: production
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v5
+#
+#      - name: Setup SSH
+#        uses: webfactory/ssh-agent@v0.10.0
+#        with:
+#          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+#
+#      - name: Add SSH host key
+#        run: |
+#          mkdir -p ~/.ssh
+#          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+#
+#      - name: Deploy via nettrades-setup.sh (upgrade mode)
+#        run: |
+#          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+#            cd ${{ secrets.PRODUCTION_PATH }}
+#            git pull
+#            ./scripts/nettrades-setup.sh all --auto --upgrade --force
+#          EOF
+#
+#      - name: Add WireGuard peer for production access
+#        run: |
+#          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+#            /usr/local/bin/wireguard-manager.sh add production-${{ github.sha }} 2>/dev/null || true
+#          EOF
+#
+#      - name: Health check
+#        run: |
+#          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/odoo/health || exit 1
+#          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/langgraph/health || exit 1
 
   # =========================================================================
   # 3. NOTIFY SLACK
   # =========================================================================
-  notify:
-    name: Notify Slack
-    runs-on: ubuntu-24.04
-    needs: [deploy-staging, deploy-production]
-    if: always()
-    steps:
-      - name: Send Slack notification
-        uses: slackapi/slack-github-action@v1.27.0
-        with:
-          payload: |
-            {
-              "text": "Deployment status: ${{ job.status }}\nRef: ${{ github.ref }}\nRepo: ${{ github.repository }}",
-              "attachments": [
-                {
-                  "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
-                  "title": "Deployment Pipeline",
-                  "fields": [
-                    { "title": "Status", "value": "${{ job.status }}", "short": true },
-                    { "title": "Branch", "value": "${{ github.ref_name }}", "short": true }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  # DISABLED: No Slack webhook configured yet.
+  # To enable:
+  #   1. Create an incoming webhook at https://api.slack.com/messaging/webhooks
+  #   2. Add repository secret: SLACK_WEBHOOK_URL
+  #   3. Uncomment the job below
+  #   4. Note the v2 API differences: webhook and webhook-type are inputs,
+  #      not environment variables.
+  # =========================================================================
+#  notify:
+#    name: Notify Slack
+#    runs-on: ubuntu-24.04
+#    needs: [deploy-staging, deploy-production]
+#    if: always()
+#    steps:
+#      - name: Send Slack notification
+#        uses: slackapi/slack-github-action@v2.1.1
+#        with:
+#          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+#          webhook-type: incoming-webhook
+#          payload: |
+#            {
+#              "text": "Manual deployment status: ${{ job.status }}\nEnvironment: ${{ github.event.inputs.environment }}\nRef: ${{ github.ref }}",
+#              "attachments": [
+#                {
+#                  "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+#                  "title": "Manual Deploy",
+#                  "fields": [
+#                    { "title": "Status", "value": "${{ job.status }}", "short": true },
+#                    { "title": "Environment", "value": "${{ github.event.inputs.environment }}", "short": true }
+#                  ]
+#                }
+#              ]
+#            }

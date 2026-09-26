@@ -2,26 +2,32 @@
 # FILE: .github/workflows/ci-cd.yml
 # =============================================================================
 # PURPOSE:
-#   CI/CD pipeline for the NETTRADES platform.
-#   This workflow builds, tests, and deploys the platform using the SAME
-#   phase-based scripts that users run manually. This ensures the deployment
-#   scripts are validated in CI before they reach production.
+#   Continuous Integration pipeline for the NETTRADES platform.
+#   Runs on every push to main/dev-deployment1 and on every pull request
+#   to main.
 #
-#   DESIGN CHOICE:
-#   For staging and production, we use SSH + nettrades-setup.sh, which
-#   exercises the full setup logic (Phase 0, 1, 2, 5). This is the simplest
-#   and most testable approach for a new project.
+#   This workflow validates the code. It does NOT deploy automatically.
+#   Automatic deployment is intentionally disabled until servers exist.
+#   When you are ready to enable automatic deployment, uncomment the
+#   deploy-staging job below and add the required secrets.
 #
-#   Kubernetes (Phase 4) is **commented out** for future use. When you are
-#   ready to migrate to Kubernetes, uncomment the relevant jobs (search for
-#   "KUBERNETES") and follow the instructions inside.
+#   Manual deployment is handled by .github/workflows/deploy.yml.
+#
+# BRANCHING STRATEGY:
+#   - main:              Stable, production-ready code. Enterprise customers clone this.
+#   - dev-deployment1:   Active development branch. All PRs target this.
+#
+# STATUS (2026-09):
+#   - Lint, security, and build jobs are ACTIVE.
+#   - Deploy jobs are COMMENTED OUT (no servers yet).
+#   - Slack notification is COMMENTED OUT (no webhook yet).
 # =============================================================================
 
 name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, dev-deployment1 ]
   pull_request:
     branches: [ main ]
   release:
@@ -31,7 +37,6 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   DOCKER_BUILDKIT: 1
-  PROXY_API_KEY: ${{ secrets.PROXY_API_KEY }}
 
 jobs:
   # =========================================================================
@@ -41,10 +46,10 @@ jobs:
     name: Lint & Quality
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -72,10 +77,10 @@ jobs:
     name: Security Scanning
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -94,138 +99,164 @@ jobs:
   # =========================================================================
   # 3. BUILD IMAGES
   # =========================================================================
+  # NOTE: This job builds Docker images for validation only. It does not
+  # push them to a registry. To enable registry push, add a login step
+  # and set push: true.
+  #
+  # NOTE: The build context below assumes ./src/core/Dockerfile exists.
+  # If your LangGraph Dockerfile is elsewhere, update the context and
+  # file paths accordingly.
+  # =========================================================================
   build:
-    name: Build Images
+    name: Build LangGraph Image
     runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        target: [odoo, langgraph]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.target }} image
-        uses: docker/build-push-action@v5
+      - name: Build LangGraph image
+        uses: docker/build-push-action@v6
         with:
-          context: ./src/${{ matrix.target }}
-          file: ./src/${{ matrix.target }}/Dockerfile
+          context: ./src/core
+          file: ./src/core/Dockerfile
           push: false
           load: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.target }}:test
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-langgraph:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   # =========================================================================
   # 4. TEST (Unit & Integration)
   # =========================================================================
-  test:
-    name: Run Tests
-    runs-on: ubuntu-24.04
-    needs: build
-    strategy:
-      matrix:
-        test_type: [unit, integration]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Run ${{ matrix.test_type }} tests
-        run: |
-          docker compose -f docker-compose.test.yml run --rm test-${{ matrix.test_type }}
+  # DISABLED: docker-compose.test.yml does not exist yet.
+  # To enable:
+  #   1. Create docker-compose.test.yml at the repo root
+  #   2. Define test-unit and test-integration services
+  #   3. Uncomment the job below
+  # =========================================================================
+#  test:
+#    name: Run Tests
+#    runs-on: ubuntu-24.04
+#    needs: build
+#    strategy:
+#      matrix:
+#        test_type: [unit, integration]
+#    steps:
+#      - uses: actions/checkout@v5
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v3
+#
+#      - name: Run ${{ matrix.test_type }} tests
+#        run: |
+#          docker compose -f docker-compose.test.yml run --rm test-${{ matrix.test_type }}
 
   # =========================================================================
-  # 5. DEPLOY TO STAGING (using nettrades-setup.sh)
+  # 5. DEPLOY TO STAGING
   # =========================================================================
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-24.04
-    needs: [lint, security, build, test]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    environment: staging
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
-
-      - name: Deploy via nettrades-setup.sh
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
-            cd ${{ secrets.STAGING_PATH }}
-            git pull
-            ./scripts/nettrades-setup.sh all --auto
-          EOF
-
-      - name: Health check
-        run: |
-          curl -f http://${{ secrets.STAGING_HOST }}/odoo/health || exit 1
-          curl -f http://${{ secrets.STAGING_HOST }}/langgraph/health || exit 1
+  # DISABLED: No staging server configured yet.
+  # To enable:
+  #   1. Add repository secrets: STAGING_SSH_KEY, STAGING_HOST,
+  #      STAGING_USER, STAGING_PATH
+  #   2. Uncomment the job below
+  #   3. Adjust the "needs:" line if any of the required jobs are still
+  #      disabled, otherwise the deploy will not run.
+  # =========================================================================
+#  deploy-staging:
+#    name: Deploy to Staging
+#    runs-on: ubuntu-24.04
+#    needs: [lint, security, build]
+#    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev-deployment1'
+#    environment: staging
+#    steps:
+#      - uses: actions/checkout@v5
+#
+#      - name: Setup SSH
+#        uses: webfactory/ssh-agent@v0.10.0
+#        with:
+#          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+#
+#      - name: Deploy via nettrades-setup.sh
+#        run: |
+#          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+#            cd ${{ secrets.STAGING_PATH }}
+#            git pull
+#            ./scripts/nettrades-setup.sh all --auto
+#          EOF
+#
+#      - name: Health check
+#        run: |
+#          curl -f http://${{ secrets.STAGING_HOST }}/odoo/health || exit 1
+#          curl -f http://${{ secrets.STAGING_HOST }}/langgraph/health || exit 1
 
   # =========================================================================
-  # 6. DEPLOY TO PRODUCTION (using nettrades-setup.sh with --upgrade)
+  # 6. DEPLOY TO PRODUCTION
   # =========================================================================
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-24.04
-    needs: [deploy-staging]
-    if: github.event_name == 'release'
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
-
-      - name: Deploy via nettrades-setup.sh (upgrade mode)
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
-            cd ${{ secrets.PRODUCTION_PATH }}
-            git pull
-            ./scripts/nettrades-setup.sh all --auto --upgrade
-          EOF
-
-      - name: Health check
-        run: |
-          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/odoo/health || exit 1
-          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/langgraph/health || exit 1
+  # DISABLED: No production server configured yet.
+  # =========================================================================
+#  deploy-production:
+#    name: Deploy to Production
+#    runs-on: ubuntu-24.04
+#    needs: [deploy-staging]
+#    if: github.event_name == 'release'
+#    environment: production
+#    steps:
+#      - uses: actions/checkout@v5
+#
+#      - name: Setup SSH
+#        uses: webfactory/ssh-agent@v0.10.0
+#        with:
+#          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+#
+#      - name: Deploy via nettrades-setup.sh (upgrade mode)
+#        run: |
+#          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+#            cd ${{ secrets.PRODUCTION_PATH }}
+#            git pull
+#            ./scripts/nettrades-setup.sh all --auto --upgrade
+#          EOF
+#
+#      - name: Health check
+#        run: |
+#          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/odoo/health || exit 1
+#          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/langgraph/health || exit 1
 
   # =========================================================================
   # 7. NOTIFY (Slack)
   # =========================================================================
-  notify:
-    name: Notify Slack
-    runs-on: ubuntu-24.04
-    needs: [deploy-staging, deploy-production]
-    if: always()
-    steps:
-      - name: Send Slack notification
-        uses: slackapi/slack-github-action@v1.27.0
-        with:
-          payload: |
-            {
-              "text": "Deployment status: ${{ job.status }}\nRef: ${{ github.ref }}\nRepo: ${{ github.repository }}",
-              "attachments": [
-                {
-                  "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
-                  "title": "CI/CD Pipeline",
-                  "fields": [
-                    { "title": "Status", "value": "${{ job.status }}", "short": true },
-                    { "title": "Branch", "value": "${{ github.ref_name }}", "short": true }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
+  # DISABLED: No Slack webhook configured yet.
+  # To enable:
+  #   1. Create an incoming webhook at https://api.slack.com/messaging/webhooks
+  #   2. Add repository secret: SLACK_WEBHOOK_URL
+  #   3. Uncomment the job below
+  # =========================================================================
+#  notify:
+#    name: Notify Slack
+#    runs-on: ubuntu-24.04
+#    needs: [deploy-staging, deploy-production]
+#    if: always()
+#    steps:
+#      - name: Send Slack notification
+#        uses: slackapi/slack-github-action@v2.1.1
+#        with:
+#          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+#          webhook-type: incoming-webhook
+#          payload: |
+#            {
+#              "text": "Deployment status: ${{ job.status }}\nRef: ${{ github.ref }}\nRepo: ${{ github.repository }}",
+#              "attachments": [
+#                {
+#                  "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+#                  "title": "CI/CD Pipeline",
+#                  "fields": [
+#                    { "title": "Status", "value": "${{ job.status }}", "short": true },
+#                    { "title": "Branch", "value": "${{ github.ref_name }}", "short": true }
+#                  ]
+#                }
+#              ]
+#            }
 # =============================================================================
 # ====================== KUBERNETES DEPLOYMENT (FUTURE USE) ===================
 # =============================================================================
@@ -236,7 +267,7 @@ jobs:
 #   3. Ensure your images are pushed to the registry (add a push step).
 #   4. Remove or disable the SSH-based deploy jobs above.
 # =============================================================================
-
+#
 # deploy-staging-k8s:
 #   name: Deploy to Staging (K8s)
 #   runs-on: ubuntu-24.04
