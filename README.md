@@ -1041,8 +1041,8 @@ For more detailed help, see the [Full Documentation](docs/index.md).
 | `Git / CI` | Source control / CI | Forgejo | Latest | MIT | Self-hosted Git |
 | `GitOps` | Continuous delivery | Argo CD | Latest | Apache-2.0 | Declarative deployments |
 
-The system currently uses hub, sub-hub, spoke architecture with docker containers which scales well already. 
-While running distributed inferencing, the KV cache is physically resident on the chosen backend. The LangGraph supervisor agent along with NVIDIA Dynamo choose which machines to use for the most efficient utilisation of compute and governed by the configuration set by the company administrator. That way they could also recover graceful when one of the machines is switched off, as LangGraph's uses checkpoints held using PostgresSaver in the PostGreSQL database to drain-and-restart the conversation onto new machines. To maintain this level of control, Kubernetes are not currently being used but the system is designed to work with them for application that need less control over the hardware.
+The system currently uses hub, sub-hub, spoke architecture with docker containers which scales well already. NVIDIA Dynamo is also being used. Kubernetes will also be used. 
+
 
 ### Partially Implemented
 
