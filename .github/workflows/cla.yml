@@ -2,53 +2,62 @@
 # FILE: .github/workflows/cla.yml
 # =============================================================================
 # PURPOSE:
-# Fully automated Contributor License Agreement (CLA) enforcement.
-# This workflow checks if PR authors have signed the CLA and prompts them
-# to sign if they haven't. Signatures are stored in the main branch.
+#   Fully automated Contributor License Agreement (CLA) enforcement.
+#   This workflow checks if PR authors have signed the CLA and prompts them
+#   to sign if they haven't. Signatures are stored in the main branch.
 #
 # BRANCHING STRATEGY:
-# - main: Stable, production-ready code. Enterprise customers clone this.
-# - dev-deployment1: Active development branch. All PRs target this.
-# - Signatures are stored in main (stable storage).
-# - CLA document is read from dev-deployment1 inside the /LEGAL subfolder.
+#   - main:              Stable, production-ready code. Enterprise customers clone this.
+#   - dev-deployment1:   Active development branch. All PRs target this.
+#   - Signatures are stored in main (stable storage).
+#   - CLA document is read from dev-deployment1 inside the /LEGAL subfolder.
+#
+# NOTES:
+#   - pull_request_target runs in the context of the base repo, so it is safe
+#     to use here. Do NOT switch to pull_request — that would run untrusted
+#     code from the fork with access to repo secrets.
+#   - The allowlist uses exact string matching, not globs. A wildcard like
+#     '*[bot]' has no special meaning and matches nothing.
+#   - The merge_group job is a placeholder until GitHub merge queues are
+#     enabled for this repository. It is harmless if unused.
 # =============================================================================
 #
 # Copyright (c) 2026 NETTRADES FOUNDATION. All rights reserved.
-# 
+#
 # This file is part of the NETTRADES Sovereign AI Platform.
-# 
-# The NETTRADES Sovereign AI Platform is a dual-licensed enterprise ecosystem. 
-# This file is distributed as open-source software under the terms of the 
-# GNU Affero General Public License v3.0 (AGPL-3.0) as published by the Free 
+#
+# The NETTRADES Sovereign AI Platform is a dual-licensed enterprise ecosystem.
+# This file is distributed as open-source software under the terms of the
+# GNU Affero General Public License v3.0 (AGPL-3.0) as published by the Free
 # Software Foundation, version 3 of the License, or (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful, but WITHOUT 
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
-# FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License v3.0 for 
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License v3.0 for
 # more details.
-# 
-# You should have received a copy of the GNU Affero General Public License v3.0 
+#
+# You should have received a copy of the GNU Affero General Public License v3.0
 # along with this program. If not, see <https://gnu.org>.
-# 
+#
 # CONTRIBUTOR NOTICE:
-# All contributions to this repository are contractually subject to the NETTRADES 
-# Contributor License Agreement (CLA). Any submission or pull request implies 
-# cryptographic authorization of the CLA terms, including generative AI disclosures 
+# All contributions to this repository are contractually subject to the NETTRADES
+# Contributor License Agreement (CLA). Any submission or pull request implies
+# cryptographic authorization of the CLA terms, including generative AI disclosures
 # and the Foundation's defensive patent framework.
-# 
+#
 # ALTERNATIVE ENTERPRISE LICENSING:
-# Commercial developers, corporate entities, or sovereign institutions wishing to 
-# exempt their infrastructure deployment from the copyleft source-disclosure 
-# requirements of the AGPL-3.0 must purchase a paid Commercial Alternative license. 
-# Closed-source commercial exploitation, custom multi-agent extensions, and premium 
-# SLAs are governed strictly under the split-jurisdiction architecture of the 
-# NETTRADES Foundation (administered via the laws of England & Wales or the Qatar 
+# Commercial developers, corporate entities, or sovereign institutions wishing to
+# exempt their infrastructure deployment from the copyleft source-disclosure
+# requirements of the AGPL-3.0 must purchase a paid Commercial Alternative license.
+# Closed-source commercial exploitation, custom multi-agent extensions, and premium
+# SLAs are governed strictly under the split-jurisdiction architecture of the
+# NETTRADES Foundation (administered via the laws of England & Wales or the Qatar
 # Financial Centre common law framework, depending on licensee domicile).
-# 
+#
 # For commercial licensing onboarding, corporate procurement, or KYC verifications:
 # - Licensing Portal: https://nettrades.org
 # - Legal & Compliance Division: legal@nettrades.org
-# 
+#
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-NETTRADES-Commercial
 # =============================================================================
 name: "CLA Assistant"
@@ -68,35 +77,42 @@ on:
   merge_group:
     types: [checks_requested]
 
-# Explicitly configure permissions
+# Explicitly configure permissions.
+# Note: 'actions: write' is intentionally NOT granted — the CLA action does
+# not need it, and granting it would widen the attack surface unnecessarily.
 permissions:
-  actions: write
-  contents: write   # Needed to store signatures in the repository
-  pull-requests: write
-  statuses: write
+  contents: write       # Needed to store signatures in the repository
+  pull-requests: write  # Needed to comment on PRs
+  statuses: write       # Needed to update commit statuses
 
-# Concurrency control prevents overlapping CLA checks
+# Concurrency control prevents overlapping CLA checks.
+# The group is keyed on PR number for PR events, or the merge group head SHA
+# for merge queue events.
 concurrency:
-  group: cla-\${{ github.event.pull_request.number || github.event.merge_group.head_sha }}
+  group: cla-${{ github.event.pull_request.number || github.event.merge_group.head_sha }}
   cancel-in-progress: true
 
 jobs:
   CLAAssistant:
     runs-on: ubuntu-latest
 
-    # Security: Only run on the main repository (not on forks)
+    # Security: Only run on the main repository (not on forks).
+    # This prevents forks from triggering the workflow in the upstream repo.
     if: github.repository == 'nettrades/nettrades-platform'
 
     steps:
       # ----------------------------------------------------------------------
       # Step 1: Regex-based comment matching
-      # This handles whitespace, newlines, and case variations in signing comments
+      # This handles whitespace, newlines, and case variations in signing
+      # comments. The regex action only produces a useful result on
+      # issue_comment events; on other events the input text is empty and the
+      # match output is empty, which is handled by the 'if' on the next step.
       # ----------------------------------------------------------------------
       - name: "Match signing phrase with regex"
         id: sign-or-recheck
         uses: actions-ecosystem/action-regex-match@v2
         with:
-          text: \${{ github.event.comment.body }}
+          text: ${{ github.event.comment.body }}
           # Matches either:
           #   - "I have read the CLA Document and I hereby sign the CLA"
           #   - "recheck"
@@ -105,40 +121,44 @@ jobs:
 
       # ----------------------------------------------------------------------
       # Step 2: Run the CLA Assistant
-      # This is the core CLA enforcement action
+      # This is the core CLA enforcement action.
+      # Runs on:
+      #   - A comment that matches the signing/recheck phrase, OR
+      #   - Any pull_request_target event (new PR, synchronize, reopen), OR
+      #   - Any merge_group event (queue compatibility).
       # ----------------------------------------------------------------------
       - name: "CLA Assistant"
-        # Run if:
-        #   - The comment matches the signing/recheck phrase, OR
-        #   - The event is a pull_request_target (new PR or synchronize), OR
-        #   - The event is a merge_group (queue compatibility)
         if: |
           steps.sign-or-recheck.outputs.match != '' ||
           github.event_name == 'pull_request_target' ||
           github.event_name == 'merge_group'
         uses: contributor-assistant/github-action@v2.6.1
         env:
-          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          # Optional: Personal Access Token for remote signature storage
-          # PERSONAL_ACCESS_TOKEN: \${{ secrets.CLA_SIGN_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: Personal Access Token for remote signature storage.
+          # Only needed if you uncomment the remote-* options below.
+          # PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_SIGN_TOKEN }}
         with:
           # ------------------------------------------------------------------
           # Signature Storage
           # ------------------------------------------------------------------
-          # Signatures are stored in the MAIN branch (stable storage)
+          # Signatures are stored in the MAIN branch (stable storage).
+          # The action creates this file automatically on the first signature.
           path-to-signatures: 'signatures/version1/cla.json'
 
-          # CLA document is read from the /LEGAL directory on dev-deployment1 branch
+          # CLA document is read from the /LEGAL directory on the
+          # dev-deployment1 branch.
           path-to-document: 'https://raw.githubusercontent.com/nettrades/nettrades-platform/dev-deployment1/LEGAL/Contributor-License-Agreement.md'
 
-          # Signatures are committed to the MAIN branch
+          # Signatures are committed to the MAIN branch.
           branch: 'main'
 
           # ------------------------------------------------------------------
           # Allowlist (Exempt Users/Bots)
           # ------------------------------------------------------------------
           # Users/bots that are exempt from signing the CLA.
-          # nettrades is the project maintainer and repository owner.
+          # Note: this is an exact-match list, not a glob list. Wildcards
+          # such as '*[bot]' have no effect and are intentionally omitted.
           allowlist: |
             nettrades,
             dependabot[bot],
@@ -147,8 +167,7 @@ jobs:
             pre-commit-ci[bot],
             claude,
             claude[bot],
-            anthropic-oss-manager[bot],
-            *[bot]
+            anthropic-oss-manager[bot]
 
           # ------------------------------------------------------------------
           # Remote Signature Storage (Optional)
@@ -181,16 +200,19 @@ jobs:
           custom-pr-sign-comment: |
             I have read the CLA Document and I hereby sign the CLA
 
-          # Prevent the bot from locking the PR after merge
+          # Prevent the bot from locking the PR after merge.
           lock-pullrequest-aftermerge: false
 
       # ----------------------------------------------------------------------
-      # Step 3: Merge Queue Status Report (Anthropic Pattern)
+      # Step 3: Merge Queue Status Report
       # ----------------------------------------------------------------------
       # The CLA action above only runs on pull_request_target events.
       # Without this step, the required "CLAAssistant" check would never report
       # on merge_group events and queued PRs would stay pending indefinitely.
       # This step creates a dummy check run on merge_group events.
+      #
+      # This only matters once you enable GitHub merge queues for the repo.
+      # Until then it is a no-op.
       # ----------------------------------------------------------------------
       - name: "Report CLA status for merge queue"
         if: github.event_name == 'merge_group'
