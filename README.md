@@ -32,7 +32,7 @@ PURPOSE:
     <img src="https://img.shields.io/github/v/release/nettrades/nettrades-platform?sort=semver" alt="GitHub release (latest SemVer)">
   </a>
   <a href="https://github.com/nettrades/nettrades-platform/actions">
-    <img src="https://github.com/nettrades/nettrades-platform/actions/workflows/ci-cd.yml/badge.svg" alt="CI/CD">
+  <img src="https://github.com/nettrades/nettrades-platform/actions/workflows/ci-cd.yml/badge.svg?branch=main" alt="CI/CD">
   </a>
   <a href="https://github.com/nettrades/nettrades-platform/issues">
     <img src="https://img.shields.io/github/issues/nettrades/nettrades-platform" alt="GitHub Issues">
