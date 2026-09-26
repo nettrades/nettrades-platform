@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # =============================================================================
-# AGENTS MODULE – NETTRADES LangGraph Sub-Agents
+# AGENTS MODULE | NETTRADES LangGraph Sub-Agents
 # =============================================================================
 # FILE: src/core/agents/__init__.py
 #
