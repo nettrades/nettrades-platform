@@ -3,22 +3,47 @@
 # =============================================================================
 # FILE: deploy/docker/alert-rules.yaml
 # =============================================================================
-# All services are production-ready, with pinned versions for stability.
-# Forgejo 15.0 LTS is supported until July 2027.
-# GPUStack v2.1.2 is the current stable release.
-# Valkey 8 (BSD-3-Clause) replaces Redis for session storage,
-# ORM cache, and bus notifications.
 #
-# GPUStack’s built-in Prometheus and Grafana are DISABLED on the central
-# deployment.  Metrics are scraped by the external Prometheus (port 10161)
-# and visualised in the external Grafana.  The GPUSTACK_GRAFANA_URL
-# environment variable tells GPUStack to point its UI links to the external
-# Grafana instead of starting its own embedded stack.
-#
-# Client companies running their own GPUStack server (Trusted Mode) retain
-# the built-in Grafana at http://<controller>:80/grafana for anonymous
-# Viewer access to GPU-level dashboards.
+# Copyright (c) 2026 NETTRADES FOUNDATION. All rights reserved.
+# 
+# This file is part of the NETTRADES Sovereign AI Platform.
+# 
+# The NETTRADES Sovereign AI Platform is a dual-licensed enterprise ecosystem. 
+# This file is distributed as open-source software under the terms of the 
+# GNU Affero General Public License v3.0 (AGPL-3.0) as published by the Free 
+# Software Foundation, version 3 of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT 
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+# FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License v3.0 for 
+# more details.
+# 
+# You should have received a copy of the GNU Affero General Public License v3.0 
+# along with this program. If not, see <https://gnu.org>.
+# 
+# CONTRIBUTOR NOTICE:
+# All contributions to this repository are contractually subject to the NETTRADES 
+# Contributor License Agreement (CLA). Any submission or pull request implies 
+# cryptographic authorization of the CLA terms, including generative AI disclosures 
+# and the Foundation's defensive patent framework.
+# 
+# ALTERNATIVE ENTERPRISE LICENSING:
+# Commercial developers, corporate entities, or sovereign institutions wishing to 
+# exempt their infrastructure deployment from the copyleft source-disclosure 
+# requirements of the AGPL-3.0 must purchase a paid Commercial Alternative license. 
+# Closed-source commercial exploitation, custom multi-agent extensions, and premium 
+# SLAs are governed strictly under the split-jurisdiction architecture of the 
+# NETTRADES Foundation (administered via the laws of England & Wales or the Qatar 
+# Financial Centre common law framework, depending on licensee domicile).
+# 
+# For commercial licensing onboarding, corporate procurement, or KYC verifications:
+# - Licensing Portal: https://nettrades.org
+# - Legal & Compliance Division: legal@nettrades.org
+# 
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-NETTRADES-Commercial
 # =============================================================================
+
+
 version: '3.8'
 
 services:
@@ -221,35 +246,7 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # ---------------------------------------------------------------------------
-  # GPUStack v2.1.2 – GPU cluster manager
-  # ---------------------------------------------------------------------------
-  gpustack:
-    image: gpustack/gpustack:v2.1.2
-    container_name: gpustack
-    restart: unless-stopped
-    networks:
-      - web
-      - internal
-    ports:
-      - "8080:80"
-    volumes:
-      - ./gpustack-data:/var/lib/gpustack
-    environment:
-      - GPUSTACK_JWT_SECRET=${GPUSTACK_JWT_SECRET}
-      # Disable built-in Prometheus & Grafana; use external stack instead.
-      # This environment variable tells GPUStack to point its UI links to
-      # the external Grafana rather than starting its own embedded stack.
-      # Metrics are scraped by the external Prometheus on port 10161.
-      - GPUSTACK_GRAFANA_URL=https://grafana.${DOMAIN}
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.gpustack.rule=Host(`gpustack.${DOMAIN}`)
-      - traefik.http.services.gpustack.loadbalancer.server.port=80
-    security_opt:
-      - no-new-privileges:true
-
-  # ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
   # Monitoring stack
   # ---------------------------------------------------------------------------
   node_exporter:
