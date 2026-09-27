@@ -70,7 +70,7 @@ PURPOSE:
 
 **In the past, enterprises faced a critical choice: send sensitive data to external companies or spend years building their own AI infrastructure.**
 
-**Now they just install Ubuntu Linux on a computer and run the commands below and deploy the entire NETTRADES Sovereign AI Infrastructure in minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
+**Now they just install Ubuntu Linux on a computer and run the commands below to deploy the entire NETTRADES Sovereign AI Infrastructure in minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
 The Nettrades Platform builds the Sovereign AI Infrastructure for the Autonomous Enterprises of the future. 
 
