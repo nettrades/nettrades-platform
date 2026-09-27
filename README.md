@@ -72,16 +72,16 @@ PURPOSE:
 
 **Now they just install Ubuntu Linux on a computer and run the commands below to deploy the entire NETTRADES Sovereign AI Infrastructure in minutes — no cloud dependencies, no data leaving their control and no vendor lock-in.**
 
-The Nettrades Platform builds the Sovereign AI Infrastructure for the Autonomous Enterprises of the future. 
+**They use their spare GPU capacity to talk to their organisations data.** 
 
-**They could then use their spare GPU capacity to talk to their organisations data.** 
-
-
+The Nettrades Platform is designed to build the Sovereign AI Infrastructure for the Autonomous Enterprises of the future. 
 
 
 ### Deploy in minutes, not months
 
-The main NETTRADES Sovereign AI Platform Hub and Sub Hubs should be installed on a Ubuntu 24.04 machine. Or partitian the drive for dual boot and have Ubuntu 24.04 on one of the partitians so that the NVIDIA Dynamo workers have direct access to the hardware, because the NVIDIA Dynamo workers can not run on WSL. But if you just want to see what it looks like on a Windows machine in WSL, you could: 
+NETTRADES Uses a Hub (NETTRADES.AI), Sub-Hub (one per client company or network), and Spoke (per computer) Topology.
+
+The NETTRADES Sovereign AI Platform Sub Hub Could be installed on a Ubuntu 24.04 machine. Or partitian the drive for dual boot and have Ubuntu 24.04 on one of the partitians so that the NVIDIA Dynamo workers have direct access to the hardware. The NVIDIA Dynamo workers can not run on WSL. But if you just want to see what it looks like on a Windows machine in WSL, you could also: 
 
 Enable virtualisation in the BIOS.
 
@@ -223,11 +223,10 @@ The quickest way to learn to use the NETTRADES Sovereign AI Platform is to play 
 
 
 
-
 <img src="docs/screenshots/dashboard.jpg" alt="NETTRADES Launcher" width="100%">
 
 
-See the "Accessing Your Platform" section below to login to the various applications.
+See the "Accessing Your Platform" section above to login to the various applications.
 
 
 
