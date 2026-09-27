@@ -79,9 +79,11 @@ The Nettrades Platform is designed to build the Sovereign AI Infrastructure for 
 
 ### Deploy in minutes, not months
 
-NETTRADES Uses a Hub (NETTRADES.AI), Sub-Hub (one per client company or network), and Spoke (per computer) Topology.
+NETTRADES Sovereign AI Platform uses a Hub (NETTRADES.AI), Sub-Hub (one per client company or network) and Spoke (per computer) Topology.
 
-The NETTRADES Sovereign AI Platform Sub Hub Could be installed on a Ubuntu 24.04 machine. Or partitian the drive for dual boot and have Ubuntu 24.04 on one of the partitians so that the NVIDIA Dynamo workers have direct access to the hardware. The NVIDIA Dynamo workers can not run on WSL. But if you just want to see what it looks like on a Windows machine in WSL, you could also: 
+The NETTRADES Sovereign AI Platform Sub Hub Could be installed on a Ubuntu 24.04 machine. 
+
+Or you could partitian the drive for dual boot and have Ubuntu 24.04 on one of the partitians, so that the NVIDIA Dynamo workers have direct access to the hardware. The NVIDIA Dynamo workers can not run on WSL. But if you just want to see what it looks like on a Windows machine in WSL, or want to set up a development machine you could also: 
 
 Enable virtualisation in the BIOS.
 
@@ -103,7 +105,7 @@ Then install WSL via the Microsoft Store app:
 * Search for "Windows Subsystem for Linux" (or Ubuntu).
 * Click Get or Install 
 
-Or restarted the computer and then run Powershell as an administrator to update WSL
+Or restart the computer and then run Powershell as an administrator to update WSL
 
 ```bash
 
@@ -114,7 +116,7 @@ PS C:\WINDOWS\system32> wsl --update
 ```
 
 
-Restarted the computer and then run Powershell as an administrator to install Ubuntu 24.04 run:
+Restart the computer and then run Powershell as an administrator to install Ubuntu 24.04 by running:
 
 ```bash
 
