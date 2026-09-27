@@ -21,9 +21,11 @@ PURPOSE:
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/nettrades-banner-dark.png">
-    <img src="logo.jpg" alt="NETTRADES.AI Banner" style="display: block; margin: 0 auto;">
+    <img src="logo.jpg" alt="NETTRADES.AI Banner" width="100%">
   </picture>
 </p>
+
+<h1 align="center">NETTRADES Sovereign AI Platform</h1>
 
 <p align="center">
   <a href="https://github.com/nettrades/nettrades-platform/releases">
