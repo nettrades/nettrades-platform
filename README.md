@@ -60,9 +60,9 @@ PURPOSE:
 [![Contributor License Agreement](https://img.shields.io/badge/Contributor-License-Agreement.svg)](Contributor-License-Agreement.md)
 [![Ethical Statement](https://img.shields.io/badge/Ethical-Statement.svg)](ETHICAL-STATEMENT.md)
 
-## The NETTRADES Sovereign AI Platform For Autonomous Enterprises
+## The NetTrades Sovereign AI Platform For Autonomous Enterprises
 
-**The Nettrades Platform builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity.**
+**The NetTrades Sovereign AI Platform builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity.**
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
