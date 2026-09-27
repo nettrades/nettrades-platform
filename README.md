@@ -25,8 +25,6 @@ PURPOSE:
   </picture>
 </p>
 
-<h1 align="center">NETTRADES Sovereign AI Platform</h1>
-
 <p align="center">
   <a href="https://github.com/nettrades/nettrades-platform/releases">
     <img src="https://img.shields.io/github/v/release/nettrades/nettrades-platform?sort=semver" alt="GitHub release (latest SemVer)">
