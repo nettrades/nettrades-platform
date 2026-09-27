@@ -59,6 +59,7 @@
 # STATUS (2026-09):
 #   - All deploy jobs are COMMENTED OUT because there are no servers yet.
 #   - The Slack notification job is COMMENTED OUT because no webhook exists.
+#   - A placeholder 'notice' job runs so the workflow file is valid.
 #   - Uncomment the relevant jobs once you have:
 #       1. A staging server with SSH access
 #       2. A production server with SSH access
@@ -90,6 +91,43 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
+  # =========================================================================
+  # PLACEHOLDER JOB
+  # =========================================================================
+  # GitHub Actions requires every workflow to define at least one job.
+  # Because all the real jobs below are commented out (no servers yet),
+  # this notice job exists purely to keep the workflow file valid.
+  #
+  # Delete this job once you uncomment the deploy-staging and/or
+  # deploy-production jobs below.
+  # =========================================================================
+  notice:
+    name: Deployment Not Configured
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Print status
+        run: |
+          echo "=========================================="
+          echo " Manual Deploy workflow — not configured"
+          echo "=========================================="
+          echo ""
+          echo "Requested environment: ${{ github.event.inputs.environment }}"
+          echo "Triggered by:          ${{ github.actor }}"
+          echo "Ref:                   ${{ github.ref }}"
+          echo ""
+          echo "No deployment was performed because no target"
+          echo "servers are configured yet."
+          echo ""
+          echo "To enable deployment:"
+          echo "  1. Add repository secrets:"
+          echo "       STAGING_SSH_KEY, STAGING_HOST, STAGING_USER, STAGING_PATH"
+          echo "       PRODUCTION_SSH_KEY, PRODUCTION_HOST, PRODUCTION_USER,"
+          echo "       PRODUCTION_PATH, PRODUCTION_DOMAIN"
+          echo "  2. Uncomment the deploy-staging / deploy-production jobs"
+          echo "     in .github/workflows/deploy.yml"
+          echo "  3. Delete this notice job"
+          echo ""
+
   # =========================================================================
   # 1. DEPLOY TO STAGING
   # =========================================================================
