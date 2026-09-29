@@ -4,6 +4,7 @@
 
 import uuid
 import logging
+import traceback
 from typing import Dict, Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -88,8 +89,19 @@ async def run_thread(thread_id: str, request: Request):
             "messages": [assistant_message],
         }
     except Exception as e:
-        logger.error(f"Run thread failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # str(e) is sometimes empty (StopIteration, CancelledError, custom
+        # exceptions with no message). Log the type and repr along with the
+        # full formatted traceback so the real cause is always captured.
+        logger.error(
+            "Run thread failed: %s: %r",
+            type(e).__name__,
+            e,
+        )
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"{type(e).__name__}: {e}" if str(e) else type(e).__name__,
+        )
 
 
 @router.post("/runs")
@@ -135,5 +147,16 @@ async def create_run(request: Request):
             "messages": [assistant_message],
         }
     except Exception as e:
-        logger.error(f"Create run failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # str(e) is sometimes empty (StopIteration, CancelledError, custom
+        # exceptions with no message). Log the type and repr along with the
+        # full formatted traceback so the real cause is always captured.
+        logger.error(
+            "Create run failed: %s: %r",
+            type(e).__name__,
+            e,
+        )
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"{type(e).__name__}: {e}" if str(e) else type(e).__name__,
+        )
