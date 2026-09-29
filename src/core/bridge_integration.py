@@ -31,6 +31,7 @@
 #   result = await bridge.route_request(intent, data, company_id)
 # =============================================================================
 
+import os
 import json
 import logging
 from typing import Dict, Any, Optional
@@ -66,18 +67,20 @@ class BridgeService:
         odoo_env: An Odoo environment for direct RPC calls.
         bridge_url: The URL of the Odoo bridge API endpoint.
     """
-
     def __init__(self, odoo_env=None):
-        """
-        Initialise the BridgeService.
-
-        Args:
-            odoo_env: An Odoo environment (optional). If provided, the service
-                uses direct RPC to call the bridge. Otherwise, it uses HTTP API calls.
-        """
         self.odoo_env = odoo_env
-        self.bridge_url = "http://localhost:8069/api/bridge/route"
-        _logger.info("BridgeService initialised")
+        # Use ODOO_PROXY_URL (the HTTP JSON-RPC shim) or ODOO_URL as the
+        # bridge base. Never localhost — inside a container that is the
+        # container itself, not the Odoo service.
+        odoo_base = os.getenv(
+            "ODOO_PROXY_URL",
+            os.getenv("ODOO_URL", "http://odoo:8069"),
+        ).rstrip("/")
+        # If we are pointed at the odoo-proxy, the route path is /jsonrpc;
+        # the bridge is an Odoo JSON-RPC method, so we call it via /jsonrpc
+        # and let the controller route it.
+        self.bridge_url = f"{odoo_base}/api/bridge/route"
+        _logger.info(f"BridgeService initialised (bridge_url={self.bridge_url})")
 
     async def route_request(
         self,
