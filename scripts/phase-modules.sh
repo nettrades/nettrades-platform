@@ -15,6 +15,10 @@
 
 set -euo pipefail
 
+set -a
+source "$PROJECT_ROOT/deploy/docker/.env"
+set +a
+
 # -----------------------------------------------------------------------------
 # Source shared libraries
 # -----------------------------------------------------------------------------
@@ -83,6 +87,18 @@ if [[ -f "$SCRIPT_DIR/install-modules.sh" ]]; then
 else
     log_error "install-modules.sh not found at $SCRIPT_DIR"
     exit 1
+fi
+
+log_step "Ensuring admin is in GPU administrator groups..."
+ODOO_ADMIN_SCRIPT="$SCRIPT_DIR/configure-odoo-admin.sh"
+if [[ -f "$ODOO_ADMIN_SCRIPT" ]] && [[ -n "${ODOO_ADMIN_PASSWORD:-}" ]]; then
+    cd "$PROJECT_ROOT/deploy/docker"
+    docker compose exec -T \
+        -e ODOO_ADMIN_PASSWORD="$ODOO_ADMIN_PASSWORD" \
+        -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+        odoo bash -c "$(cat "$ODOO_ADMIN_SCRIPT")" 2>&1 \
+        | grep '^\[configure-odoo-admin\]' || true
+    cd "$PROJECT_ROOT"
 fi
 
 # -----------------------------------------------------------------------------

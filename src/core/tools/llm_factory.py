@@ -187,6 +187,10 @@ class LLMFactory:
             )
             response.raise_for_status()
 
+            if "error" in result:
+                _logger.warning(f"Odoo error fetching LLM config: {result['error'].get('message')}")
+                return self._get_fallback_config()
+
             result = response.json()
             if result.get("result"):
                 return result["result"]

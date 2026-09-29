@@ -1127,7 +1127,7 @@ EOF
     fi
 
     # -----------------------------------------------------------------------------
-    # 5. Run security hardening (if Phase 0 not completed)
+    # Run security hardening (if Phase 0 not completed)
     # -----------------------------------------------------------------------------
     if [[ -f "$PROJECT_ROOT/.phase-0-complete" ]]; then
         log_success "Phase 0 already completed – skipping hardening."
@@ -1141,7 +1141,7 @@ EOF
     fi
 
     # -----------------------------------------------------------------------------
-    # 6. Start PostgreSQL and initialise the database (if empty)
+    # Start PostgreSQL and initialise the database (if empty)
     # -----------------------------------------------------------------------------
     cd "$DEPLOY_DIR"
     log_step "Starting PostgreSQL container and initialising database..."
@@ -1214,7 +1214,8 @@ EOF
 
     SECRET_VARS=(
         POSTGRES_PASSWORD
-        ADMIN_PASSWORD
+        DB_MANAGER_UI_PASSWORD
+        ODOO_ADMIN_PASSWORD
         FORGEJO_DB_PASSWORD
         FORGEJO_SECRET_KEY
         GRAFANA_PASSWORD
@@ -1473,8 +1474,9 @@ EOF
 
     enable_pgcrypto || true
 
+
     # -----------------------------------------------------------------------------
-    # 7. Build and start the full Docker Compose stack (with retry)
+    # Build and start the full Docker Compose stack (with retry)
     # -----------------------------------------------------------------------------
     log_step "Building and starting Docker Compose stack (with retries)..."
 
@@ -1639,7 +1641,7 @@ EOF
     done
 
     # =============================================================================
-    # 10. DYNAMO SETUP
+    # DYNAMO SETUP
     # =============================================================================
     log_step "Configuring NVIDIA Dynamo..."
 
@@ -1744,8 +1746,33 @@ EOF
         log_success "LangGraph restarted successfully."
     fi
 
+    # -------------------------------------------------------------------------
+    # Configure the Odoo admin user (idempotent)
+    # -------------------------------------------------------------------------
+    log_step "Configuring Odoo admin user for external services..."
+    ODOO_ADMIN_SCRIPT="$SCRIPT_DIR/configure-odoo-admin.sh"
+    if [[ -f "$ODOO_ADMIN_SCRIPT" ]]; then
+        ADMIN_UID=$(
+            docker compose exec -T \
+                -e ODOO_ADMIN_PASSWORD="$ODOO_ADMIN_PASSWORD" \
+                -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+                odoo bash -c "$(cat "$ODOO_ADMIN_SCRIPT")" \
+            | grep '^ADMIN_UID=' | cut -d= -f2
+        )
+        if [[ -n "$ADMIN_UID" ]]; then
+            log_success "Admin user configured (uid=$ADMIN_UID)"
+            safe_sed_replace "$ENV_FILE" "ODOO_USER" "$ADMIN_UID"
+            export ODOO_USER="$ADMIN_UID"
+        else
+            log_warning "Could not determine admin uid; defaulting to 2."
+            safe_sed_replace "$ENV_FILE" "ODOO_USER" "2"
+        fi
+    else
+        log_warning "configure-odoo-admin.sh not found – skipping."
+    fi
+
     # -----------------------------------------------------------------------------
-    # 11. Install NETTRADES Odoo modules
+    # Install NETTRADES Odoo modules
     # -----------------------------------------------------------------------------
     log_step "Installing NETTRADES Odoo modules..."
 
@@ -1778,7 +1805,7 @@ EOF
     fi
 
     # -----------------------------------------------------------------------------
-    # 12. Create emergency Odoo user and multiple fallback options
+    # Create emergency Odoo user and multiple fallback options
     # -----------------------------------------------------------------------------
     log_step "Creating emergency access options..."
 
@@ -2142,7 +2169,7 @@ EOF
     echo ""
     echo "Access the services:"
     echo "  Frontend (UI): http://localhost:3002 (or http://nettrades.ai:3002)"
-    echo "  Odoo:      http://localhost:8069  (admin / password in .env ADMIN_PASSWORD)"
+    echo "  Odoo:      http://localhost:8069  (admin / password in .env ODOO_ADMIN_PASSWORD)"
     if [[ "${WITH_GROVE:-false}" == "true" ]]; then
         echo "  Grove:     http://localhost:8081  (observability dashboard)"
         echo "  Loki:      http://localhost:3100  (logs)"

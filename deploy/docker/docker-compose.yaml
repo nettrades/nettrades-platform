@@ -237,7 +237,7 @@ services:
       - PORT=5432
       - USER=odoo
       - PASSWORD=${POSTGRES_PASSWORD}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_PASSWORD=${DB_MANAGER_UI_PASSWORD}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     labels:
@@ -305,8 +305,8 @@ services:
       - DYNAMO_API_KEY=${DYNAMO_API_KEY:-dummy}
       - ODOO_URL=${ODOO_URL:-http://odoo:8069}
       - ODOO_DB=${ODOO_DB:-odoo}
-      - ODOO_USER=${ODOO_USER:-1}
-      - ODOO_PASSWORD=${ADMIN_PASSWORD}
+      - ODOO_USER=${ODOO_USER:-2}
+      - ODOO_PASSWORD=${ODOO_ADMIN_PASSWORD}
       - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:8080}
       - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
@@ -314,10 +314,16 @@ services:
       # LANGGRAPH_API_URL is used for URL generation (workaround for #7390)
       - LANGGRAPH_API_URL=https://${DOMAIN}/api
       - LANGGRAPH_TRUST_X_FORWARDED_HEADERS=true
+      - RPC_ENV_FILE=/app/deploy/docker/rpc.env
+      - RPC_COMPOSE_FILE=/app/deploy/docker/docker-compose.yaml
     ports:
       - "8000:8000"
     volumes:
       - langgraph_data:/app/.langgraph
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./rpc.env:/app/deploy/docker/rpc.env
+      - ./docker-compose.yaml:/app/deploy/docker/docker-compose.yaml:ro
+      - ./.env:/app/deploy/docker/.env:ro
     labels:
       - traefik.enable=true
       - traefik.docker.network=web
@@ -459,8 +465,8 @@ services:
     environment:
       - ODOO_URL=${ODOO_URL:-http://odoo:8069}
       - ODOO_DB=${ODOO_DB:-odoo}
-      - ODOO_USER=${ODOO_USER:-1}
-      - ODOO_PASSWORD=${ADMIN_PASSWORD}
+      - ODOO_USER=${ODOO_USER:-2}
+      - ODOO_PASSWORD=${ODOO_ADMIN_PASSWORD}
       - PROXY_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - ODOO_API_KEY=${PROXY_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-info}
@@ -770,8 +776,111 @@ services:
         max-size: 10m
         max-file: 3
 
+  # =========================================================================
+  # 17. LLAMA.CPP RPC MASTER (behind --profile rpc)
+  # =========================================================================
+  # The coordinator. Reads RPC_BACKENDS and RPC_SPLIT from rpc.env,
+  # which is written by src/core/rpc_scheduler.py whenever the topology
+  # changes.
+  #
+  # Only start with: docker compose --profile rpc up -d
+  # =========================================================================
+  llama-rpc-master:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: llama-rpc-master
+    profiles: ["rpc"]
+    restart: unless-stopped
+    networks:
+      - internal
+    ports:
+      - "8082:8082"
+      - "50052:50052"
+    volumes:
+      - ./dynamo-data/models:/models:ro
+      - ./rpc.env:/etc/nettrades/rpc.env:ro
+    environment:
+      - RPC_BACKENDS=${RPC_BACKENDS:-}
+      - RPC_SPLIT=${RPC_SPLIT:-}
+      - RPC_MASTER_MODEL=${RPC_MASTER_MODEL:-/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf}
+      - RPC_N_GPU_LAYERS=${RPC_N_GPU_LAYERS:-0}
+      - RPC_WORKER_PORT=50052
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        . /etc/nettrades/rpc.env 2>/dev/null || true
+        if [ -z "$$RPC_BACKENDS" ]; then
+          echo "RPC_BACKENDS empty — running master single-node"
+          exec /app/llama-server \
+            -m "$$RPC_MASTER_MODEL" \
+            --host 0.0.0.0 --port 8082 \
+            -ngl "$$RPC_N_GPU_LAYERS"
+        fi
+        echo "RPC cluster: backends=$$RPC_BACKENDS split=$$RPC_SPLIT"
+        exec /app/llama-server \
+          -m "$$RPC_MASTER_MODEL" \
+          --rpc "$$RPC_BACKENDS" \
+          --tensor-split "$$RPC_SPLIT" \
+          --split-mode layer \
+          --host 0.0.0.0 --port 8082 \
+          -ngl "$$RPC_N_GPU_LAYERS"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  # =========================================================================
+  # 18. LLAMA.CPP RPC WORKER (local CUDA worker, behind --profile rpc)
+  # =========================================================================
+  # A same-host worker so you can develop and test the master/worker
+  # pair before deploying any spoke. Remote spokes run rpc-server.exe
+  # (Windows) or rpc-server (Linux/macOS) natively and connect over
+  # WireGuard — they do not use this container.
+  # =========================================================================
+  llama-rpc-worker-cuda:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: llama-rpc-worker-cuda
+    profiles: ["rpc"]
+    restart: unless-stopped
+    networks:
+      - internal
+    ports:
+      - "50053:50052"
+    entrypoint: ["/app/rpc-server"]
+    command: ["-H", "0.0.0.0", "-p", "50052"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
   # =============================================================================
-  # WIREGUARD - Internal VPN for Microservices
+  # 19. WIREGUARD - Internal VPN for Microservices
   # =============================================================================
   # This WireGuard instance provides secure communication between platform
   # microservices. It uses a different port (51820) than the Admin VPN (51821)

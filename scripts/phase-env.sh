@@ -18,7 +18,7 @@
 #
 #   SECRETS GENERATED:
 #   - POSTGRES_PASSWORD (prompted)
-#   - ADMIN_PASSWORD, JWT_SECRET, PROXY_API_KEY
+#   - DB_MANAGER_UI_PASSWORD, ODOO_ADMIN_PASSWORD, JWT_SECRET, PROXY_API_KEY
 #   - GRAFANA_PASSWORD, PROMETHEUS_PASSWORD
 #   - DYNAMO_API_KEY (NEW – replaces GPUStack)
 #   - LANGGRAPH_API_KEY
@@ -289,7 +289,17 @@ POSTGRES_PASSWORD=$(echo -n "$POSTGRES_PASSWORD" | tr -cd 'a-zA-Z0-9')
 # -----------------------------------------------------------------------------
 # Generate other secrets (only after we have a valid password)
 # -----------------------------------------------------------------------------
+# Two distinct Odoo passwords. See .env comments for the distinction.
+# Password for the Odoo Database Manager page (/web/database/manager).
+# Authorizes create/drop/duplicate/backup/restore of databases on this host.
+# Stored plaintext in the container's odoo.conf. Only consulted on that page.
+DB_MANAGER_UI_PASSWORD=$(generate_safe_password)
+
+# Login password for the Odoo admin user (login='admin', uid typically 2).
+# Stored as a hash in res_users.password. Used by the Odoo web UI, and by
+# langgraph-server and odoo-proxy for JSON-RPC automation.
 ODOO_ADMIN_PASSWORD=$(generate_safe_password)
+
 SECRET_KEY=$(generate_safe_password)
 JWT_SECRET=$(generate_safe_password)
 VLLM_API_KEY=$(generate_safe_password)
@@ -307,7 +317,8 @@ LANGGRAPH_API_KEY=$(generate_safe_api_key)
 # Write secrets to .env using safe_sed_replace (handles special characters)
 # -----------------------------------------------------------------------------
 safe_sed_replace "$ENV_FILE" "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
-safe_sed_replace "$ENV_FILE" "ADMIN_PASSWORD" "$ODOO_ADMIN_PASSWORD"
+safe_sed_replace "$ENV_FILE" "DB_MANAGER_UI_PASSWORD" "$DB_MANAGER_UI_PASSWORD"
+safe_sed_replace "$ENV_FILE" "ODOO_ADMIN_PASSWORD" "$ODOO_ADMIN_PASSWORD"
 safe_sed_replace "$ENV_FILE" "SECRET_KEY" "$SECRET_KEY"
 safe_sed_replace "$ENV_FILE" "JWT_SECRET" "$JWT_SECRET"
 safe_sed_replace "$ENV_FILE" "VLLM_API_KEY" "$VLLM_API_KEY"
