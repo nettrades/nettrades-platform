@@ -96,6 +96,35 @@ class GPUNode(models.Model):
     )
 
     # =========================================================================
+    # NEW (2026-09-25): INFERENCE CAPABILITY
+    # =========================================================================
+    # Distinguishes a Dynamo worker from an RPC worker from a local-only
+    # node. The rpc_scheduler uses this to build its worker list.
+    # =========================================================================
+
+    inference_capability = fields.Selection(
+        [
+            ('dynamo_worker', 'Dynamo Worker'),
+            ('rpc_worker', 'RPC Worker'),
+            ('rpc_master', 'RPC Master'),
+            ('local_only', 'Local Only'),
+        ],
+        string='Inference Capability',
+        default='local_only',
+        required=True,
+        help="Role this node plays in the distributed inference fabric. "
+             "Set to 'rpc_worker' to contribute GPU to an office RPC cluster."
+    )
+
+    compute_profile = fields.Json(
+        string='Compute Profile',
+        help="VRAM, RAM, CUDA capability. Populated by the Launcher's "
+             "hardware detector or by the spoke agent during registration. "
+             "The rpc_scheduler uses this for RAM-weighted fallback when "
+             "VRAM is zero (Ghostlink CPU_RAM_HAIRCUT heuristic)."
+    )
+
+    # =========================================================================
     # 2. OPERATIONAL STATUS
     # =========================================================================
 
