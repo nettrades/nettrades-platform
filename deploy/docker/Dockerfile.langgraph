@@ -9,10 +9,17 @@ FROM python:3.12.13-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies.
+# Note: Debian Trixie ships docker.io but NOT docker-compose-plugin.
+# We install the Compose v2 plugin binary directly from GitHub instead.
 RUN apt-get update && apt-get install -y \
-    curl git gcc libpq-dev \
+    curl git gcc libpq-dev docker.io \
     && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /usr/local/lib/docker/cli-plugins \
+    && curl -SL "https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64" \
+        -o /usr/local/lib/docker/cli-plugins/docker-compose \
+    && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # Only copy necessary source files, not the entire project root. Only src/core/ and its dependencies should be copied
 COPY src/core/ /app/src/core/
