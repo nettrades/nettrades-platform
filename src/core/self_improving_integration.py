@@ -304,7 +304,7 @@ class SelfImprovingService:
 
         # Check for resolution
         resolution_status = None
-        thread_id = input_data.get('thread_id') or context_data.get('thread_id')
+        thread_id = input_data.get('thread_id')
         if thread_id:
             conversation = input_data.get('messages', [])
             if self.detect_resolution(thread_id, conversation):
