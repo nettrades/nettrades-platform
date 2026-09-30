@@ -84,4 +84,52 @@ except Exception as e:
     print(f"[configure-odoo-admin] LLM config step skipped: {e}", file=sys.stderr)
 
 
+# -----------------------------------------------------------------------------
+# Create the scoped `nettrades-service` user if it does not exist,
+# and generate an API key for it. The key is written to stdout so the
+# caller can capture it and store it in .env.
+# -----------------------------------------------------------------------------
+import secrets as _secrets
+
+svc = env['res.users'].search([('login', '=', 'nettrades-service')], limit=1)
+if not svc:
+    print("[configure-odoo-admin] service user not found — creating", file=sys.stderr)
+    # Look up the groups that this user needs. They are defined in
+    # nettrades_gpu_admin and nettrades_core, both of which are installed.
+    svc = env['res.users'].create({
+        'name': 'NETTRADES Service',
+        'login': 'nettrades-service',
+        'password': '!',  # No web login.
+        'company_id': env.ref('base.main_company').id,
+        'groups_id': [(6, 0, [
+            env.ref('base.group_user').id,
+            env.ref('nettrades_core.group_nettrades_api').id,
+            env.ref('nettrades_gpu_admin.group_gpu_administrator').id,
+            env.ref('nettrades_gpu_admin.group_gpu_operator').id,
+        ])],
+    })
+    env.cr.commit()
+    print(f"[configure-odoo-admin] service user created (uid={svc.id})", file=sys.stderr)
+else:
+    print(f"[configure-odoo-admin] service user found (uid={svc.id})", file=sys.stderr)
+
+# Generate a fresh API key for the service user. The `_generate` method
+# returns the plaintext key once; we never store it in the database.
+try:
+    from odoo.addons.base.models.res_users import generate_api_key
+    plaintext = env['res.users.apikeys']._generate(
+        'nettrades-proxy',
+        svc.id,
+        'nettrades-service',
+        expiration_date=None,
+    )
+    # Write the plaintext key to stdout in a parseable form. The
+    # caller (phase-deploy.sh or install-spokes.sh) reads this line.
+    print(f"NETTRADES_SERVICE_API_KEY={plaintext}")
+    print(f"NETTRADES_SERVICE_UID={svc.id}")
+except Exception as e:
+    print(f"[configure-odoo-admin] API key generation failed: {e}", file=sys.stderr)
+    sys.exit(1)
+
+
 PYEOF

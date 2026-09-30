@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ============================================================================
+    NETTRADES GPU Admin — Service User Definition
+    ============================================================================
+    FILE: odoo-modules/nettrades_gpu_admin/data/nettrades_service_user.xml
+
+    PURPOSE:
+        Creates the `nettrades-service` user used by the LangGraph
+        supervisor and the odoo-proxy to authenticate to Odoo. This
+        user has NO web login capability (password is '!' meaning
+        "no login allowed") and only the groups required by the
+        control plane.
+
+        Why a dedicated user:
+          - The scheduler, the supervisor, and the proxy all need to
+            read gpu.cluster and gpu.node and write layer_assignment.
+          - Previously they authenticated as admin (UID 2), which has
+            every permission in every module. A single bug in any of
+            those components would have given an attacker full control
+            of the ERP.
+          - With a scoped user, the blast radius is limited to the GPU
+            tables and the agent infrastructure.
+
+        Groups assigned:
+          - base.group_user            : standard internal user
+          - nettrades_gpu_admin.group_gpu_administrator
+          - nettrades_gpu_admin.group_gpu_operator
+          - nettrades_core.group_nettrades_api
+
+        The user is created with password='!' so it cannot be used to
+        log in to the web UI. An API key is generated separately (see
+        scripts/configure-odoo-admin.sh) and stored in the environment
+        as NETTRADES_SERVICE_API_KEY.
+
+        This file lives in nettrades_gpu_admin rather than
+        nettrades_core because the group_gpu_administrator and
+        group_gpu_operator groups are defined in
+        nettrades_gpu_admin/security/groups.xml, and Odoo resolves XML
+        ID references at load time.
+    ============================================================================
+-->
+<odoo>
+    <data noupdate="0">
+
+        <!-- Service user. noupdate="0" so that group assignments are
+             re-applied on module upgrade; the password is set to '!'
+             here and not touched by an upgrade. -->
+        <record id="user_nettrades_service" model="res.users">
+            <field name="name">NETTRADES Service</field>
+            <field name="login">nettrades-service</field>
+            <!-- '!' means "no usable password". The user can only
+                 authenticate via API key. -->
+            <field name="password">!</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="groups_id" eval="[
+                (4, ref('base.group_user')),
+                (4, ref('nettrades_core.group_nettrades_api')),
+                (4, ref('nettrades_gpu_admin.group_gpu_administrator')),
+                (4, ref('nettrades_gpu_admin.group_gpu_operator'))
+            ]"/>
+        </record>
+
+    </data>
+</odoo>
