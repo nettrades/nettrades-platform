@@ -6,8 +6,10 @@ access_nettrades_good_answer_user,nettrades.good_answer.user,model_nettrades_goo
 access_nettrades_project_user,nettrades.project.user,model_nettrades_project,base.group_user,1,1,1,1
 access_nettrades_review_user,nettrades.review.user,model_nettrades_review,base.group_user,1,1,1,1
 access_nettrades_sandbox_policy_user,nettrades.sandbox.policy.user,model_nettrades_sandbox_policy,base.group_user,1,1,1,1
-access_nettrades_secrets_user,nettrades.secrets.user,model_nettrades_secrets,base.group_user,1,1,1,1
-access_nettrades_secrets_audit_user,nettrades.secrets.audit.user,model_nettrades_secrets_audit,base.group_user,1,1,1,1
+access_nettrades_secrets_user,nettrades.secrets.user,model_nettrades_secrets,base.group_user,1,0,0,0
+access_nettrades_secrets_manager,nettrades.secrets.manager,model_nettrades_secrets,nettrades_core.group_secrets_manager,1,1,1,1
+access_nettrades_secrets_audit_user,nettrades.secrets.audit.user,model_nettrades_secrets_audit,base.group_user,1,0,0,0
+access_nettrades_secrets_audit_manager,nettrades.secrets.audit.manager,model_nettrades_secrets_audit,nettrades_core.group_secrets_manager,1,1,1,1
 access_nettrades_skill_user,nettrades.skill.user,model_nettrades_skill,base.group_user,1,1,1,1
 access_nettrades_user_user,nettrades.user.user,model_nettrades_user,base.group_user,1,1,1,1
 access_nettrades_user_match_user,nettrades.user_match.user,model_nettrades_user_match,base.group_user,1,1,1,1

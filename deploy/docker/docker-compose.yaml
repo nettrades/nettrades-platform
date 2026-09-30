@@ -305,8 +305,10 @@ services:
       - DYNAMO_API_KEY=${DYNAMO_API_KEY:-dummy}
       - ODOO_URL=${ODOO_URL:-http://odoo:8069}
       - ODOO_DB=${ODOO_DB:-odoo}
-      - ODOO_USER=${ODOO_USER:-2}
-      - ODOO_PASSWORD=${ODOO_ADMIN_PASSWORD}
+      # Use the scoped service user. Falls back to the
+      # admin UID (2) only if the service user has not been created yet.
+      - ODOO_USER=${NETTRADES_SERVICE_UID:-2}
+      - ODOO_PASSWORD=${NETTRADES_SERVICE_PASSWORD}
       - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:8080}
       - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
@@ -470,6 +472,7 @@ services:
       - PROXY_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - ODOO_API_KEY=${PROXY_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - ODOO_SERVICE_API_KEY=${NETTRADES_SERVICE_API_KEY}
     ports:
       - "8090:8080"
     depends_on:

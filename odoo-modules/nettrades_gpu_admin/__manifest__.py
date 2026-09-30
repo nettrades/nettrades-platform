@@ -3,9 +3,15 @@
 # =============================================================================
 # FILE: odoo-modules/nettrades_gpu_admin/__manifest__.py
 # =============================================================================
+# UPDATES (2026-09-30):
+#   - Added `data/nettrades_service_user.xml` to the data list. This
+#     creates the scoped `nettrades-service` user described in
+#     BUG-CATALOG BUG-003. The user is created after the security
+#     files (groups.xml) so the group XML IDs are resolvable.
+# =============================================================================
 {
     'name': 'NETTRADES GPU Admin',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.1.1',
     'category': 'Technical',
     'summary': 'GPU Cluster Management with Secure Token Registration',
     'description': """
@@ -26,6 +32,11 @@
         'security/ir.model.access.csv',
         'security/gpu_admin_security.xml',
         'security/gpu_registration_token_security.xml',
+
+        # Service user. Must load AFTER security/groups.xml so the
+        # group XML IDs (group_gpu_administrator, group_gpu_operator)
+        # are already defined.
+        'data/nettrades_service_user.xml',
 
         # Views (UI Screens)
         'views/gpu_cluster_views.xml',
