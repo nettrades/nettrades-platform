@@ -38,6 +38,12 @@
         group_gpu_operator groups are defined in
         nettrades_gpu_admin/security/groups.xml, and Odoo resolves XML
         ID references at load time.
+
+    ODOO 20 COMPATIBILITY (2026-10):
+        res.users `groups_id` field renamed to `group_ids`. Both the
+        XML field name below and the record rule that grants permissions
+        to this user must use the new name. See:
+          https://github.com/odoo/odoo/pull/... (Odoo 19 group field rename)
     ============================================================================
 -->
 <odoo>
@@ -53,7 +59,8 @@
                  authenticate via API key. -->
             <field name="password">!</field>
             <field name="company_id" ref="base.main_company"/>
-            <field name="groups_id" eval="[
+            <!-- Odoo 20 renamed `groups_id` to `group_ids`. -->
+            <field name="group_ids" eval="[
                 (4, ref('base.group_user')),
                 (4, ref('nettrades_core.group_nettrades_api')),
                 (4, ref('nettrades_gpu_admin.group_gpu_administrator')),
