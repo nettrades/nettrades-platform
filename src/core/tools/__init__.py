@@ -8,7 +8,7 @@
 # PURPOSE:
 #   This file makes the tools directory a Python package so that
 #   agent files can import the inference backend and other utilities using:
-#       from tools import get_inference_backend
+#       from tools import get_inference_backend, make_llm_for_track
 #
 # =============================================================================
 
@@ -17,13 +17,14 @@
 # The backend detection is now unified in inference.py, which provides
 # a zero-latency health-checked dictionary-returning function.
 # -----------------------------------------------------------------------------
-from .inference import get_inference_backend
+from .inference import get_inference_backend, make_llm_for_track
 
 # -----------------------------------------------------------------------------
 # Define what is exported when someone does "from tools import *"
 # -----------------------------------------------------------------------------
 __all__ = [
     'get_inference_backend',
+    'make_llm_for_track',
 ]
 
 # -----------------------------------------------------------------------------
