@@ -13,7 +13,7 @@
 #
 # UPDATES (2026-09):
 #   - @route(type='json') is deprecated in Odoo 19. Replaced with
-#     @route(type='jsonrpc') throughout. The two are aliases for the same
+#     @route(type='json') throughout. The two are aliases for the same
 #     behaviour; the warning appears on every module load otherwise.
 #   - Removed unused AccessError import.
 # =============================================================================
@@ -31,7 +31,7 @@ class BridgeController(http.Controller):
     # 1. Health Check
     # -------------------------------------------------------------------------
 
-    @http.route('/api/bridge/health', type='jsonrpc', auth='public', methods=['GET'], csrf=False)
+    @http.route('/api/bridge/health', type='json', auth='public', methods=['GET'], csrf=False)
     def health_check(self):
         """
         Health check endpoint for monitoring.
@@ -49,7 +49,7 @@ class BridgeController(http.Controller):
     # 2. Routing Endpoint
     # -------------------------------------------------------------------------
 
-    @http.route('/api/bridge/route', type='jsonrpc', auth='user', methods=['POST'], csrf=False)
+    @http.route('/api/bridge/route', type='json', auth='user', methods=['POST'], csrf=False)
     def route_request(self):
         """
         Route a request to the appropriate brain.
@@ -98,7 +98,7 @@ class BridgeController(http.Controller):
     # 3. Configuration Endpoint
     # -------------------------------------------------------------------------
 
-    @http.route('/api/bridge/config', type='jsonrpc', auth='user', methods=['GET'], csrf=False)
+    @http.route('/api/bridge/config', type='json', auth='user', methods=['GET'], csrf=False)
     def get_config(self):
         """
         Get the effective bridge configuration for the current company.
@@ -122,7 +122,7 @@ class BridgeController(http.Controller):
     # 4. Usage Logs Endpoint
     # -------------------------------------------------------------------------
 
-    @http.route('/api/bridge/usage', type='jsonrpc', auth='user', methods=['GET'], csrf=False)
+    @http.route('/api/bridge/usage', type='json', auth='user', methods=['GET'], csrf=False)
     def get_usage(self):
         """
         Get usage logs for the current company.

@@ -4,7 +4,7 @@ from odoo import http
 from odoo.http import request
 
 class NotificationController(http.Controller):
-    @http.route('/api/notifications', type='jsonrpc', auth='user')
+    @http.route('/api/notifications', type='json', auth='user')
     def list_notifications(self):
         notifs = request.env['user.notification'].search([
             ('partner_id', '=', request.env.user.partner_id.id),
