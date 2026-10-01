@@ -24,6 +24,9 @@
 #   - Updated model names to match actual Odoo models:
 #       * gpu.node (was nettrades_gpu_admin.node)
 #       * gpu_sharing_schedule (was nettrades_gpu_admin.booking)
+#
+# UPDATES (2026-09-29):
+#   - LLM is now constructed per-invocation inside select_gpu().
 # =============================================================================
 
 import json
@@ -32,9 +35,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
 from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
 
-from tools import get_inference_backend
+from tools import make_llm_for_track
 from tools.odoo_tools import (
     odoo_search,
     odoo_create,
@@ -75,20 +77,12 @@ def create_gpu_marketplace_agent() -> StateGraph:
     4. process_payment - Process payment for the booking
     5. release_gpu - Release the GPU after use
 
+    The LLM is constructed per invocation inside select_gpu() based on
+    state["inference_track"].
+
     Returns:
         StateGraph: Compiled LangGraph workflow
     """
-    # Auto-detect the inference backend
-    backend = get_inference_backend()
-    _logger.info(f"GPU Marketplace agent using inference backend: {backend.get('base_url', 'unknown')}")
-
-    # Create the LLM client
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.1,
-    )
 
     # =========================================================================
     # NODE 1: List GPUs
@@ -135,6 +129,10 @@ def create_gpu_marketplace_agent() -> StateGraph:
     async def select_gpu(state: GPUMarketplaceState) -> GPUMarketplaceState:
         """
         Select a GPU node for booking based on user criteria.
+
+        The LLM is constructed per invocation from the track the supervisor
+        chose. Different tracks may have different latency/cost profiles,
+        which matters for interactive marketplace browsing.
         """
         nodes = state.get("gpu_nodes", [])
         user_criteria = state.get("criteria", {})
@@ -157,6 +155,9 @@ def create_gpu_marketplace_agent() -> StateGraph:
             Respond with the ID of the selected GPU node, or "none" if no suitable node is found.
             """
 
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.1
+            )
             response = await llm.ainvoke(prompt)
             selected_id = response.content.strip()
 

@@ -18,14 +18,15 @@
 #   This file was previously a PLACEHOLDER stub. It has been replaced
 #   with the full implementation from src/agent/lead_gen_agent.py.
 #
+# UPDATES (2026-09-29):
+#   - LLM is now constructed per-invocation inside generate_leads().
 # =============================================================================
 
 import json
 import logging
 from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
 
-from tools import get_inference_backend
+from tools import make_llm_for_track
 from tools.odoo_tools import (
     hr_job_search,
     project_search,
@@ -58,20 +59,12 @@ def create_lead_gen_agent() -> StateGraph:
     2. generate_leads - Generate leads from the source
     3. create_leads - Create leads in Odoo CRM
 
+    The LLM is constructed per invocation inside generate_leads() based on
+    state["inference_track"].
+
     Returns:
         StateGraph: Compiled LangGraph workflow
     """
-    # Auto-detect the inference backend
-    backend = get_inference_backend()
-    _logger.info(f"Lead Gen agent using inference backend: {backend.get('base_url', 'unknown')}")
-
-    # Create the LLM client
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.2,  # Slightly higher temperature for creativity
-    )
 
     # =========================================================================
     # NODE 1: Fetch Source
@@ -109,6 +102,9 @@ def create_lead_gen_agent() -> StateGraph:
     async def generate_leads(state: LeadGenState):
         """
         Generate leads from the source using the LLM.
+
+        The LLM is constructed per invocation from the supervisor's track
+        selection. Slightly higher temperature for creativity.
         """
         source = state.get("source_data", {})
         source_type = state.get("source_type", "job")
@@ -131,6 +127,9 @@ def create_lead_gen_agent() -> StateGraph:
         """
 
         try:
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.2
+            )
             response = await llm.ainvoke(prompt)
             _logger.debug(f"LLM response: {response.content}")
 

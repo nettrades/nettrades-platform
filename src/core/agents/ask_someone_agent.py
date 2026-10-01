@@ -47,6 +47,10 @@
 #     is_good_answer) do not exist on expert.session.
 #   - audit_trail used a model named expert.session.audit which does not
 #     exist. Now writes to the chatter via message_post instead.
+#
+# UPDATES (2026-09-29):
+#   - LLM is now constructed per-invocation in classify_question() and
+#     review_answer().
 # =============================================================================
 
 import json
@@ -57,9 +61,8 @@ from typing import Dict, Any, List, Optional
 import uuid
 
 from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
 
-from tools import get_inference_backend
+from tools import make_llm_for_track
 from tools.odoo_tools import (
     odoo_search,
     odoo_create,
@@ -156,20 +159,12 @@ def create_ask_someone_agent() -> StateGraph:
     8. record_feedback - Record user rating and feedback
     9. audit_trail - Record audit trail for compliance
 
+    The LLM is constructed per invocation in classify_question() and
+    review_answer() based on state["inference_track"].
+
     Returns:
         StateGraph: Compiled LangGraph workflow
     """
-    # Auto-detect the inference backend
-    backend = get_inference_backend()
-    _logger.info(f"Ask Someone agent using inference backend: {backend.get('base_url', 'unknown')}")
-
-    # Create the LLM client
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.1,
-    )
 
     # =========================================================================
     # Helper: resolve a category name to a nettrades.field ID
@@ -209,7 +204,11 @@ def create_ask_someone_agent() -> StateGraph:
     # NODE 1: Classify Question
     # =========================================================================
     async def classify_question(state: AskSomeoneState) -> AskSomeoneState:
-        """Classify the user's question to determine category and urgency."""
+        """Classify the user's question to determine category and urgency.
+
+        The LLM is constructed per invocation based on the supervisor's
+        track selection.
+        """
         messages = state.get("messages", [])
         user_msg = messages[-1].get("content", "") if messages else ""
         state["question"] = user_msg  # Make sure downstream nodes see it
@@ -233,6 +232,9 @@ def create_ask_someone_agent() -> StateGraph:
         Respond with only the JSON object, no other text.
         """
         try:
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.1
+            )
             response = await llm.ainvoke(prompt)
             # FIX: response is an AIMessage; read .content before parsing.
             classification = _extract_json(response.content) or {}
@@ -506,7 +508,11 @@ def create_ask_someone_agent() -> StateGraph:
     # NODE 7: Review Answer (Regulated Only)
     # =========================================================================
     async def review_answer(state: AskSomeoneState) -> AskSomeoneState:
-        """Review the answer for regulated track."""
+        """Review the answer for regulated track.
+
+        The LLM is constructed per invocation from the supervisor's track
+        selection.
+        """
         track = state.get("track", "community")
         if track != "regulated":
             state["review_status"] = "not_required"
@@ -539,6 +545,9 @@ def create_ask_someone_agent() -> StateGraph:
 
             Respond with only the JSON object, no other text.
             """
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.1
+            )
             response = await llm.ainvoke(prompt)
             # FIX: read .content before parsing.
             review = _extract_json(response.content) or {}

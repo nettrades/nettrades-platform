@@ -5,7 +5,7 @@
 # =============================================================================
 # This agent is a LangGraph sub-graph.  It receives a command (e.g.
 # "move the arm to position X"), calls a Vision-Language-Action model
-# to generate a robot trajectory, and dispatches it via ROS???2 or an
+# to generate a robot trajectory, and dispatches it via ROS 2 or an
 # MCP-Robotics bridge.
 #
 # REQUIREMENTS:
@@ -16,11 +16,16 @@
 #
 # FUTURE ENHANCEMENT: Support for multi-step task planning, feedback
 # loops, and real-time sensor fusion.
+#
+# UPDATES (2026-09-29):
+#   - LLM is now constructed per-invocation inside plan_action(). The
+#     optional vla_model_name override is passed through to the helper
+#     so that a specific VLA model name can still be selected for this
+#     agent, but the base URL and API key come from the runtime track.
 # =============================================================================
 import json, logging
 from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
-from tools import get_inference_backend
+from tools import make_llm_for_track
 
 _logger = logging.getLogger(__name__)
 
@@ -29,16 +34,15 @@ class ActionState(dict):
 
 
 def create_action_agent(vla_model_name: str = None):
-    backend = get_inference_backend()
-    if vla_model_name:
-        backend["model_name"] = vla_model_name
+    """
+    Build and return a compiled Action agent.
 
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.0,
-    )
+    Args:
+        vla_model_name: optional VLA model name override. If provided, it is
+            passed through to make_llm_for_track() so the request targets
+            that specific model instead of the default for the selected
+            track.
+    """
 
     async def plan_action(state: ActionState):
         try:
@@ -48,6 +52,13 @@ def create_action_agent(vla_model_name: str = None):
                 f"Generate a JSON action plan with keys 'action' (string), "
                 f"'parameters' (object), and 'reasoning' (string).\n"
                 f"Supported actions: move_arm, navigate, grasp, release, speak.\n"
+            )
+            # Construct the LLM per invocation. Pass the VLA model override
+            # (if any) so a specific model is targeted when configured.
+            llm = make_llm_for_track(
+                state.get("inference_track"),
+                temperature=0.0,
+                model=vla_model_name,
             )
             response = await llm.ainvoke(prompt)
             plan = json.loads(response.content)

@@ -36,6 +36,10 @@
 #   - Added expiry mechanism for outdated answers
 #   - Added track system (regulated vs community)
 #   - Added resolution detection integration
+#
+# UPDATES (2026-09-29):
+#   - LLM is now constructed per-invocation in every node that uses it:
+#     collect_answers, calculate_quality, verify_answer.
 # =============================================================================
 
 import json
@@ -44,9 +48,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
 from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
 
-from tools import get_inference_backend
+from tools import make_llm_for_track
 from tools.odoo_tools import (
     odoo_search,
     odoo_create,
@@ -93,20 +96,12 @@ def create_good_answer_agent() -> StateGraph:
     6. record_best_answer - Record the best answer in Odoo
     7. audit_trail - Record audit trail for compliance
 
+    The LLM is constructed per invocation in collect_answers,
+    calculate_quality, and verify_answer based on state["inference_track"].
+
     Returns:
         StateGraph: Compiled LangGraph workflow
     """
-    # Auto-detect the inference backend
-    backend = get_inference_backend()
-    _logger.info(f"Good Answer agent using inference backend: {backend.get('base_url', 'unknown')}")
-
-    # Create the LLM client
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.1,
-    )
 
     # =========================================================================
     # NODE 1: Collect Answers
@@ -115,6 +110,9 @@ def create_good_answer_agent() -> StateGraph:
     async def collect_answers(state: GoodAnswerState) -> GoodAnswerState:
         """
         Collect multiple answers to the question from various sources.
+
+        Uses the LLM (constructed per invocation) only when no existing
+        answers are found in Odoo; the LLM generates 3 perspectives.
         """
         question = state.get("question", "")
         if not question:
@@ -153,6 +151,9 @@ def create_good_answer_agent() -> StateGraph:
                 }}
                 """
 
+                llm = make_llm_for_track(
+                    state.get("inference_track"), temperature=0.1
+                )
                 response = await llm.ainvoke(prompt)
                 generated = json.loads(response.content)
 
@@ -258,6 +259,9 @@ def create_good_answer_agent() -> StateGraph:
     async def calculate_quality(state: GoodAnswerState) -> GoodAnswerState:
         """
         Calculate quality scores for each answer using AI analysis.
+
+        The LLM is constructed per invocation from the supervisor's track
+        selection.
         """
         answers = state.get("answers", [])
         question = state.get("question", "")
@@ -269,6 +273,9 @@ def create_good_answer_agent() -> StateGraph:
         _logger.info(f"Calculating quality scores for {len(answers)} answers")
 
         try:
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.1
+            )
             for answer in answers:
                 # Build a prompt to score the answer
                 prompt = f"""
@@ -321,6 +328,9 @@ def create_good_answer_agent() -> StateGraph:
     async def verify_answer(state: GoodAnswerState) -> GoodAnswerState:
         """
         Verify the best answer using AI or human review.
+
+        The LLM is constructed per invocation from the supervisor's track
+        selection.
         """
         answers = state.get("answers", [])
         question = state.get("question", "")
@@ -370,6 +380,9 @@ def create_good_answer_agent() -> StateGraph:
                 Respond with only one word: verified, needs_review, or incorrect.
                 """
 
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.1
+            )
             response = await llm.ainvoke(prompt)
             verification = response.content.strip().lower()
 

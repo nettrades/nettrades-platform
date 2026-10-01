@@ -18,14 +18,15 @@
 #   This file was previously a PLACEHOLDER stub. It has been replaced
 #   with the full implementation from src/agent/freelance_agent.py.
 #
+# UPDATES (2026-09-29):
+#   - LLM is now constructed per-invocation inside rank_freelancers().
 # =============================================================================
 
 import json
 import logging
 from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
 
-from tools import get_inference_backend
+from tools import make_llm_for_track
 from tools.odoo_tools import (
     project_search,
     res_partner_search,
@@ -58,20 +59,12 @@ def create_freelance_agent() -> StateGraph:
     3. rank_freelancers - Rank freelancers using LLM
     4. create_matches - Create project matches in Odoo
 
+    The LLM is constructed per invocation in rank_freelancers() based on
+    state["inference_track"].
+
     Returns:
         StateGraph: Compiled LangGraph workflow
     """
-    # Auto-detect the inference backend
-    backend = get_inference_backend()
-    _logger.info(f"Freelance agent using inference backend: {backend.get('base_url', 'unknown')}")
-
-    # Create the LLM client
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.1,
-    )
 
     # =========================================================================
     # NODE 1: Fetch Project
@@ -125,6 +118,10 @@ def create_freelance_agent() -> StateGraph:
     async def rank_freelancers(state: FreelanceState):
         """
         Rank freelancers using the LLM.
+
+        The LLM is constructed per invocation from the track chosen by the
+        supervisor so that requests actually go to Dynamo, RPC, or local
+        as decided at routing time.
         """
         project = state.get("project", {})
         freelancers = state.get("freelancers", [])
@@ -153,6 +150,9 @@ def create_freelance_agent() -> StateGraph:
         """
 
         try:
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.1
+            )
             response = await llm.ainvoke(prompt)
             _logger.debug(f"LLM response: {response.content}")
 

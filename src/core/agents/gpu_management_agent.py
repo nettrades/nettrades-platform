@@ -18,15 +18,16 @@
 #   This file was previously a PLACEHOLDER stub. It has been replaced
 #   with the full implementation from src/agent/gpu_management_agent.py.
 #
+# UPDATES (2026-09-29):
+#   - LLM is now constructed per-invocation inside generate_recommendations().
 # =============================================================================
 
 import json
 import logging
 from datetime import datetime, timedelta
 from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
 
-from tools import get_inference_backend
+from tools import make_llm_for_track
 from tools.odoo_tools import (
     gpu_cluster_search,
     gpu_node_search,
@@ -59,20 +60,12 @@ def create_gpu_management_agent() -> StateGraph:
     2. check_health - Check node health and utilisation
     3. generate_recommendations - Generate scaling recommendations
 
+    The LLM is constructed per invocation inside generate_recommendations()
+    based on state["inference_track"].
+
     Returns:
         StateGraph: Compiled LangGraph workflow
     """
-    # Auto-detect the inference backend
-    backend = get_inference_backend()
-    _logger.info(f"GPU Management agent using inference backend: {backend.get('base_url', 'unknown')}")
-
-    # Create the LLM client
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.1,
-    )
 
     # =========================================================================
     # NODE 1: Fetch Cluster
@@ -148,6 +141,11 @@ def create_gpu_management_agent() -> StateGraph:
     async def generate_recommendations(state: GPUManagementState):
         """
         Generate scaling and management recommendations using the LLM.
+
+        The LLM is constructed per invocation from the supervisor's track
+        selection. This matters especially for GPU-management queries, since
+        the recommendations may themselves need to run on a specific
+        backend (e.g., RPC for cluster diagnosis when Dynamo is down).
         """
         cluster = state.get("cluster", {})
         nodes = state.get("nodes", [])
@@ -175,6 +173,9 @@ def create_gpu_management_agent() -> StateGraph:
         """
 
         try:
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.1
+            )
             response = await llm.ainvoke(prompt)
             _logger.debug(f"LLM response: {response.content}")
 

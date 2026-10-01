@@ -22,18 +22,19 @@
 #   The import paths have been updated to point to src.core.tools
 #   (where the inference and Odoo tools live).
 #
+# UPDATES (2026-09-29):
+#   - LLM is now constructed per-invocation inside rank_candidates(), using
+#     make_llm_for_track(state["inference_track"]). Previously the LLM was
+#     constructed at factory time and pinned to whichever backend was
+#     healthy when the LangGraph process started, which meant the
+#     supervisor's track selection had no effect on the actual backend used.
 # =============================================================================
 
 import json
 import logging
 from langgraph.graph import StateGraph, END, START
-from langchain_openai import ChatOpenAI
 
-# =============================================================================
-# IMPORTS - Updated to point to the correct locations
-# =============================================================================
-# Note: The tools are now imported from tools
-from tools import get_inference_backend
+from tools import make_llm_for_track
 from tools.odoo_tools import (
     hr_job_search,
     res_partner_search,
@@ -66,20 +67,13 @@ def create_recruitment_agent() -> StateGraph:
     3. rank_candidates - Rank candidates using LLM
     4. create_leads - Create CRM leads for top matches
 
+    The LLM client is constructed inside rank_candidates() on every
+    invocation, using the inference track the supervisor selected
+    (state["inference_track"]).
+
     Returns:
         StateGraph: Compiled LangGraph workflow
     """
-    # Auto-detect the inference backend (GPUStack / vLLM / llama.cpp)
-    backend = get_inference_backend()
-    _logger.info(f"Recruitment agent using inference backend: {backend.get('base_url', 'unknown')}")
-
-    # Create the LLM client
-    llm = ChatOpenAI(
-        base_url=backend["base_url"],
-        api_key=backend["api_key"],
-        model=backend["model_name"],
-        temperature=0.1,  # Lower temperature for more deterministic results
-    )
 
     # =========================================================================
     # NODE 1: Fetch Job
@@ -146,6 +140,11 @@ def create_recruitment_agent() -> StateGraph:
 
         This node constructs a prompt with the job description and
         candidate list, sends it to the LLM, and parses the rankings.
+
+        The LLM is created per-invocation from the inference track the
+        supervisor chose. If the track is 'dynamo', requests go to the
+        data-centre GPU; if 'rpc', to the office RPC cluster; if 'local',
+        to the single-node CPU fallback.
         """
         job = state.get("job", {})
         candidates = state.get("candidates", [])
@@ -173,6 +172,12 @@ def create_recruitment_agent() -> StateGraph:
         """
 
         try:
+            # Construct the LLM for this invocation based on the track
+            # selected by the supervisor. Lower temperature for more
+            # deterministic results.
+            llm = make_llm_for_track(
+                state.get("inference_track"), temperature=0.1
+            )
             response = await llm.ainvoke(prompt)
             _logger.debug(f"LLM response: {response.content}")
 
