@@ -111,3 +111,57 @@ def get_inference_backend() -> Dict[str, Any]:
             "api_key": cpu_api_key,
             "model_name": "llama-cpp-model"
         }
+
+# -----------------------------------------------------------------------------
+# Public API: make_llm_for_track (per-invocation backend selection)
+# -----------------------------------------------------------------------------
+def make_llm_for_track(track: str = None, temperature: float = 0.1):
+    """
+    Construct a ChatOpenAI client for the given inference track.
+
+    Agents call this per-invocation (inside their node functions), so that
+    the supervisor's track selection — state["inference_track"] — actually
+    determines which backend serves the request.
+
+    If track is None or unknown, falls back to the currently healthy backend
+    reported by get_inference_backend().
+
+    Tracks:
+      - 'dynamo' : NVIDIA Dynamo / vLLM (data centre GPU)
+      - 'rpc'    : llama.cpp RPC master (office distributed cluster)
+      - 'local'  : llama.cpp single-node (CPU or single GPU)
+      - None     : whatever get_inference_backend() currently returns
+    """
+    import os
+    from langchain_openai import ChatOpenAI
+
+    if track == "dynamo":
+        return ChatOpenAI(
+            base_url=os.getenv("LLM_BASE_URL", "http://dynamo:8000/v1"),
+            api_key=os.getenv("DYNAMO_API_KEY", "dummy"),
+            model=os.getenv("MODEL_NAME", "deepseek-7b"),
+            temperature=temperature,
+        )
+    if track == "rpc":
+        return ChatOpenAI(
+            base_url="http://llama-rpc-master:8082/v1",
+            api_key="dummy",
+            model=os.getenv("RPC_MASTER_MODEL", "rpc-master"),
+            temperature=temperature,
+        )
+    if track == "local":
+        return ChatOpenAI(
+            base_url=os.getenv("LLM_CPU_URL", "http://llama-cpp:8080/v1"),
+            api_key="dummy",
+            model="llama-cpp-model",
+            temperature=temperature,
+        )
+
+    # Fallback: current health state.
+    backend = get_inference_backend()
+    return ChatOpenAI(
+        base_url=backend["base_url"],
+        api_key=backend["api_key"],
+        model=backend["model_name"],
+        temperature=temperature,
+    )
