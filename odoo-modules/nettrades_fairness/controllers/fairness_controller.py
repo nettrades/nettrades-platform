@@ -33,7 +33,7 @@ class FairnessController(http.Controller):
     # 1. Health Check
     # =========================================================================
 
-    @http.route('/api/fairness/health', type='json', auth='public', methods=['GET'], csrf=False)
+    @http.route('/api/fairness/health', type='jsonrpc', auth='public', methods=['GET'], csrf=False)
     def health_check(self):
         """
         Health check endpoint for the fairness system.
@@ -51,7 +51,7 @@ class FairnessController(http.Controller):
     # 2. Evaluate Response
     # =========================================================================
 
-    @http.route('/api/fairness/evaluate', type='json', auth='user', methods=['POST'], csrf=False)
+    @http.route('/api/fairness/evaluate', type='jsonrpc', auth='user', methods=['POST'], csrf=False)
     def evaluate_response(self):
         """
         Evaluate an AI response for rationality and bias.
@@ -89,7 +89,7 @@ class FairnessController(http.Controller):
     # 3. Get Audit Logs
     # =========================================================================
 
-    @http.route('/api/fairness/audit', type='json', auth='user', methods=['GET'], csrf=False)
+    @http.route('/api/fairness/audit', type='jsonrpc', auth='user', methods=['GET'], csrf=False)
     def get_audit_logs(self):
         """
         Get fairness audit logs.
@@ -136,7 +136,7 @@ class FairnessController(http.Controller):
     # 4. Get Fairness Metrics
     # =========================================================================
 
-    @http.route('/api/fairness/metrics', type='json', auth='user', methods=['GET'], csrf=False)
+    @http.route('/api/fairness/metrics', type='jsonrpc', auth='user', methods=['GET'], csrf=False)
     def get_metrics(self):
         """
         Get fairness metrics for the system.
@@ -164,7 +164,7 @@ class FairnessController(http.Controller):
     # 5. Review a Flag
     # =========================================================================
 
-    @http.route('/api/fairness/flag/review', type='json', auth='user', methods=['POST'], csrf=False)
+    @http.route('/api/fairness/flag/review', type='jsonrpc', auth='user', methods=['POST'], csrf=False)
     def review_flag(self):
         """
         Review a fairness flag.

@@ -18,7 +18,7 @@
 #     module-level dict keyed by database name, so that a single Odoo
 #     process serving multiple databases does not share state between them.
 #   - @route(type='json') is deprecated in Odoo 19. Replaced with
-#     @route(type='json').
+#     @route(type='jsonrpc').
 #   - Removed the unused 'Response' import.
 # =============================================================================
 
@@ -77,7 +77,7 @@ class DiscoveryController(http.Controller):
     # REST API Endpoints
     # =========================================================================
 
-    @http.route('/api/bridge/discovery/peers', type='json', auth='user', methods=['GET'])
+    @http.route('/api/bridge/discovery/peers', type='jsonrpc', auth='user', methods=['GET'])
     def get_discovered_peers(self):
         """
         Get all discovered peers from the cache.
@@ -99,7 +99,7 @@ class DiscoveryController(http.Controller):
             } for p in peers]
         }
 
-    @http.route('/api/bridge/discovery/advertise', type='json', auth='user', methods=['POST'])
+    @http.route('/api/bridge/discovery/advertise', type='jsonrpc', auth='user', methods=['POST'])
     def advertise_node(self, **kwargs):
         """
         Advertise this node's capabilities to the network.
@@ -114,7 +114,7 @@ class DiscoveryController(http.Controller):
         discovery_service.update_advertisement(capabilities)
         return {'success': True, 'message': 'Advertisement updated'}
 
-    @http.route('/api/bridge/discovery/status', type='json', auth='user', methods=['GET'])
+    @http.route('/api/bridge/discovery/status', type='jsonrpc', auth='user', methods=['GET'])
     def discovery_status(self):
         """
         Get the status of the discovery service.
