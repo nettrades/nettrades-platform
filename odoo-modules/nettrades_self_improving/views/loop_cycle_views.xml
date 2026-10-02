@@ -91,22 +91,22 @@
                         <div class="oe_kanban_global_click">
                             <div class="oe_kanban_details">
                                 <strong class="o_kanban_record_title">
-                                    <t t-esc="record.name.value"/>
+                                    <t t-out="record.name.value"/>
                                 </strong>
                                 <div>
                                     Status:
                                     <span class="badge rounded-pill text-bg-info">
-                                        <t t-esc="record.status.value"/>
+                                        <t t-out="record.status.value"/>
                                     </span>
                                 </div>
                                 <div t-if="record.trigger_name.value">
-                                    Trigger: <t t-esc="record.trigger_name.value"/>
+                                    Trigger: <t t-out="record.trigger_name.value"/>
                                 </div>
                                 <div>
-                                    Episodes: <t t-esc="record.episode_count.value"/>
+                                    Episodes: <t t-out="record.episode_count.value"/>
                                 </div>
                                 <div t-if="record.improvement.value">
-                                    Improvement: <t t-esc="record.improvement.value"/>%
+                                    Improvement: <t t-out="record.improvement.value"/>%
                                 </div>
                             </div>
                         </div>

@@ -18,7 +18,7 @@
               name="NETTRADES Expert Agreement">
         <div class="container">
             <h2>NETTRADES.AI Expert Agreement</h2>
-            <p>Version: <t t-esc="version or '1.0'"/></p>
+            <p>Version: <t t-out="version or '1.0'"/></p>
 
             <h3>1. Acceptance of Terms</h3>
             <p>By signing this agreement, you agree to act as a Professional ("Expert")

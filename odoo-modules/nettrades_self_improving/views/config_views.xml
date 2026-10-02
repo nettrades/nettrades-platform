@@ -179,27 +179,27 @@ UPDATES (2026-09-24):
                         <div class="oe_kanban_global_click">
                             <div class="o_kanban_image">
                                 <span class="badge" t-attf-class="badge-#{record.status.raw_value == 'completed' ? 'success' : 'warning'}">
-                                    <t t-esc="record.status.value"/>
+                                    <t t-out="record.status.value"/>
                                 </span>
                             </div>
                             <div class="oe_kanban_details">
                                 <strong class="o_kanban_record_title">
-                                    <t t-esc="record.name.value"/>
+                                    <t t-out="record.name.value"/>
                                 </strong>
                                 <div>
-                                    Trigger: <t t-esc="record.trigger_name.value"/>
+                                    Trigger: <t t-out="record.trigger_name.value"/>
                                 </div>
                                 <div>
-                                    Episodes: <t t-esc="record.episode_count.value"/>
+                                    Episodes: <t t-out="record.episode_count.value"/>
                                 </div>
                                 <div t-if="record.improvement.value">
-                                    Improvement: <t t-esc="record.improvement.value"/>%
+                                    Improvement: <t t-out="record.improvement.value"/>%
                                 </div>
                                 <div t-if="record.duration_seconds.value">
-                                    Duration: <t t-esc="format_duration(record.duration_seconds.value)"/>
+                                    Duration: <t t-out="format_duration(record.duration_seconds.value)"/>
                                 </div>
                                 <div t-if="record.started_at.value">
-                                    Started: <t t-esc="record.started_at.value"/>
+                                    Started: <t t-out="record.started_at.value"/>
                                 </div>
                             </div>
                         </div>

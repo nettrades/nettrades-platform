@@ -38,11 +38,11 @@
                                 <tbody>
                                     <t t-foreach="nodes_internal" t-as="node">
                                         <tr>
-                                            <td><t t-esc="node.name"/></td>
-                                            <td><t t-esc="node.gpu_count"/></td>
-                                            <td><t t-esc="node.total_vram_gb"/></td>
-                                            <td><span class="badge" t-attf-class="#{node.status == 'online' ? 'badge-success' : 'badge-danger'}"><t t-esc="node.status"/></span></td>
-                                            <td><t t-esc="node.uptime_hours"/>h</td>
+                                            <td><t t-out="node.name"/></td>
+                                            <td><t t-out="node.gpu_count"/></td>
+                                            <td><t t-out="node.total_vram_gb"/></td>
+                                            <td><span class="badge" t-attf-class="#{node.status == 'online' ? 'badge-success' : 'badge-danger'}"><t t-out="node.status"/></span></td>
+                                            <td><t t-out="node.uptime_hours"/>h</td>
                                             <td>
                                                 <button class="btn btn-sm btn-danger" t-att-data-id="node.id">Remove</button>
                                                 <button class="btn btn-sm btn-warning" t-att-data-id="node.id">Reassign</button>
@@ -74,11 +74,11 @@
                                 <tbody>
                                     <t t-foreach="nodes_public" t-as="node">
                                         <tr>
-                                            <td><t t-esc="node.name"/></td>
-                                            <td><t t-esc="node.gpu_count"/></td>
-                                            <td><t t-esc="node.tokens_served"/></td>
-                                            <td><t t-esc="node.token_earnings"/></td>
-                                            <td><span class="badge" t-attf-class="#{node.status == 'online' ? 'badge-success' : 'badge-danger'}"><t t-esc="node.status"/></span></td>
+                                            <td><t t-out="node.name"/></td>
+                                            <td><t t-out="node.gpu_count"/></td>
+                                            <td><t t-out="node.tokens_served"/></td>
+                                            <td><t t-out="node.token_earnings"/></td>
+                                            <td><span class="badge" t-attf-class="#{node.status == 'online' ? 'badge-success' : 'badge-danger'}"><t t-out="node.status"/></span></td>
                                             <td>
                                                 <button class="btn btn-sm btn-danger" t-att-data-id="node.id">Remove</button>
                                             </td>
