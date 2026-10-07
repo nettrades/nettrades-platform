@@ -31,8 +31,10 @@ async def auth_middleware(request, call_next):
         # Placeholder validation
         # In production, use a library like python-jose to verify JWT
         # and check with Odoo's public key.
-        payload = {"sub": "test-user"}
-        request.state.user = payload
+        # Delete the placeholder that returns test-user for any bearer token. 
+        # It is inert because AUTH_ENABLED=false, but it becomes an auth bypass the moment anyone flips that flag.
+        # payload = {"sub": "test-user"}
+        # request.state.user = payload
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid token")
 
