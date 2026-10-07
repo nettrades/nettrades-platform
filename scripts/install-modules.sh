@@ -376,6 +376,14 @@ step "Build list of modules to install"
 # =========================================================================
 
 MODULES=(
+    # Apexive llm service modules. These add the values that appear in
+    # the "Service" dropdown on llm.provider. Without at least one of
+    # these, the field has no valid choices and Odoo refuses to save a
+    # provider record. llm_openai is the right choice for llama.cpp and
+    # vLLM, both of which speak the OpenAI-compatible protocol.
+    "llm_openai"
+
+    # NETTRADES business modules, in dependency order.
     "nettrades_core"
     "nettrades_queue"
     "nettrades_notifications"
