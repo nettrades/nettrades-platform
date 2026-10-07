@@ -63,6 +63,52 @@ from tools.odoo_tools import (
 _logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# HELPER — extract JSON from an LLM reply
+# =============================================================================
+# LLMs often wrap JSON in ```json ... ``` fences or add explanatory prose
+# before and after. This helper finds the first balanced JSON object or
+# array in the text and returns it as a Python dict/list. If nothing
+# parses, it returns None so the caller can fall back to a safe default
+# rather than crashing on a decode error.
+# =============================================================================
+
+def _extract_json(text: str):
+    if not text:
+        return None
+
+    text = text.strip()
+
+    # Strip a single markdown fence if present.
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
+    if fence:
+        text = fence.group(1).strip()
+
+    # Try direct parse first.
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Try to find the first balanced { ... } or [ ... ].
+    for opener, closer in (("{", "}"), ("[", "]")):
+        start = text.find(opener)
+        if start == -1:
+            continue
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == opener:
+                depth += 1
+            elif text[i] == closer:
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[start:i + 1])
+                    except json.JSONDecodeError:
+                        break
+    return None
+
+
 class GoodAnswerState(dict):
     """
     State carried through the Good Answer workflow.
