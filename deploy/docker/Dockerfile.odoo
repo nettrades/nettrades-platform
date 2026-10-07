@@ -21,6 +21,47 @@
 #   - cryptography, pyOpenSSL, and cffi are deliberately NOT listed in
 #     either stage. pdfminer.six requires cryptography>=36 and Debian's
 #     41.0.7 satisfies that, so pip leaves the Debian stack alone.
+#
+# UPDATES (2026-10):
+#   - Added `packaging` and `pydantic` to stage 1.
+#
+#     Why these two, and why stage 1:
+#
+#       packaging:
+#         Odoo uses the `packaging` library to parse the version
+#         constraints declared in a module's `external_dependencies`
+#         manifest field. Without it, installing any module whose
+#         manifest declares something like `pydantic>=2.0.0` fails at
+#         the "check_external_dependencies" step with:
+#             Exception: Package `packaging` is required to parse
+#             `pydantic>=2.0.0` external dependency and is not installed
+#         This was blocking the install of every llm_* service module
+#         (llm_openai, llm_anthropic, llm_ollama, llm_mistral).
+#
+#       pydantic:
+#         The Apexive llm module and its service submodules declare
+#         `pydantic>=2.0.0` in external_dependencies. Debian ships
+#         pydantic 1.x as python3-pydantic, which does not satisfy the
+#         constraint. Installing pydantic 2.x with --ignore-installed
+#         places it in /usr/local/lib/python3.12/dist-packages, where
+#         it shadows the Debian 1.x copy.
+#
+#   - Added `mcp` to stage 2.
+#
+#     Why:
+#       llm_openai depends on llm_tool, and llm_tool declares `mcp`
+#       in external_dependencies. Without the package, Odoo refuses to
+#       install llm_openai with:
+#           MissingDependency: External dependency 'mcp' not installed
+#       and in the UI:
+#           Unable to install module "llm_tool" because an external
+#           dependency is not met: mcp
+#
+#     `mcp` is the Model Context Protocol SDK published by Anthropic.
+#     It is a normal PyPI package with a manylinux wheel; it does not
+#     shadow anything Debian ships, so it belongs in stage 2 where pip
+#     installs the rest of the third-party extras without
+#     --ignore-installed.
 # =============================================================================
 
 FROM odoo:19.0
@@ -55,11 +96,20 @@ RUN apt-get update && apt-get install -y \
 #   - typing-extensions  : required by openai, pydantic, anyio (>=4.14)
 #   - idna               : required by anyio, httpx2
 #   - charset-normalizer : required by pdfminer.six
+#   - packaging          : required by Odoo to parse external_dependencies
+#                          version constraints like `pydantic>=2.0.0`
+#   - pydantic           : required by the Apexive llm module and every
+#                          llm_* service submodule. Debian ships
+#                          pydantic 1.x, which does not satisfy the
+#                          pydantic>=2.0.0 constraint the manifests
+#                          declare.
 # -----------------------------------------------------------------------------
 RUN pip3 install --break-system-packages --no-cache-dir --ignore-installed \
     'typing-extensions>=4.14' \
     'idna>=3.7' \
-    'charset-normalizer>=3'
+    'charset-normalizer>=3' \
+    'packaging>=24.0' \
+    'pydantic>=2.0.0'
 
 # -----------------------------------------------------------------------------
 # Stage 2: install the remaining Python extras
@@ -67,6 +117,19 @@ RUN pip3 install --break-system-packages --no-cache-dir --ignore-installed \
 # Deliberately WITHOUT --ignore-installed. Everything pip needs from Debian
 # is either already satisfied (cryptography 41.0.7, pyOpenSSL 23.2.0, cffi)
 # or has been pre-shadowed by stage 1.
+#
+# Package list rationale:
+#   - pandas, numpy, scikit-learn : data processing in Odoo-side scripts
+#   - requests                    : HTTP client for Odoo controllers
+#   - openai, anthropic           : third-party LLM SDKs used by
+#                                   nettrades_llm_config and connectors
+#   - pdfplumber                  : CV / resume parsing in onboarding
+#   - mcp                         : Model Context Protocol SDK. Required
+#                                   by llm_tool, which llm_openai depends
+#                                   on. Missing it blocks llm_openai from
+#                                   installing, which in turn blocks the
+#                                   llm.provider "Service" dropdown from
+#                                   being populated.
 # -----------------------------------------------------------------------------
 RUN pip3 install --break-system-packages --no-cache-dir \
     pandas \
@@ -75,7 +138,8 @@ RUN pip3 install --break-system-packages --no-cache-dir \
     requests \
     openai \
     anthropic \
-    pdfplumber
+    pdfplumber \
+    mcp
 
 # Copy custom NETTRADES modules
 COPY odoo-modules/ /mnt/extra-addons/

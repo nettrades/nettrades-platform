@@ -187,11 +187,16 @@ class LLMFactory:
             )
             response.raise_for_status()
 
+            # FIX (2026-10): result must be assigned before it is
+            # referenced. The previous version checked `if "error" in
+            # result` before calling response.json(), which raised
+            # NameError on every call.
+            result = response.json()
+
             if "error" in result:
                 _logger.warning(f"Odoo error fetching LLM config: {result['error'].get('message')}")
                 return self._get_fallback_config()
 
-            result = response.json()
             if result.get("result"):
                 return result["result"]
             else:
@@ -207,18 +212,23 @@ class LLMFactory:
         """
         Get fallback configuration from environment variables.
 
-        Returns:
-            Dict[str, Any]: Fallback configuration.
+        The deployment's phase-deploy.sh writes LLM_BASE_URL and
+        DYNAMO_API_KEY to .env. Those are the authoritative source for
+        "which local backend is currently serving inference". This
+        fallback MUST use them, because OPENAI_API_KEY is often set to
+        the same dummy value as DYNAMO_API_KEY and would otherwise be
+        sent to the real OpenAI API, producing a 401.
         """
-        provider_type = os.getenv("LLM_PROVIDER", "openai")
-        model_name = os.getenv("LLM_MODEL", "gpt-4o-mini")
-        api_key = os.getenv(f"{provider_type.upper()}_API_KEY", "")
-
+        # The wire protocol is always OpenAI-compatible, whichever
+        # local backend is actually serving (llama.cpp, vLLM, Dynamo).
         return {
-            'provider_type': provider_type,
-            'model_name': model_name,
-            'api_key': api_key,
-            'api_base_url': os.getenv(f"{provider_type.upper()}_BASE_URL", ""),
+            'provider_type': 'openai',
+            'model_name': os.getenv('MODEL_NAME', 'deepseek-7b'),
+            'api_key': os.getenv('DYNAMO_API_KEY', 'dummy'),
+            'api_base_url': os.getenv(
+                'LLM_BASE_URL',
+                os.getenv('OPENAI_BASE_URL', 'http://llama-cpp:8080/v1'),
+            ),
         }
 
     # -------------------------------------------------------------------------
@@ -261,7 +271,7 @@ class LLMFactory:
             kwargs = {
                 "model": provider_model,
                 "temperature": config.get('temperature', 0.7),
-                "timeout": config.get('request_timeout', 30),
+                "timeout": config.get('request_timeout', 600),
                 "max_retries": config.get('max_retries', 3),
             }
 
@@ -342,7 +352,7 @@ class LLMFactory:
                 temperature=config.get('temperature', 0.7),
                 api_key=api_key,
                 base_url=api_base_url,
-                timeout=config.get('request_timeout', 30),
+                timeout=config.get('request_timeout', 600),
                 max_retries=config.get('max_retries', 3),
             )
         except ImportError:
@@ -381,7 +391,7 @@ class LLMFactory:
                 temperature=config.get('temperature', 0.7),
                 api_key=api_key,
                 base_url=f"{base_url}/v1",
-                timeout=config.get('request_timeout', 30),
+                timeout=config.get('request_timeout', 600),
                 max_retries=config.get('max_retries', 3),
             )
         except Exception as e:
