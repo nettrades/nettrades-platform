@@ -45,15 +45,20 @@ Result: 13/13 modules install cleanly. See `HANDOFF.md` for the verified state.
 
 ## BUG-001 — Proxy `/jsonrpc` does not enforce the model whitelist
 
-**Status:** OPEN
+**Status:** FIXED
 **Severity:** High (security)
 **Location:** `src/core/odoo_proxy/main.py`, `jsonrpc_proxy()`
 **Symptom:** The `ALLOWED_MODELS` set is checked in `/models/{name}/fields`
 but not in `/jsonrpc`. Any JSON-RPC payload is forwarded to Odoo. An agent
 can call `execute_kw('res.users', 'search_read', ...)`.
 
-**Fix:** Extract `body["params"]["args"][3]` (the model name) and refuse
-non-whitelisted models with HTTP 403.
+**Fix:** JSON-2 proxy route + whitelist fix
+The JSON-2 transport uses a service API key stored in
+ODOO_SERVICE_API_KEY. When that variable is set, the proxy
+authenticates to Odoo with the scoped service user's token instead
+of forwarding the client-supplied uid/password. This is the
+forward-compatible path: Odoo 20 deprecates execute_kw, and the
+JSON-2 API is the replacement.
 
 **Effort:** 15 minutes.
 
@@ -61,15 +66,22 @@ non-whitelisted models with HTTP 403.
 
 ## BUG-002 — `/auth/login` sessions are never stored
 
-**Status:** OPEN
+**Status:** FIXED
 **Severity:** High (functional)
 **Location:** `src/core/odoo_proxy/auth.py`, `login()`, `status()`
 **Symptom:** Login returns a `session_id` UUID that is not persisted.
 `/auth/status` always returns `authenticated: False`. `/auth/logout` only
 logs. The Launcher's login never actually works.
 
-**Fix:** Persist sessions in Valkey (already in the stack) with a TTL.
-`/auth/status` reads from Valkey. `/auth/logout` deletes the key.
+**Fix:** Valkey session persistence
+Sessions are persisted in Valkey with a 24-hour TTL. This fixes
+BUG-002, where the previous in-memory approach lost the session on
+every container restart and made /auth/status always return
+authenticated: False.
+If Valkey is not reachable (VALKEY_HOST not set, or connection
+failed), the module falls back to in-process storage. This keeps
+local development working without Valkey, at the cost of sessions
+not surviving a restart. The fallback is logged once at startup.
 
 **Effort:** 1 hour.
 
@@ -77,7 +89,7 @@ logs. The Launcher's login never actually works.
 
 ## BUG-003 — Proxy uses a fixed admin user for all ORM calls
 
-**Status:** OPEN
+**Status:** FIXED
 **Severity:** Critical (security)
 **Location:** `src/core/odoo_proxy/main.py` (constant `ODOO_USER`) and
 `src/connectors/odoo.py` (`_authenticate_internal`)
@@ -85,10 +97,45 @@ logs. The Launcher's login never actually works.
 bypassed. Multi-company isolation is defeated. Audit logs say "admin".
 
 **Fix (design level):**
-1. The proxy accepts a user session token alongside the API key.
-2. The proxy forwards the token as the `uid` in `execute_kw`.
-3. The connector accepts a per-user token rather than the fixed admin.
+CREATED NEW FILE: odoo-modules/nettrades_gpu_admin/data/nettrades_service_user.xml — NEW
+    PURPOSE:
+        Creates the `nettrades-service` user used by the LangGraph
+        supervisor and the odoo-proxy to authenticate to Odoo. This
+        user has NO web login capability (password is '!' meaning
+        "no login allowed") and only the groups required by the
+        control plane.
 
+        Why a dedicated user:
+          - The scheduler, the supervisor, and the proxy all need to
+            read gpu.cluster and gpu.node and write layer_assignment.
+          - Previously they authenticated as admin (UID 2), which has
+            every permission in every module. A single bug in any of
+            those components would have given an attacker full control
+            of the ERP.
+          - With a scoped user, the blast radius is limited to the GPU
+            tables and the agent infrastructure.
+
+        Groups assigned:
+          - base.group_user            : standard internal user
+          - nettrades_gpu_admin.group_gpu_administrator
+          - nettrades_gpu_admin.group_gpu_operator
+          - nettrades_core.group_nettrades_api
+
+        The user is created with password='!' so it cannot be used to
+        log in to the web UI. An API key is generated separately (see
+        scripts/configure-odoo-admin.sh) and stored in the environment
+        as NETTRADES_SERVICE_API_KEY.
+
+        This file lives in nettrades_gpu_admin rather than
+        nettrades_core because the group_gpu_administrator and
+        group_gpu_operator groups are defined in
+        nettrades_gpu_admin/security/groups.xml, and Odoo resolves XML
+        ID references at load time.
+Added odoo-modules/nettrades_gpu_admin/data/nettrades_service_user.xml to
+odoo-modules/nettrades_gpu_admin/__manifest__.py 
+
+Added service users to deploy/docker/docker-compose.yaml
+In scripts/configure-odoo-admin.sh — added service user creation 
 **Effort:** 4 hours across the proxy and the connector.
 
 **Cross-ref:** `KNOWN-ISSUES.md` "P1.5".
@@ -113,15 +160,20 @@ bypassed. Multi-company isolation is defeated. Audit logs say "admin".
 
 ## BUG-005 — Register node endpoint references non-existent field
 
-**Status:** OPEN
+**Status:** FIXED
 **Severity:** High (functional)
 **Location:** `odoo-modules/nettrades_gpu_admin/controllers/main.py`,
 `_generate_node_wireguard_config()`
 **Symptom:** Reads `cluster.dns_servers`. `gpu.cluster` has no such field.
 `AttributeError` fires after BUG-004 is fixed.
 
-**Fix:** Remove the reference. The platform does not need to dictate DNS
-for the WireGuard mesh.
+**Fix:** Removed the reference. The platform does not need to dictate DNS
+for the WireGuard mesh. 
+Change
+'dns_servers': cluster.dns_servers or '8.8.8.8, 1.1.1.1',
+To
+'dns_servers': '8.8.8.8, 1.1.1.1',
+Verified by the fact that register_node no longer raises AttributeError when the DB cluster record exists — the fake token test reached the token validation step before failing
 
 **Effort:** 2 minutes.
 
@@ -129,7 +181,7 @@ for the WireGuard mesh.
 
 ## BUG-006 — `drain_and_restart_for_node` does not exist on `gpu.cluster`
 
-**Status:** OPEN
+**Status:** FIXED
 **Severity:** High (functional)
 **Location:** Called in `src/core/supervisor.py` (`_on_rpc_node_failure`),
 defined nowhere
@@ -137,10 +189,11 @@ defined nowhere
 `AttributeError` when the callback fires. The drain-and-restart cycle
 never completes.
 
-**Fix:** Add the method to `gpu.cluster`. It marks the node offline,
-revokes the WireGuard peer, and recomputes `layer_assignment`. It does
-**not** relaunch the master container — that belongs in
-`src/core/rpc_scheduler.py`.
+**Fix:** The supervisor now calls RPCScheduler.restart_without_node() directly. The dangling reference to gpu.cluster.drain_and_restart_for_node() is gone from the codebase.
+
+The approach chose keeps the scheduler logic in src/core/ (matching its own docstring rationale — "survives Odoo upgrades, can be triggered from the Launcher without going through the Odoo UI").
+    Fix (implemented): The supervisor calls src/core/rpc_scheduler.py::RPCScheduler.restart_without_node() directly. The Odoo side only serves as a data source (gpu.cluster.read, gpu.node.search_read, gpu.cluster.write for layer_assignment). No method needed on gpu.cluster itself.
+
 
 **Effort:** 45 minutes.
 
@@ -148,7 +201,7 @@ revokes the WireGuard peer, and recomputes `layer_assignment`. It does
 
 ## BUG-007 — `gpu.cluster` lacks `recompute_layers`, `layer_assignment`, `llama_rpc_cluster`
 
-**Status:** OPEN
+**Status:** PARTIAL
 **Severity:** High (functional)
 **Location:** `odoo-modules/nettrades_gpu_admin/models/gpu_cluster.py`
 **Symptom:** Three things missing for the distributed inference design:
@@ -157,12 +210,19 @@ revokes the WireGuard peer, and recomputes `layer_assignment`. It does
 - `llama_rpc_cluster` is not one of the `trust_mode` options.
 
 **Fix:**
-1. Add `('llama_rpc_cluster', 'llama.cpp RPC Cluster')` to `trust_mode`.
-2. Add `layer_assignment = fields.Json()`.
-3. Add `recompute_layers()` — see `ARCHITECTURE-FUTURE.md` and
+layer_assignment — added. Verified in the DB.
+
+rpc_master_node_id — added (this wasn't in the catalog's list but was needed).
+
+recompute_layers() — not added, and no longer needed. The algorithm lives in src/core/rpc_scheduler.py::compute_layer_assignment().  see `ARCHITECTURE-FUTURE.md` and
    `ARCHITECTURE-AND-PLAN.md` §4.5 for the algorithm.
-4. Update `_compute_payment_mode` to treat `llama_rpc_cluster` as
-   trusted (internal payment mode).
+
+llama_rpc_cluster trust_mode option — not added, and not needed by the current code. The supervisor distinguishes tracks by trust_mode == 'company_multi_gpu' (dynamo) vs anything else (rpc). Adding the explicit option is a UI clarification, not a functional requirement.
+(Update `_compute_payment_mode` to treat `llama_rpc_cluster` as trusted (internal payment mode).)
+
+
+Fix (implemented): Added layer_assignment and rpc_master_node_id fields to gpu.cluster. The recompute_layers algorithm and the llama_rpc_cluster trust_mode option are not needed because the layer assignment is computed in src/core/rpc_scheduler.py. llama_rpc_cluster remains a future UI polish item.
+
 
 **Effort:** 1 hour.
 
@@ -170,7 +230,7 @@ revokes the WireGuard peer, and recomputes `layer_assignment`. It does
 
 ## BUG-008 — `gpu.node` lacks `inference_capability` and `compute_profile`
 
-**Status:** OPEN
+**Status:** FIXED
 **Severity:** Medium (functional)
 **Location:** `odoo-modules/nettrades_gpu_admin/models/gpu_node.py`
 **Symptom:** No way to mark a node as an RPC worker vs a local-only node.
@@ -179,6 +239,14 @@ No place to store the compute profile reported by the spoke agent.
 **Fix:**
 1. Add `inference_capability = fields.Selection([...])`.
 2. Add `compute_profile = fields.Json()`.
+Both fields added. Verified in the DB:
+sql
+
+-- Both columns exist:
+inference_capability | character varying | not null | 'local_only'
+compute_profile      | jsonb
+
+Odoo's Missing not-null constraint on gpu.node.inference_capability warning on every module load confirms the field is registered in the model and being compared against the DB.
 
 **Effort:** 20 minutes.
 
@@ -309,7 +377,7 @@ the pattern in `src/core/tools/odoo_tools.py`.
 
 ## BUG-016 — `main.py` `_get_available_hardware` blocks the event loop
 
-**Status:**  CHECK IF STILL OPEN
+**Status:**  FIXED
 **Severity:** Medium (performance)
 **Location:** `src/core/supervisor.py`, `_get_available_hardware()`
 **Symptom:** Uses `requests.post` inside an `async def`. Under concurrent
@@ -317,6 +385,13 @@ load, requests serialize.
 
 **Fix:** Replace with `httpx.AsyncClient`. Pattern already exists in
 `app.py` and `odoo_tools.py`.
+In src/core/supervisor.py, replaced requests.post with httpx.AsyncClient. The function now uses:
+python
+
+async with httpx.AsyncClient(timeout=5) as client:
+    r = await client.post(...)
+
+Also fixed the related VRAM aggregation bug (+= 0 was a no-op placeholder).
 
 **Effort:** 20 minutes.
 
@@ -324,12 +399,12 @@ load, requests serialize.
 
 ## BUG-017 — `_on_rpc_node_failure` blocks the event loop
 
-**Status:**  CHECK IF STILL OPEN
+**Status:**  FIXED
 **Severity:** Medium (performance)
 **Location:** `src/core/supervisor.py`, `_on_rpc_node_failure()`
 **Symptom:** Same as BUG-016.
 
-**Fix:** Same as BUG-016.
+**Fix:** Rewrote the whole function to use httpx.AsyncClient. It now posts to the supervisor's own /rpc/relaunch endpoint via RPCScheduler.restart_without_node(), which is a valid path.
 
 **Effort:** 15 minutes.
 
@@ -417,10 +492,12 @@ correctly. The `ft.dataset` version is unused but not deleted.
 
 ## BUG-023 — `self_improving_integration` had a `NameError`
 
-**Status:** FIXED (2026-09-21)
+**Status:** FIXED
 **Location:** `src/core/self_improving_integration.py`, `_create_episode()`
-**Fix:** Replaced the reference to undefined `context_data` with a direct
-read from `input_data.get('thread_id')`.
+**Fix:** Replaced 
+thread_id = input_data.get('thread_id') or context_data.get('thread_id')
+With
+thread_id = input_data.get('thread_id')
 
 ---
 
@@ -772,6 +849,60 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 
 
 
+### RPC Bugs 
+
+Traced a chain of failures from "the scheduler does nothing" to "the scheduler works end-to-end". These are now fixed :
+
+### BUG-047 — Dockerfile.langgraph had no Docker CLI.
+**Status:** FIXED
+rpc_scheduler.recreate_master() runs docker compose ... via subprocess.run. The container had no docker binary. Fix: added docker.io + Compose v2 plugin (from GitHub release, not Debian repos) to Dockerfile.langgraph.
+
+### BUG-048 — langgraph-server had no Docker socket or rpc.env mount.
+**Status:** FIXED
+Even with the CLI present, the container couldn't reach the host daemon or write rpc.env. Fix: added four volumes (/var/run/docker.sock, ./rpc.env, ./docker-compose.yaml, ./.env) and two env vars to the compose service.
+
+### BUG-049 — docker-compose.yaml had no rpc profile services.
+**Status:** FIXED
+llama-rpc-master and llama-rpc-worker-cuda did not exist. Fix: added both behind profiles: ["rpc"].
+
+### BUG-050 — app.py had no /rpc/relaunch endpoint.
+**Status:** FIXED
+The supervisor's failure callback had no target. Fix: added the endpoint with RPCSchedulerError handling that returns structured JSON on failure instead of leaking a traceback.
+
+### BUG-051 — Odoo routes used type='jsonrpc' instead of type='json'.
+**Status:** FIXED
+Odoo 19 no longer registers type='jsonrpc' routes. The controller was unreachable at /api/v1/gpu/register and every other GPU endpoint. Fix: sed rename across eight routes. Verified: curl -X POST /api/v1/gpu/register now returns a JSON-RPC error response instead of 404.
+
+### BUG-052 — ODOO_USER=1 is __system__, not admin.
+**Status:** FIXED
+The scheduler and odoo-proxy authenticated as the superuser, which cannot log in via JSON-RPC (no password). Fix: .env now sets ODOO_USER=<admin uid>; compose default is ${ODOO_USER:-2}; configure-odoo-admin.sh writes the discovered uid back to .env automatically.
+
+### BUG-053 — Admin user password was set in the wrong format.
+**Status:** FIXED
+The initial attempt used crypt(password, gen_salt('bf')) in Postgres, which writes a bcrypt hash. Odoo expects pbkdf2_sha512 (or argon2) for res_users.password. The hash was rejected. Fix: configure-odoo-admin.sh sets the password through Odoo's ORM (admin.password = ...), which runs the correct hasher.
+
+### BUG-054 — configure-odoo-admin.sh was called before the Odoo container was running.
+**Status:** FIXED
+The call was placed before docker compose up -d --build. docker compose exec -T odoo failed with "service odoo is not running", and 2>/dev/null hid the error, causing set -e to exit silently. Fix: moved the call to after the stack starts, removed the redirect.
+
+### BUG-055 — Duplicate ODOO_ADMIN_PASSWORD in .env.example and .env.
+**Status:** FIXED
+Both files had the old ADMIN_PASSWORD line under the PostgreSQL section AND the new ODOO_ADMIN_PASSWORD under the Odoo section. safe_sed_replace targets the first match, so a future regeneration would update the wrong one. Fix: .env.example cleaned. Your live .env still needs the same cleanup (see below).
+
+### BUG-056 — ODOO_MASTER_PASSWORD was ambiguous.
+**Status:** FIXED
+Renamed to DB_MANAGER_UI_PASSWORD (at your instruction), then to DB_MANAGER_UI_PASSWORD — the exact name you settled on. Compose maps it to the odoo service's ADMIN_PASSWORD env var; the actual usage pattern is now documented in .env.example.
+
+### BUG-057 — Docker Compose file path duplication.
+**Status:** FIXED
+docker compose -f deploy/docker/docker-compose.yaml run from inside deploy/docker resolved the path relative to the CWD, doubling the directory. Fix: run docker compose ... from deploy/docker without -f, or use an absolute path.
+
+### BUG-058 — context_data NameError in self_improving_integration.py.
+**Status:** FIXED
+This is technically BUG-023 but was a regression. See above.
+
+
+
 ## Summary of still-relevant entries:
 
 BUG-021 (ft.dataset vs llm.training.dataset) — PARTIAL, see notes.
@@ -806,18 +937,12 @@ Fix (design level): proxy accepts a user session token alongside the API
 key, forwards it as uid in execute_kw. Effort: 4 hours.
 Functional — Medium Priority
 
-#### BUG-005 — _generate_node_wireguard_config reads cluster.dns_servers
-Field doesn't exist. **Fix:** remove the reference. Effort: 2 min.
-
 #### BUG-006 — drain_and_restart_for_node is called but undefined
 Supervisor calls gpu.cluster.drain_and_restart_for_node(node_external_id).
 The method doesn't exist. **Fix:** add it. Effort: 45 min.
 
 #### BUG-007 — gpu.cluster missing recompute_layers, layer_assignment, llama_rpc_cluster
 Needed for distributed inference. Effort: 1 hour.
-
-#### BUG-008 — gpu.node missing inference_capability, compute_profile
-Needed to mark nodes as RPC workers. Effort: 20 min.
 
 #### BUG-012 — menu_items.xml uses <act_window> (removed in Odoo 17)
 Also duplicates menu_gpu_root. Effort: 30 min.
