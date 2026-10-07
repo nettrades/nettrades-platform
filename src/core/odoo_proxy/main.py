@@ -110,6 +110,11 @@ ALLOWED_MODELS = {
     "gpu.registration.token",
     "multimodal.config",
     "nettrades.wireguard",
+    "llm.feedback",
+    "nettrades.llm.company.config",
+    "data.feedback",
+    "gpu_sharing_schedule",
+    "expert.session",
     # Add business models as needed, but NEVER include res.users or ir.model
 }
 
