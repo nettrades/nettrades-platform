@@ -252,7 +252,7 @@ read_password_with_retry() {
 # =============================================================================
 
 # Determine if we should ask for a password or generate one
-if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" == true ]]; then
+if [[ -f "$ENV_FILE" ]] && [[ "$FORCE" == true ]] && [[ "$AUTO" != true ]]; then
     # We are regenerating an existing .env after user confirmation – ask for a new password
     echo ""
     echo -e "${YELLOW}Enter a NEW PostgreSQL password for the 'odoo' user:${NC}"
@@ -332,6 +332,16 @@ safe_sed_replace "$ENV_FILE" "LANGGRAPH_API_KEY" "$LANGGRAPH_API_KEY"
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"  # Ensure sync
 # Ensure ODOO_API_KEY and PROXY_API_KEY are identical
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"
+
+# Reset the service user fields to empty. The real values are populated
+# by phase-deploy.sh (Phase 2) and phase-modules.sh (Phase 4) after
+# configure-odoo-admin.sh creates the service user. Empty values here
+# make docker-compose fall back to the admin credentials on the very
+# first container start, which is what we want until the service user
+# exists.
+safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_UID" ""
+safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_PASSWORD" ""
+safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_API_KEY" ""
 
 # =============================================================================
 # CRITICAL FIX: Do NOT modify DATABASE_URL – keep the template's placeholder.

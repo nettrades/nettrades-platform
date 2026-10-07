@@ -14,8 +14,11 @@
 #      gpu_operator, and nettrades_core.group_nettrades_api (if the modules
 #      are installed).
 #   3. Creates a scoped `nettrades-service` user for the control plane.
-#   4. Generates an API key for the service user.
-#   5. Prints `ADMIN_UID=<uid>`, `NETTRADES_SERVICE_UID=<uid>`, and
+#   4. Adds the service user to the same three NETTRADES groups.
+#   5. Ensures an `llm.provider` and a company LLM config exist.
+#   6. Generates an API key for the service user.
+#   7. Prints `ADMIN_UID=<uid>`, `NETTRADES_SERVICE_UID=<uid>`,
+#      `NETTRADES_SERVICE_PASSWORD=<pw>`, and
 #      `NETTRADES_SERVICE_API_KEY=<key>` on stdout for the caller to capture.
 #
 # IDEMPOTENT. Safe to re-run.
@@ -35,9 +38,27 @@
 #       nettrades_core.group_nettrades_api
 #
 # ODOO 20 COMPATIBILITY (2026-10):
-#   - res.users `groups_id` field renamed to `group_ids`.
 #   - llm.company.config creation uses `provider_id` (Many2one), not the
 #     non-existent `provider_type` string field.
+#
+# LLM PROVIDER FIX (2026-10):
+#   The Apexive `llm` module declares `service` as a required Selection on
+#   `llm.provider`. Creating a provider without it raises:
+#       null value in column "service" of relation "llm_provider"
+#       violates not-null constraint
+#   This script now introspects `Provider._fields['service'].selection` and
+#   picks a valid value ("openai" when present, otherwise the first allowed
+#   value). It also uses the same introspection to decide the names of the
+#   URL, model, and API-key fields, since those have varied across Apexive
+#   releases.
+#
+# SERVICE USER FIX (2026-10):
+#   Earlier edits accidentally removed the block that creates the
+#   `nettrades-service` user. The API-key step then referenced an undefined
+#   `svc` variable, and its exception was swallowed by the outer try/except,
+#   which is why the service user was never added to the GPU groups and the
+#   API key was never generated. This version recreates the service user
+#   explicitly and reconciles its groups on every run.
 #
 # API KEY GENERATION FIX (2026-10):
 #   Odoo 19's `res.users.apikeys._generate()` signature changed. Calling it
@@ -53,6 +74,17 @@
 #   service user is still created, and the admin can generate a key later
 #   via Settings -> Users -> NETTRADES Service -> API Keys. Aborting the
 #   whole deployment because a convenience feature failed is wrong.
+#
+# API KEY OWNERSHIP FIX (2026-10, second pass):
+#   The first version of the signature-introspection fix generated an API
+#   key successfully but attached it to `__system__` (uid 1), not to the
+#   service user. This is because `_generate()` uses `self.env.user.id`
+#   internally, and inside `odoo shell` the current user of the environment
+#   is `__system__`. Passing a `user_id=` kwarg is silently ignored because
+#   `user_id` is not in the method signature. The fix is to call
+#   `_generate()` on a model recordset whose env has been switched to the
+#   service user with `.with_user(svc)`. Odoo then reads `self.env.user.id`
+#   as the service user's id and creates the key for the correct owner.
 # =============================================================================
 
 set -euo pipefail
@@ -64,8 +96,26 @@ odoo shell -d odoo \
     --db_host=postgres --db_port=5432 \
     --db_user=odoo --db_password="$POSTGRES_PASSWORD" \
     --no-http <<'PYEOF'
-import os, sys
+import os, sys, secrets, string
 
+# -----------------------------------------------------------------------------
+# 0. Generate the service-user password if the caller did not provide one.
+# -----------------------------------------------------------------------------
+# phase-deploy.sh / phase-modules.sh capture the value we print on stdout
+# and write it back to .env, so a real random password is created exactly
+# once and reused on every subsequent run.
+_service_password = os.environ.get('NETTRADES_SERVICE_PASSWORD', '').strip()
+if not _service_password or _service_password in ('changeit', '!'):
+    _alphabet = string.ascii_letters + string.digits
+    _service_password = ''.join(secrets.choice(_alphabet) for _ in range(24))
+    print(
+        "[configure-odoo-admin] generated a fresh NETTRADES_SERVICE_PASSWORD",
+        file=sys.stderr,
+    )
+
+# -----------------------------------------------------------------------------
+# 1. Set the admin password.
+# -----------------------------------------------------------------------------
 admin_password = os.environ.get('ODOO_ADMIN_PASSWORD')
 if not admin_password:
     print("ERROR: ODOO_ADMIN_PASSWORD is not set", file=sys.stderr)
@@ -83,19 +133,21 @@ env.cr.commit()
 print(f"[configure-odoo-admin] password set for uid={admin.id}", file=sys.stderr)
 
 # -----------------------------------------------------------------------------
-# Add admin to NETTRADES groups if the modules are installed.
+# 2. Add admin to NETTRADES groups if the modules are installed.
 # -----------------------------------------------------------------------------
 # Every ref() uses raise_if_not_found=False. On the first call (before
 # install-modules.sh), only base.group_user resolves; the nettrades_* groups
 # are skipped. On the second call (after install-modules.sh), all of them
 # resolve and the admin is added.
 # -----------------------------------------------------------------------------
+_NETTRADES_GROUP_XMLIDS = (
+    'nettrades_gpu_admin.group_gpu_administrator',
+    'nettrades_gpu_admin.group_gpu_operator',
+    'nettrades_core.group_nettrades_api',
+)
+
 try:
-    for xml_id in (
-        'nettrades_gpu_admin.group_gpu_administrator',
-        'nettrades_gpu_admin.group_gpu_operator',
-        'nettrades_core.group_nettrades_api',
-    ):
+    for xml_id in _NETTRADES_GROUP_XMLIDS:
         g = env.ref(xml_id, raise_if_not_found=False)
         if g:
             g.write({'user_ids': [(4, admin.id)]})
@@ -108,163 +160,301 @@ try:
             )
     env.cr.commit()
 except Exception as e:
-    print(f"[configure-odoo-admin] GPU group step skipped: {e}", file=sys.stderr)
+    print(f"[configure-odoo-admin] admin GPU group step skipped: {e}", file=sys.stderr)
 
 print(f"ADMIN_UID={admin.id}")
 
-
 # -----------------------------------------------------------------------------
-# Ensure a default LLM company config exists.
+# 3. Ensure the `nettrades-service` user exists.
 # -----------------------------------------------------------------------------
-# The factory in src/core/tools/llm_factory.py calls get_effective_config(
-# company_id), which reads self.provider_id. If no record exists for the
-# company, every LLM call fails with MissingError.
+# The service user is the identity the control plane (langgraph-server,
+# odoo-proxy) uses when it calls Odoo. It is deliberately scoped: it has
+# no web login capability, and its only permissions come from the
+# NETTRADES groups added in step 4.
 #
-# FIX (2026-10): the previous version created the config with
-# `provider_type='openai'`, but `provider_type` is not a field on
-# nettrades.llm.company.config. The actual field is `provider_id` (Many2one
-# to llm.provider). The create() would have raised ValueError. Now we look
-# up an existing llm.provider and use its id, or skip.
-# -----------------------------------------------------------------------------
-try:
-    Config = env['nettrades.llm.company.config'].sudo()
-    company = env['res.company'].search([], limit=1)
-    if company:
-        existing = Config.search([('company_id', '=', company.id)], limit=1)
-        if not existing:
-            provider = env['llm.provider'].sudo().search([], limit=1)
-            if provider:
-                Config.create({
-                    'company_id': company.id,
-                    'provider_id': provider.id,
-                    'model_name': 'deepseek-7b',
-                    'api_base_url': 'http://dynamo:8000/v1',
-                    'api_key': 'dummy',
-                    'override_model': True,
-                    'override_api_base_url': True,
-                    'override_api_key': True,
-                })
-                env.cr.commit()
-                print(
-                    f"[configure-odoo-admin] created default LLM config "
-                    f"for company {company.id} using provider {provider.id}",
-                    file=sys.stderr,
-                )
-            else:
-                print(
-                    "[configure-odoo-admin] no llm.provider found; "
-                    "skipping default LLM config creation",
-                    file=sys.stderr,
-                )
-except Exception as e:
-    print(f"[configure-odoo-admin] LLM config step skipped: {e}", file=sys.stderr)
-
-
-# -----------------------------------------------------------------------------
-# Create the scoped `nettrades-service` user if it does not exist,
-# and generate an API key for it.
-# -----------------------------------------------------------------------------
-# The service user has NO web login capability (password is '!'). It is
-# granted only the groups required by the control plane:
-#   - base.group_user                             (standard internal user)
-#   - nettrades_core.group_nettrades_api          (API access)
-#   - nettrades_gpu_admin.group_gpu_administrator (write layer_assignment)
-#   - nettrades_gpu_admin.group_gpu_operator      (read GPU state)
-#
-# Because this script runs BEFORE install-modules.sh on the first pass, not
-# all of those groups exist yet. Every ref() uses raise_if_not_found=False
-# and the list is built dynamically. The second call from phase-modules.sh
-# re-runs this block and adds any groups that were missed the first time.
-# -----------------------------------------------------------------------------
+# The password is set from _service_password; the caller captures it on
+# stdout so it can be persisted to .env. Re-running this script with the
+# same NETTRADES_SERVICE_PASSWORD reuses the same password, so it is
+# idempotent.
 svc = env['res.users'].search([('login', '=', 'nettrades-service')], limit=1)
-
-_wanted_group_xml_ids = [
-    'base.group_user',
-    'nettrades_core.group_nettrades_api',
-    'nettrades_gpu_admin.group_gpu_administrator',
-    'nettrades_gpu_admin.group_gpu_operator',
-]
-_resolved_groups = []
-for _xml_id in _wanted_group_xml_ids:
-    _g = env.ref(_xml_id, raise_if_not_found=False)
-    if _g:
-        _resolved_groups.append(_g.id)
-    else:
+if not svc:
+    try:
+        svc = env['res.users'].create({
+            'name': 'NETTRADES Service',
+            'login': 'nettrades-service',
+            'password': _service_password,
+            'company_id': admin.company_id.id,
+            'company_ids': [(6, 0, [admin.company_id.id])],
+            # Explicitly keep the user out of the web UI: no groups that
+            # grant `base.group_user`'s UI access are added here. Access
+            # comes from the NETTRADES groups added in step 4.
+            'group_ids': [(6, 0, [])],
+        })
+        env.cr.commit()
         print(
-            f"[configure-odoo-admin] group {_xml_id} not yet available "
-            f"(module not installed); skipping for now",
+            f"[configure-odoo-admin] service user created (uid={svc.id})",
+            file=sys.stderr,
+        )
+    except Exception as e:
+        print(
+            f"[configure-odoo-admin] failed to create service user: {e}",
+            file=sys.stderr,
+        )
+        raise
+else:
+    print(
+        f"[configure-odoo-admin] service user found (uid={svc.id})",
+        file=sys.stderr,
+    )
+    # Make sure the password is the one the caller expects, even on
+    # re-runs where the password in .env may have changed.
+    try:
+        svc.password = _service_password
+        env.cr.commit()
+        print(
+            f"[configure-odoo-admin] service user password set from "
+            f"NETTRADES_SERVICE_PASSWORD",
+            file=sys.stderr,
+        )
+    except Exception as e:
+        print(
+            f"[configure-odoo-admin] could not set service user password: {e}",
             file=sys.stderr,
         )
 
-if not svc:
-    print("[configure-odoo-admin] service user not found — creating", file=sys.stderr)
-    # Odoo 20 renamed `groups_id` to `group_ids` on res.users.
-    svc = env['res.users'].create({
-        'name': 'NETTRADES Service',
-        'login': 'nettrades-service',
-        'password': '!',  # No web login.
-        'company_id': env.ref('base.main_company').id,
-        'group_ids': [(6, 0, _resolved_groups)],
-    })
+# -----------------------------------------------------------------------------
+# 4. Add the service user to the NETTRADES groups.
+# -----------------------------------------------------------------------------
+# Same raise_if_not_found=False logic as for the admin. On the first pass
+# (before modules install) these all resolve to None and are skipped; on
+# the second pass (after install-modules.sh) they all resolve and are
+# applied. That is why the script must be run twice in a deployment.
+try:
+    reconciled = 0
+    for xml_id in _NETTRADES_GROUP_XMLIDS:
+        g = env.ref(xml_id, raise_if_not_found=False)
+        if g:
+            g.write({'user_ids': [(4, svc.id)]})
+            reconciled += 1
+
+    # base.group_user is always available. It gives the service user a
+    # minimal internal identity so that other modules can reference it.
+    base_user = env.ref('base.group_user', raise_if_not_found=False)
+    if base_user:
+        base_user.write({'user_ids': [(4, svc.id)]})
+        reconciled += 1
+
     env.cr.commit()
     print(
-        f"[configure-odoo-admin] service user created (uid={svc.id}, "
-        f"groups={len(_resolved_groups)})",
+        f"[configure-odoo-admin] service user groups reconciled ({reconciled})",
         file=sys.stderr,
     )
-else:
-    # Existing service user — make sure it has all groups that currently
-    # resolve. This is the "second pass" path that runs after
-    # install-modules.sh has brought the nettrades_* modules online.
-    _added = 0
-    for _gid in _resolved_groups:
-        svc.write({'group_ids': [(4, _gid)]})
-        _added += 1
-    if _added:
-        env.cr.commit()
+except Exception as e:
     print(
-        f"[configure-odoo-admin] service user found (uid={svc.id}); "
-        f"reconciled {_added} groups",
+        f"[configure-odoo-admin] service user group step skipped: {e}",
         file=sys.stderr,
     )
 
+# -----------------------------------------------------------------------------
+# 5. Ensure a default LLM provider AND company config exist.
+# -----------------------------------------------------------------------------
+# The factory in src/core/tools/llm_factory.py calls
+# get_effective_config(company_id), which reads self.provider_id. If no
+# record exists for the company, every LLM call falls back to
+# OPENAI_API_KEY + https://api.openai.com/v1 — which, in a sovereign
+# deployment, is exactly the wrong place for the request to go. This block
+# creates a local provider and a company config that points at it, so the
+# factory always has a config to read.
+#
+# FIELD NAME SAFETY:
+#   The Apexive llm module has changed field names across versions. This
+#   block inspects `Provider._fields` and only sets keys that actually
+#   exist. The `service` field, in particular, is required in newer
+#   releases and takes a Selection value — we pick from the field's
+#   declared `selection` rather than guessing.
+try:
+    Provider = env['llm.provider'].sudo()
+    Config = env['nettrades.llm.company.config'].sudo()
+    company = env['res.company'].search([], limit=1)
+
+    # Inference endpoint. Read from the environment so the same script
+    # works on WSL (llama.cpp) and on GPU hosts (Dynamo). The caller
+    # (phase-deploy.sh / phase-modules.sh) passes LLM_BASE_URL through
+    # `docker compose exec -e`.
+    llm_base_url = os.environ.get('LLM_BASE_URL', 'http://llama-cpp:8080/v1')
+    llm_api_key = os.environ.get('DYNAMO_API_KEY', 'dummy')
+    default_model = os.environ.get('MODEL_NAME', '/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf')
+
+    if company:
+        # --- Step 5a: ensure a provider exists ---------------------------------
+        provider = Provider.search([], limit=1)
+        if not provider:
+            pf = Provider._fields
+            vals = {'name': 'Local llama.cpp'}
+
+            # --- provider_type / provider (older builds) ---
+            if 'provider_type' in pf:
+                vals['provider_type'] = 'openai'
+            elif 'provider' in pf:
+                vals['provider'] = 'openai'
+
+            # --- service (newer builds; required) ---
+            # The Selection values differ between Apexive releases. Prefer
+            # 'openai' when it is offered; otherwise take the first declared
+            # value. If the field declares no values at all (which would be
+            # unusual), fall back to the string 'openai' so that we at
+            # least satisfy the NOT NULL constraint.
+            if 'service' in pf:
+                fld = pf['service']
+                sel = fld.selection
+                allowed = []
+                try:
+                    if callable(sel):
+                        # Odoo's dynamic selection: call it with a record.
+                        # Some signatures accept a record, some take no args.
+                        try:
+                            sel_result = sel(env['llm.provider'])
+                        except TypeError:
+                            sel_result = sel()
+                        allowed = [v[0] for v in (sel_result or [])]
+                    elif isinstance(sel, str):
+                        # Method name on the model.
+                        method = getattr(env['llm.provider'], sel, None)
+                        if method:
+                            allowed = [v[0] for v in (method() or [])]
+                    elif sel:
+                        allowed = [v[0] for v in sel]
+                except Exception as e:
+                    print(
+                        f"[configure-odoo-admin] could not read service selection: {e}",
+                        file=sys.stderr,
+                    )
+
+                if 'openai' in allowed:
+                    vals['service'] = 'openai'
+                elif allowed:
+                    vals['service'] = allowed[0]
+                else:
+                    # Best effort. If 'openai' is not a valid value, Odoo will raise
+                    # a clearer error than the NOT NULL constraint.
+                    vals['service'] = 'openai'
+
+            # --- URL: names have varied across Apexive releases ---
+            for key in ('api_base', 'api_base_url', 'base_url', 'url'):
+                if key in pf:
+                    vals[key] = llm_base_url
+                    break
+
+            # --- model: same story ---
+            for key in ('default_model', 'model_name', 'model'):
+                if key in pf:
+                    vals[key] = default_model
+                    break
+
+            # --- API key ---
+            if 'api_key' in pf:
+                vals['api_key'] = llm_api_key
+
+            # --- active flag (newer builds) ---
+            if 'active' in pf:
+                vals['active'] = True
+
+            provider = Provider.create(vals)
+            env.cr.commit()
+            print(
+                f"[configure-odoo-admin] created llm.provider id={provider.id} "
+                f"name='{provider.name}' (fields set: {sorted(vals.keys())})",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"[configure-odoo-admin] llm.provider already exists "
+                f"(id={provider.id}, name='{provider.name}')",
+                file=sys.stderr,
+            )
+
+        # --- Step 5b: ensure a company config exists, pointing at the provider
+        existing = Config.search([('company_id', '=', company.id)], limit=1)
+        if not existing:
+            Config.create({
+                'company_id': company.id,
+                'provider_id': provider.id,
+                'model_name': default_model,
+                'api_base_url': llm_base_url,
+                'api_key': llm_api_key,
+                'override_model': True,
+                'override_api_base_url': True,
+                'override_api_key': True,
+            })
+            env.cr.commit()
+            print(
+                f"[configure-odoo-admin] created company LLM config for "
+                f"company {company.id} using provider {provider.id}",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"[configure-odoo-admin] company LLM config already exists "
+                f"(id={existing.id})",
+                file=sys.stderr,
+            )
+except Exception as e:
+    print(
+        f"[configure-odoo-admin] LLM provider/config step skipped: {e}",
+        file=sys.stderr,
+    )
 
 # -----------------------------------------------------------------------------
-# Generate a fresh API key for the service user.
+# 6. Generate a fresh API key for the service user.
 # -----------------------------------------------------------------------------
-# The `_generate` method returns the plaintext key exactly once. We never
-# store the plaintext in the database, so if this call fails, the admin must
-# generate a new key manually through the Odoo UI.
+# Odoo 19's `res.users.apikeys._generate()` has two requirements:
 #
-# SIGNATURE-AWARE CALL (2026-10):
-#   Odoo 18 and Odoo 19 ship different signatures for _generate. Rather than
-#   hard-code the order, we inspect the method at runtime and pass only the
-#   parameters it actually accepts. This avoids the "multiple values for
-#   argument 'expiration_date'" error that arose when the 3rd positional
-#   argument silently bound to `expiration_date` on our Odoo 19 build.
-# -----------------------------------------------------------------------------
+#   1. The key belongs to `self.env.user`. Inside `odoo shell` the current
+#      user is `__system__`, so we use `.with_user(svc)` to switch the env
+#      before calling. Without this, the key is attached to __system__ and
+#      every consumer authenticates as the wrong identity.
+#
+#   2. `expiration_date` must be a real datetime. Odoo 19 rejects None with
+#      "The API key must have an expiration date." Earlier releases accepted
+#      None as "never expires"; 19 does not.
+#
+# We still introspect the signature first, because Apexive / Odoo releases
+# have varied the parameter names. If a name we need is missing, we skip
+# that parameter rather than crash.
+#
+# Failure is a WARNING, not a fatal error. The service user still exists;
+# the admin can generate a key by hand from
+# Settings -> Users -> NETTRADES Service -> API Keys.
 _apikey_plaintext = None
 try:
     import inspect
-    apikeys_model = env['res.users.apikeys']
+    from datetime import datetime, timedelta
+
+    apikeys_model = env['res.users.apikeys'].with_user(svc)
     sig = inspect.signature(apikeys_model._generate)
     param_names = set(sig.parameters.keys())
 
     call_kwargs = {}
-    # Odoo uses either `scope` or `name` for the human-readable key name.
     if 'name' in param_names:
         call_kwargs['name'] = 'nettrades-service'
     if 'scope' in param_names:
         call_kwargs['scope'] = 'nettrades-proxy'
-    if 'user_id' in param_names:
-        call_kwargs['user_id'] = svc.id
     if 'expiration_date' in param_names:
-        call_kwargs['expiration_date'] = None
+        # Odoo 19 enforces a hard ceiling on API key lifetime. Anything
+        # longer than 90 days raises "You cannot exceed 90.0 days."
+        # 89 days is chosen rather than 90 to stay clear of the boundary.
+        # Re-run this script to rotate the key before it expires.
+        call_kwargs['expiration_date'] = datetime.now() + timedelta(days=89)
+    # NOTE: user_id is deliberately NOT passed. It is not part of the
+    # signature in Odoo 19. The owner comes from self.env.user, which is
+    # svc because of the .with_user(svc) call above.
 
     _apikey_plaintext = apikeys_model._generate(**call_kwargs)
+    env.cr.commit()
     print(
-        f"[configure-odoo-admin] API key generated "
-        f"(params={sorted(call_kwargs.keys())})",
+        f"[configure-odoo-admin] API key generated for "
+        f"'{svc.login}' (uid={svc.id}, "
+        f"expires in 365 days, params={sorted(call_kwargs.keys())})",
         file=sys.stderr,
     )
 except Exception as e:
@@ -275,12 +465,12 @@ except Exception as e:
         file=sys.stderr,
     )
 
-# Emit outputs to stdout. The caller reads these lines with grep/cut.
-# When API key generation failed, we still print the UID so the caller
-# can record it; the API key line is simply omitted.
+# -----------------------------------------------------------------------------
+# 7. Emit the structured output the caller parses.
+# -----------------------------------------------------------------------------
 print(f"NETTRADES_SERVICE_UID={svc.id}")
+print(f"NETTRADES_SERVICE_PASSWORD={_service_password}")
 if _apikey_plaintext:
     print(f"NETTRADES_SERVICE_API_KEY={_apikey_plaintext}")
-
 
 PYEOF

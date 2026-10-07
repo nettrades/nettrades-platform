@@ -1223,6 +1223,7 @@ EOF
         LANGGRAPH_API_KEY
         ODOO_API_KEY
         PROXY_API_KEY
+        NETTRADES_SERVICE_PASSWORD
     )
 
     if [[ ! -f "$ENV_FILE" ]] || [[ "$REGENERATE_SECRETS" == true ]]; then
@@ -1717,17 +1718,22 @@ EOF
         log_success "LangGraph restarted successfully."
     fi
 
-    sleep 5
+    sleep 7
 
+    # After restarting LangGraph, re-check Dynamo and update .env if needed
+    log_step "Re-verifying inference backend after LangGraph restart..."
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/v1/models \
            -H "Authorization: Bearer $DYNAMO_API_KEY" | grep -q "200"; then
-        log_success "Dynamo is healthy. Using Dynamo as the primary inference backend."
-        LLM_BASE_URL="http://dynamo:8000/v1"
-        OPENAI_API_KEY="$DYNAMO_API_KEY"
-    else
-        log_warning "Dynamo not available or not ready. Falling back to llama.cpp (CPU)."
-        LLM_BASE_URL="http://llama-cpp:8080/v1"
-        OPENAI_API_KEY="dummy"
+        MODEL_LIST=$(curl -s -H "Authorization: Bearer $DYNAMO_API_KEY" http://localhost:8001/v1/models)
+        if echo "$MODEL_LIST" | grep -q '"data":\[\]'; then
+            log_warning "Dynamo has no models after restart – forcing llama.cpp fallback"
+            DYNAMO_HEALTHY=false
+            LLM_BASE_URL="http://llama-cpp:8080/v1"
+            OPENAI_API_KEY="dummy"
+            safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
+            safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
+            docker compose restart langgraph-server
+        fi
     fi
 
     log_step "Updating .env with inference backend settings..."
@@ -1752,13 +1758,40 @@ EOF
     log_step "Configuring Odoo admin user for external services..."
     ODOO_ADMIN_SCRIPT="$SCRIPT_DIR/configure-odoo-admin.sh"
     if [[ -f "$ODOO_ADMIN_SCRIPT" ]]; then
-        ADMIN_UID=$(
-            docker compose exec -T \
-                -e ODOO_ADMIN_PASSWORD="$ODOO_ADMIN_PASSWORD" \
-                -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-                odoo bash -c "$(cat "$ODOO_ADMIN_SCRIPT")" \
-            | grep '^ADMIN_UID=' | cut -d= -f2
-        )
+        # Capture BOTH stdout and stderr so we can parse the structured
+        # output (ADMIN_UID=, NETTRADES_SERVICE_UID=, ...) while still
+        # letting the script's [configure-odoo-admin] log lines pass
+        # through.
+        # Stream output live AND capture it for parsing.
+        # The temporary file lets us grep after the command finishes without
+        # hiding progress from the operator (the previous CONFIGURE_OUTPUT=$(...)
+        # form was silent for 60-90 seconds while odoo shell booted, and looked
+        # like a hang).
+        CONFIGURE_LOG=$(mktemp)
+        docker compose exec -T \
+            -e ODOO_ADMIN_PASSWORD="$ODOO_ADMIN_PASSWORD" \
+            -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+            -e NETTRADES_SERVICE_PASSWORD="$NETTRADES_SERVICE_PASSWORD" \
+            -e DYNAMO_API_KEY="${DYNAMO_API_KEY:-dummy}" \
+            -e LLM_BASE_URL="${LLM_BASE_URL:-http://llama-cpp:8080/v1}" \
+            odoo bash -c "$(cat "$ODOO_ADMIN_SCRIPT")" 2>&1 | tee "$CONFIGURE_LOG"
+
+        ADMIN_UID=$(grep '^ADMIN_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_UID=$(grep '^NETTRADES_SERVICE_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_PASSWORD=$(grep '^NETTRADES_SERVICE_PASSWORD=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_API_KEY=$(grep '^NETTRADES_SERVICE_API_KEY=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        rm -f "$CONFIGURE_LOG"
+
+        # Parse the structured output the script prints on stdout.
+        # `tail -1` guards against the unlikely case of duplicate lines
+        # (e.g. the script being retried inside the container).
+        # `cut -d= -f2-` keeps any '=' that appears inside the value,
+        # which matters for the API key.
+        # ADMIN_UID=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^ADMIN_UID=' | tail -1 | cut -d= -f2- | tr -d '\r')
+        # SERVICE_UID=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_UID=' | tail -1 | cut -d= -f2- | tr -d '\r')
+        # SERVICE_PASSWORD=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_PASSWORD=' | tail -1 | cut -d= -f2- | tr -d '\r')
+        # SERVICE_API_KEY=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_API_KEY=' | tail -1 | cut -d= -f2- | tr -d '\r')
+
         if [[ -n "$ADMIN_UID" ]]; then
             log_success "Admin user configured (uid=$ADMIN_UID)"
             safe_sed_replace "$ENV_FILE" "ODOO_USER" "$ADMIN_UID"
@@ -1766,6 +1799,37 @@ EOF
         else
             log_warning "Could not determine admin uid; defaulting to 2."
             safe_sed_replace "$ENV_FILE" "ODOO_USER" "2"
+        fi
+
+        # Persist the service user's credentials to .env. The password
+        # came from the script itself (generated because .env had none);
+        # the UID and API key come from the same run. All three are
+        # written here so that subsequent runs of configure-odoo-admin.sh
+        # reuse the same password instead of generating a new one.
+        if [[ -n "$SERVICE_UID" ]]; then
+            log_success "Service user configured (uid=$SERVICE_UID)"
+            safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_UID" "$SERVICE_UID"
+            export NETTRADES_SERVICE_UID="$SERVICE_UID"
+        fi
+        if [[ -n "$SERVICE_PASSWORD" ]]; then
+            safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_PASSWORD" "$SERVICE_PASSWORD"
+            export NETTRADES_SERVICE_PASSWORD="$SERVICE_PASSWORD"
+        fi
+        if [[ -n "$SERVICE_API_KEY" ]]; then
+            log_success "Service user API key generated and recorded in .env"
+            safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_API_KEY" "$SERVICE_API_KEY"
+            export NETTRADES_SERVICE_API_KEY="$SERVICE_API_KEY"
+        fi
+
+        # Recreate langgraph-server so it picks up the credentials we
+        # just wrote. `docker compose restart` is not sufficient: compose
+        # only re-reads the .env file when the container is created.
+        # `--force-recreate` guarantees a fresh container with the
+        # updated environment.
+        if [[ -n "$SERVICE_UID" ]] && [[ -n "$SERVICE_PASSWORD" ]]; then
+            log_step "Recreating langgraph-server to apply service user credentials..."
+            docker compose up -d --force-recreate langgraph-server \
+                || log_warning "Failed to recreate langgraph-server; it will pick up the credentials on the next restart."
         fi
     else
         log_warning "configure-odoo-admin.sh not found – skipping."
@@ -1803,6 +1867,67 @@ EOF
     else
         log_warning "install-modules.sh not found – skipping module installation"
     fi
+
+
+    # -------------------------------------------------------------------------
+    # Re-run configure-odoo-admin.sh AFTER install-modules.sh.
+    #
+    # The first run (above, before install-modules.sh) cannot create the
+    # llm.provider record, because the `service` Selection on llm.provider
+    # is populated by the Apexive llm_* service modules, which are not yet
+    # installed at that point. This second run happens after
+    # install-modules.sh has installed llm_openai, so `service='openai'`
+    # is a valid value and the provider create succeeds.
+    #
+    # This is the same pattern phase-modules.sh uses. It makes the deploy
+    # profile self-contained: `./scripts/nettrades-setup.sh deploy --force`
+    # now produces a fully working LLM provider, without requiring a later
+    # `modules` phase.
+    # -------------------------------------------------------------------------
+    if [[ -f "$ODOO_ADMIN_SCRIPT" ]]; then
+        log_step "Re-configuring Odoo admin after module install..."
+
+
+        # Stream output live AND capture it for parsing.
+        # The temporary file lets us grep after the command finishes without
+        # hiding progress from the operator (the previous CONFIGURE_OUTPUT=$(...)
+        # form was silent for 60-90 seconds while odoo shell booted, and looked
+        # like a hang).
+        CONFIGURE_LOG=$(mktemp)
+        docker compose exec -T \
+            -e ODOO_ADMIN_PASSWORD="$ODOO_ADMIN_PASSWORD" \
+            -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+            -e NETTRADES_SERVICE_PASSWORD="$NETTRADES_SERVICE_PASSWORD" \
+            -e DYNAMO_API_KEY="${DYNAMO_API_KEY:-dummy}" \
+            -e LLM_BASE_URL="${LLM_BASE_URL:-http://llama-cpp:8080/v1}" \
+            odoo bash -c "$(cat "$ODOO_ADMIN_SCRIPT")" 2>&1 | tee "$CONFIGURE_LOG"
+
+        ADMIN_UID=$(grep '^ADMIN_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_UID=$(grep '^NETTRADES_SERVICE_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_PASSWORD=$(grep '^NETTRADES_SERVICE_PASSWORD=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_API_KEY=$(grep '^NETTRADES_SERVICE_API_KEY=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        rm -f "$CONFIGURE_LOG" 
+
+        SERVICE_UID_2=$(printf '%s\n' "$CONFIGURE_OUTPUT_2" | grep '^NETTRADES_SERVICE_UID=' | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_PASSWORD_2=$(printf '%s\n' "$CONFIGURE_OUTPUT_2" | grep '^NETTRADES_SERVICE_PASSWORD=' | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_API_KEY_2=$(printf '%s\n' "$CONFIGURE_OUTPUT_2" | grep '^NETTRADES_SERVICE_API_KEY=' | tail -1 | cut -d= -f2- | tr -d '\r')
+
+        if [[ -n "$SERVICE_UID_2" ]]; then
+            safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_UID" "$SERVICE_UID_2"
+        fi
+        if [[ -n "$SERVICE_PASSWORD_2" ]]; then
+            safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_PASSWORD" "$SERVICE_PASSWORD_2"
+        fi
+        if [[ -n "$SERVICE_API_KEY_2" ]]; then
+            safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_API_KEY" "$SERVICE_API_KEY_2"
+        fi
+
+        # Recreate langgraph-server so it picks up any credentials the
+        # second pass rewrote.
+        docker compose up -d --force-recreate langgraph-server \
+            || log_warning "Failed to recreate langgraph-server after second configure pass"
+    fi
+
 
     # -----------------------------------------------------------------------------
     # Create emergency Odoo user and multiple fallback options

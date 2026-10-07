@@ -301,14 +301,19 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       # Inference backend URLs – dynamically set by deployment script
-      - LLM_BASE_URL=${LLM_BASE_URL:-http://dynamo:8000/v1}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://llama-cpp:8080/v1}
       - DYNAMO_API_KEY=${DYNAMO_API_KEY:-dummy}
       - ODOO_URL=${ODOO_URL:-http://odoo:8069}
       - ODOO_DB=${ODOO_DB:-odoo}
+      # FIX (2026-10): prefer the scoped service user, but fall back to
+      # the admin user on a fresh install where configure-odoo-admin.sh
+      # has not yet run (it runs after `docker compose up`). Once
+      # NETTRADES_SERVICE_UID and NETTRADES_SERVICE_PASSWORD are written
+      # into .env, the service user takes over on the next restart.
       # Use the scoped service user. Falls back to the
       # admin UID (2) only if the service user has not been created yet.
-      - ODOO_USER=${NETTRADES_SERVICE_UID:-2}
-      - ODOO_PASSWORD=${NETTRADES_SERVICE_PASSWORD}
+      - ODOO_USER=${NETTRADES_SERVICE_UID:-${ODOO_USER:-2}}
+      - ODOO_PASSWORD=${NETTRADES_SERVICE_PASSWORD:-${ODOO_ADMIN_PASSWORD}}
       - ODOO_PROXY_URL=${ODOO_PROXY_URL:-http://odoo-proxy:8080}
       - ODOO_API_KEY=${PROXY_API_KEY:-${ODOO_API_KEY}}
       - USE_ODOO_PROXY=${USE_ODOO_PROXY:-true}
@@ -380,6 +385,7 @@ services:
     environment:
       - DOMAIN=${DOMAIN}
       - ODOO_URL=${ODOO_URL}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://llama-cpp:8080/v1}
       - ODOO_PROXY_URL=${ODOO_PROXY_URL}
       - LANGGRAPH_URL=${LANGGRAPH_URL}
       - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
@@ -630,6 +636,8 @@ services:
     command:
       - "-m"
       - "/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+      - "-a"
+      - "deepseek-7b"   
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -857,7 +865,7 @@ services:
   # WireGuard — they do not use this container.
   # =========================================================================
   llama-rpc-worker-cuda:
-    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    image: ghcr.io/ggml-org/llama.cpp:full-cuda
     container_name: llama-rpc-worker-cuda
     profiles: ["rpc"]
     restart: unless-stopped
@@ -882,13 +890,13 @@ services:
         max-size: 10m
         max-file: 3
 
-  # =============================================================================
-  # 19. WIREGUARD - Internal VPN for Microservices
-  # =============================================================================
-  # This WireGuard instance provides secure communication between platform
-  # microservices. It uses a different port (51820) than the Admin VPN (51821)
-  # and a separate subnet (10.10.11.0/24) to avoid routing conflicts.
-  # =============================================================================
+   =============================================================================
+   19. WIREGUARD - Internal VPN for Microservices
+   =============================================================================
+   This WireGuard instance provides secure communication between platform
+   microservices. It uses a different port (51820) than the Admin VPN (51821)
+   and a separate subnet (10.10.11.0/24) to avoid routing conflicts.
+   =============================================================================
   wireguard-internal:
     image: linuxserver/wireguard
     container_name: wireguard-internal
