@@ -40,6 +40,7 @@
         <field name="model">gpu.cluster</field>
         <field name="arch" type="xml">
             <list string="GPU Clusters">
+                <field name="sequence" widget="handle"/>
                 <field name="name"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="wireguard_mesh_subnet"/>
@@ -221,6 +222,107 @@
                                 <field name="credit_reset_interval"/>
                             </group>
                         </page>
+
+                        <!-- ==================================================
+                             FAILOVER POLICY
+                             ================================================== -->
+                        <page string="Failover Policy">
+                            <div class="alert alert-info" role="alert">
+                                <p><b>Important:</b> When the RPC cluster loses a
+                                worker, the platform will <b>never</b> silently
+                                downgrade to a smaller model. The policy below
+                                controls what alternatives are permitted.</p>
+                                <p>If none are enabled and the cluster is
+                                unavailable, requests fail with HTTP 503 and
+                                the user is asked to retry.</p>
+                            </div>
+
+                            <group string="Tier 2 — Dynamo (Same Model)">
+                                <field name="allow_dynamo_fallback"
+                                       help="Route to a Dynamo cluster when RPC is unavailable. The same model is served, just on different hardware."/>
+                            </group>
+
+                            <group string="Tier 3 — Partial RPC (Same Model)">
+                                <field name="allow_rpc_partial_fallback"
+                                       help="Rebuild the RPC cluster with fewer workers. The model identity is unchanged. Response quality is preserved because the same model runs, just with fewer layers per worker."/>
+                            </group>
+
+                            <group string="Tier 4 — GPU Marketplace">
+                                <field name="allow_marketplace_fallback"
+                                       help="Rent GPUs from the NETTRADES marketplace. The same model is served on rented hardware. Requires marketplace credits."/>
+                            </group>
+
+                            <group string="Tier 5 — External API (Last Resort)">
+                                <field name="allow_external_api_fallback"
+                                       help="Send prompts to an external API provider. WARNING: This sends data outside your network."/>
+                                <field name="external_api_provider"
+                                       invisible="not allow_external_api_fallback"/>
+                                <field name="external_api_model"
+                                       invisible="not allow_external_api_fallback"/>
+                            </group>
+
+                            <div class="alert alert-warning" role="alert"
+                                 invisible="not allow_external_api_fallback">
+                                <p><b>Data warning:</b> Enabling external API
+                                fallback means that when your local and
+                                marketplace GPUs are both unavailable, prompts
+                                and responses will be transmitted to
+                                <field name="external_api_provider" readonly="1"/>
+                                for processing. Ensure this complies with your
+                                data governance policy before enabling.</p>
+                            </div>
+
+                            <group string="Tier 6 — Fail Loudly (Always On)">
+                                <div class="text-muted">
+                                    <p>This tier cannot be disabled. When no
+                                    fallback is available or permitted, the
+                                    system returns HTTP 503 with a
+                                    <code>Retry-After: 30</code> header. The
+                                    user's conversation is preserved by the
+                                    LangGraph checkpointer and resumes when
+                                    the cluster recovers.</p>
+                                </div>
+                            </group>
+                        </page>
+
+                        <!-- ==================================================
+                             PER-MODEL POLICIES
+                             ================================================== -->
+                        <page string="Per-Model Policies"
+                              invisible="not model_policy_count">
+                            <div class="alert alert-info" role="alert">
+                                <p>Per-model overrides replace the cluster
+                                default for a specific model. Use these when a
+                                cluster serves multiple models with different
+                                failover requirements.</p>
+                                <p><b>Example:</b> A 7B model can fail over to
+                                Dynamo (cheap), but a 70B model must fail
+                                loudly (quality-critical).</p>
+                            </div>
+                            <field name="model_policy_ids">
+                                <list editable="bottom">
+                                    <field name="model_name"/>
+                                    <field name="allow_dynamo_fallback"/>
+                                    <field name="allow_rpc_partial_fallback"/>
+                                    <field name="allow_marketplace_fallback"/>
+                                    <field name="allow_external_api_fallback"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Add Per-Model Policy"
+                              invisible="model_policy_count">
+                            <div class="text-muted">
+                                <p>No per-model overrides yet. The cluster
+                                default above applies to every model routed
+                                through this cluster.</p>
+                                <p>To add a per-model override, save this
+                                cluster first, then use the
+                                <b>Per-Model Policies</b> page.</p>
+                            </div>
+                        </page>
+
 
                         <!-- ==================================================
                              FINE-TUNING (deferred)
