@@ -179,23 +179,6 @@ Verified by the fact that register_node no longer raises AttributeError when the
 
 ---
 
-## BUG-006 — `drain_and_restart_for_node` does not exist on `gpu.cluster`
-
-**Status:** FIXED
-**Severity:** High (functional)
-**Location:** Called in `src/core/supervisor.py` (`_on_rpc_node_failure`),
-defined nowhere
-**Symptom:** Every health-monitor-detected node failure raises
-`AttributeError` when the callback fires. The drain-and-restart cycle
-never completes.
-
-**Fix:** The supervisor now calls RPCScheduler.restart_without_node() directly. The dangling reference to gpu.cluster.drain_and_restart_for_node() is gone from the codebase.
-
-The approach chose keeps the scheduler logic in src/core/ (matching its own docstring rationale — "survives Odoo upgrades, can be triggered from the Launcher without going through the Odoo UI").
-    Fix (implemented): The supervisor calls src/core/rpc_scheduler.py::RPCScheduler.restart_without_node() directly. The Odoo side only serves as a data source (gpu.cluster.read, gpu.node.search_read, gpu.cluster.write for layer_assignment). No method needed on gpu.cluster itself.
-
-
-**Effort:** 45 minutes.
 
 ---
 
@@ -214,12 +197,9 @@ layer_assignment — added. Verified in the DB.
 
 rpc_master_node_id — added (this wasn't in the catalog's list but was needed).
 
-recompute_layers() — not added, and no longer needed. The algorithm lives in src/core/rpc_scheduler.py::compute_layer_assignment().  see `ARCHITECTURE-FUTURE.md` and
-   `ARCHITECTURE-AND-PLAN.md` §4.5 for the algorithm.
+recompute_layers() — not added, and no longer needed. The algorithm lives in src/core/rpc_scheduler.py::compute_layer_assignment().  
 
 llama_rpc_cluster trust_mode option — not added, and not needed by the current code. The supervisor distinguishes tracks by trust_mode == 'company_multi_gpu' (dynamo) vs anything else (rpc). Adding the explicit option is a UI clarification, not a functional requirement.
-(Update `_compute_payment_mode` to treat `llama_rpc_cluster` as trusted (internal payment mode).)
-
 
 Fix (implemented): Added layer_assignment and rpc_master_node_id fields to gpu.cluster. The recompute_layers algorithm and the llama_rpc_cluster trust_mode option are not needed because the layer assignment is computed in src/core/rpc_scheduler.py. llama_rpc_cluster remains a future UI polish item.
 
