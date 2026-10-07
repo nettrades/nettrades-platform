@@ -113,6 +113,7 @@ def create_gpu_management_agent() -> StateGraph:
 
         # Fetch all nodes in the cluster
         nodes = await gpu_node_search([("cluster_id", "=", cluster_id)])
+        nodes = nodes or [] 
         state["nodes"] = nodes
 
         _logger.info(f"Found {len(nodes)} nodes in cluster")
