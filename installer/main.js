@@ -858,7 +858,9 @@ ipcMain.handle('run-install', async (event, options) => {
     }
 
     // Set tenant configuration in .env
-    const tenantResult = await ipcMain.handle('set-tenant-config', null, { tenantType, tenantName });
+    // FIX (2026-10): Call the extracted function directly. Do NOT use
+    // ipcMain.handle here — see the comment above _setTenantConfig.
+    const tenantResult = await _setTenantConfig({ tenantType, tenantName });
     if (!tenantResult.success) {
         return { success: false, error: `Failed to set tenant config: ${tenantResult.error}` };
     }
@@ -1015,7 +1017,14 @@ ipcMain.handle('get-tenant-config', () => {
     };
 });
 
-ipcMain.handle('set-tenant-config', async (event, config) => {
+// FIX (2026-10): Extract the set-tenant-config body into a plain async
+// function. The previous version registered this as an ipcMain handler
+// and then called ipcMain.handle('set-tenant-config', ...) from inside
+// run-install. ipcMain.handle registers a handler; it does not invoke
+// one. On the second call it threw "Attempted to register a second
+// handler for 'set-tenant-config'", and on the first call it returned
+// undefined, so tenantResult.success threw TypeError.
+async function _setTenantConfig(config) {
     const { tenantType, tenantName, backend } = config;
 
     if (!Object.values(TENANT_TYPES).includes(tenantType)) {
@@ -1074,7 +1083,10 @@ ipcMain.handle('set-tenant-config', async (event, config) => {
         logError(`Error setting tenant config: ${error.message}`);
         return { success: false, error: error.message };
     }
-});
+}
+
+// Register the IPC handler using the extracted function.
+ipcMain.handle('set-tenant-config', (event, config) => _setTenantConfig(config));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Grove & KAI Scheduler Management
@@ -1454,25 +1466,26 @@ ipcMain.handle('detect-gpu', () => {
     return detectGPUs();
 });
 
-ipcMain.handle('detect-hardware', () => {
+ipcMain.handle('detect-hardware', async () => {
     const gpus = detectGPUs();
     const totalMemory = os.totalmem();
     const cpus = os.cpus();
 
-    // Check for Kubernetes
+    // Check for Kubernetes.
+    // FIX (2026-10): The previous version used the callback form of
+    // exec(), so this handler returned before the callback fired and
+    // k8sDetected was always false. Must await.
     let k8sDetected = false;
     try {
-        exec('kubectl cluster-info 2>/dev/null', (error, stdout) => {
-            k8sDetected = !error && stdout.length > 0;
-        });
+        const result = await execPromise('kubectl cluster-info 2>/dev/null');
+        k8sDetected = result.stdout.length > 0;
     } catch (e) { k8sDetected = false; }
 
-    // Check for Docker
+    // Check for Docker. Same reasoning as above.
     let dockerInstalled = false;
     try {
-        exec('docker --version 2>/dev/null', (error, stdout) => {
-            dockerInstalled = !error && stdout.length > 0;
-        });
+        const result = await execPromise('docker --version 2>/dev/null');
+        dockerInstalled = result.stdout.length > 0;
     } catch (e) { dockerInstalled = false; }
 
     return {
