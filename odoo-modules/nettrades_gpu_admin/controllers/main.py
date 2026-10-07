@@ -208,7 +208,7 @@ class GpuAdminController(http.Controller):
 
     @http.route(
         '/api/v1/gpu/register',
-        type='json',
+        type='jsonrpc',
         auth='public',          # Public endpoint, but token-based auth is applied
         methods=['POST'],
         csrf=False,
@@ -365,6 +365,17 @@ class GpuAdminController(http.Controller):
                 'registration_token_id': token.id,
                 'company_id': token.company_id.id,
                 'state': 'pending',
+                # NEW (2026-10): store the GPU inventory and compute
+                # profile that the spoke sent. These are the fields the
+                # RPC scheduler reads (via gpu.node.total_vram_gb, which
+                # is computed from gpus) to compute the layer
+                # assignment. Without them, every spoke reports zero
+                # VRAM and the RPC track is never selectable.
+                'gpus': params.get('gpus') or [],
+                'compute_profile': params.get('compute_profile') or {},
+                # NEW (2026-10): store the spoke's self-declared role so
+                # the rpc_scheduler can include it in the worker list.
+                'inference_capability': params.get('inference_capability', 'rpc_worker'),
             }
 
             try:
@@ -433,7 +444,7 @@ class GpuAdminController(http.Controller):
     # 2. WIREGUARD PEER LIST (Internal, Odoo Authenticated)
     # =========================================================================
 
-    @http.route('/api/v1/gpu/peers', type='json', auth='user', methods=['GET'])
+    @http.route('/api/v1/gpu/peers', type='jsonrpc', auth='user', methods=['GET'])
     def get_wireguard_peers(self):
         """
         Return every active GPU node's WireGuard public key and allowed IPs.
@@ -481,7 +492,7 @@ class GpuAdminController(http.Controller):
 
     @http.route(
         '/api/v1/gpu/heartbeat',
-        type='json',
+        type='jsonrpc',
         auth='public',
         methods=['POST'],
         csrf=False,
@@ -490,8 +501,32 @@ class GpuAdminController(http.Controller):
     def heartbeat(self, **kwargs):
         """
         Update a registered node's last_seen and telemetry.
+
         Token-authenticated by the same registration token used at
-        registration time. The token is not consumed by heartbeats.
+        registration time. The token is not consumed by heartbeats:
+        unlike /register, this endpoint does not mark the token as used.
+
+        The spoke sends this every 10 seconds. It is the durable record
+        of "this node is still alive" in Odoo. The parallel push to
+        LangGraph's /nodes/heartbeat endpoint is the real-time signal the
+        supervisor reads on every routing decision.
+
+        Request payload (from spoke-agent.py):
+            {
+                "node_id": 123,
+                "timestamp": "2026-10-01T00:42:39.123456",
+                "vram_total_mb": 24564,
+                "gpu_count": 1,
+                "model_cached": true,
+                "gpu_utilization": 45.2,
+                "memory_utilization": 30.0,
+                "temperature": 62.0,
+                "is_available": true
+            }
+
+        Response:
+            {"status": "success"}
+            or {"status": "error", "error": "..."}
         """
         if not _ENABLE_GPU_REGISTRATION:
             return {"status": "error", "error": "Registration disabled"}
@@ -511,11 +546,48 @@ class GpuAdminController(http.Controller):
         if not node.exists() or node.company_id != token.company_id:
             return {"status": "error", "error": "Node not found"}
 
-        node.write({
+        # Update durable state.
+        #
+        # NOTE ON FIELD NAMES (2026-10):
+        #   The spoke sends the key "gpu_utilization" (American spelling,
+        #   because that is the convention in the Python ecosystem and
+        #   in the GPUInfo dataclass). The gpu.node field is named
+        #   "gpu_utilisation_pct" (British spelling, matching the model's
+        #   existing convention). Do not "fix" this to make the spellings
+        #   match — either change both sides together, or leave it.
+        #
+        # NOTE ON VRAM AND GPU COUNT:
+        #   vram_total_mb and gpu_count are captured at registration time
+        #   in the `gpus` JSON field and re-emitted on every heartbeat.
+        #   Odoo does not need to rewrite them every 10 seconds; the
+        #   authoritative real-time copy lives in LangGraph's in-memory
+        #   NodeHealth dataclass via POST /nodes/heartbeat. Keeping the
+        #   DB write to just last_seen, gpu_utilisation_pct, and status
+        #   keeps this endpoint cheap at fleet scale.
+
+        #  Update durable state. Also merge model_cached into compute_profile
+        #  so a spoke that downloads the model AFTER registration is promoted
+        #  to warm-spare status on its next heartbeat. This is what makes the
+        #  scheduler's _find_warm_spare() work without requiring the operator
+        #  to re-register the node.
+        update = {
             'last_seen': fields.Datetime.now(),
             'gpu_utilisation_pct': float(params.get('gpu_utilization', 0.0)),
             'status': 'online',
-        })
+        }
+
+        if 'model_cached' in params:
+            profile = node.compute_profile or {}
+            if isinstance(profile, str):
+                import json as _json
+                try:
+                    profile = _json.loads(profile)
+                except Exception:
+                    profile = {}
+            profile['model_cached'] = bool(params['model_cached'])
+            update['compute_profile'] = profile
+
+        node.write(update)
 
         return {"status": "success"}
 
@@ -523,7 +595,7 @@ class GpuAdminController(http.Controller):
     # 4. ADMINISTRATOR ACTIONS (Odoo Authenticated + Group Checks)
     # =========================================================================
 
-    @http.route('/api/v1/admin/scan_network', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/scan_network', type='jsonrpc', auth='user', methods=['POST'])
     def scan_network(self, **kwargs):
         """
         Scan the network for GPU-equipped machines.
@@ -559,7 +631,7 @@ class GpuAdminController(http.Controller):
             _logger.error(f"Network scan failed: {e}")
             return {'error': f'Network scan failed: {str(e)}'}
 
-    @http.route('/api/v1/admin/install_node', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/install_node', type='jsonrpc', auth='user', methods=['POST'])
     def install_node(self, **kwargs):
         """
         Install the GPU agent on a remote host.
@@ -604,7 +676,7 @@ class GpuAdminController(http.Controller):
             _logger.error(f"Node installation failed: {e}")
             return {'error': f'Node installation failed: {str(e)}'}
 
-    @http.route('/api/v1/admin/remove_node', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/remove_node', type='jsonrpc', auth='user', methods=['POST'])
     def remove_node(self, **kwargs):
         """
         Remove a GPU node from the cluster.
@@ -651,7 +723,7 @@ class GpuAdminController(http.Controller):
     # 5. FINE-TUNING ENDPOINTS (Admin)
     # =========================================================================
 
-    @http.route('/api/v1/admin/finetune/start', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/finetune/start', type='jsonrpc', auth='user', methods=['POST'])
     def start_finetune(self, **kwargs):
         """
         Start a fine-tuning job.
@@ -749,7 +821,7 @@ class GpuAdminController(http.Controller):
                 'error': str(e),
             }, 500
 
-    @http.route('/api/v1/admin/finetune/status', type='json', auth='user', methods=['GET'])
+    @http.route('/api/v1/admin/finetune/status', type='jsonrpc', auth='user', methods=['GET'])
     def get_finetune_status(self, **kwargs):
         """
         Get the status of a fine-tuning job.
@@ -787,7 +859,7 @@ class GpuAdminController(http.Controller):
             'fine_tuned_model_id': job.fine_tuned_model_id,
         }
 
-    @http.route('/api/v1/admin/finetune/deploy', type='json', auth='user', methods=['POST'])
+    @http.route('/api/v1/admin/finetune/deploy', type='jsonrpc', auth='user', methods=['POST'])
     def deploy_finetuned_model(self, **kwargs):
         """
         Deploy a fine-tuned model.
