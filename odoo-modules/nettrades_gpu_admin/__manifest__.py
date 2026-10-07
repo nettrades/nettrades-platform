@@ -42,7 +42,7 @@
 
         # Views (UI Screens)
         'views/gpu_cluster_views.xml',
-        'views/inference_model_policy_views.xml',
+        # 'views/inference_model_policy_views.xml',
          
         # THESE VIEWS ARE BROKEN AND NEED FIXING
         # 'views/gpu_node_views.xml',
