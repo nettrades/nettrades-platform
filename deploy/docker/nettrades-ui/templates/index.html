@@ -9,7 +9,7 @@
         /* =========================================================================
            NETTRADES-UI – Modern Chat Interface
            ========================================================================= */
-        
+
         * {
             margin: 0;
             padding: 0;
@@ -309,7 +309,7 @@
                 <span id="status-text">Online</span>
             </div>
             <select id="model-select">
-                <option value="deepseek-1.5b">DeepSeek 1.5B</option>
+                <option value="deepseek-7b">DeepSeek 7B</option>
                 <option value="qwen-1.5b">Qwen 1.5B</option>
                 <option value="llama-3.2">Llama 3.2</option>
                 <option value="agent-default">🤖 Agent (Default)</option>
@@ -359,7 +359,7 @@
                     // Keep existing options but add new ones
                     const currentValue = modelSelect.value;
                     modelSelect.innerHTML = '';
-                    
+
                     // Add agent options first
                     const agentGroup = document.createElement('optgroup');
                     agentGroup.label = 'Agents';
@@ -368,7 +368,7 @@
                     agentOption.textContent = '🤖 Agent (Default)';
                     agentGroup.appendChild(agentOption);
                     modelSelect.appendChild(agentGroup);
-                    
+
                     // Add model options
                     const modelGroup = document.createElement('optgroup');
                     modelGroup.label = 'Models';
@@ -379,7 +379,7 @@
                         modelGroup.appendChild(option);
                     }
                     modelSelect.appendChild(modelGroup);
-                    
+
                     // Restore selection
                     if (currentValue) {
                         modelSelect.value = currentValue;
@@ -503,21 +503,21 @@
         function addMessage(role, content) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
-            
+
             const roleLabel = document.createElement('div');
             roleLabel.className = 'role';
             roleLabel.textContent = role === 'user' ? 'You' : 'Assistant';
-            
+
             const contentDiv = document.createElement('div');
             contentDiv.className = 'content';
             contentDiv.textContent = content;
-            
+
             messageDiv.appendChild(roleLabel);
             messageDiv.appendChild(contentDiv);
-            
+
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
-            
+
             return messageDiv;
         }
 
