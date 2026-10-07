@@ -160,8 +160,20 @@ async def odoo_search(model: str, domain: List[Any], fields: Optional[List[str]]
     if order:
         kwargs['order'] = order
     payload = _build_execute_payload(model, 'search_read', [domain], kwargs)
+
     result = await _call_odoo_jsonrpc(payload, uid=uid, password=password)
-    return result.get('result', [])
+    # The JSON-RPC response is a dict. Its 'result' key is normally a
+    # list for search_read, but a proxy or backend quirk can leave it
+    # as None (or the response may carry only an 'error' key). Callers
+    # iterate the return value directly, so guarantee a list here.
+    value = result.get('result', [])
+    if not isinstance(value, list):
+        _logger.warning(
+            "odoo_search(%s) returned non-list result (%s); coercing to []",
+            model, type(value).__name__,
+        )
+        return []
+    return value
 
 
 async def odoo_create(model: str, values: Dict[str, Any],
