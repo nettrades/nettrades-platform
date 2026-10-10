@@ -371,7 +371,7 @@ configure_domain_email() {
     CURRENT_DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
     CURRENT_EMAIL=$(grep "^ADMIN_EMAIL=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'")
     # If DOMAIN is invalid (empty, placeholder, or not a valid domain/IP), we set it.
-    if [[ -z "$CURRENT_DOMAIN" || "$CURRENT_DOMAIN" == "changeit" || "$CURRENT_DOMAIN" == "nettrades.ai" ]] || ! is_valid_domain_or_ip "$CURRENT_DOMAIN"; then
+    if [[ -z "$CURRENT_DOMAIN" || "$CURRENT_DOMAIN" == "changeit" || "$CURRENT_DOMAIN" == "nettrades.ai" ]]; then
         DETECTED_IP=$(detect_ip)
 
         if [[ "$AUTO" == true ]]; then
@@ -396,6 +396,8 @@ configure_domain_email() {
         fi
 
         safe_sed_replace "$ENV_FILE" "DOMAIN" "$DOMAIN"
+        export DOMAIN
+        echo "DOMAIN_SET_BY_USER=true" >> "$ENV_FILE"
     else
         log_info "DOMAIN already set to: $CURRENT_DOMAIN (skipping prompt)"
         DOMAIN="$CURRENT_DOMAIN"
