@@ -128,6 +128,11 @@ if not admin:
 
 # Odoo 19 uses a computed password field; assign to the field, not to
 # _set_password (whose signature changed to take no argument).
+# Do not replace this with bcrypt.hashpw() - The admin.password = value 
+# assignment triggers Odoo's inverse method, which delegates to whatever 
+# CryptContext the running Odoo instance is using. This is the only 
+# approach that survives an Odoo upgrade.
+
 admin.password = admin_password
 env.cr.commit()
 print(f"[configure-odoo-admin] password set for uid={admin.id}", file=sys.stderr)
@@ -208,6 +213,10 @@ else:
     )
     # Make sure the password is the one the caller expects, even on
     # re-runs where the password in .env may have changed.
+    # Do not replace this with bcrypt.hashpw() - The svc.password = value 
+    # assignment triggers Odoo's inverse method, which delegates to whatever 
+    # CryptContext the running Odoo instance is using. This is the only 
+    # approach that survives an Odoo upgrade.
     try:
         svc.password = _service_password
         env.cr.commit()
