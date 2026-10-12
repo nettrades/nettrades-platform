@@ -95,6 +95,47 @@ ENV_EXAMPLE="$PROJECT_ROOT/deploy/docker/.env.example"
 VENV_DIR="${VENV_DIR:-$PROJECT_ROOT/.venv}"
 export VENV_DIR
 
+# -----------------------------------------------------------------------------
+# Auto-repair: strip trailing "\n" artefacts from .env.example
+# -----------------------------------------------------------------------------
+# A previous generation of .env.example ended with a literal two-character
+# sequence `\` `n` on its own line (an artefact of an editor or sed that
+# mis-handled a heredoc). When .env is sourced by bash, that line is parsed
+# as the command `n`, producing:
+#     /path/.env: line 416: n: command not found
+# and, worse, causing some deployments to fail later because the sourced
+# environment is incomplete.
+#
+# We repair the template in place before copying it to .env. The repair is
+# idempotent: on a clean file it is a no-op. On a corrupted file it removes
+# every line whose only content is the two characters \ and n, then ensures
+# the file ends with exactly one newline.
+if [[ -f "$ENV_EXAMPLE" ]]; then
+    python3 - "$ENV_EXAMPLE" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path) as f:
+    text = f.read()
+
+# Split into lines while keeping the newline terminators.
+lines = text.splitlines(keepends=True)
+# Drop any line whose stripped content is exactly the two chars \ and n.
+cleaned = [ln for ln in lines if ln.strip() != r'\n']
+out = "".join(cleaned)
+
+# Guarantee exactly one trailing newline. `rstrip` + explicit append is
+# safe even when the file was empty.
+out = out.rstrip('\n') + '\n' if out else out
+
+if out != text:
+    with open(path, 'w') as f:
+        f.write(out)
+    print(f"[phase-env] repaired trailing \\n artefacts in {path}")
+else:
+    print(f"[phase-env] {path} is clean (no repair needed)")
+PYEOF
+fi
+
 # =============================================================================
 # VIRTUAL ENVIRONMENT IS MANDATORY – create it if missing
 # =============================================================================
@@ -178,6 +219,15 @@ fi
 # Generate .env
 # -----------------------------------------------------------------------------
 log_step "Preparing .env file..."
+
+# If .env exists as a directory (Docker Compose creates this when a
+# bind-mount source file is missing), remove it so we can create the
+# real file. This is the fix for the "cp: cannot create regular file
+# '.../.env/.env.example': Permission denied" error.
+if [[ -d "$ENV_FILE" ]]; then
+    log_warning ".env exists as a directory (likely created by Docker Compose bind-mount). Removing it..."
+    rm -rf "$ENV_FILE"
+fi
 
 # Create from template if it exists
 if [[ -f "$ENV_EXAMPLE" ]]; then
