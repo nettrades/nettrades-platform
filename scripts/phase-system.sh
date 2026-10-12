@@ -816,6 +816,40 @@ else
         fi
     fi
 
+
+    if command -v apt &>/dev/null; then
+        log_info "Attempting to install wireguard-go via apt..."
+        sudo apt-get update -qq
+        if sudo apt-get install -y wireguard-go; then
+            if [[ -f /usr/bin/wireguard-go ]]; then
+                # -------- FIX: "Text file busy" guard ---------------------------
+                # A previous run may have left wireguard-go running, holding an
+                # open file handle on the target binary. `cp` then fails with
+                # ETXTBSY. Kill any running instance and delete the target so
+                # the copy always succeeds.
+                sudo pkill -f "wireguard-go wg0" 2>/dev/null || true
+                sudo ip link delete wg0 2>/dev/null || true
+                sleep 1
+
+                # Remove the old binary so `cp` creates a fresh inode.
+                # Doing this instead of `cp` over a running binary avoids the
+                # ETXTBSY race entirely on systems where the process respawns.
+                if [[ -e "$WG_GO_CMD" ]]; then
+                    sudo rm -f "$WG_GO_CMD"
+                fi
+                # ---------------------------------------------------------------
+
+                if sudo cp /usr/bin/wireguard-go "$WG_GO_CMD" \
+                   && sudo chmod +x "$WG_GO_CMD"; then
+                    WG_GO_INSTALLED=true
+                    log_success "wireguard-go installed from apt"
+                else
+                    log_warning "Failed to install wireguard-go binary at $WG_GO_CMD"
+                fi
+            fi
+        fi
+    fi
+
     # If apt failed, download from GitHub
     if [[ "$WG_GO_INSTALLED" != true ]]; then
         # Remove any old/broken binary
