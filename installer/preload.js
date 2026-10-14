@@ -72,6 +72,13 @@ contextBridge.exposeInMainWorld('api', {
     setEnterpriseBackend: (backend) => ipcRenderer.invoke('set-enterprise-backend', backend),
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Hub configuration (added 2026-10)
+    // ──────────────────────────────────────────────────────────────────────────
+    getHubConfig: () => ipcRenderer.invoke('get-hub-config'),
+    saveHubConfig: (hub) => ipcRenderer.invoke('save-hub-config', hub),
+
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Emergency Access Management
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -124,6 +131,14 @@ contextBridge.exposeInMainWorld('api', {
     onInstallProgress: (callback) => {
         ipcRenderer.on('install-progress', (event, data) => callback(data));
     },
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Run Spoke Install
+    // Run Blackwell Install
+    // ──────────────────────────────────────────────────────────────────────────
+
+    runSpokeInstall: (options) => ipcRenderer.invoke('run-spoke-install', options),
+    runBlackwellInstall: (options) => ipcRenderer.invoke('run-blackwell-install', options),
 
     // ──────────────────────────────────────────────────────────────────────────
     // Platform Control (Docker Compose)
@@ -332,6 +347,16 @@ contextBridge.exposeInMainWorld('api', {
     // ──────────────────────────────────────────────────────────────────────────
 
     installModules: (modules) => ipcRenderer.invoke('install-modules', modules),
+
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // For the NETTRADES Networking Service for WSL Port Forwarding
+    // ──────────────────────────────────────────────────────────────────────────
+
+    netsvcGetStatus: () => ipcRenderer.invoke('netsvc-get-status'),
+    netsvcRepair: () => ipcRenderer.invoke('netsvc-repair'),
+    netsvcWireGuardStart: (config) => ipcRenderer.invoke('netsvc-wireguard-start', config),
+    netsvcWireGuardStop: () => ipcRenderer.invoke('netsvc-wireguard-stop'),
 
     // ──────────────────────────────────────────────────────────────────────────
     // Update Status
