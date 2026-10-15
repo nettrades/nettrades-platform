@@ -321,6 +321,10 @@ services:
       # LANGGRAPH_API_URL is used for URL generation (workaround for #7390)
       - LANGGRAPH_API_URL=https://${DOMAIN}/api
       - LANGGRAPH_TRUST_X_FORWARDED_HEADERS=true
+      # Model sizing — consumed by rpc_scheduler.py's VRAM sufficiency
+      # checks (_find_warm_spare and pre_generation_check).
+      - MODEL_SIZE_BYTES=${MODEL_SIZE_BYTES:-4683073248}
+      - MODEL_LAYERS=${MODEL_LAYERS:-28}
       - RPC_ENV_FILE=/app/deploy/docker/rpc.env
       - RPC_COMPOSE_FILE=/app/deploy/docker/docker-compose.yaml
     ports:
@@ -890,33 +894,33 @@ services:
         max-size: 10m
         max-file: 3
 
-   =============================================================================
-   19. WIREGUARD - Internal VPN for Microservices
-   =============================================================================
-   This WireGuard instance provides secure communication between platform
-   microservices. It uses a different port (51820) than the Admin VPN (51821)
-   and a separate subnet (10.10.11.0/24) to avoid routing conflicts.
-   =============================================================================
-  wireguard-internal:
-    image: linuxserver/wireguard
-    container_name: wireguard-internal
-    cap_add:
-      - NET_ADMIN
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=UTC
-      - SERVERURL=${DOMAIN}
-      - SERVERPORT=${WG_INTERNAL_PORT:-51820}
-      - PEERS=1
-      - PEERDNS=8.8.8.8
-      - INTERNAL_SUBNET=${WG_INTERNAL_SUBNET:-10.0.0.0/16}
-    volumes:
-      - /etc/wireguard-internal:/config
-      - /lib/modules:/lib/modules:ro
-    ports:
-      - "${WG_INTERNAL_PORT:-51820}:${WG_INTERNAL_PORT:-51820}/udp"
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
-      - net.ipv4.ip_forward=1
-    restart: unless-stopped
+   # =============================================================================
+   # 19. WIREGUARD - Internal VPN for Microservices
+   # =============================================================================
+   # This WireGuard instance provides secure communication between platform
+   # microservices. It uses a different port (51820) than the Admin VPN (51821)
+   # and a separate subnet (10.10.11.0/24) to avoid routing conflicts.
+   # =============================================================================
+  # wireguard-internal:
+  #   image: linuxserver/wireguard
+  #   container_name: wireguard-internal
+  #   cap_add:
+  #     - NET_ADMIN
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=UTC
+  #     - SERVERURL=${DOMAIN}
+  #     - SERVERPORT=${WG_INTERNAL_PORT:-51820}
+  #     - PEERS=1
+  #     - PEERDNS=8.8.8.8
+  #     - INTERNAL_SUBNET=${WG_INTERNAL_SUBNET:-10.0.0.0/16}
+  #   volumes:
+  #     - /etc/wireguard-internal:/config
+  #     - /lib/modules:/lib/modules:ro
+  #   ports:
+  #     - "${WG_INTERNAL_PORT:-51820}:${WG_INTERNAL_PORT:-51820}/udp"
+  #   sysctls:
+  #     - net.ipv4.conf.all.src_valid_mark=1
+  #     - net.ipv4.ip_forward=1
+  #   restart: unless-stopped
