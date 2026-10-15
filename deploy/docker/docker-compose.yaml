@@ -894,13 +894,13 @@ services:
         max-size: 10m
         max-file: 3
 
-   # =============================================================================
-   # 19. WIREGUARD - Internal VPN for Microservices
-   # =============================================================================
-   # This WireGuard instance provides secure communication between platform
-   # microservices. It uses a different port (51820) than the Admin VPN (51821)
-   # and a separate subnet (10.10.11.0/24) to avoid routing conflicts.
-   # =============================================================================
+  # =============================================================================
+  # 19. WIREGUARD - Internal VPN for Microservices
+  # =============================================================================
+  # This WireGuard instance provides secure communication between platform
+  # microservices. It uses a different port (51820) than the Admin VPN (51821)
+  # and a separate subnet (10.10.11.0/24) to avoid routing conflicts.
+  # =============================================================================
   # wireguard-internal:
   #   image: linuxserver/wireguard
   #   container_name: wireguard-internal
