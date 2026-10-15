@@ -24,18 +24,28 @@ async def auth_middleware(request, call_next):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
 
     token = auth_header.split(" ")[1]
-    # Validate the token (implement your validation logic)
-    # For example, verify signature using Odoo's public key
-    # and extract user information.
-    try:
-        # Placeholder validation
-        # In production, use a library like python-jose to verify JWT
-        # and check with Odoo's public key.
-        # Delete the placeholder that returns test-user for any bearer token. 
-        # It is inert because AUTH_ENABLED=false, but it becomes an auth bypass the moment anyone flips that flag.
-        # payload = {"sub": "test-user"}
-        # request.state.user = payload
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
-    return await call_next(request)
+    # -------------------------------------------------------------------------
+    # JWT validation is NOT YET IMPLEMENTED.
+    #
+    # The previous version of this file contained a placeholder that
+    # accepted any Bearer token and set request.state.user = {"sub": "test-user"}.
+    # That placeholder was inert only because AUTH_ENABLED defaults to false.
+    # If anyone flipped AUTH_ENABLED to true without understanding this, the
+    # middleware would accept every request — a complete auth bypass.
+    #
+    # Fail closed until real validation is implemented:
+    #   1. Verify the JWT signature against Odoo's public key
+    #   2. Check the exp / iss / aud claims
+    #   3. Set request.state.user from the verified payload
+    #
+    # Until then, raise 501 so operators get a clear signal rather than a
+    # silent bypass.
+    # -------------------------------------------------------------------------
+    raise HTTPException(
+        status_code=501,
+        detail="JWT validation not implemented. Set AUTH_ENABLED=false or implement token verification.",
+    )
+
+    # The following line is unreachable but kept for structural clarity:
+    # return await call_next(request)
