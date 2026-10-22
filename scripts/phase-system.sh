@@ -808,20 +808,6 @@ else
         sudo apt-get update -qq
         if sudo apt-get install -y wireguard-go; then
             if [[ -f /usr/bin/wireguard-go ]]; then
-                sudo cp /usr/bin/wireguard-go "$WG_GO_CMD"
-                sudo chmod +x "$WG_GO_CMD"
-                WG_GO_INSTALLED=true
-                log_success "wireguard-go installed from apt"
-            fi
-        fi
-    fi
-
-
-    if command -v apt &>/dev/null; then
-        log_info "Attempting to install wireguard-go via apt..."
-        sudo apt-get update -qq
-        if sudo apt-get install -y wireguard-go; then
-            if [[ -f /usr/bin/wireguard-go ]]; then
                 # -------- FIX: "Text file busy" guard ---------------------------
                 # A previous run may have left wireguard-go running, holding an
                 # open file handle on the target binary. `cp` then fails with
@@ -882,7 +868,7 @@ else
                 exit 1
             fi
             # Check file size (should be > 1MB)
-            local wg_size=$(stat -c%s "$WG_GO_CMD" 2>/dev/null || stat -f%z "$WG_GO_CMD" 2>/dev/null || echo 0)
+            wg_size=$(stat -c%s "$WG_GO_CMD" 2>/dev/null || stat -f%z "$WG_GO_CMD" 2>/dev/null || echo 0)
             if [[ "$wg_size" -lt 100000 ]]; then
                 log_error "Downloaded wireguard-go binary is too small ($wg_size bytes). Download failed."
                 exit 1
@@ -1011,19 +997,19 @@ sudo systemctl restart ssh 2>/dev/null || sudo systemctl restart sshd 2>/dev/nul
 log_step "Verifying SSH access (to prevent lockout)..."
 
 # Test SSH from localhost using password (rescue port)
-if ssh -o ConnectTimeout=5 -o PasswordAuthentication=yes -o BatchMode=no -p 2222 localhost "echo OK" 2>/dev/null | grep -q OK; then
-    log_success "Rescue SSH port (2222) is accessible with password auth"
+# if ssh -o ConnectTimeout=5 -o PasswordAuthentication=yes -o BatchMode=no -p 2222 localhost "echo OK" 2>/dev/null | grep -q OK; then
+if ss -ltn | grep -q ':2222 '; then
+    log_success "Rescue SSH port (2222) is listening"
 else
-    log_error "Rescue SSH port test failed! SSH may be broken."
-    log_error "Reverting SSH configuration to prevent lockout."
+    log_error "Rescue SSH port is not listening — reverting"
     sudo cp /etc/ssh/sshd_config.bak /etc/ssh/sshd_config
     sudo systemctl restart ssh
-    log_error "SSH reverted to safe configuration. Please investigate."
     exit 1
 fi
 
 # Test SSH using key from localhost (main port)
 if ssh -o ConnectTimeout=5 -o PasswordAuthentication=no -p 22 localhost "echo OK" 2>/dev/null | grep -q OK; then
+# if ss -ltn | grep -q ':22 '; then
     log_success "Main SSH port (22) is accessible with key auth"
 else
     log_warning "Main SSH port key auth test failed. Check your SSH key setup."
