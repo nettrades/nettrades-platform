@@ -295,20 +295,18 @@ add_tenant_isolation_rules() {
 # Remove tenant isolation rules for a client
 remove_tenant_isolation_rules() {
     local client_name="$1"
+    local client_subnet
+    client_subnet=$(grep "^${client_name}=" "$TENANT_NETWORKS_FILE" 2>/dev/null | cut -d= -f2 || echo "")
+    [[ -z "$client_subnet" ]] && return
 
-    # Get the subnet for this client
-    local client_subnet=$(grep "^${client_name}=" "$TENANT_NETWORKS_FILE" 2>/dev/null | cut -d= -f2 || echo "")
+    local other_subnet other_name
+    while IFS='=' read -r other_name other_subnet; do
+        [[ -z "$other_subnet" || "$other_subnet" == "$client_subnet" ]] && continue
+        iptables -D FORWARD -s "$client_subnet" -d "$other_subnet" -j DROP 2>/dev/null || true
+        iptables -D FORWARD -s "$other_subnet" -d "$client_subnet" -j DROP 2>/dev/null || true
+    done < "$TENANT_NETWORKS_FILE"
 
-    if [[ -n "$client_subnet" ]]; then
-        # Remove all rules involving this subnet
-        iptables -D FORWARD -s "$client_subnet" -d 0.0.0.0/0 -j DROP 2>/dev/null || true
-        iptables -D FORWARD -s 0.0.0.0/0 -d "$client_subnet" -j DROP 2>/dev/null || true
-
-        # Remove from tenant networks file
-        sed -i "/^${client_name}=/d" "$TENANT_NETWORKS_FILE"
-
-        log_info "Removed isolation rules for $client_name ($client_subnet)"
-    fi
+    sed -i "/^${client_name}=/d" "$TENANT_NETWORKS_FILE"
 }
 
 # Verify isolation between tenants
