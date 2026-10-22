@@ -16,12 +16,29 @@
 #     - Generate compliance reports (NYC Local Law 144)
 #     - Identify areas for improvement
 #
+# LAZY IMPORTS (2026-10-22):
+#   pandas and numpy are imported INSIDE the methods that use them, not at
+#   module top-level. Importing pandas at top-level pulls in NumPy, which
+#   pulls in OpenBLAS, which spawns 64 worker threads during registry load.
+#   On containers with a low RLIMIT_NPROC, that produces:
+#       OpenBLAS blas_thread_init: pthread_create failed for thread N of 64
+#       Resource temporarily unavailable
+#   and blocks installation of nettrades_fairness entirely.
+#
+#   Moving the imports inside the methods means:
+#     - Registry load never touches pandas or NumPy.
+#     - The first call to a metrics method pays the import cost (~500ms),
+#       subsequent calls are free (Python caches imports at module level).
+#     - The module installs cleanly even if pandas is absent.
+#
+#   This is a product-level fix, not a demo hack: it means the fairness
+#   module can be installed without requiring pandas/numpy to be present,
+#   and the metrics API returns a clear error if they are not.
+#
 # =============================================================================
 
 from odoo import fields, models, api, _
 import logging
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
 
 _logger = logging.getLogger(__name__)
@@ -36,11 +53,37 @@ class FairnessMetrics(models.TransientModel):
     _transient = True
 
     # =========================================================================
+    # 0. Lazy import helper
+    # =========================================================================
+    @api.model
+    def _require_numeric_stack(self):
+        """
+        Return (pd, np) with lazy import.
+
+        Raises UserError with an actionable message if pandas or numpy are
+        not installed. This is better than an opaque ImportError from a
+        top-level import, which would break the entire module's registry
+        load.
+        """
+        try:
+            import pandas as pd  # noqa: F401
+            import numpy as np   # noqa: F401
+        except ImportError as e:
+            raise UserError(_(
+                "Fairness metrics require pandas and numpy. "
+                "Install them on the Odoo container with: "
+                "pip3 install --break-system-packages pandas numpy\n"
+                "Original error: %s"
+            ) % str(e))
+        return pd, np
+
+    # =========================================================================
     # 1. Metric Calculation Methods
     # =========================================================================
 
     @api.model
-    def calculate_demographic_parity(self, candidate_ids, protected_attr, score_field='ai_match_score', threshold=0.7):
+    def calculate_demographic_parity(self, candidate_ids, protected_attr,
+                                     score_field='ai_match_score', threshold=0.7):
         """
         Calculate demographic parity: selection rates are similar across groups.
 
@@ -56,6 +99,8 @@ class FairnessMetrics(models.TransientModel):
         Returns:
             dict: Demographic parity metrics.
         """
+        pd, np = self._require_numeric_stack()
+
         # Fetch candidate data
         candidates = self.env['hr.applicant'].browse(candidate_ids)
         if not candidates:
@@ -107,7 +152,9 @@ class FairnessMetrics(models.TransientModel):
         }
 
     @api.model
-    def calculate_equal_opportunity(self, candidate_ids, protected_attr, outcome_attr='hired', score_field='ai_match_score', threshold=0.7):
+    def calculate_equal_opportunity(self, candidate_ids, protected_attr,
+                                    outcome_attr='hired', score_field='ai_match_score',
+                                    threshold=0.7):
         """
         Calculate equal opportunity: true positive rates are similar across groups.
 
@@ -124,7 +171,8 @@ class FairnessMetrics(models.TransientModel):
         Returns:
             dict: Equal opportunity metrics.
         """
-        # Fetch candidate data
+        pd, np = self._require_numeric_stack()
+
         candidates = self.env['hr.applicant'].browse(candidate_ids)
         if not candidates:
             return {'error': 'No candidates found'}
@@ -173,7 +221,6 @@ class FairnessMetrics(models.TransientModel):
         min_rate = min(rates)
         max_rate = max(rates)
         eo_ratio = min_rate / max_rate if max_rate > 0 else 1.0
-
         passed = eo_ratio >= 0.8
 
         return {
@@ -184,13 +231,13 @@ class FairnessMetrics(models.TransientModel):
         }
 
     @api.model
-    def calculate_disparate_impact(self, candidate_ids, protected_attr, score_field='ai_match_score', threshold=0.7):
+    def calculate_disparate_impact(self, candidate_ids, protected_attr,
+                                   score_field='ai_match_score', threshold=0.7):
         """
         Calculate disparate impact (four-fifths rule).
 
-        Disparate impact measures whether a selection practice has a
-        disproportionately adverse impact on a protected group.
-
+        Delegates to calculate_demographic_parity so it inherits the lazy
+        pandas import.
         Args:
             candidate_ids (list): List of candidate record IDs.
             protected_attr (str): The protected attribute field name.
@@ -200,7 +247,9 @@ class FairnessMetrics(models.TransientModel):
         Returns:
             dict: Disparate impact metrics.
         """
-        result = self.calculate_demographic_parity(candidate_ids, protected_attr, score_field, threshold)
+        result = self.calculate_demographic_parity(
+            candidate_ids, protected_attr, score_field, threshold,
+        )
         result['metric_name'] = 'disparate_impact'
         result['threshold'] = 0.8
         result['rule'] = 'four-fifths'
@@ -224,13 +273,11 @@ class FairnessMetrics(models.TransientModel):
         Returns:
             dict: Audit results.
         """
-        # Get candidates for the field
         domain = []
         if field_id:
             domain.append(('field_id', '=', field_id))
 
         candidates = self.env['hr.applicant'].search(domain)
-
         if not candidates:
             return {'error': 'No candidates found for audit'}
 
@@ -243,9 +290,11 @@ class FairnessMetrics(models.TransientModel):
         audit = self.env['nettrades.fairness.audit'].create({
             'field_id': field_id,
             'question_text': f'Automated audit for {protected_attr}',
-            'response_text': f'Demographic Parity: {dp_result.get("parity_ratio", 0):.3f}\n'
-                             f'Equal Opportunity: {eo_result.get("eo_ratio", 0):.3f}\n'
-                             f'Disparate Impact: {di_result.get("parity_ratio", 0):.3f}',
+            'response_text': (
+                f'Demographic Parity: {dp_result.get("parity_ratio", 0):.3f}\n'
+                f'Equal Opportunity: {eo_result.get("eo_ratio", 0):.3f}\n'
+                f'Disparate Impact: {di_result.get("parity_ratio", 0):.3f}'
+            ),
             'rationale': dp_result.get('message', '') + '\n' + eo_result.get('message', ''),
             'evaluation_model': 'automated_audit',
             'protected_attributes': protected_attr,
