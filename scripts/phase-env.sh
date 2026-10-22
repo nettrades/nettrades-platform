@@ -522,9 +522,9 @@ log_success ".env generated with secure secrets"
 # After generating secrets, sync to Odoo DB
 # -----------------------------------------------------------------------------
 sync_secrets_to_odoo() {
-    if curl -s --connect-timeout 2 http://odoo:8069 >/dev/null 2>&1; then  
+    if curl -s --connect-timeout 2 http://localhost:8069 >/dev/null 2>&1; then  
         local secrets=$(cat "$ENV_FILE" | grep -v '^#' | grep '=' | sed 's/^ *//;s/ *$//')
-        local odoo_url="http://odoo:8069"
+        local odoo_url="http://localhost:8069"
 
         # Use Odoo's XML-RPC to sync secrets
         echo "$secrets" | while IFS= read -r line; do
@@ -551,7 +551,8 @@ if [[ "$WITH_CUVS" == true ]]; then
     # Check for NVIDIA GPU
     if command -v nvidia-smi &>/dev/null; then
         log_step "NVIDIA GPU detected. Installing RAPIDS cuVS..."
-        local cuvs_req="$PROJECT_ROOT/requirements/requirements-cuvs.txt"
+        cuvs_req="$PROJECT_ROOT/requirements/requirements-cuvs.txt"
+        # local cuvs_req="$PROJECT_ROOT/requirements/requirements-cuvs.txt"
         if [[ -f "$cuvs_req" ]]; then
             if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
                 if ! uv pip install --verbose --index-url https://pypi.org/simple/ -r "$cuvs_req"; then
