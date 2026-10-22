@@ -76,7 +76,7 @@ log_info "Backup directory: $BACKUP_DIR"
 # -----------------------------------------------------------------------------
 # Check if Docker Compose stack is running
 # -----------------------------------------------------------------------------
-if ! docker compose -f deploy/docker/docker-compose.yaml ps &>/dev/null; then
+if ! docker_compose -f deploy/docker/docker-compose.yaml ps &>/dev/null; then
     log_warning "Docker Compose stack is not running. Some services may not be available."
     if [[ "$AUTO" != true ]]; then
         read -rp "Continue anyway? (y/N): " cont
@@ -102,8 +102,8 @@ mkdir -p "$BACKUP_PATH"
 log_step "Backing up PostgreSQL..."
 mkdir -p "$BACKUP_PATH/postgres"
 
-if docker compose -f deploy/docker/docker-compose.yaml ps postgres &>/dev/null; then
-    docker compose -f deploy/docker/docker-compose.yaml exec -T postgres pg_dumpall -U odoo > "$BACKUP_PATH/postgres/dumpall.sql" 2>/dev/null
+if docker_compose -f deploy/docker/docker-compose.yaml ps postgres &>/dev/null; then
+    docker_compose -f deploy/docker/docker-compose.yaml exec -T postgres pg_dumpall -U odoo > "$BACKUP_PATH/postgres/dumpall.sql" 2>/dev/null
     if [[ $? -eq 0 ]] && [[ -s "$BACKUP_PATH/postgres/dumpall.sql" ]]; then
         log_success "PostgreSQL backup complete ($(du -h "$BACKUP_PATH/postgres/dumpall.sql" | cut -f1))"
     else
@@ -121,7 +121,7 @@ log_step "Backing up Docker volumes..."
 mkdir -p "$BACKUP_PATH/volumes"
 
 # Get all volumes used by the stack
-VOLUMES=$(docker compose -f deploy/docker/docker-compose.yaml config --volumes 2>/dev/null | sort -u)
+VOLUMES=$(docker_compose -f deploy/docker/docker-compose.yaml config --volumes 2>/dev/null | sort -u)
 
 if [[ -z "$VOLUMES" ]]; then
     log_warning "No Docker volumes found. Skipping volume backup."
@@ -142,6 +142,15 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Backing up configuration files..."
 mkdir -p "$BACKUP_PATH/config"
+
+# Back up bind-mounted data
+for binddir in odoo-data dynamo-data; do
+    if [[ -d "deploy/docker/$binddir" ]]; then
+        tar czf "$BACKUP_PATH/config/bind-${binddir}.tar.gz" \
+            -C deploy/docker "$binddir" 2>/dev/null
+        log_success "  $binddir (bind mount) backed up"
+    fi
+done
 
 # Backup .env file
 if [[ -f "deploy/docker/.env" ]]; then
@@ -186,8 +195,8 @@ Project Root: $PROJECT_ROOT
 Backup Size: $(du -sh "$BACKUP_PATH" | cut -f1)
 
 Docker Version: $(docker --version 2>/dev/null || echo "N/A")
-Docker Compose Version: $(docker compose version 2>/dev/null || echo "N/A")
-PostgreSQL Version: $(docker compose -f deploy/docker/docker-compose.yaml exec -T postgres psql -U odoo -c "SELECT version();" 2>/dev/null | head -1 || echo "N/A")
+Docker Compose Version: $(docker_compose version 2>/dev/null || echo "N/A")
+PostgreSQL Version: $(docker_compose -f deploy/docker/docker-compose.yaml exec -T postgres psql -U odoo -c "SELECT version();" 2>/dev/null | head -1 || echo "N/A")
 
 Files backed up:
 - PostgreSQL dump: $BACKUP_PATH/postgres/dumpall.sql
