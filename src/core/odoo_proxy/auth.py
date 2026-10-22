@@ -15,6 +15,20 @@
 #   failed), the module falls back to in-process storage. This keeps
 #   local development working without Valkey, at the cost of sessions
 #   not surviving a restart. The fallback is logged once at startup.
+#
+# UPDATES (2026-10-19):
+#   - The `redis` package is now optional at import time. If it is not
+#     installed, HAS_REDIS is False and `init_auth` logs a warning and
+#     uses the in-process fallback. This keeps the module importable on
+#     minimal environments while preserving full functionality when the
+#     package is present.
+#   - The `_valkey_client` annotation uses a string ("redis.Redis") so
+#     that Python does not evaluate the annotation at import time. With
+#     the bare `Optional[redis.Redis]` form, a missing `redis` package
+#     raised NameError at module load, defeating the try/except.
+#   - The HAS_REDIS guard in `init_auth` is placed in the function
+#     body, after the `global` declaration. The earlier attempt placed
+#     it inside the parameter list, which is not valid Python syntax.
 # =============================================================================
 
 import json
@@ -25,7 +39,13 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import requests
-import redis
+
+try:
+    import redis
+    HAS_REDIS = True
+except ImportError:
+    HAS_REDIS = False
+
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
@@ -58,7 +78,13 @@ ODOO_USER: Optional[int] = None
 ODOO_PASSWORD: Optional[str] = None
 
 # Valkey client. None when Valkey is not configured or unreachable.
-_valkey_client: Optional[redis.Redis] = None
+#
+# The annotation is a STRING, not a live type expression. This prevents
+# Python from evaluating `redis.Redis` at module load when the `redis`
+# package is missing. With the bare form `Optional[redis.Redis]`, the
+# interpreter raised NameError during import and the try/except above
+# had no effect.
+_valkey_client: Optional["redis.Redis"] = None
 
 # In-process fallback for development without Valkey. Keyed by session_id.
 # Not intended for production; sessions do not survive a restart.
@@ -98,6 +124,19 @@ def init_auth(
     ODOO_DB = odoo_db
     ODOO_USER = odoo_user
     ODOO_PASSWORD = odoo_password
+
+    # If Valkey is configured but the redis package is not installed,
+    # skip the connection attempt and fall back to in-process storage.
+    # Without this guard, the code below would raise NameError on
+    # `redis.Redis`, which is misleading — the real problem is a missing
+    # package, not an unreachable Valkey.
+    if valkey_host and not HAS_REDIS:
+        _logger.warning(
+            "Valkey host configured but redis package not installed; "
+            "using in-process sessions. Install with: pip install redis"
+        )
+        _valkey_client = None
+        return
 
     # Try to connect to Valkey if a host was provided.
     if valkey_host:
