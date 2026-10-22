@@ -251,7 +251,7 @@ fi
 # Start the new stack (will start vLLM, and everything else)
 # -----------------------------------------------------------------------------
 log_step "Starting Docker Compose stack with vLLM..."
-docker compose up -d
+docker_compose up -d
 
 # -----------------------------------------------------------------------------
 # Verify vLLM is running (using the host port 8001)
@@ -261,7 +261,7 @@ sleep 10
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health 2>/dev/null | grep -q "200"; then
     log_success "vLLM is healthy and responding"
 else
-    log_warning "vLLM health check failed – please check logs with: docker compose logs vllm"
+    log_warning "vLLM health check failed – please check logs with: docker_compose logs vllm"
 fi
 
 # -----------------------------------------------------------------------------
@@ -279,7 +279,7 @@ echo " Model folder:  ./vllm-data/DeepSeek-R1-Distill-Qwen-1.5B"
 echo ""
 echo "Next steps:"
 echo "  1. Ensure LLM_BASE_URL is updated in .env (handled by phase-add-gpu.sh)"
-echo "  2. Restart LangGraph to pick up the new URL: docker compose restart langgraph"
+echo "  2. Restart LangGraph to pick up the new URL: docker_compose restart langgraph"
 echo ""
 log_info "If you want to revert to CPU, uncomment the llama-cpp service in docker-compose.yaml"
-echo "and remove the vLLM service, then run: docker compose up -d"
+echo "and remove the vLLM service, then run: docker_compose up -d"
