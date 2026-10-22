@@ -59,7 +59,7 @@ fi
 # -----------------------------------------------------------------------------
 compose_service_exists() {
     local service_name="$1"
-    if docker compose ps -q "$service_name" 2>/dev/null | grep -q .; then
+    if docker_compose ps -q "$service_name" 2>/dev/null | grep -q .; then
         return 0
     else
         return 1
@@ -71,8 +71,8 @@ compose_service_exists() {
 # -----------------------------------------------------------------------------
 DEPLOYMENT_TYPE="unknown"
 
-if docker compose version &>/dev/null && [[ -f "$PROJECT_ROOT/deploy/docker/docker-compose.yaml" ]]; then
-    if docker compose -f "$PROJECT_ROOT/deploy/docker/docker-compose.yaml" ps --services 2>/dev/null | grep -q prometheus; then
+if docker_compose version &>/dev/null && [[ -f "$PROJECT_ROOT/deploy/docker/docker-compose.yaml" ]]; then
+    if docker_compose -f "$PROJECT_ROOT/deploy/docker/docker-compose.yaml" ps --services 2>/dev/null | grep -q prometheus; then
         DEPLOYMENT_TYPE="docker"
         log_info "Detected Docker Compose deployment"
     fi
@@ -98,12 +98,12 @@ if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
     log_step "Restarting Prometheus and Grafana (Docker)..."
 
     # Restart prometheus and grafana (always present)
-    docker compose up -d prometheus grafana
+    docker_compose up -d prometheus grafana
 
     # Restart alertmanager only if it exists
     if compose_service_exists "alertmanager"; then
         log_step "Restarting alertmanager..."
-        docker compose up -d alertmanager
+        docker_compose up -d alertmanager
     else
         log_info "alertmanager not defined in compose – skipping"
     fi
@@ -112,7 +112,7 @@ if [[ "$DEPLOYMENT_TYPE" == "docker" ]]; then
     if [[ "${WITH_GROVE:-false}" == "true" ]]; then
         log_info "Grove is enabled – ensuring Grove stack is running..."
         if compose_service_exists "grove"; then
-            docker compose up -d grove
+            docker_compose up -d grove
         else
             log_warning "Grove service not found in compose. Please ensure docker-compose.grove.yaml is applied."
         fi

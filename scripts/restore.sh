@@ -97,8 +97,8 @@ fi
 # Stop services
 # -----------------------------------------------------------------------------
 log_step "Stopping services..."
-if docker compose -f deploy/docker/docker-compose.yaml ps &>/dev/null; then
-    docker compose -f deploy/docker/docker-compose.yaml down
+if docker_compose -f deploy/docker/docker-compose.yaml ps &>/dev/null; then
+    docker_compose -f deploy/docker/docker-compose.yaml down
     log_success "Services stopped"
 else
     log_warning "Docker Compose stack not running"
@@ -146,10 +146,10 @@ fi
 # -----------------------------------------------------------------------------
 if [[ -f "$BACKUP_PATH/postgres/dumpall.sql" ]]; then
     log_step "Restoring PostgreSQL..."
-    docker compose -f deploy/docker/docker-compose.yaml up -d postgres
+    docker_compose -f deploy/docker/docker-compose.yaml up -d postgres
     sleep 10  # Wait for PostgreSQL to start
 
-    if docker compose -f deploy/docker/docker-compose.yaml exec -T postgres psql -U odoo < "$BACKUP_PATH/postgres/dumpall.sql" 2>/dev/null; then
+    if docker_compose -f deploy/docker/docker-compose.yaml exec -T postgres psql -U odoo < "$BACKUP_PATH/postgres/dumpall.sql" 2>/dev/null; then
         log_success "PostgreSQL restored"
     else
         log_error "Failed to restore PostgreSQL"
@@ -215,7 +215,7 @@ fi
 # Start services
 # -----------------------------------------------------------------------------
 log_step "Starting services..."
-docker compose -f deploy/docker/docker-compose.yaml up -d
+docker_compose -f deploy/docker/docker-compose.yaml up -d
 log_success "Services started"
 
 # -----------------------------------------------------------------------------
@@ -224,11 +224,11 @@ log_success "Services started"
 log_step "Verifying services..."
 sleep 10
 
-if docker compose -f deploy/docker/docker-compose.yaml ps &>/dev/null; then
-    docker compose -f deploy/docker/docker-compose.yaml ps
+if docker_compose -f deploy/docker/docker-compose.yaml ps &>/dev/null; then
+    docker_compose -f deploy/docker/docker-compose.yaml ps
     log_success "Services running"
 else
-    log_warning "Some services may not be running. Check with: docker compose ps"
+    log_warning "Some services may not be running. Check with: docker_compose ps"
 fi
 
 # -----------------------------------------------------------------------------
@@ -244,10 +244,10 @@ echo "  Backup restored from: $BACKUP_FILE"
 echo "  Date: $(date)"
 echo ""
 echo "To check service status:"
-echo "  cd $PROJECT_ROOT/deploy/docker && docker compose ps"
+echo "  cd $PROJECT_ROOT/deploy/docker && docker_compose ps"
 echo ""
 echo "To view logs:"
-echo "  cd $PROJECT_ROOT/deploy/docker && docker compose logs"
+echo "  cd $PROJECT_ROOT/deploy/docker && docker_compose logs"
 echo "============================================================"
 
 exit 0

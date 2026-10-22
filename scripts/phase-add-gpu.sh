@@ -163,7 +163,7 @@ fi
 # -----------------------------------------------------------------------------
 log_step "Restarting LangGraph to apply GPU configuration..."
 cd "$DEPLOY_DIR"
-docker compose restart langgraph
+docker_compose restart langgraph
 
 # -----------------------------------------------------------------------------
 # Verify vLLM is running
@@ -183,7 +183,7 @@ if [[ -f "$DEPLOY_DIR/gpustack-config.yaml" ]]; then
     log_step "Configuring GPUStack..."
     log_info "GPUStack configuration found at $DEPLOY_DIR/gpustack-config.yaml"
     if [[ "$FORCE" == true ]] || ! docker exec gpustack gpustack status &>/dev/null; then
-        docker compose restart gpustack
+        docker_compose restart gpustack
         log_success "GPUStack restarted"
     fi
 else
@@ -199,7 +199,7 @@ log_success "Phase 3 completed – GPU migration successful"
 echo ""
 echo "  GPU:           $GPU_NAME"
 echo "  Inference:     vLLM (GPU)"
-echo "  GPUStack:      $(docker compose -f "$DEPLOY_DIR/docker-compose.yaml" ps gpustack --format '{{.Status}}' 2>/dev/null || echo 'unknown')"
+echo "  GPUStack:      $(docker_compose -f "$DEPLOY_DIR/docker-compose.yaml" ps gpustack --format '{{.Status}}' 2>/dev/null || echo 'unknown')"
 echo ""
 echo "Next steps:"
 echo "  - LangGraph is now using vLLM at http://vllm:8000/v1"
