@@ -1,6 +1,6 @@
 <!--
 =============================================================================
-NETTRADES.AI – Autonomous Enterprise Platform
+NETTRADES Sovereign AI Platform
 =============================================================================
 FILE: README.md
 
@@ -21,7 +21,7 @@ PURPOSE:
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/nettrades-banner-dark.png">
-    <img src="logo.jpg" alt="NETTRADES.AI Banner" width="100%">
+    <img src="FutureOfWork.jpg" alt="NETTRADES.AI Banner" width="100%">
   </picture>
 </p>
 
@@ -62,7 +62,7 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform For Autonomous Enterprises
 
-**The NETTRADES Sovereign AI Platform builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity.**
+**The NETTRADES Sovereign AI Platform builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity and allows AI agents to work with people. **
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
@@ -81,9 +81,27 @@ The Nettrades Platform is designed to build the Sovereign AI Infrastructure for 
 
 NETTRADES Sovereign AI Platform uses a Hub (NETTRADES.AI), Sub-Hub (one per client company or network) and Spoke (per computer) Topology.
 
-The NETTRADES Sovereign AI Platform Sub Hub Could be installed on a Ubuntu 24.04 machine. 
+The NETTRADES Sovereign AI Platform Sub Hub could be installed on a Ubuntu 24.04 machine. 
 
-Or you could partitian the drive for dual boot and have Ubuntu 24.04 on one of the partitians, so that the NVIDIA Dynamo workers have direct access to the hardware. The NVIDIA Dynamo workers can not run on WSL. But if you just want to see what it looks like on a Windows machine in WSL, or want to set up a development machine you could also: 
+Or you could partitian the drive for dual boot and have Ubuntu 24.04 on one of the partitians, so that the NVIDIA Dynamo workers have direct access to the hardware. 
+
+A production hub should run on Ubuntu bare metal or on a partitian, because:
+
+* The Dynamo/vLLM tensor-parallel path requires NVLink, which WSL does not expose.
+
+* WireGuard (ADR-009) requires a kernel module WSL does not reliably provide.
+
+* The Configured hub in phase-deploy.sh installs wireguard-tools and expects wg-quick up to succeed.
+
+A WSL spoke is a soft-fail. The spoke code (spoke-agent.py) will start, detect the NVIDIA GPU via nvidia-smi (which works in WSL), and register with the hub. But:
+
+* rpc-server (the compute process) will receive CUDA_VISIBLE_DEVICES=0 and will try to allocate GPU memory. WSL2's /dev/dxg paravirtualisation works for NVIDIA CUDA but the latency and memory model are different from bare metal. Large model weights may fail to allocate.
+
+* On AMD, the spoke's _detect_amd_gpus() calls rocminfo, which will fail inside WSL because ROCm cannot see the GPU. The spoke will fall back to the generic sysfs path, which finds nothing on WSL, and register as CPU-only. It will silently contribute zero GPU layers.
+
+* WireGuard for the spoke tunnel will fail for the same kernel-config reason.
+
+But if you just want to see what it looks like on a Windows machine in WSL or want to set up a development machine you could also: 
 
 Enable virtualisation in the BIOS.
 
@@ -200,13 +218,13 @@ During development the administration passwords are in the file:
 
 nettrades-platform\deploy\docker\.env 
 
-(The platform uses the .env and the docker-compose.xml file not the odoo.config file)
+(The Nettrades Platform uses the nettrades-platform\deploy\docker\.env and the nettrades-platform\deploy\docker\docker-compose.yaml file not the odoo.config file)
 
 Once the installation is complete find the passwords in the nettrades-platform/deploy/docker/.env file, open your browser and go to:
 
 | Service | URL | Username | Password |
 |---------|-------------|---------|-------------|
-| Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069| admin | admin (change immediately) | 
+| Odoo Admin Console | http://YourDomainOrIP:8069 or http://localhost:8069 | admin | ODOO_ADMIN_PASSWORD in deploy/docker/.env |
 | NVIDIA Dynamo API | http://YourDomainOrIP:8001/v1 or http://localhost:8001/v1 | (API Key) | DYNAMO_API_KEY in the .env file |
 | Grafana | http://YourDomainOrIP:3001 or http://localhost:3001 | admin | GRAFANA_PASSWORD in the .env file |
 | Prometheus | http://YourDomainOrIP:9090 or http://localhost:9090 | admin | PROMETHEUS_PASSWORD in the .env file  |
@@ -378,6 +396,10 @@ Contact us at **legal@nettrades.ai** for pricing and terms.
 
 ---
 
+### Patent Notice
+
+The distributed inferencing architecture and heterogeneous hardware orchestration methods implemented in this platform are the subject to a pending patent application. Use of this software under the GNU AGPL-3.0 is subject to the patent provisions of Section 11 of that licence (requiring full source-code disclosure for any network-accessible or modified deployment). Any proprietary, closed-source or commercial deployment outside the terms of the AGPL-3.0 does not receive an express or implied patent licence and requires a separate Commercial Licence from NETTRADES.
+
 ## Ethical Commitment
 
 NETTRADES is committed to technology that serves humanity. The license includes restrictions on military, surveillance, human and animal rights violations and environmental harm.
@@ -497,7 +519,7 @@ The `nettrades-platform\deploy\docker\docker-compose.yaml` then uses configs fro
 
 ### Management Architecture
 
-The secrets are in the nettrades_secrets table in the Odoo database.
+The secrets are in the nettrades_secrets table in the nettrades_infra database (encrypted with NETTRADES_SECRETS_KEY). A copy of the runtime passwords is also in deploy/docker/.env. Bootstrap secrets (POSTGRES_PASSWORD, NETTRADES_SECRETS_KEY, LANGGRAPH_API_KEY, PROXY_API_KEY) stay in .env only — per ADR-015.
 
 A copy of the passwords is also in the nettrades-platform\deploy\docker\.env  file
 
@@ -1012,7 +1034,7 @@ For more detailed help, see the [Full Documentation](docs/index.md).
 
 [GPU Node Deployment](docs/operations/gpu-node-deployment.md)
 
-[Developer Guide](developer/index.md)
+[Developer Guide](docs/developer/index.md)
 
 
 
@@ -1073,12 +1095,12 @@ Full documentation is available at: [Full Documentation](docs/index.md).
 | `[Developer Guide](docs/developer/index.md)`	| For developers extending the platform | 
 | `[Operations Guide](docs/operations/index.md)`	| For system administrators and DevOps |
 | `[API Reference](docs/developer/api-reference.md)`	| Complete API documentation |
-| `[Architecture Overview](docs/developer/architecture.md)`	| System architecture diagrams and explanations	|
+| `[Architecture Overview](docs/developer/Architecture.md)`	| System architecture diagrams and explanations	|
 | `[Core Models](docs/developer/core-models.md)`	| Reference for all custom Odoo models |
-| `[Database Schema](docs/appendix/database-schema.md)`	| Complete database schema |
-| `[Glossary](docs/appendix/glossary.md)`	| Key terms and definitions |
-| `[Contributing Guide](docs/governance/contributing.md)`	| How to contribute to the project |
-| `[Roadmap](docs/governance/roadmap)`	| Project roadmap and milestones |
+| `[Database Schema](docs/developers/database-schema.md)`	| Complete database schema |
+| `[Glossary](docs/developers/glossary.md)`	| Key terms and definitions |
+| `[Contributing Guide](CONTRIBUTING.md)`	| How to contribute to the project |
+| `[Roadmap](docs/governance/roadmap.md)`	| Project roadmap and milestones |
 
 ## 🤝 Community & Support
 
@@ -1101,7 +1123,7 @@ NETTRADES has a growing community of developers, enterprises, and researchers. W
 
 ## 🌟 Community Highlights
 
-* `Contributors`: We welcome contributions from developers of all skill levels. See our [Contributing Guide](contributing.md).
+* `Contributors`: We welcome contributions from developers of all skill levels. See our [Contributing Guide](CONTRIBUTING.md).
 
 * `Adopters`: Companies using NETTRADES in production – [add your logo!](https://github.com/nettrades/nettrades-platform/discussions)
 
@@ -1109,7 +1131,7 @@ NETTRADES has a growing community of developers, enterprises, and researchers. W
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read our [Contributing Guide](contributing.md) before submitting PRs.
+We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting PRs.
 
 ### Quick Steps
 
