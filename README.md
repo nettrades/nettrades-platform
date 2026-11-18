@@ -62,7 +62,7 @@ PURPOSE:
 
 ## The NETTRADES Sovereign AI Platform For Autonomous Enterprises
 
-**The NETTRADES Sovereign AI Platform builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity and allows AI agents to work with people. **
+**The NETTRADES Sovereign AI Platform builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity and allows AI agents to work with people.**
 
 **It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
