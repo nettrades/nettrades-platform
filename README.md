@@ -60,11 +60,15 @@ PURPOSE:
 [![Contributor License Agreement](https://img.shields.io/badge/Contributor-License-Agreement.svg)](Contributor-License-Agreement.md)
 [![Ethical Statement](https://img.shields.io/badge/Ethical-Statement.svg)](ETHICAL-STATEMENT.md)
 
-## The NETTRADES Sovereign AI Platform For Autonomous Enterprises
+## NETTRADES connecting companies, job seekers, freelancers, researchers and partners
 
-**The NETTRADES Sovereign AI Platform builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity and allows AI agents to work with people.**
+**NETTRADES™ Sovereign AI builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity to allows AI agents to work with people. Through its AI market places NETTRADES connect companies, job seekers, freelancers, researchers and partners.**
 
-**It acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
+**Through its AI market places NETTRADES allows companies to find and recruit job seekers, freelancers, researchers and partners.**
+
+**People and AI Agents work together using the AI infrastructure to increase productivity.**
+
+**It also acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
 
 **Organisations could decide to keep everything local or they could decide which types of requests are processed locally and which types of requests are routed to remote providers or to a GPU market place, at peak time, based on the administrative settings, set by the organisations administrator.**
 
