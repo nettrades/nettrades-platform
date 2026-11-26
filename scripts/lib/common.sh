@@ -736,3 +736,12 @@ hsa_override_for_gfx() {
         *) echo "" ;;
     esac
 }
+
+# -----------------------------------------------------------------------------
+# Session secret generator (used by the nettrades-ui session middleware)
+# -----------------------------------------------------------------------------
+# 32 random bytes, base64-encoded (44 characters with padding).
+# Suitable for Starlette's SessionMiddleware secret_key.
+generate_session_secret() {
+    openssl rand -base64 32 | tr -d '\n'
+}
