@@ -14,12 +14,11 @@ The NETTRADES Sovereign AI Platform. A distributed, self-hosted AI platform for 
 1. **`README.md`** — what the platform does, who it's for
 2. **`HANDOFF.md`** — says what the codebase is
 3. **`BUG-CATALOG.md`** — says what's broken.
-4. **`ARCHITECTURE-AND-PLAN.md`** — Mermaid diagrams, distributed
-   inference instructions, build plan
+4. **`docs/developer/Architecture.md`** — canonical architecture
+         (Mermaid diagrams, physical topology, invariants)
 5. **`DECISIONS.md`** — architectural decisions with reasons
-6. **`KNOWN-ISSUES.md`** — deferred work, do not re-fix
-7. **`ENVIRONMENT.md`** — dev environment reference
-8. **`VERIFICATION.md`** — acceptance criteria
+6. **`ENVIRONMENT.md`** — dev environment reference
+7. **`VERIFICATION.md`** — acceptance criteria
 
 
 
@@ -53,7 +52,9 @@ The NETTRADES Sovereign AI Platform. A distributed, self-hosted AI platform for 
 
 14. Regenerate full files when asked for regenerated code. Keep all the existing comments and functionality that is still needed and working unless asked to remove it.
 
-    
+15. **Before diagnosing "my code change is not taking effect", check the running container.** If `docker compose exec -T langgraph-server grep     -n "<your change>" /app/src/core/<file>` returns nothing, the COPY layer cache may have kept a stale file. Force a rebuild with `docker compose build --no-cache langgraph-server`. Documented in `Dockerfile.langgraph`. See BUG-070.
+
+16. **Imports for any module-scope code path must be at module scope.** `app.py`'s missing `import json` made the manifest override fail silently on every 60s inventory refresh; the NameError was caught in a broad try/except that existed for a different purpose. When a `try/except` wraps a block that mutates state, verify the imports before the try. See BUG-065.
 
 ## The one rule that matters most
 
@@ -100,12 +101,12 @@ If you propose a fix, be explicit about whether it blocks the current milestone.
 
 
 
-
 ## 3. Environment & Toolchain
 
 ### Host
 
-- **OS:** Windows 11 + WSL2 (Ubuntu 24.04).
+- **OS:** Windows 11 + WSL2 (Ubuntu 24.04) — dev box.
+- **OS:** Contabo Ubuntu 24.04 — production reference.
 - **Working directory (WSL):** `/home/owner/nettrades-platform`
 - **Windows path:** `\\wsl.localhost\Ubuntu-24.04\home\owner\nettrades-platform`
 - **GPU:** NVIDIA GeForce RTX 5070 Ti (Blackwell, consumer).
