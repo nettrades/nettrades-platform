@@ -8,9 +8,9 @@
 #          SAP, Oracle, and any other enterprise system.
 #
 # USAGE:
-#   from proxy_framework.base import AbstractConnector
+#   from proxy_framework.base import AbstractEnterpriseConnector
 #
-#   class MyConnector(AbstractConnector):
+#   class MyConnector(AbstractEnterpriseConnector):
 #       def authenticate(self, username, password):
 #           # Implement authentication for your backend
 #           pass
@@ -27,7 +27,7 @@ from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
 
 
-class AbstractConnector(ABC):
+class AbstractEnterpriseConnector(ABC):
     """
     Abstract base class for all enterprise system connectors.
     

@@ -6,14 +6,14 @@
 # PURPOSE: Exports all connector framework components.
 # =============================================================================
 
-from .base import AbstractConnector
+from .base import AbstractEnterpriseConnector
 from .registry import ConnectorRegistry
 from .odoo import OdooConnector
 from .salesforce import SalesforceConnector
 from .sap import SAPConnector
 
 __all__ = [
-    'AbstractConnector',
+    'AbstractEnterpriseConnector',
     'ConnectorRegistry',
     'OdooConnector',
     'SalesforceConnector',

@@ -9,18 +9,73 @@
 #   - Fixed BUG-019: replaced __import__('datetime').datetime.now() with a
 #     normal top-level import and normal call.
 #   - Fixed BUG-020: removed unused `import requests`.
+#
+# SECURITY FIX (2026-11-16):
+#   - All three endpoints now require the same X-API-Key (or Bearer) that
+#     /jsonrpc already enforces. Before this fix /mode/update was
+#     unauthenticated, which meant any caller with network access to the
+#     odoo-proxy could flip the platform from RED (100% sovereign) to
+#     GREEN (external APIs enabled). That is a data-leakage vector, not
+#     just a misconfiguration.
+#
+#   - Auth is implemented as a FastAPI dependency at module scope rather
+#     than by importing `authenticate` from main.py. Importing from
+#     main.py would create a circular import (main.py already imports
+#     from mode.py to register the router). The dependency reads
+#     PROXY_API_KEY at call time so a runtime re-read works if the
+#     operator rotates the key without restarting the process.
 # =============================================================================
 
+import os
+import hmac
 import logging
 import json
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 _logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/mode", tags=["operational_mode"])
+
+
+# -----------------------------------------------------------------------------
+# Auth dependency
+# -----------------------------------------------------------------------------
+# Mirrors main.py::authenticate's X-API-Key / Bearer logic, but without
+# the rate limiter (which is only relevant at the JSON-RPC boundary, not
+# for admin mode toggles). Fails closed: if PROXY_API_KEY is not
+# configured, every request is refused with 503 rather than allowed.
+# -----------------------------------------------------------------------------
+async def _require_auth(request: Request) -> None:
+    expected = os.getenv("PROXY_API_KEY", "")
+    if not expected:
+        _logger.error(
+            "PROXY_API_KEY is not set — refusing /mode/* request. "
+            "Set PROXY_API_KEY in the odoo-proxy environment."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Proxy authentication is not configured",
+        )
+
+    api_key = request.headers.get("X-API-Key")
+    auth_header = request.headers.get("Authorization", "")
+
+    if api_key and hmac.compare_digest(api_key, expected):
+        return
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+        if hmac.compare_digest(token, expected):
+            return
+
+    _logger.warning(
+        "Rejected /mode/* request: invalid or missing credentials "
+        "(client=%s)",
+        request.client.host if request.client else "unknown",
+    )
+    raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
 # -----------------------------------------------------------------------------
@@ -151,11 +206,17 @@ def read_from_valkey(key: str) -> dict:
 # Endpoints
 # -----------------------------------------------------------------------------
 
-@router.post("/update", response_model=ModeUpdateResponse)
+@router.post(
+    "/update",
+    response_model=ModeUpdateResponse,
+    dependencies=[Depends(_require_auth)],
+)
 async def update_mode(request: ModeUpdateRequest):
     """
     Update the operational mode.
     Writes the mode to Valkey for real-time routing.
+
+    Requires the same X-API-Key (or Bearer token) as /jsonrpc.
     """
     mode = request.mode.lower()
 
@@ -190,10 +251,17 @@ async def update_mode(request: ModeUpdateRequest):
         )
 
 
-@router.get("/status", response_model=ModeStatusResponse)
+@router.get(
+    "/status",
+    response_model=ModeStatusResponse,
+    dependencies=[Depends(_require_auth)],
+)
 async def get_mode_status():
-    """Get the current operational mode status."""
-    # Try to read from Valkey first
+    """
+    Get the current operational mode status.
+
+    Requires the same X-API-Key (or Bearer token) as /jsonrpc.
+    """
     cache_key = "nettrades:operational_mode"
     cached_data = read_from_valkey(cache_key)
 
@@ -219,9 +287,16 @@ async def get_mode_status():
     )
 
 
-@router.get("/modes")
+@router.get(
+    "/modes",
+    dependencies=[Depends(_require_auth)],
+)
 async def get_available_modes():
-    """Get all available operational modes and their descriptions."""
+    """
+    Get all available operational modes and their descriptions.
+
+    Requires the same X-API-Key (or Bearer token) as /jsonrpc.
+    """
     return {
         "modes": [
             {
