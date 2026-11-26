@@ -1,5 +1,5 @@
 # =============================================================================
-# FILE: deploy/docker/Dockerfile.agent-chat-ui
+# FILE: deploy/docker/agent-chat-ui
 # =============================================================================
 #
 # Copyright (c) 2026 NETTRADES FOUNDATION. All rights reserved.
