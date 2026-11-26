@@ -1,8 +1,9 @@
 # FILE: scripts/windows/builder/Dockerfile
-FROM debian:bookworm-slim
+FROM golang:1.26-bookworm
 
-# Install the MinGW-w64 cross-compiler, git, make, and unzip.
-# These are the tools required to build a Windows DLL from source on Linux.
+# Install the MinGW-w64 cross-compiler, git, make, unzip.
+# The official golang image already provides the Go toolchain on PATH,
+# so we do NOT install Debian's golang-go (which is Go 1.19 on bookworm).
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git \
@@ -10,7 +11,6 @@ RUN apt-get update && \
         unzip \
         gcc-mingw-w64-x86-64 \
         gcc-mingw-w64-i686 \
-        gcc-mingw-w64-aarch64 \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
