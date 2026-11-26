@@ -72,7 +72,8 @@ with `llm.training.dataset` / `llm.training.job` (from the third-party
 |---|---|
 | `app.py` | FastAPI application. Lifespan starts the health monitor. `/nodes`, `/nodes/{id}/health` endpoints. |
 | `supervisor.py` | LangGraph supervisor graph. `classify`, `medical_screening`, `bridge_route`, `route`, `post_process`. |
-| `hardware_detection.py` | Cross-platform GPU/CPU/RAM detection. |
+| `scripts/lib/detect.py` + `scripts/vendor/*` | Installer-time hardware detection. Writes the hub manifest. Two-phase PCI/software probe. |
+| `scripts/spoke-agent.py::detect_gpus()` | Runtime spoke detection. Per-GPU RPC pinning, HSA override, Windows WMI. |
 | `node_health.py` | `NodeHealthMonitor` — asyncio, Prometheus metrics, hysteresis. |
 | `bridge_integration.py` | `BridgeService` — hub-and-spoke routing. |
 | `self_improving_integration.py` | `SelfImprovingService` — writes episodes to `data.episode` via proxy. |
