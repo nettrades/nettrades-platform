@@ -360,6 +360,11 @@ GRAFANA_PASSWORD=$(generate_safe_password)
 PROMETHEUS_PASSWORD=$(generate_safe_password)
 DYNAMO_API_KEY=$(generate_safe_api_key)   # NEW – replaces GPUStack
 
+# NEW (2026-11): SESSION_SECRET signs the nettrades-ui admin session cookie.
+# Auto-generated so no operator ever runs `openssl rand -base64 32` manually.
+# Rotating this value invalidates all admin sessions; users simply re-login.
+SESSION_SECRET=$(generate_session_secret)
+
 # Generate LangGraph API key (strong, alphanumeric)
 LANGGRAPH_API_KEY=$(generate_safe_api_key)
 
@@ -379,6 +384,7 @@ safe_sed_replace "$ENV_FILE" "GRAFANA_PASSWORD" "$GRAFANA_PASSWORD"
 safe_sed_replace "$ENV_FILE" "PROMETHEUS_PASSWORD" "$PROMETHEUS_PASSWORD"
 safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
 safe_sed_replace "$ENV_FILE" "LANGGRAPH_API_KEY" "$LANGGRAPH_API_KEY"
+safe_sed_replace "$ENV_FILE" "SESSION_SECRET" "$SESSION_SECRET"
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"  # Ensure sync
 # Ensure ODOO_API_KEY and PROXY_API_KEY are identical
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"
