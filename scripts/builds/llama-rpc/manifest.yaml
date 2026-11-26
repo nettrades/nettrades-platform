@@ -1,0 +1,17 @@
+# File: scripts/builds/llama-rpc/manifest.yaml
+# The manifest is the contract between this build unit and the installer.
+# build.sh reads it; nothing outside this directory does.
+name: llama-rpc
+image: nettrades-rpc-master
+tag_strategy: "content-hash"    # or "git-sha"
+dockerfile: Dockerfile
+build_args:
+  LLAMA_CPP_TAG: "b4567"        # PINNED — never "master" in production
+  CUDA_ARCH: "70"
+outputs:
+  - /app/build/bin/llama-server
+  - /app/build/bin/rpc-server
+verify:
+  command: ["/app/build/bin/llama-server", "--version"]
+  expect_exit_code: 0
+rebuild_if_missing: true
