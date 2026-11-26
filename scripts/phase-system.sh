@@ -333,8 +333,9 @@ case "$GPU_VENDOR" in
             log_info "Installing NVIDIA drivers..."
             if [[ "$OS" == "linux" ]]; then
                 sudo apt-get update
-                # NVIDIA driver version 550+ is recommended for Dynamo
-                sudo apt-get install -y nvidia-driver-550 nvidia-utils-550
+                # For headless compute servers (like the DL580 V100), we MUST 
+                # install the -server branch of the driver.
+                sudo apt-get install -y nvidia-driver-550-server
             else
                 log_warning "Please install NVIDIA drivers manually for $OS"
             fi
@@ -368,6 +369,23 @@ case "$GPU_VENDOR" in
         sudo nvidia-ctk runtime configure --runtime=docker
         sudo systemctl restart docker || sudo service docker restart
         log_success "NVIDIA Container Toolkit configured"
+
+        # =========================================================================
+        # AUTOMATED VERIFICATION: Ensure Docker can actually see the GPU
+        # =========================================================================
+        log_step "Verifying GPU passthrough to Docker..."
+        log_info "Running test container to check CUDA access (this may take a moment on first run)..."
+        
+        if docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi &>/dev/null; then
+            log_success "✅ Docker successfully detected the NVIDIA GPU!"
+            log_info "Your RTX 5070 Ti / H100 / A100 is ready for inference."
+        else
+            log_error "❌ Docker CANNOT see the NVIDIA GPU."
+            log_error "This usually means the NVIDIA Container Toolkit is not configured correctly, or Docker needs a full restart."
+            log_error "On WSL2, please run 'wsl --shutdown' in a Windows PowerShell prompt, then restart WSL and run this script again."
+            log_error "On bare metal, ensure the docker daemon is restarted: sudo systemctl restart docker"
+            exit 1
+        fi
         ;;
 
     amd)
@@ -1051,10 +1069,12 @@ else
             curl \
             wget \
             git \
+            git-lfs \
             jq \
             xdg-utils \
             libfuse2 \
             wine \
+            restic \
             libnss3 \
             libxss1 \
             libasound2t64 \
