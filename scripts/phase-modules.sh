@@ -116,7 +116,7 @@ if [[ -f "$ODOO_ADMIN_SCRIPT" ]] && [[ -n "${ODOO_ADMIN_PASSWORD:-}" ]]; then
     # re-run anyway.
     CONFIGURE_LOG=$(mktemp)
     set +e
-    docker_compose exec -T \
+    docker compose exec -T \
         -e ODOO_ADMIN_PASSWORD="$ODOO_ADMIN_PASSWORD" \
         -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
         -e NETTRADES_SERVICE_PASSWORD="$NETTRADES_SERVICE_PASSWORD" \
@@ -156,11 +156,17 @@ if [[ -f "$ODOO_ADMIN_SCRIPT" ]] && [[ -n "${ODOO_ADMIN_PASSWORD:-}" ]]; then
         log_success "Service user API key recorded in .env"
     fi
 
-    # Recreate langgraph-server to apply the new API key.
+    # Recreate langgraph-server AND odoo-proxy to apply the new API key.
+    #
+    # odoo-proxy reads ODOO_SERVICE_API_KEY (mapped from
+    # NETTRADES_SERVICE_API_KEY in docker-compose.yaml) at container start.
+    # Without recreating it, every call the proxy makes to Odoo on behalf
+    # of langgraph-server returns 401, and the whole control plane goes dark
+    # even though langgraph-server itself was recreated.
     if [[ -n "$SERVICE_UID" ]] && [[ -n "$SERVICE_PASSWORD" ]]; then
-        log_step "Recreating langgraph-server to apply service credentials..."
-        docker_compose up -d --force-recreate langgraph-server \
-            || log_warning "Failed to recreate langgraph-server"
+        log_step "Recreating langgraph-server and odoo-proxy to apply service credentials..."
+        docker compose up -d --force-recreate langgraph-server odoo-proxy \
+            || log_warning "Failed to recreate langgraph-server and odoo-proxy"
     fi
 
     cd "$PROJECT_ROOT"
