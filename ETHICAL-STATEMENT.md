@@ -1,97 +1,64 @@
 # NETTRADES Ethical Use Statement
 
-**Version:** 2.0  
-**Last Updated:** September 2026
+**Version:** 3.0  
+**Last Updated:** November 2026  
+**Governing Entity:** NETTRADES LIMITED (UK Company No. 08160657)
 
 ---
 
 ## Our Commitment
 
-At the NETTRADES Foundation, we believe that technology should serve humanity, not harm it. We are committed to building software that empowers individuals, protects privacy, and advances human dignity.
+At **NETTRADES LIMITED**, we believe technology should serve humanity, not harm it. We are committed to building sovereign AI infrastructure that empowers individuals, protects privacy, and advances human dignity.
 
-While the NETTRADES Platform source code is freely available under the copyleft open-source **GNU Affero General Public License v3.0 (AGPL-3.0)**, our underlying architectural innovations represent unique intellectual property assets managed by the NETTRADES Foundation. We maintain a strict, uncompromising stance against weaponization, invasive monitoring, and structural human rights exploitation.
+This Ethical Use Statement is legally incorporated into **all** NETTRADES licenses and agreements—overriding our **Business Source License (`BUSL-1.1`)**, our post-Change-Date **AI Pubs Open RAIL-S License v1.0 (Attachment A)**, our **Commercial EULAs**, our **Contributor License Agreement (`LEGAL/Contributor-License-Agreement.md`)**, and our hosted **NETTRADES.AI Hub & Marketplaces**. **In the event of any conflict between this Ethical Use Statement and any other license or commercial contract, this Ethical Use Statement shall prevail.**
 
 ---
 
-## Prohibited Uses
+## Prohibited Uses (Mandatory Behavioral Restrictions)
 
-NETTRADES explicitly prohibits the deployment, execution, modification, or utilization of the Project software, its proprietary extensions, or its underlying patented technologies for the following purposes:
+NETTRADES LIMITED strictly prohibits the deployment, execution, modification, hosting or utilization of the NETTRADES Platform, its AI agents, connectors or underlying patented technologies for any of the following purposes:
 
 ### 1. Military and Weapons
-- Military operations, defense operations, military planning, or military intelligence.
-- Tactical command combat routing, defense infrastructure planning, or battlefield target intelligence processing.
-- Weapons development, manufacturing, testing, or deployment.
-- Lethal Autonomous Weapons Systems (LAWS), target selection models, or remote weapons guidance frameworks.
-- Any activity that contributes to the design, development, or operation of weapons of war.
-- Any dual-use orchestration that contributes directly to the design, operation, or optimization of tactical weapons of war.
+- Military operations, defense operations, tactical command combat routing, military planning, or military intelligence.
+- Design, development, testing, manufacturing, or deployment of weapons or munitions.
+- Lethal Autonomous Weapons Systems (LAWS), automated target selection models, or remote weapons guidance frameworks.
 
 ### 2. Surveillance and Law Enforcement Abuse
-- Mass surveillance, citizen monitoring, or data collection for surveillance purposes.
-- Non-consensual consumer monitoring, state-sponsored classification pipelines, or data mining targeting specific demographics.
-- Law enforcement or state security operations that infringe upon recognized international civil and human rights.
-- Facial recognition or biometric identification systems used for mass monitoring.
-- Social credit systems, compliance tracking, state-directed biometric reputation monitoring, or similar scoring frameworks.
-- Predictive policing systems designed to pre-emptively target individuals or groups based on predicted characteristics.
+- Mass surveillance, citizen monitoring, or covert data collection for surveillance purposes.
+- Non-consensual consumer monitoring or demographic profiling pipelines.
+- Facial recognition or biometric identification systems used for mass tracking.
+- Social credit systems, state-directed biometric reputation scoring, or predictive policing systems targeting individuals or groups based on predicted characteristics.
 
-### 3. Human Rights Violations
-- Any activity that violates the United Nations Universal Declaration of Human Rights.
-- Processes directly resulting in systemic or intentional physical, psychological, or economic harm to minority populations or regional communities.
-- Any activity that restricts freedom of expression, assembly, or association.
-- Any activity that contributes to discrimination based on race, ethnicity, religion, gender, or physical disability.
+### 3. Human Rights Violations & Cyber Harm
+- Any activity violating the United Nations Universal Declaration of Human Rights.
+- Unlawful discrimination based on race, ethnicity, religion, gender, sexual orientation, or disability.
+- Child Sexual Abuse Material (CSAM) or exploitation of minors.
+- Generation or deployment of malware, ransomware, or unauthorized cyberattacks.
+- Fully autonomous, unreviewed high-stakes medical diagnoses or judicial sentencing without qualified human-in-the-loop oversight.
 
-### 4. Environmental Harm
-- Any activity that causes significant harm to the environment.
-- Any activity that contributes to climate change denial or environmental misinformation.
-- Any activity that facilitates illegal logging, mining, or destructive resource extraction.
-
-### 5. Animal Welfare
-- Any activity that contributes towards the extinction of animals or the loss of biodiversity.
-- Any activity that contributes to animal cruelty, exploitation, or illicit wildlife trafficking.
-- Operations contributing directly to industrial ecological exploitation or mass animal mistreatment.
+### 4. Environmental & Ecological Harm
+- Operations facilitating illegal logging, illegal mining or severe unlawful environmental destruction.
+- Illicit wildlife trafficking, extinction-driving exploitation or systematic animal cruelty.
 
 ---
 
-## Multi-Layered Enforcement Architecture
+## Multi-Layered Enforcement Architecture & Institutional Safe Harbor
 
-We enforce our ethical commitments through a combined framework of open-source copyleft conditions, commercial contractual boundaries, and **proactive defensive patent controls**:
-
-| Enforcement Vector | Applied Governance Layer | Structural Remedy for Breach |
+| Governance Layer | Applied Scope | Remedy for Breach |
 | :--- | :--- | :--- |
-| **AGPL-3.0 Copyleft** | General Open-Source Community | Mandatory source-code disclosure for network-hosted modifications. |
-| **Commercial Contract** | Wholly-Owned Subsidiaries & Enterprise Licensees | Instant contract termination, software revocation, financial damages, and active KYC audits. |
-| **Defensive Patent Moat** | **All Deployments (Including AGPL-3.0 Forks)** | **Immediate, automatic revocation of the Patent License** for the core architecture, followed by patent infringement litigation. |
+| **`BUSL-1.1` (Years 1–4)** | All Public & Additional Use Grant Deployments | Automatic, immediate termination of copyright and conditional patent licenses. |
+| **`Open RAIL-S` (After Year 4)** | All Post-Change-Date Versions & Forks | Permanent Attachment A termination of copyright and patent permissions. |
+| **Commercial EULA & Hub** | Enterprise Licensees & Marketplace Sellers | Contract termination, key revocation, agent delisting, and legal damages. |
+| **Patented Architecture** | All Deployments (`LEGAL/PATENTS.md`) | Immediate revocation of conditional patent permissions and injunctive relief. |
 
-### The Patent-Enforcement Mechanism for Open-Source Compliance
-While the copyleft AGPL-3.0 copyright license permits compilation and hosting, the underlying software architectures within this repository—including but not limited to **The Dynamic GPU-to-CPU Fallback Recovery Engine**, **The Intent-Aware Hybrid Edge-to-Cloud AI Router (`nettrades_bridge`)**, and **The Closed-Loop Self-Improving Fine-Tuning Trigger Module**—are protected under patent applications filed by the NETTRADES Foundation.
-
-Per Section 3 of the NETTRADES Contributor License Agreement (CLA), the grant of these patent licenses to any recipient is strictly contingent upon ethical deployment. Any individual, enterprise, state apparatus, or downstream fork that utilizes these patented mechanisms to execute any of the **Prohibited Uses** outlined in this document shall suffer the **immediate and retroactive termination of their patent license**. The NETTRADES Foundation reserves the right to seek permanent injunctions and punitive damages for patent infringement under the jurisdiction defined in the master CLA.
-
----
-
-## Reporting Concerns
-
-If you discover a cluster node, cloud instance, or corporate fork of the NETTRADES Platform operating in violation of these ethical principles, please submit an encrypted report:
-
-- **Email:** ethical@nettrades.org
-- **Secure Reporting:** https://nettrades.org/report
-
-We take all reports seriously and will investigate promptly.
+### Institutional & Enterprise Safe Harbor (21-Day Remediation Window)
+For accredited educational institutions, hospitals (including NHS bodies) and legitimate organizations acting in good faith: if an individual employee, student or end user misuses an internal deployment in violation of this Statement without organizational authorization, NETTRADES LIMITED will issue written notice and provide a **twenty-one (21) day remediation period** to halt the unauthorized activity before revoking the institution's license. Willful, systemic or bad-faith violations result in immediate, permanent termination without notice.
 
 ---
 
-## Our Values
+## Reporting Concerns & Contact
 
-1. **Human Dignity:** Technology must act as an augmentative utility for human potential, never as a mechanism of algorithmic subjugation.
-2. **Data Sovereignty & Privacy:** Organizations and individuals maintain an absolute right to physical residency, cryptographic enclosure, and complete control over their computational data episodes.
-3. **Algorithmic Accountability:** Autonomous multi-agent systems executing corporate actions must inherit strict audit trails, deterministic rule boundaries, and human-in-the-loop transaction controls, inheriting the permissions of the human who approve their action.
-4. **Privacy:** Individuals have the right to privacy and control over their data.
-5. **Transparency:** Users have an absolute right to understand how underlying models work, how routing intent is assigned, and how their code contributions are managed.
-6. **Freedom:** Open-source software empowers individuals and communities, provided its deployment scales human utility rather than structural harm.
-
----
-
-## Contact
-
-- **General Inquiries:** info@nettrades.org
-- **Commercial Licensing:** legal@nettrades.org
-- **Ethical Concerns:** ethical@nettrades.org
+- **Ethical Violations:** ethical@nettrades.ai
+- **Commercial & Legal Inquiries:** legal@nettrades.ai
+- **General Inquiries:** info@nettrades.ai
+- **Website:** https://nettrades.com

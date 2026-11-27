@@ -56,7 +56,7 @@ PURPOSE:
 
 [![License: BUSL-1.1](https://shields.io)](LICENSE.txt)
 [![Commercial License](https://shields.io)](COMMERCIAL-LICENSE.md)
-[![Contributor License Agreement](https://shields.io)](CONTRIBUTING.md)
+[![Contributor License Agreement](https://shields.io)](LEGAL/Contributor-License-Agreement.md)
 [![Ethical Statement](https://shields.io)](ETHICAL-STATEMENT.md)
 
 
@@ -320,7 +320,7 @@ Work on the dev-deployment1 branch not on the main branch
 |---------|----------------------|
 | **Data Sovereignty** | Your data never leaves your network. |
 | **Complete Control** | You own the infrastructure, the data, and the AI models. |
-| **No Vendor Lock-in** | Fully open-source. You can take the platform and run it independently. |
+| **No Vendor Lock-in** | Source-Available (BUSL-1.1). You can inspect the code and run it independently. |
 | **Cost Predictability** | Flat licensing fee. No per-token charges. No cloud egress fees. |
 | **Enterprise Security** | WireGuard VPN, RBAC, audit logging, SSH hardening, fail2ban. |
 | **14-Year Track Record** | Founded 2012. Enterprise clients include AXA, Standard Bank, NHS, Capita etc. |
@@ -386,7 +386,7 @@ For enterprise pricing matrices or to apply for a commercial deployment key, con
 
 ### Patent Notice
 
-**Patent Pending.** The distributed inferencing architecture, heterogeneous GPU/CPU orchestration, and deterministic failover methods implemented in the **NETTRADES Sovereign AI Platform** are protected by pending patent applications owned by **NETTRADES LIMITED** (UK Company No. 08160657). For current patent status, see [://nettrades.com](https://://nettrades.com) and [LEGAL/PATENTS.md](LEGAL/PATENTS.md).
+**Patent Pending.** The distributed inferencing architecture, heterogeneous GPU/CPU orchestration, and deterministic failover methods implemented in the **NETTRADES Sovereign AI Platform** are protected by pending patent applications owned by **NETTRADES LIMITED** (UK Company No. 08160657). For current patent status, see [nettrades.com](https://nettrades.com) and [LEGAL/PATENTS.md](LEGAL/PATENTS.md).
 
 Use of this software under the Business Source License 1.1 (`BUSL-1.1`) receives only a limited, conditional, revocable patent license strictly restricted to the permitted non-production and Additional Use Grant scopes in [LICENSE.txt](LICENSE.txt) (up to 5 Spokes for households/small businesses, or unlimited Spokes for accredited educational institutions and hospitals). Any commercial deployment exceeding 5 Spokes, cloud/SaaS hosting, or unlicensed re-implementation receives no express or implied patent license and requires a separate Commercial License from NETTRADES LIMITED.
 

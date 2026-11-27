@@ -33,8 +33,7 @@ The Service integrates highly advanced, stateful multi-agent execution architect
 
 These Terms, and all claims or transactional friction arising out of their validation or the deployment of the underlying infrastructure software, shall be governed by a split-jurisdiction framework determined by your primary region of operation or legal domicile:
 
-1. **North American and European Deployments:** If your organization is legally incorporated, domiciled, or resident within **North America** or **Europe**, these Terms shall be governed by and construed in accordance with the **laws of England and Wales**, subject to the exclusive jurisdiction of the **courts of England and Wales**.
-2. **Rest of the World Deployments:** If your organization is legally incorporated, domiciled, or resident within **any other part of the world** (including but not limited to the Middle East, Asia, Africa, and South/Central America), these Terms shall be governed by and construed in accordance with the **laws and regulations of the Qatar Financial Centre (QFC)** under its native **English common law framework**, subject to the exclusive jurisdiction of the **Qatar Financial Centre Civil and Commercial Court**.
+1. The terms shall be governed by and construed in accordance with the **laws of England and Wales**, subject to the exclusive jurisdiction of the **courts of England and Wales**.
 
 ## 7. Operational Contact Information
 For corporate compliance, access keys routing, or legal registry auditing, route communications to:

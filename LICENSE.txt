@@ -1,19 +1,88 @@
-Business Source License 1.1
+NETTRADES SOURCE-AVAILABLE LICENSE 1.0 (BASED ON BUSINESS SOURCE LICENSE 1.1)
 
 License text copyright © 2017 MariaDB Corporation Ab, All Rights Reserved.
 "Business Source License" is a trademark of MariaDB Corporation Ab.
 
 Licensor: NETTRADES LIMITED (UK Company No. 08160657)
+Registered Office: England and Wales | Web: https://nettrades.com | Legal: legal@nettrades.ai
 
-Licensed Work: The NETTRADES PLATFORM source code contained in this repository (excluding third-party open-source components listed in OPEN-SOURCE-NOTICES.txt and directories marked under separate open-source licenses).
+Licensed Work: All original source code, scripts, installer packages, LangGraph
+agents, distributed inference modules, and custom Odoo modules contained in the
+NETTRADES PLATFORM repository (excluding third-party open-source components
+listed in OPEN-SOURCE-NOTICES.txt).
 
-Additional Use Grant:
-Production Use of the Licensed Work is permitted free of charge under specific conditions:
-1. Households, Developers & Small Businesses (Up to 5 Spokes): Operating no more than one (1) Sub-Hub and five (5) connected Spoke nodes/computers across your organization and affiliates, without offering the work as a hosted/SaaS service to third parties.
-2. Accredited Educational & Healthcare Institutions: Accredited schools, colleges, universities, non-profit research institutions, or public/non-profit hospitals using the work for educational, research, clinical, or internal operations, without offering it as a commercial hosted service.
+==============================================================================
+SUPREME ETHICAL OVERRIDE (MANDATORY CONDITION OF ALL RIGHTS)
+==============================================================================
+All rights, copyright grants, Additional Use Grants, and conditional patent
+permissions under this License are strictly conditioned upon full and continuous
+compliance with the NETTRADES Ethical Use Statement (ETHICAL-STATEMENT.md),
+which is incorporated herein by reference. Any violation of ETHICAL-STATEMENT.md
+immediately and automatically terminates all rights granted under this License.
 
-Change Date: Four (4) years from the date of first publicly available distribution of each respective version under this License.
+==============================================================================
+ADDITIONAL USE GRANT (FREE PRODUCTION TIERS)
+==============================================================================
+Subject to strict compliance with ETHICAL-STATEMENT.md, Production Use of the
+Licensed Work is permitted free of charge under the following scopes:
 
-Change License: GNU Affero General Public License v3.0 (AGPL-3.0).
+1. Households, Independent Developers & Small Businesses (Up to 5 Spokes):
+   Operating no more than one (1) Sub-Hub and up to five (5) connected Spoke
+   nodes/computers across your organization and affiliates for internal
+   operations (including connecting to Odoo, Salesforce, SAP, or other internal
+   systems), provided you do not offer the Licensed Work as a hosted, cloud,
+   or managed SaaS service to third parties.
 
-[Standard MariaDB BUSL-1.1 Terms and Covenants of Licensor apply verbatim. Please refer to the complete license structure above or standard MariaDB BUSL-1.1 documentation for full legal boilerplate regarding non-production rights, change dates, warranty disclaimers, and licensor covenants.]
+2. Accredited Educational, Research & Healthcare Institutions (Unlimited Scale):
+   Accredited schools, colleges, universities, registered charities, non-profit
+   research institutions, and public or non-profit hospitals (including NHS
+   bodies) operating unlimited Sub-Hubs and Spokes for educational, research,
+   clinical, or internal operational purposes, without offering the Licensed
+   Work as a commercial hosted service to third parties.
+
+3. AI Agent & Connector Developers:
+   Independent developers using the Licensed Work locally (up to 1 Sub-Hub and
+   5 Spokes) to build, test, and package third-party AI agents or open-protocol
+   connectors for distribution or sale on the official NETTRADES Marketplace.
+
+==============================================================================
+COMMERCIAL LICENSE REQUIREMENT
+==============================================================================
+Any private enterprise or commercial entity operating more than one (1) Sub-Hub
+or more than five (5) Spokes in production, or offering hosted/managed NETTRADES
+inference or platform services to third parties, must obtain a paid Commercial
+License from NETTRADES LIMITED (see COMMERCIAL-LICENSE.md or legal@nettrades.ai).
+
+==============================================================================
+CHANGE DATE AND CHANGE LICENSE
+==============================================================================
+Change Date: Four (4) years from the date of first publicly available
+distribution of each respective version under this License.
+
+Change License: AI Pubs Open RAIL-S License v1.0
+(https://www.licenses.ai/ai-pubs-open-rails-vz1), incorporating
+ETHICAL-STATEMENT.md as mandatory Attachment A (Use-Based Restrictions).
+Note: Upon the Change Date, the Licensed Work transitions to Open RAIL-S
+(alongside NETTRADES LIMITED's ongoing Commercial License offering) so that
+all behavioral and ethical restrictions in ETHICAL-STATEMENT.md remain
+permanently binding on all users and downstream derivatives.
+
+==============================================================================
+TERMS AND CONDITIONS
+==============================================================================
+1. Grant: Licensor hereby grants you a non-exclusive, worldwide, royalty-free
+   license to copy, modify, and make non-production use of the Licensed Work,
+   and to make Production Use strictly within the Additional Use Grant above,
+   conditioned upon compliance with ETHICAL-STATEMENT.md.
+2. Distribution: You may distribute copies or derivative works of the Licensed
+   Work only under this exact License, retaining all copyright, patent,
+   trademark, and ETHICAL-STATEMENT.md notices intact.
+3. Transition on Change Date: On and after the Change Date for a given version,
+   you may use, modify, and distribute that version under the Change License
+   (AI Pubs Open RAIL-S License v1.0 with ETHICAL-STATEMENT.md as Attachment A)
+   or under a separate Commercial License from NETTRADES LIMITED.
+4. No Warranty & Limitation of Liability: THE LICENSED WORK IS PROVIDED "AS IS",
+   WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN
+   NO EVENT SHALL NETTRADES LIMITED BE LIABLE FOR ANY CLAIM OR DAMAGES ARISING
+   FROM THE USE OF THE LICENSED WORK.
