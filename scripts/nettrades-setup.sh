@@ -17,7 +17,8 @@
 # INFERENCE ARCHITECTURE:
 #   - Primary: NVIDIA Dynamo (GPU-accelerated, distributed, includes vLLM)
 #   - Fallback: llama.cpp (CPU, zero-dependency)
-#   - Odoo provides governance and GPU resource management
+#   - Odoo provides the governance layer (users, models, GPU resources)
+#   - LangGraph (custom app.py + uvicorn) orchestrates agents with state persistence
 #
 # USAGE:
 #   ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
@@ -50,7 +51,21 @@
 #   - Added platform-based gVisor verification to skip on WSL reliably.
 #   - FIXED: Moved PLATFORM detection before AUTO-FIX PERMISSIONS block.
 #   - ADDED: --with-cuvs flag for RAPIDS cuVS installation.
+#
+# UPDATES (2026-10-21):
+#   - FIXED: Moved line-ending fix to pre-flight hygiene to prevent early phase failures.
+#   - FIXED: Added automatic installation of missing packages (curl, etc.) in --auto mode.
+#   - FIXED: Added dynamic DOCKER_CMD detection (sudo vs no sudo) to handle group permissions.
+#   - FIXED: Added macOS skip for gVisor installation (Docker Desktop is used instead).
+#   - FIXED: Replaced log_debug with log_info to prevent unbound function errors.
 # =============================================================================
+#
+# SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-NETTRADES-Commercial
+# Copyright (c) 2026 NETTRADES LIMITED (UK Company No. 08160657). Patent Pending. All rights reserved.
+# Licensed under LICENSE.txt (BUSL-1.1 -> Open RAIL-S) and strictly conditioned
+# upon compliance with ETHICAL-STATEMENT.md. See also LEGAL/IP-AND-PATENTS.md.
+# THE FUTURE OF WORK is a registered trade mark in the United Kingdom (No. UK00004257743) of NETTRADES LIMITED.
+# Distributed WITHOUT ANY WARRANTY.
 
 set -euo pipefail
 
@@ -71,7 +86,113 @@ source "$SCRIPT_DIR/lib/common.sh"
 # Detect platform early (needed for AUTO-FIX PERMISSIONS)
 # -----------------------------------------------------------------------------
 PLATFORM="$(detect_platform)"
-export PLATFORM
+OS="$(detect_os)"
+export PLATFORM OS
+
+# -----------------------------------------------------------------------------
+# Robust Docker Command Prefix
+# -----------------------------------------------------------------------------
+# On Linux, if the user was just added to the docker group, the current shell 
+# session hasn't picked up the group yet. We use sudo to ensure docker commands
+# work immediately without requiring a logout/reboot.
+if [[ "$OS" == "linux" ]]; then
+    if [[ $EUID -eq 0 ]]; then
+        DOCKER_CMD="docker"
+    elif ! docker info &>/dev/null; then
+        DOCKER_CMD="sudo docker"
+    else
+        DOCKER_CMD="docker"
+    fi
+else
+    # macOS and WSL typically handle Docker permissions natively
+    DOCKER_CMD="docker"
+fi
+export DOCKER_CMD
+
+
+# =============================================================================
+# PRE-FLIGHT HYGIENE — runs before Phase 0 on every profile and every machine.
+# =============================================================================
+# Three failure modes have been observed in the wild and are cheap to prevent
+# here rather than let them abort the deploy mid-phase:
+#
+#   1. `deploy/docker/.env` is a DIRECTORY. Docker Compose creates this when
+#      the bind-mount source `./.env` is missing at `docker compose up` time.
+#      `rm -f` cannot remove a directory, so a naive cleanup leaves it in
+#      place and every subsequent `cp` into it fails with
+#      "cannot create regular file '.../.env/.env.example'".
+#
+#   2. `.env.example` ends with a literal two-character sequence `\` `n` on
+#      its own line. When the copied `.env` is sourced by bash, that line is
+#      parsed as the command `n`, producing:
+#          /path/.env: line NNN: n: command not found
+#      and leaving the environment partially populated.
+#
+#   3. A previous run left `wireguard-go` running. Phase 0 tries to `cp` the
+#      new binary over `/usr/local/bin/wireguard-go` and fails with
+#      "Text file busy".
+#
+# All three are repaired here, in-place, idempotently.
+# =============================================================================
+
+# ---- (1) Remove a stale .env directory -------------------------------------
+if [[ -d "$PROJECT_ROOT/deploy/docker/.env" ]]; then
+    log_warning "deploy/docker/.env is a directory (Docker Compose bind-mount artefact). Removing it."
+    rm -rf "$PROJECT_ROOT/deploy/docker/.env"
+    log_success "Stale .env directory removed."
+fi
+
+# ---- (2) Repair trailing "\n" artefacts in .env.example --------------------
+if [[ -f "$PROJECT_ROOT/deploy/docker/.env.example" ]]; then
+    python3 - "$PROJECT_ROOT/deploy/docker/.env.example" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path) as f:
+    text = f.read()
+lines = text.splitlines(keepends=True)
+cleaned = [ln for ln in lines if ln.strip() != r'\n']
+out = "".join(cleaned)
+out = out.rstrip('\n') + '\n' if out else out
+if out != text:
+    with open(path, 'w') as f:
+        f.write(out)
+    print(f"[preflight] repaired trailing \\n artefacts in {path}")
+else:
+    print(f"[preflight] {path} is clean")
+PYEOF
+fi
+
+# ---- (3) Kill any running wireguard-go so the binary can be replaced -------
+# Only attempt this on Linux where wireguard-go exists as a daemon. On WSL
+# the userspace fallback is used, so this is safe.
+if [[ "$PLATFORM" == "wsl" || "$PLATFORM" == "linux" ]]; then
+    if pgrep -f "wireguard-go wg0" >/dev/null 2>&1; then
+        log_info "Stopping stale wireguard-go process (binary will be replaced by Phase 0)."
+        sudo pkill -f "wireguard-go wg0" 2>/dev/null || true
+        # Give the kernel a moment to release the file handle before Phase 0
+        # tries to overwrite the binary.
+        sleep 1
+        # Bring the interface down so the next start is clean.
+        sudo ip link delete wg0 2>/dev/null || true
+    fi
+fi
+
+# ---- (4) Fix Line Endings (CRLF to LF) -------------------------------------
+# Windows transfers often leave CRLF line endings, which break bash scripts
+# and Python files. We run this at the very top so no phase fails due to this.
+if [[ ! -f "$PROJECT_ROOT/.line-endings-fixed" ]]; then
+    if [[ -f "$PROJECT_ROOT/scripts/fix-line-endings.sh" ]]; then
+        log_info "Pre-flight: Fixing line endings (converting to LF)..."
+        bash "$PROJECT_ROOT/scripts/fix-line-endings.sh" --force >/dev/null 2>&1 || true
+        touch "$PROJECT_ROOT/.line-endings-fixed"
+        log_success "Line endings fixed."
+    else
+        log_warning "fix-line-endings.sh not found – skipping line ending fix"
+    fi
+else
+    log_info "Line endings already fixed – skipping"
+fi
+
 
 # =============================================================================
 # AUTO-FIX PERMISSIONS (WSL/Windows compatibility)
@@ -83,6 +204,7 @@ if [ "$PLATFORM" = "wsl" ]; then
         sudo chown -R $(whoami):$(whoami) "$PROJECT_ROOT"
         log_success "Permissions fixed."
     fi
+
 
     # Ensure .env has correct permissions
     if [ -f "$PROJECT_ROOT/deploy/docker/.env" ]; then
@@ -101,7 +223,21 @@ if [ "$PLATFORM" = "wsl" ]; then
         sudo usermod -aG docker $(whoami)
         log_warning "Docker group membership added. Please log out and back in, or run 'newgrp docker' to apply changes."
     fi
+
 fi
+
+# =============================================================================
+# On native Linux with a GPU, ensure the current user can access it.
+# =============================================================================
+if [[ "$PLATFORM" != "wsl" && "$OS" == "linux" ]]; then
+    if lspci 2>/dev/null | grep -qiE "VGA.*(AMD|Radeon)|Display.*(AMD|Radeon)"; then
+        if ! groups "$(whoami)" | grep -q render; then
+            log_info "Adding $(whoami) to the render and video groups (AMD GPU access)"
+            sudo usermod -a -G render,video "$(whoami)" || true
+        fi
+    fi
+fi
+
 
 # -----------------------------------------------------------------------------
 # Read feature flags (early, for installer UI)
@@ -111,9 +247,9 @@ read_feature_flags
 # -----------------------------------------------------------------------------
 # Load .env if present (overrides environment)
 # -----------------------------------------------------------------------------
-if [ -f "$PROJECT_ROOT/.env" ]; then
+if [ -f "$PROJECT_ROOT/deploy/docker/.env" ]; then
     set -a          # automatically export all sourced variables
-    source "$PROJECT_ROOT/.env"
+    source "$PROJECT_ROOT/deploy/docker/.env"
     set +a
 fi
 
@@ -160,7 +296,7 @@ ${GREEN}NETTRADES.AI – Unified Setup Orchestrator${NC}
 ${YELLOW}USAGE:${NC}
     ./nettrades-setup.sh <PROFILE> [options]   (CLI mode)
     ./nettrades-setup.sh                       (Interactive wizard)
-    ./nettrades-setup.sh --help                Show this help.
+    ./nettrades-setup.sh --help                Show help.
 
 ${YELLOW}ENVIRONMENTS:${NC}
     --development   Development mode (no SSH hardening, firewall relaxed) [default]
@@ -181,6 +317,9 @@ ${YELLOW}PROFILES (CLI):${NC}
     monitoring  : Phase 5 (Prometheus & Grafana setup)
     modules     : Phase 4 (install/upgrade Odoo modules only)
     all         : Phase 0 + Phase 1 + Phase 2 + Phase 4 + Phase 5 (full deployment)
+    hub         : Full stack (Odoo + LangGraph + RPC master + Launcher) – Phase 0,1,2,4,5
+    sub-hub     : Same as hub but with SUB_HUB_MODE=true – Phase 0,1,2,4,5
+    spoke       : Lightweight spoke (requires --hub-host and --token) – delegates to install-spoke.sh
 
 ${YELLOW}OPTIONS (CLI):${NC}
     --force               Re-run phases even if already completed.
@@ -198,6 +337,9 @@ ${YELLOW}OPTIONS (CLI):${NC}
     --domain=DOMAIN       Set domain name for external access (enables HTTPS).
     --platform            Override platform detection (linux, macos, wsl).
     --validate-config     Validate all configuration files before deployment
+    --hub-host=IP         Required for the 'spoke' profile. The hub's LAN IP.
+    --token=TOKEN         Required for the 'spoke' profile. Registration token from the hub's Odoo.
+    --inference-capability=rpc_worker|rpc_master|dynamo_worker|local_only
 
 ${YELLOW}EXAMPLES:${NC}
     ./nettrades-setup.sh                        # Interactive wizard
@@ -299,12 +441,20 @@ run_interactive() {
 
     # --- Determine phases ---
     case "$PROFILE" in
-        dev) PHASES=(1) ;;
-        deploy) PHASES=(0 1 2) ;;
-        k8s) PHASES=(0 1 3) ;;
+        dev)       PHASES=(1) ;;
+        hub)       PHASES=(0 1 2 4 5 6) ;;
+        sub-hub)   PHASES=(0 1 2 4 5 6); export SUB_HUB_MODE=true ;;
+        spoke)     PHASES=(2) ;;  # phase-deploy dispatches to install-spoke.sh
+        deploy)    PHASES=(0 1 2) ;;
+        k8s)       PHASES=(0 1 3) ;;
         monitoring) PHASES=(5) ;;
-        modules) PHASES=(4) ;;
-        all) PHASES=(0 1 2 4 5) ;;
+        modules)   PHASES=(4) ;;
+        all)       PHASES=(0 1 2 4 5 6) ;;
+        *)
+            log_error "Unknown profile: $PROFILE"
+            show_help
+            exit 1
+            ;;
     esac
 
     # --- Confirm ---
@@ -349,12 +499,18 @@ install_gvisor() {
         return 0
     fi
 
+    # macOS uses Docker Desktop, which runs a Linux VM. gVisor cannot be installed natively on macOS.
+    if [ "$OS" == "macos" ]; then
+        log_info "macOS detected – skipping gVisor installation (Docker Desktop handles isolation)."
+        return 0
+    fi
+
     # ======================================================================
-    # Non-WSL2: proceed with installation
+    # Non-WSL2 / Non-macOS: proceed with installation
     # ======================================================================
 
     # Check if runsc is already installed and registered with Docker
-    if command -v runsc &>/dev/null && docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+    if command -v runsc &>/dev/null && $DOCKER_CMD info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
         log_success "gVisor already installed and configured."
         return 0
     fi
@@ -470,9 +626,10 @@ configure_docker_runsc() {
     local max_attempts=5
     local attempt=0
     while [ $attempt -lt $max_attempts ]; do
-        if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+        # Use DOCKER_CMD here to avoid permission issues if the user's shell hasn't updated its groups yet
+        if $DOCKER_CMD info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
             log_success "gVisor (runsc) is now registered as a Docker runtime."
-            docker run --rm --runtime=runsc hello-world &>/dev/null && \
+            $DOCKER_CMD run --rm --runtime=runsc hello-world &>/dev/null && \
                 log_success "Test succeeded." || \
                 log_warning "Test failed, but runtime is registered."
             return 0
@@ -484,7 +641,7 @@ configure_docker_runsc() {
 
     log_error "runsc runtime not registered after $max_attempts attempts."
     log_info "Please check manually:"
-    log_info "  docker info --format '{{json .Runtimes}}'"
+    log_info "  $DOCKER_CMD info --format '{{json .Runtimes}}'"
     log_info "  cat $DOCKER_CONFIG"
     return 1
 }
@@ -584,24 +741,6 @@ setup_dev_environment() {
     chmod +x "$PROJECT_ROOT"/scripts/lib/*.sh 2>/dev/null || true
     log_success "Scripts made executable"
 
-    # Fix line endings – only if not already done
-    if [[ ! -f "$PROJECT_ROOT/.line-endings-fixed" ]]; then
-        if [[ -f "$PROJECT_ROOT/scripts/fix-line-endings.sh" ]]; then
-            log_step "Fixing line endings (converting to LF)..."
-            bash "$PROJECT_ROOT/scripts/fix-line-endings.sh" --force 2>/dev/null || {
-                log_warning "fix-line-endings.sh failed – continuing anyway"
-            }
-            if [[ $? -eq 0 ]]; then
-                touch "$PROJECT_ROOT/.line-endings-fixed"
-                log_success "Line endings fixed – marker created"
-            fi
-        else
-            log_warning "fix-line-endings.sh not found – skipping line ending fix"
-        fi
-    else
-        log_info "Line endings already fixed – skipping"
-    fi
-
     # Install uv only if USE_UV is true
     if [[ "$USE_UV" == "true" ]]; then
         if ! install_uv; then
@@ -619,12 +758,13 @@ setup_dev_environment() {
     # =========================================================================
     # gVisor verification – skip on WSL2 using PLATFORM variable
     # =========================================================================
-    # PLATFORM is set in the main script and exported. Use it for reliable detection.
-    # =========================================================================
     if [ "$PLATFORM" = "wsl" ]; then
         log_info "WSL2 detected – skipping gVisor verification (using default runc runtime)."
+    elif [ "$OS" == "macos" ]; then
+        log_info "macOS detected – skipping gVisor verification."
     else
-        if docker info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
+        # Use DOCKER_CMD to ensure permission bypass works if the shell hasn't refreshed
+        if $DOCKER_CMD info --format '{{json .Runtimes}}' 2>/dev/null | grep -q runsc; then
             log_success "Docker runtime 'runsc' is available."
         else
             log_error "Docker runtime 'runsc' is NOT available. Please check /etc/docker/daemon.json"
@@ -708,7 +848,6 @@ setup_dev_environment() {
         exit 1
     fi
 
-    mark_phase_complete 1
 }
 
 # =============================================================================
@@ -743,6 +882,12 @@ while [[ $# -gt 0 ]]; do
             DOMAIN="${1#--domain=}"
             shift
             ;;
+        --hub-host=*)              export HUB_HOST="${1#*=}"; shift ;;
+        --hub-host)                export HUB_HOST="$2"; shift 2 ;;
+        --token=*)                 export TOKEN="${1#*=}"; shift ;;
+        --token)                   export TOKEN="$2"; shift 2 ;;
+        --inference-capability=*)  export INFERENCE_CAPABILITY="${1#*=}"; shift ;;
+        --inference-capability)    export INFERENCE_CAPABILITY="$2"; shift 2 ;;
         --help) show_help; exit 0 ;;
         -*)
             log_error "Unknown option: $1"
@@ -762,7 +907,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER WITH_CUVS DOMAIN VENV_DIR PER_USER
+if [[ "$REGENERATE_SECRETS" == "true" && "$FORCE" != "true" ]]; then
+    log_warning "--regenerate-secrets requires --force to take effect."
+    log_warning "Automatically enabling --force."
+    FORCE=true
+fi
+
+export ENVIRONMENT REGENERATE_SECRETS RESET_DATA WITH_FINETUNE WITH_GROVE \
+       WITH_KAI WITH_ROUTER WITH_CUVS DOMAIN VENV_DIR PER_USER \
+       HUB_HOST TOKEN INFERENCE_CAPABILITY SUB_HUB_MODE
 
 # Set PLATFORM for phase scripts (override if --platform given)
 if [[ -n "$PLATFORM_OVERRIDE" ]]; then
@@ -858,8 +1011,15 @@ check_dependencies() {
         done
         if [[ ${#missing[@]} -gt 0 ]]; then
             log_warning "Missing system packages: ${missing[*]}"
-            log_info "Install with: sudo apt-get install -y ${missing[*]}"
-            if [[ "$AUTO" != true ]]; then
+            if [[ "$AUTO" == true ]]; then
+                log_info "Auto mode: Automatically installing missing packages..."
+                sudo apt-get update -qq
+                sudo apt-get install -y "${missing[@]}" || {
+                    log_error "Failed to install missing packages. Please install manually."
+                    exit 1
+                }
+            else
+                log_info "Install with: sudo apt-get install -y ${missing[*]}"
                 read -rp "Continue anyway? (y/N): " cont
                 [[ ! "$cont" =~ ^[Yy]$ ]] && exit 1
             fi
@@ -947,6 +1107,40 @@ check_dependencies() {
 }
 
 # =============================================================================
+# For the NETTRADES Networking Service
+# =============================================================================
+
+# Part of the code for the NETTRADES Networking Service, a Go-based Windows service using the official 
+# Go extended standard library golang.org/x/sys/windows/svc for NETTRADES WSL Port Forwarding
+# Launcher's NSIS installer registers the service during installation. The deployment scripts call 
+# phase-windows-service.sh
+
+# The problem it solves:
+# WSL2 is running in NAT mode. The WSL distro has a different IP address on a private virtual 
+# subnet that only the Windows host can route to. The Windows host's vEthernet (WSL) adapter 
+# is the only thing that can reach WSL. Other machines cannot reach it — that is why ping works. 
+# (Other machines can reach the Windows host via ICMP at the Ethernet layer, but the TCP 
+# connection to WSL from the other machines is impossible.
+# Also after WSL restarts (e.g., after wsl --shutdown) it changes the WSL IP
+
+# Windows 10 does not support mirrored networking
+# networkingMode=mirrored — the single-line fix that makes WSL2 share the Windows 
+# host's IP — is only available on Windows 11 22H2 and later. 
+# It does not exist on Windows 10.  On Windows 10, WSL2 is locked into NAT mode.
+
+# Post-setup: Register Windows service (if on WSL)
+if [[ "$PLATFORM" == "wsl" ]] && [[ -f "$SCRIPT_DIR/phase-windows-service.sh" ]]; then
+    log_header "Registering Windows networking service"
+    if bash "$SCRIPT_DIR/phase-windows-service.sh"; then
+        log_success "NETTRADES Networking Service registered"
+    else
+        log_warning "Windows service registration failed"
+        log_info "Run manually: ./scripts/phase-windows-service.sh"
+    fi
+fi
+
+
+# =============================================================================
 # Main execution
 # =============================================================================
 
@@ -969,20 +1163,30 @@ if [[ -n "$PHASES_LIST" ]]; then
     IFS=',' read -ra PHASES <<< "$PHASES_LIST"
 elif [[ -n "$PROFILE" ]]; then
     case "$PROFILE" in
-        dev) PHASES=(1) ;;
-        deploy) PHASES=(0 1 2) ;;
-        k8s) PHASES=(0 1 3) ;;
+        dev)       PHASES=(1) ;;
+        hub)       PHASES=(0 1 2 4 5 6) ;;
+        sub-hub)   PHASES=(0 1 2 4 5 6); export SUB_HUB_MODE=true ;;
+        spoke)     PHASES=(2) ;;  # phase-deploy dispatches to install-spoke.sh
+        deploy)    PHASES=(0 1 2) ;;
+        k8s)       PHASES=(0 1 3) ;;
         monitoring) PHASES=(5) ;;
-        modules) PHASES=(4) ;;
-        all) PHASES=(0 1 2 4 5) ;;
+        modules)   PHASES=(4) ;;
+        all)       PHASES=(0 1 2 4 5 6) ;;
         *)
             log_error "Unknown profile: $PROFILE"
             show_help
             exit 1
             ;;
     esac
+
 else
     log_error "No phases defined."
+    exit 1
+fi
+
+if [[ "$PROFILE" == "spoke" ]] && { [[ -z "${HUB_HOST:-}" ]] || [[ -z "${TOKEN:-}" ]]; }; then
+    log_error "The 'spoke' profile requires --hub-host and --token."
+    log_info "Example: ./nettrades-setup.sh spoke --hub-host=192.168.1.10 --token=abc123"
     exit 1
 fi
 
@@ -1086,6 +1290,10 @@ for phase in "${PHASES[@]}"; do
             export VENV_DIR
             bash "$SCRIPT_DIR/phase-monitoring.sh"
             ;;
+        6)
+            log_header "Phase 6 — Inference Backend Deployment"
+            bash "$SCRIPT_DIR/phase-inference.sh"
+            ;;
         *)
             log_error "Invalid phase: $phase"
             exit 1
@@ -1094,82 +1302,19 @@ for phase in "${PHASES[@]}"; do
 done
 
 
-# =============================================================================
-# DETECTION MODE FUNCTION
-# =============================================================================
-
-detect_and_deploy() {
-    log_header "NETTRADES Environment Detection"
-    
-    # Check if running as root (hub mode often requires root)
-    local is_root=false
-    if [[ $EUID -eq 0 ]]; then
-        is_root=true
-    fi
-    
-    # Check for existing Odoo
-    local has_odoo=false
-    if command -v odoo &>/dev/null || ps aux | grep -v grep | grep -q "odoo"; then
-        has_odoo=true
-        log_info "Odoo detected on this machine"
-    fi
-    
-    # Check for sub-hub on network
-    local has_sub_hub=false
-    if command -v avahi-browse &>/dev/null; then
-        if avahi-browse -t _nettrades._tcp -r 2>/dev/null | grep -q "NETTRADES"; then
-            has_sub_hub=true
-            log_info "NETTRADES sub-hub detected on network"
-        fi
-    fi
-    
-    # Determine mode
-    if [[ "$has_sub_hub" == true ]]; then
-        log_info "Sub-hub exists on network. Installing as SPOKE."
-        export DEPLOYMENT_MODE="spoke"
-    elif [[ "$has_odoo" == true ]]; then
-        log_info "Odoo exists locally. Installing as ADDON."
-        export DEPLOYMENT_MODE="addon"
+# -----------------------------------------------------------------------------
+# Post-setup: if this machine is a hub, configure it to accept spokes
+# -----------------------------------------------------------------------------
+if [[ "${PHASES[*]}" =~ "2" ]] && [[ ! "${PHASES[*]}" =~ "6" ]] && \
+   [[ -f "$SCRIPT_DIR/configure-hub-for-spokes.sh" ]]; then
+    log_header "Configuring hub for spoke registration"
+    if bash "$SCRIPT_DIR/configure-hub-for-spokes.sh"; then
+        log_success "Hub is ready to accept spoke registrations"
     else
-        log_info "No Odoo or sub-hub found. Installing as HUB."
-        export DEPLOYMENT_MODE="hub"
+        log_warning "Hub spoke-configuration step failed or was skipped"
+        log_info "You can run it manually: ./scripts/configure-hub-for-spokes.sh"
     fi
-    
-    # Run the appropriate deployment
-    case "$DEPLOYMENT_MODE" in
-        hub)
-            log_header "Deploying as HUB (Full Stack)"
-            bash "$SCRIPT_DIR/phase-deploy.sh"
-            ;;
-        spoke)
-            log_header "Deploying as SPOKE (Lightweight)"
-            bash "$SCRIPT_DIR/phase-deploy.sh" --spoke
-            ;;
-        addon)
-            log_header "Deploying as ADDON (Existing Odoo)"
-            bash "$SCRIPT_DIR/phase-deploy.sh" --addon
-            ;;
-    esac
-}
-
-
-echo ""
-log_header "Setup Complete!"
-echo ""
-echo "Next steps:"
-echo " 1. Configure fairness settings: Settings → Technical → Fairness → Global Configuration"
-echo " 2. Configure GPU marketplace settings: Settings → GPU → Marketplace"
-echo " 3. Set up WireGuard peers for secure communication"
-if [[ -n "$DOMAIN" ]]; then
-    echo " 4. Access your platform at https://$DOMAIN"
-else
-    echo " 4. Access your platform at https://your-domain"
 fi
-if [[ "$ENVIRONMENT" == "development" ]]; then
-    echo " 5. Development mode: SSH password auth is still enabled on port 22."
-else
-    echo " 5. Production mode: SSH is key-only on port 22. Use port 2222 for password auth."
-fi
-echo ""
+
 echo "To activate the Python virtual environment manually:"
 echo "  source $VENV_DIR/bin/activate"

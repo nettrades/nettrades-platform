@@ -37,6 +37,13 @@
 #     * If Odoo is running in a Docker container, treat as HUB (not ADDON).
 #   - All original deployment steps preserved for HUB mode.
 # =============================================================================
+#
+# SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-NETTRADES-Commercial
+# Copyright (c) 2026 NETTRADES LIMITED (UK Company No. 08160657). Patent Pending. All rights reserved.
+# Licensed under LICENSE.txt (BUSL-1.1 -> Open RAIL-S) and strictly conditioned
+# upon compliance with ETHICAL-STATEMENT.md. See also LEGAL/IP-AND-PATENTS.md.
+# THE FUTURE OF WORK is a registered trade mark in the United Kingdom (No. UK00004257743) of NETTRADES LIMITED.
+# Distributed WITHOUT ANY WARRANTY.
 
 set -euo pipefail
 
@@ -47,6 +54,29 @@ AUTO="${AUTO:-false}"
 FORCE="${FORCE:-false}"
 UPGRADE="${UPGRADE:-false}"
 ENVIRONMENT="${ENVIRONMENT:-development}"
+
+# -----------------------------------------------------------------------------
+# Parse command-line flags
+# -----------------------------------------------------------------------------
+# The environment variables above are the source of truth for callers that
+# set them explicitly (e.g. `FORCE=true ./phase-deploy.sh`). But the more
+# natural form for an operator is `./phase-deploy.sh --force --auto`.
+# Without this block, the flags were silently ignored: FORCE stayed false,
+# and the phase_completed check short-circuited on a stale phase marker
+# even though the operator asked for --force. Diagnosed 2026-11-16.
+#
+# Precedence: argv overrides env. If both set FORCE, FORCE=true.
+# -----------------------------------------------------------------------------
+for _arg in "$@"; do
+    case "$_arg" in
+        --force)   FORCE=true ;;
+        --auto)    AUTO=true ;;
+        --upgrade) UPGRADE=true ;;
+    esac
+done
+unset _arg
+export FORCE AUTO UPGRADE
+
 REGENERATE_SECRETS="${REGENERATE_SECRETS:-false}"
 RESET_DATA="${RESET_DATA:-false}"
 WITH_CUVS="${WITH_CUVS:-false}"
@@ -56,6 +86,9 @@ WITH_KAI="${WITH_KAI:-false}"
 WITH_ROUTER="${WITH_ROUTER:-false}"
 DOMAIN="${DOMAIN:-}"
 export FORCE WITH_CUVS WITH_FINETUNE WITH_GROVE WITH_KAI WITH_ROUTER DOMAIN
+
+WITH_WINDOWS_LAUNCHER="${WITH_WINDOWS_LAUNCHER:-false}"
+export WITH_WINDOWS_LAUNCHER
 
 # -----------------------------------------------------------------------------
 # Network setup (needed for both hub and spoke)
@@ -175,9 +208,12 @@ detect_environment() {
     if [[ "$DETECTION_MODE" == "hub" ]] || [[ "$is_hub" == true ]]; then
         DEPLOYMENT_MODE="hub"
         log_success "Deployment mode: HUB"
-    elif [[ "$DETECTION_MODE" == "spoke" ]]; then
+    elif [[ "$DETECTION_MODE" == "sub-hub" ]] || [[ "${SUB_HUB_MODE:-false}" == "true" ]]; then
+        DEPLOYMENT_MODE="sub-hub"
+        log_success "Deployment mode: SUB-HUB"
+    elif [[ "$DETECTION_MODE" == "spoke" ]] || [[ -n "${HUB_HOST:-}" ]]; then
         DEPLOYMENT_MODE="spoke"
-        log_success "Deployment mode: SPOKE (forced)"
+        log_success "Deployment mode: SPOKE"
     elif [[ "$sub_hub_found" == true ]]; then
         DEPLOYMENT_MODE="spoke"
         log_success "Deployment mode: SPOKE (sub-hub found on network)"
@@ -209,70 +245,18 @@ detect_environment
 if [[ "$DEPLOYMENT_MODE" == "spoke" ]]; then
     log_header "SPOKE Deployment - Lightweight Node"
 
-    # Find the sub-hub
-    SUB_HUB_IP=""
-    if command -v avahi-browse &>/dev/null; then
-        SUB_HUB_IP=$(avahi-browse -t _nettrades._tcp -r 2>/dev/null | grep -oP '(\d+\.\d+\.\d+\.\d+)' | head -1)
-    fi
-
-    if [[ -z "$SUB_HUB_IP" ]]; then
-        log_warning "Could not auto-detect sub-hub. Please specify SUB_HUB_IP in .env"
-        SUB_HUB_IP="${SUB_HUB_IP:-}"
-    fi
-
-    if [[ -z "$SUB_HUB_IP" ]]; then
-        log_error "No sub-hub IP found. Please set SUB_HUB_IP in .env or run as hub."
+    if [[ -z "${HUB_HOST:-}" ]] || [[ -z "${TOKEN:-}" ]]; then
+        log_error "Spoke mode requires --hub-host and --token."
+        log_info "Usage: ./scripts/nettrades-setup.sh spoke --hub-host=<IP> --token=<TOKEN>"
         exit 1
     fi
 
-    log_info "Sub-hub IP: $SUB_HUB_IP"
-
-    # Install spoke agent
-    log_step "Installing spoke agent..."
-
-    # Create spoke configuration
-    mkdir -p "$PROJECT_ROOT/spoke"
-    cat > "$PROJECT_ROOT/spoke/config.yaml" << EOF
-# NETTRADES Spoke Configuration
-sub_hub_url: http://${SUB_HUB_IP}:8080
-node_name: $(hostname)
-gpu_model: $(lspci | grep -i nvidia | head -1 | cut -d: -f3 | xargs || echo "unknown")
-vram_gb: $(nvidia-smi --query-gpu=memory.total --format=csv,noheader 2>/dev/null | head -1 | cut -d' ' -f1 || echo "0")
-heartbeat_interval: 10
-inference_engine: llama.cpp
-EOF
-
-    # Install spoke agent service
-    sudo cp "$PROJECT_ROOT/scripts/spoke-agent.py" /usr/local/bin/spoke-agent
-    sudo chmod +x /usr/local/bin/spoke-agent
-
-    # Create systemd service
-    sudo cat > /etc/systemd/system/nettrades-spoke.service << EOF
-[Unit]
-Description=NETTRADES Spoke Agent
-After=network.target docker.service
-Wants=docker.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$PROJECT_ROOT/spoke
-ExecStart=/usr/local/bin/spoke-agent --config $PROJECT_ROOT/spoke/config.yaml
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    sudo systemctl daemon-reload
-    sudo systemctl enable nettrades-spoke.service
-    sudo systemctl start nettrades-spoke.service
-
-    log_success "Spoke agent installed and started"
-
-    log_success "Spoke deployment completed"
-    exit 0
+    log_info "Delegating to install-spoke.sh..."
+    exec bash "$SCRIPT_DIR/install-spoke.sh" \
+        --hub-host="$HUB_HOST" \
+        --token="$TOKEN" \
+        --inference-capability="${INFERENCE_CAPABILITY:-rpc_worker}" \
+        --no-wireguard
 fi
 
 # -----------------------------------------------------------------------------
@@ -474,25 +458,34 @@ if [[ "$DEPLOYMENT_MODE" == "hub" ]]; then
         local domain="${DOMAIN:-}"
         local acme_file="$DEPLOY_DIR/traefik-data/acme.json"
 
-        if ! declare -f is_valid_domain_or_ip >/dev/null 2>&1; then
-            echo "ERROR: is_valid_domain_or_ip function not found" >&2
-            exit 1
-        fi
-
-        if [[ -z "$domain" || "$domain" == "changeit" || "$domain" == "localhost" || "$domain" == "nettrades.ai" ]] || ! is_valid_domain_or_ip "$domain"; then
-            log_info "DOMAIN not configured or using default. Auto-detecting..."
-            local public_ip=$(curl -s ifconfig.me 2>/dev/null || echo "")
-            if [[ -n "$public_ip" ]]; then
-                DOMAIN="$public_ip"
-                log_info "Using detected public IP: $DOMAIN"
-            else
-                DOMAIN="localhost"
-                log_info "Could not detect public IP. Using localhost."
+        # If DOMAIN is already set and valid, use it — do NOT auto-detect.
+        if [[ -n "$domain" && "$domain" != "changeit" && "$domain" != "localhost" && "$domain" != "nettrades.ai" ]]; then
+            if is_valid_domain_or_ip "$domain"; then
+                log_info "Using existing DOMAIN from .env: $domain"
+                if [[ "$domain" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$domain" == "localhost" ]]; then
+                    log_warning "DOMAIN is an IP or localhost. Let's Encrypt cannot issue certificates."
+                    USE_LETSENCRYPT=false
+                else
+                    USE_LETSENCRYPT=true
+                fi
+                export DOMAIN USE_LETSENCRYPT
+                return
             fi
-            safe_sed_replace "$ENV_FILE" "DOMAIN" "$DOMAIN"
-            log_success "DOMAIN set to: $DOMAIN"
         fi
 
+        # Only auto-detect if DOMAIN is empty or still a placeholder
+        log_info "DOMAIN not configured or using default. Auto-detecting..."
+        local public_ip=$(curl -s ifconfig.me 2>/dev/null || echo "")
+        if [[ -n "$public_ip" ]]; then
+            DOMAIN="$public_ip"
+            log_info "Using detected public IP: $DOMAIN"
+        else
+            DOMAIN="localhost"
+            log_info "Could not detect public IP. Using localhost."
+        fi
+        safe_sed_replace "$ENV_FILE" "DOMAIN" "$DOMAIN"
+        log_success "DOMAIN set to: $DOMAIN"
+        
         if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$DOMAIN" == "localhost" ]]; then
             log_warning "DOMAIN is an IP or localhost. Let's Encrypt cannot issue certificates."
             log_info "Using self-signed certificate. Your browser will show a warning."
@@ -527,6 +520,20 @@ if [[ "$DEPLOYMENT_MODE" == "hub" ]]; then
         mkdir -p "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
         if bash "$SCRIPT_DIR/download-model.sh" --model "${MODEL_NAME:-deepseek-7b}" --format hf --dir "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}"; then
             log_success "HF model downloaded to $MODELS_DIR/${MODEL_NAME:-deepseek-7b}"
+
+            # 2026-10-23: Resolve Git LFS pointers to real weights.
+            # HuggingFace and ModelScope often serve .safetensors files
+            # as 135-byte LFS pointers on a plain git clone. Without
+            # `git lfs pull`, vLLM fails at load time with a size
+            # mismatch error that is very hard to diagnose.
+            if [[ -d "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}/.git" ]]; then
+                log_info "Resolving Git LFS objects for HF model..."
+                ( cd "$MODELS_DIR/${MODEL_NAME:-deepseek-7b}" \
+                  && git lfs install >/dev/null 2>&1 \
+                  && git lfs pull ) \
+                    && log_success "Git LFS pull complete" \
+                    || log_warning "git lfs pull failed — model may be incomplete"
+            fi
         else
             log_warning "HF model download failed. Dynamo worker will not start."
         fi
@@ -622,6 +629,38 @@ if [[ "$DEPLOYMENT_MODE" == "hub" ]]; then
     mkdir -p "$DYNAMO_DATA_DIR" "$MODELS_DIR" "$LOGS_DIR" "$ODOO_DATA_DIR"
     mkdir -p "redirector/landing-page"
 
+    # Ensure rpc.env exists BEFORE docker compose up. If this file is
+    # missing, Docker creates it as a directory when binding the mount
+    # into the master container, which breaks the RPC track and leaves a
+    # stale directory behind after `docker compose down`. The file is
+    # written with safe defaults: no backends, no split, master runs
+    # single-node. The scheduler overwrites it the first time a cluster
+    # is launched.
+    RPC_ENV_FILE="$DEPLOY_DIR/rpc.env"
+    if [[ ! -f "$RPC_ENV_FILE" ]]; then
+        log_info "Creating default rpc.env (RPC_BACKENDS empty)"
+        cat > "$RPC_ENV_FILE" << 'RPC_ENV_EOF'
+# =============================================================================
+# llama.cpp RPC pipeline configuration
+# =============================================================================
+# This file is written by src/core/rpc_scheduler.py whenever the RPC
+# cluster topology changes. Do not edit it manually — the scheduler
+# will overwrite your changes on the next launch_cluster() or
+# restart_without_node() call.
+#
+# The master container reads this file at startup. When RPC_BACKENDS
+# is empty, the master runs single-node (no distributed offload).
+# =============================================================================
+RPC_BACKENDS=
+RPC_SPLIT=
+RPC_MASTER_MODEL=/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf
+RPC_N_GPU_LAYERS=0
+RPC_ENV_EOF
+        log_success "rpc.env created with safe defaults"
+    else
+        log_info "rpc.env already exists — preserving operator configuration"
+    fi
+
     if [[ ! -f "redirector/landing-page/index.html" ]]; then
         cat > "redirector/landing-page/index.html" << 'EOF'
 <!DOCTYPE html>
@@ -682,48 +721,54 @@ EOF
     fi
 
     # =============================================================================
-    # EARLY: Download GGUF model for llama.cpp fallback from ModelScope mirror
+    # EARLY: Download GGUF model for llama.cpp fallback
     # =============================================================================
     if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
-        log_step "Downloading GGUF model for llama.cpp fallback from ModelScope mirror..."
+        log_step "Downloading GGUF model for llama.cpp..."
         mkdir -p "$MODELS_DIR"
-        if bash "$SCRIPT_DIR/download-model.sh" --model deepseek-7b --format gguf --dir "$MODELS_DIR"; then
+        
+        # 1. Use dynamic MODEL_NAME
+        if bash "$SCRIPT_DIR/download-model.sh" --model "${MODEL_NAME:-deepseek-7b}" --format gguf --dir "$MODELS_DIR"; then
             log_success "GGUF model downloaded successfully to $MODELS_DIR"
         else
-            log_warning "GGUF model download failed. Trying alternative source..."
-            MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
-            if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf" --progress=dot:giga; then
-                log_success "GGUF model downloaded via fallback to $MODEL_FILE"
-            else
-                log_warning "GGUF model download failed. You may need to manually place a model in $MODELS_DIR."
-            fi
+            log_warning "GGUF model download failed. Please check your network or download manually."
         fi
 
-        MODEL_FILE="$MODELS_DIR/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+        # 2. Use dynamic MODEL_FILE
+        MODEL_FILE="$MODELS_DIR/${MODEL_FILE:-Fanar-1-9B-Instruct.Q4_K_M.gguf}"
+        
         if [[ -f "$MODEL_FILE" ]]; then
             FILE_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
             if [[ "$FILE_SIZE" -lt 1000000000 ]]; then
                 log_warning "Model file exists but is too small ($FILE_SIZE bytes). It may be corrupted."
-                log_info "Attempting to re-download the model..."
-                rm -f "$MODEL_FILE"
-                if wget -O "$MODEL_FILE" "https://www.modelscope.cn/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/master/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf" --progress=dot:giga; then
-                    NEW_SIZE=$(stat -c%s "$MODEL_FILE" 2>/dev/null || echo 0)
-                    if [[ "$NEW_SIZE" -gt 1000000000 ]]; then
-                        log_success "Model re-downloaded successfully ($NEW_SIZE bytes)"
-                    else
-                        log_error "Re-downloaded file still too small. Please check the URL and disk space."
-                    fi
-                else
-                    log_error "Re-download failed. llama.cpp will not start."
-                fi
+                log_info "Please delete $MODEL_FILE and re-run the deployment."
             else
                 log_success "Model file validated: $MODEL_FILE ($FILE_SIZE bytes)"
             fi
         else
-            log_warning "Model file not found at $MODEL_FILE. llama.cpp will fail to start."
+            log_warning "Model file not found at $MODEL_FILE. llama.cpp will not start."
         fi
     else
         log_warning "download-model.sh not found – skipping llama.cpp model download"
+    fi
+
+    # =============================================================================
+    # EARLY: Download Audar-ASR-V1-Flash for the llama-asr service.
+    # =============================================================================
+    # Two files are needed: the decoder GGUF and the audio projector (mmproj).
+    # Both land in $MODELS_DIR/audar-asr/. The llama-asr service mounts the
+    # same dynamo-data/models volume as llama-cpp, so it reads them in place.
+    if [[ -f "$SCRIPT_DIR/download-model.sh" ]]; then
+        log_step "Downloading Audar-ASR-V1-Flash (ASR model + projector)..."
+        if bash "$SCRIPT_DIR/download-model.sh" \
+             --model audar-asr \
+             --format gguf \
+             --dir "$MODELS_DIR"; then
+            log_success "Audar-ASR-V1-Flash downloaded to $MODELS_DIR/audar-asr"
+        else
+            log_warning "Audar-ASR-V1-Flash download failed — ASR will be disabled."
+            log_warning "Fallback: set ASR_MODEL=qwen3-asr-0.6b in .env and re-run."
+        fi
     fi
 
     # -----------------------------------------------------------------------------
@@ -798,333 +843,20 @@ EOF
     if [[ ! -f "$INIT_SQL" ]] || [[ "$FORCE" == true ]]; then
         cat > "$INIT_SQL" << 'EOF'
 -- =============================================================================
--- NETTRADES Database Initialisation Script
+-- NETTRADES Database Initialisation (odoo database)
 -- =============================================================================
--- This script creates all required PostgreSQL tables for the NETTRADES platform.
--- It is idempotent – tables are created only if they do not already exist.
+-- Extensions only, per ADR-001. Business entities are created by the
+-- Odoo ORM; operational state lives in nettrades_infra; LangGraph
+-- checkpoints live in `checkpoints`.
 -- =============================================================================
-
--- Enable pgcrypto for password hashing (used by Odoo emergency user)
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- Enable pgvector extension for AI embeddings
 CREATE EXTENSION IF NOT EXISTS vector;
-
--- =============================================================================
--- Core Platform Tables
--- =============================================================================
-
--- nettrades_core – Core platform tables
-CREATE TABLE IF NOT EXISTS nettrades_users (
-    id SERIAL PRIMARY KEY,
-    odoo_user_id INTEGER UNIQUE,
-    username VARCHAR(64) UNIQUE NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    wallet_address VARCHAR(42),
-    karma_score INTEGER DEFAULT 0,
-    reputation_score DECIMAL(5,2) DEFAULT 0,
-    is_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS nettrades_companies (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    website VARCHAR(255),
-    industry VARCHAR(100),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS nettrades_projects (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES nettrades_companies(id),
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    budget DECIMAL(15,2),
-    status VARCHAR(50) DEFAULT 'open',
-    required_skills TEXT[],
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Good Answer / Self-Improving AI
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_good_answers (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES nettrades_users(id),
-    question TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    model_used VARCHAR(100),
-    votes_positive INTEGER DEFAULT 0,
-    votes_negative INTEGER DEFAULT 0,
-    is_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS nettrades_votes (
-    id SERIAL PRIMARY KEY,
-    answer_id INTEGER REFERENCES nettrades_good_answers(id),
-    user_id INTEGER REFERENCES nettrades_users(id),
-    vote_type VARCHAR(10) CHECK (vote_type IN ('positive', 'negative')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(answer_id, user_id)
-);
-
--- =============================================================================
--- Ask Someone – Expert Marketplace
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_ask_someone_requests (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES nettrades_users(id),
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    budget DECIMAL(15,2),
-    category VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'open',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS nettrades_ask_someone_offers (
-    id SERIAL PRIMARY KEY,
-    request_id INTEGER REFERENCES nettrades_ask_someone_requests(id),
-    expert_id INTEGER REFERENCES nettrades_users(id),
-    price DECIMAL(15,2),
-    proposal TEXT,
-    status VARCHAR(50) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- GPU Marketplace
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_gpu_nodes (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    gpu_model VARCHAR(100),
-    vram_gb INTEGER,
-    compute_capability VARCHAR(20),
-    ip_address VARCHAR(45),
-    port INTEGER,
-    status VARCHAR(50) DEFAULT 'available',
-    owner_id INTEGER REFERENCES nettrades_users(id),
-    price_per_hour DECIMAL(10,4),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS nettrades_gpu_bookings (
-    id SERIAL PRIMARY KEY,
-    node_id INTEGER REFERENCES nettrades_gpu_nodes(id),
-    user_id INTEGER REFERENCES nettrades_users(id),
-    start_time TIMESTAMP NOT NULL,
-    end_time TIMESTAMP NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending',
-    total_cost DECIMAL(15,2),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS nettrades_gpu_usage_logs (
-    id SERIAL PRIMARY KEY,
-    booking_id INTEGER REFERENCES nettrades_gpu_bookings(id),
-    node_id INTEGER REFERENCES nettrades_gpu_nodes(id),
-    usage_type VARCHAR(50),
-    duration_seconds INTEGER,
-    tokens_used INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Bridge / Hub-and-Spoke Routing
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_bridge_routes (
-    id SERIAL PRIMARY KEY,
-    source_node VARCHAR(255),
-    target_node VARCHAR(255),
-    route_type VARCHAR(50),
-    config JSONB,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Job Matching & Proposals
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_job_matches (
-    id SERIAL PRIMARY KEY,
-    project_id INTEGER REFERENCES nettrades_projects(id),
-    freelancer_id INTEGER REFERENCES nettrades_users(id),
-    match_score DECIMAL(5,2),
-    status VARCHAR(50) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS nettrades_proposals (
-    id SERIAL PRIMARY KEY,
-    project_id INTEGER REFERENCES nettrades_projects(id),
-    freelancer_id INTEGER REFERENCES nettrades_users(id),
-    cover_letter TEXT,
-    bid_amount DECIMAL(15,2),
-    status VARCHAR(50) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Fairness & Reputation
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_fairness_scores (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES nettrades_users(id),
-    fairness_score DECIMAL(5,2) DEFAULT 0,
-    trust_score DECIMAL(5,2) DEFAULT 0,
-    last_calculated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Notifications
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_notifications (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES nettrades_users(id),
-    type VARCHAR(50),
-    title VARCHAR(255),
-    message TEXT,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Research Module
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_research_projects (
-    id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    researcher_id INTEGER REFERENCES nettrades_users(id),
-    status VARCHAR(50) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Queue / Task Management
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_queue_tasks (
-    id SERIAL PRIMARY KEY,
-    task_type VARCHAR(100),
-    payload JSONB,
-    status VARCHAR(50) DEFAULT 'pending',
-    priority INTEGER DEFAULT 0,
-    retry_count INTEGER DEFAULT 0,
-    scheduled_at TIMESTAMP,
-    executed_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Self-Improving Config
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_self_improving_config (
-    id SERIAL PRIMARY KEY,
-    key VARCHAR(255) UNIQUE NOT NULL,
-    value JSONB,
-    description TEXT,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Lead Scoring
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_leads (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES nettrades_companies(id),
-    score INTEGER DEFAULT 0,
-    status VARCHAR(50) DEFAULT 'new',
-    source VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Chatbot
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_chatbot_conversations (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES nettrades_users(id),
-    session_id VARCHAR(255),
-    messages JSONB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- PWA / Offline
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_pwa_cache (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES nettrades_users(id),
-    cache_key VARCHAR(255),
-    cache_data JSONB,
-    expires_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================================================
--- Create secrets table with pgcrypto encryption
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_secrets (
-    id SERIAL PRIMARY KEY,
-    key VARCHAR(255) UNIQUE NOT NULL,
-    value BYTEA NOT NULL,
-    description TEXT,
-    created_by VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    version INTEGER DEFAULT 1
-);
-
--- =============================================================================
--- Create an audit log
--- =============================================================================
-CREATE TABLE IF NOT EXISTS nettrades_secrets_audit (
-    id SERIAL PRIMARY KEY,
-    secret_key VARCHAR(255),
-    action VARCHAR(50),
-    performed_by VARCHAR(255),
-    performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
--- =============================================================================
--- Indexes for Performance
--- =============================================================================
-CREATE INDEX IF NOT EXISTS idx_good_answers_user_id ON nettrades_good_answers(user_id);
-CREATE INDEX IF NOT EXISTS idx_gpu_nodes_status ON nettrades_gpu_nodes(status);
-CREATE INDEX IF NOT EXISTS idx_gpu_bookings_user_id ON nettrades_gpu_bookings(user_id);
-CREATE INDEX IF NOT EXISTS idx_job_matches_project_id ON nettrades_job_matches(project_id);
-CREATE INDEX IF NOT EXISTS idx_proposals_project_id ON nettrades_proposals(project_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON nettrades_notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_queue_tasks_status ON nettrades_queue_tasks(status);
-
 EOF
-        log_success "init-db.sql generated with all NETTRADES tables"
+        log_success "init-db.sql generated (extensions only, per ADR-001)"
     else
         log_success "init-db.sql already exists"
     fi
+
 
     # -----------------------------------------------------------------------------
     # Run security hardening (if Phase 0 not completed)
@@ -1224,7 +956,19 @@ EOF
         ODOO_API_KEY
         PROXY_API_KEY
         NETTRADES_SERVICE_PASSWORD
+        SESSION_SECRET
     )
+
+    # If .env exists as a directory (Docker Compose creates this when a
+    # bind-mount source file is missing), remove it so we can create the
+    # real file. This is the fix for the "cp: cannot create regular file
+    # '.../.env/.env.example': Permission denied" error.
+
+    if [[ -d "$ENV_FILE" ]]; then
+        log_error ".env is a directory. Run phase-env.sh first or remove it manually:"
+        log_info "  rm -rf $ENV_FILE"
+        exit 1
+    fi
 
     if [[ ! -f "$ENV_FILE" ]] || [[ "$REGENERATE_SECRETS" == true ]]; then
         if [[ "$REGENERATE_SECRETS" == true ]]; then
@@ -1475,6 +1219,17 @@ EOF
 
     enable_pgcrypto || true
 
+    # Phase 1a — apply the operational-state schema (ADR-002, ADR-003).
+    # Creates `nettrades_infra` and `checkpoints` if missing, applies
+    # init-infra.sql to the former. Idempotent — safe on every deploy.
+    log_step "Applying Phase 1a database schema..."
+    if [[ -f "$SCRIPT_DIR/migrate-phase1-databases.sh" ]]; then
+        bash "$SCRIPT_DIR/migrate-phase1-databases.sh" || \
+            log_warning "Phase 1a migration failed — the stack will run, " \
+                        "but operational state stays in the Odoo database."
+    else
+        log_warning "migrate-phase1-databases.sh not found — skipping Phase 1a."
+    fi
 
     # -----------------------------------------------------------------------------
     # Build and start the full Docker Compose stack (with retry)
@@ -1736,10 +1491,44 @@ EOF
         fi
     fi
 
+    # -----------------------------------------------------------------------------
+    # Update .env with inference backend settings — PRESERVING operator overrides.
+    # -----------------------------------------------------------------------------
+    # 2026-10-22: The previous version unconditionally overwrote LLM_BASE_URL
+    # with either 'http://dynamo:8000/v1' or 'http://llama-cpp:8080/v1'.
+    # That is fine for a fresh install, but for an operator who has set
+    # 'http://192.168.1.212:8001/v1' to point at their real vLLM, the
+    # overwrite silently kills the setup on the next re-run.
+    #
+    # We now distinguish between installer-owned values (safe to overwrite)
+    # and operator-owned values (leave alone). The installer-owned values
+    # are exactly the two strings this script itself would produce.
+    # -----------------------------------------------------------------------------
     log_step "Updating .env with inference backend settings..."
-    safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
-    safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
-    log_success ".env updated"
+    _CURRENT_LLM_BASE_URL="$(grep -E '^LLM_BASE_URL=' "$ENV_FILE" 2>/dev/null \
+        | tail -1 | cut -d= -f2- | tr -d '\r' | tr -d "'" || true)"
+
+    case "$_CURRENT_LLM_BASE_URL" in
+        ""|http://dynamo:8000/v1|http://llama-cpp:8080/v1|changeit)
+            # Installer-owned (or missing). Safe to overwrite.
+            if [[ "$DYNAMO_HEALTHY" == true ]]; then
+                LLM_BASE_URL="http://dynamo:8000/v1"
+                OPENAI_API_KEY="$DYNAMO_API_KEY"
+            else
+                LLM_BASE_URL="http://llama-cpp:8080/v1"
+                OPENAI_API_KEY="dummy"
+            fi
+            safe_sed_replace "$ENV_FILE" "LLM_BASE_URL" "$LLM_BASE_URL"
+            safe_sed_replace "$ENV_FILE" "OPENAI_API_KEY" "$OPENAI_API_KEY"
+            log_success ".env updated with installer-chosen inference backend: $LLM_BASE_URL"
+            ;;
+        *)
+            # Operator-owned. Do NOT overwrite.
+            LLM_BASE_URL="$_CURRENT_LLM_BASE_URL"
+            log_info "Preserving operator-set LLM_BASE_URL=$LLM_BASE_URL"
+            log_info "To reset to the installer default, remove LLM_BASE_URL from $ENV_FILE"
+            ;;
+    esac
 
     log_step "Restarting LangGraph..."
     if ! timeout 120s docker compose restart langgraph-server; then
@@ -1782,16 +1571,6 @@ EOF
         SERVICE_API_KEY=$(grep '^NETTRADES_SERVICE_API_KEY=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
         rm -f "$CONFIGURE_LOG"
 
-        # Parse the structured output the script prints on stdout.
-        # `tail -1` guards against the unlikely case of duplicate lines
-        # (e.g. the script being retried inside the container).
-        # `cut -d= -f2-` keeps any '=' that appears inside the value,
-        # which matters for the API key.
-        # ADMIN_UID=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^ADMIN_UID=' | tail -1 | cut -d= -f2- | tr -d '\r')
-        # SERVICE_UID=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_UID=' | tail -1 | cut -d= -f2- | tr -d '\r')
-        # SERVICE_PASSWORD=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_PASSWORD=' | tail -1 | cut -d= -f2- | tr -d '\r')
-        # SERVICE_API_KEY=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_API_KEY=' | tail -1 | cut -d= -f2- | tr -d '\r')
-
         if [[ -n "$ADMIN_UID" ]]; then
             log_success "Admin user configured (uid=$ADMIN_UID)"
             safe_sed_replace "$ENV_FILE" "ODOO_USER" "$ADMIN_UID"
@@ -1799,6 +1578,29 @@ EOF
         else
             log_warning "Could not determine admin uid; defaulting to 2."
             safe_sed_replace "$ENV_FILE" "ODOO_USER" "2"
+        fi
+
+        # Keep ODOO_PASSWORD in sync with ODOO_ADMIN_PASSWORD.
+        #
+        # configure-odoo-admin.sh has just set the admin user's password
+        # to $ODOO_ADMIN_PASSWORD (a random 24-char string). But every
+        # consumer inside the LangGraph container — app.py,
+        # rpc_scheduler.py, odoo_proxy/main.py, routes/wireguard.py —
+        # reads ODOO_PASSWORD with a fallback to "admin". The fallback
+        # was valid only on very old deployments. On a fresh install,
+        # admin's real password is $ODOO_ADMIN_PASSWORD, so the fallback
+        # always fails authentication.
+        #
+        # Without this write:
+        #   - _load_node_inventory_into_monitor() silently returns early
+        #   - dynamo_worker is never registered with the health monitor
+        #   - Tier 2 failover never fires
+        #
+        # Writing ODOO_PASSWORD here makes every consumer authenticate
+        # as the same identity configure-odoo-admin.sh just set up.
+        if [[ -n "${ODOO_ADMIN_PASSWORD:-}" ]]; then
+            safe_sed_replace "$ENV_FILE" "ODOO_PASSWORD" "$ODOO_ADMIN_PASSWORD"
+            export ODOO_PASSWORD="$ODOO_ADMIN_PASSWORD"
         fi
 
         # Persist the service user's credentials to .env. The password
@@ -1902,15 +1704,15 @@ EOF
             -e LLM_BASE_URL="${LLM_BASE_URL:-http://llama-cpp:8080/v1}" \
             odoo bash -c "$(cat "$ODOO_ADMIN_SCRIPT")" 2>&1 | tee "$CONFIGURE_LOG"
 
-        ADMIN_UID=$(grep '^ADMIN_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
-        SERVICE_UID=$(grep '^NETTRADES_SERVICE_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
-        SERVICE_PASSWORD=$(grep '^NETTRADES_SERVICE_PASSWORD=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
-        SERVICE_API_KEY=$(grep '^NETTRADES_SERVICE_API_KEY=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
-        rm -f "$CONFIGURE_LOG" 
-
-        SERVICE_UID_2=$(printf '%s\n' "$CONFIGURE_OUTPUT_2" | grep '^NETTRADES_SERVICE_UID=' | tail -1 | cut -d= -f2- | tr -d '\r')
-        SERVICE_PASSWORD_2=$(printf '%s\n' "$CONFIGURE_OUTPUT_2" | grep '^NETTRADES_SERVICE_PASSWORD=' | tail -1 | cut -d= -f2- | tr -d '\r')
-        SERVICE_API_KEY_2=$(printf '%s\n' "$CONFIGURE_OUTPUT_2" | grep '^NETTRADES_SERVICE_API_KEY=' | tail -1 | cut -d= -f2- | tr -d '\r')
+        # Parse the same structured output from the second pass.
+        # The values are the same ones written by the first pass, but
+        # reading them again here keeps the block symmetric and makes
+        # the second pass idempotent if the first was interrupted.
+        ADMIN_UID_2=$(grep '^ADMIN_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_UID_2=$(grep '^NETTRADES_SERVICE_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_PASSWORD_2=$(grep '^NETTRADES_SERVICE_PASSWORD=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        SERVICE_API_KEY_2=$(grep '^NETTRADES_SERVICE_API_KEY=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+        rm -f "$CONFIGURE_LOG"
 
         if [[ -n "$SERVICE_UID_2" ]]; then
             safe_sed_replace "$ENV_FILE" "NETTRADES_SERVICE_UID" "$SERVICE_UID_2"
@@ -1927,7 +1729,6 @@ EOF
         docker compose up -d --force-recreate langgraph-server \
             || log_warning "Failed to recreate langgraph-server after second configure pass"
     fi
-
 
     # -----------------------------------------------------------------------------
     # Create emergency Odoo user and multiple fallback options
@@ -2002,7 +1803,7 @@ EOF
     # -----------------------------------------------------------------------------
     log_step "Setting up cron for daily backups..."
 
-    BACKUP_SCRIPT="$DEPLOY_DIR/backup.sh"
+    BACKUP_SCRIPT="$SCRIPT_DIR/backup.sh"
     if [[ -f "$BACKUP_SCRIPT" ]]; then
         if command -v crontab &>/dev/null; then
             (crontab -l 2>/dev/null | grep -v "$BACKUP_SCRIPT" || echo "") > /tmp/cron.tmp
@@ -2229,8 +2030,32 @@ EOF
         return 0
     }
 
-    # Install Wine for launcher builds
-    install_wine || log_warning "Wine setup failed; Windows build will be skipped."
+    # Wine and the Windows launcher build are only needed if the operator
+    # is building the Windows installer on this host. On a headless
+    # server (the V100), this adds 300–500 MB of GUI packages for no
+    # benefit. Gate it behind WITH_WINDOWS_LAUNCHER.
+    if [[ "${WITH_WINDOWS_LAUNCHER}" == "true" ]]; then
+        install_wine || log_warning "Wine setup failed; Windows build will be skipped."
+    else
+        log_info "Skipping Wine installation (set WITH_WINDOWS_LAUNCHER=true to enable)."
+    fi
+
+    # Write the hub's own hardware manifest so langgraph-server can
+    # correct the gpu.node record for this machine. The detection code
+    # (scripts/lib/detect.py) is the same one install-spoke.sh uses,
+    # so the hub and its spokes describe hardware in the same shape.
+    log_step "Detecting hub hardware (scripts/lib/detect.py)..."
+    if [[ -f "$SCRIPT_DIR/lib/detect.py" ]]; then
+        if python3 "$SCRIPT_DIR/lib/detect.py" --json > "$DEPLOY_DIR/hub-manifest.json" 2>/dev/null; then
+            chmod 644 "$DEPLOY_DIR/hub-manifest.json"
+            log_success "Hub manifest written to $DEPLOY_DIR/hub-manifest.json"
+        else
+            rm -f "$DEPLOY_DIR/hub-manifest.json"
+            log_warning "detect.py failed — hub hardware will not be auto-refreshed"
+        fi
+    else
+        log_warning "scripts/lib/detect.py not found — hub hardware will not be auto-refreshed"
+    fi
 
     # =============================================================================
     # BUILD NETTRADES LAUNCHER
@@ -2260,16 +2085,18 @@ EOF
             log_warning "Linux build failed. Skipping."
         }
 
-        # Build for Windows (requires Wine)
-	if command -v wine &>/dev/null; then
-	    log_info "Building Windows launcher (requires Wine)..."
-	    npm run build:win || {
-	        log_warning "Windows build failed. Wine may not be properly configured."
-	    }
-	else
-	    log_info "Wine not installed. Skipping Windows build."
+        # Build for Windows — gated behind WITH_WINDOWS_LAUNCHER because the
+        # Windows build depends on Wine, which is a heavy install with GUI
+        # packages that are useless on a headless server. The installer
+        # only needs the Linux AppImage for the demo.
+        if [[ "${WITH_WINDOWS_LAUNCHER}" == "true" ]] && command -v wine &>/dev/null; then
+            log_info "Building Windows launcher (requires Wine)..."
+            npm run build:win || {
+                log_warning "Windows build failed. Wine may not be properly configured."
+            }
+        else
+            log_info "Skipping Windows launcher build (set WITH_WINDOWS_LAUNCHER=true to enable)."
         fi
-
         log_success "Launcher build completed"
         cd "$PROJECT_ROOT"
     }
