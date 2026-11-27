@@ -56,19 +56,23 @@ PURPOSE:
 
 [![License: BUSL-1.1](https://shields.io)](LICENSE.txt)
 [![Commercial License](https://shields.io)](COMMERCIAL-LICENSE.md)
-[![Contributor License Agreement](https://shields.io)](LEGAL/Contributor-License-Agreement.md)
+[![Contributor License Agreement](https://shields.io)](Contributor-License-Agreement.md)
 [![Ethical Statement](https://shields.io)](ETHICAL-STATEMENT.md)
 
 
 ## NETTRADES connecting companies, job seekers, freelancers, researchers and partners
 
-**NETTRADES™ Sovereign AI builds the entire Sovereign AI Infrastructure of an organisation, using its spare GPU capacity to allows AI agents to work with people. Through its AI market places NETTRADES connect companies, job seekers, freelancers, researchers and partners.**
+**NETTRADES™ Sovereign AI builds the entire Sovereign AI Infrastructure of an organisation, to allows people to work with AI agents.** 
 
-**Through its AI market places NETTRADES allows companies to find and recruit job seekers, freelancers, researchers and partners.**
+**Through its AI market places, NETTRADES allows companies to find experts, freelancers, researchers and partners to verify the answers provided by the AI or to seek further assistance from human experts**
 
-**People and AI Agents work together using the AI infrastructure to increase productivity.**
+**In Hospitals junior doctors could also ask consultants for assistance.**
 
-**It also acts as a Sovereign AI Router that lets organisations securely control their AI infrastructure from a single dashboard.**
+**NETTRADES™ AI Fabric distributed AI inferencing software pools an organisations existing spare heterogenous GPU and CPU capacity to serve large LLMs.**
+
+**NETTRADES™ Launcher Steam-style desktop control centre for Windows, macOS and Linux to deploy nodes, manage models and monitor GPU health in one click.**
+
+**NETTRADES™ AI Router lets organisations securely control their AI infrastructure from a single dashboard and intelligently directs requests to the best model based on performance, latency and load — ensuring sub‑5ms routing with automatic failover.**
 
 **Organisations could decide to keep everything local or they could decide which types of requests are processed locally and which types of requests are routed to remote providers or to a GPU market place, at peak time, based on the administrative settings, set by the organisations administrator.**
 
@@ -78,7 +82,7 @@ PURPOSE:
 
 **They use their spare GPU capacity to talk to their organisations data.** 
 
-The Nettrades Platform is designed to build the Sovereign AI Infrastructure for the Autonomous Enterprises of the future. 
+**The Nettrades Platform is designed to build the Sovereign AI Infrastructure for the Autonomous Enterprises of the future.** 
 
 
 ### Deploy in minutes, not months
