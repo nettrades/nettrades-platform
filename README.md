@@ -64,13 +64,13 @@ PURPOSE:
 
 **NETTRADES™ Sovereign AI builds the entire Sovereign AI Infrastructure of an organisation, to allows people to work with AI agents.** 
 
-**Through its AI market places, NETTRADES allows companies to find experts, freelancers, researchers and partners to verify the answers provided by the AI or to seek further assistance from human experts**
+**NETTRADES™ Ask Someone allows companies to ask experts, freelancers and researchers to verify the answers provided by the AI or to seek further assistance from human experts**
 
-**In Hospitals junior doctors could also ask consultants for assistance.**
+**Within an organisation, like in hospitals, junior doctors could also ask consultants for assistance and the answers could be used to train their Sovereign AI.**
 
 **NETTRADES™ AI Fabric distributed AI inferencing software pools an organisations existing spare heterogenous GPU and CPU capacity to serve large LLMs.**
 
-**NETTRADES™ Launcher Steam-style desktop control centre for Windows, macOS and Linux to deploy nodes, manage models and monitor GPU health in one click.**
+**NETTRADES™ Launcher Steam-style desktop control centre for Windows, macOS and Linux is used to deploy nodes, manage models and monitor GPU health in one click.**
 
 **NETTRADES™ AI Router lets organisations securely control their AI infrastructure from a single dashboard and intelligently directs requests to the best model based on performance, latency and load — ensuring sub‑5ms routing with automatic failover.**
 
@@ -82,7 +82,7 @@ PURPOSE:
 
 **They use their spare GPU capacity to talk to their organisations data.** 
 
-**The Nettrades Platform is designed to build the Sovereign AI Infrastructure for the Autonomous Enterprises of the future.** 
+**The Nettrades Platform is designed to build the Sovereign AI Infrastructure of the Autonomous Enterprises of the future.** 
 
 
 ### Deploy in minutes, not months
