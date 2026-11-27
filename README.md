@@ -54,19 +54,21 @@ PURPOSE:
 
 ---
 
-[![License: BUSL-1.1](https://shields.io)](LICENSE.txt)
-[![Commercial License](https://shields.io)](COMMERCIAL-LICENSE.md)
-[![Contributor License Agreement](https://shields.io)](Contributor-License-Agreement.md)
-[![Ethical Statement](https://shields.io)](ETHICAL-STATEMENT.md)
+<p align="center">
+  <a href="LICENSE.txt"><strong>License: BUSL-1.1 → Open RAIL-S</strong></a> •
+  <a href="COMMERCIAL-LICENSE.md"><strong>Commercial License</strong></a> •
+  <a href="Contributor-License-Agreement.md"><strong>Contributor License Agreement</strong></a> •
+  <a href="ETHICAL-STATEMENT.md"><strong>Ethical Statement</strong></a>
+</p>
 
 
 ## NETTRADES connecting companies, job seekers, freelancers, researchers and partners
 
 **NETTRADES™ Sovereign AI builds the entire Sovereign AI Infrastructure of an organisation, to allows people to work with AI agents.** 
 
-**NETTRADES™ Ask Someone allows companies to ask experts, freelancers and researchers to verify the answers provided by the AI or seek further assistance from human experts**
+**NETTRADES™ Ask Someone allows companies to ask experts, freelancers and researchers to verify the answers provided by the AI or to seek further assistance from human experts**
 
-**Within an organisation, like in hospitals, junior doctors could also ask consultants for assistance and the answers could be used to train their Sovereign AI.**
+**Within an organisation, like in a hospital, junior doctors could also ask consultants for assistance and the answers could be used to train their Sovereign AI.**
 
 **NETTRADES™ AI Fabric distributed AI inferencing software pools an organisations existing spare heterogenous GPU and CPU capacity to serve large LLMs.**
 
