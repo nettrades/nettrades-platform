@@ -64,7 +64,7 @@ PURPOSE:
 
 **NETTRADES™ Sovereign AI builds the entire Sovereign AI Infrastructure of an organisation, to allows people to work with AI agents.** 
 
-**NETTRADES™ Ask Someone allows companies to ask experts, freelancers and researchers to verify the answers provided by the AI or to seek further assistance from human experts**
+**NETTRADES™ Ask Someone allows companies to ask experts, freelancers and researchers to verify the answers provided by the AI or seek further assistance from human experts**
 
 **Within an organisation, like in hospitals, junior doctors could also ask consultants for assistance and the answers could be used to train their Sovereign AI.**
 
