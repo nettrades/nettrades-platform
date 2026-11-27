@@ -116,6 +116,14 @@
 //   nettrades-netsvc.exe start      Start the service
 //   nettrades-netsvc.exe stop       Stop the service
 //   (no arguments)                  Run as a Windows service
+//
+// SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-NETTRADES-Commercial
+// Copyright (c) 2026 NETTRADES LIMITED (UK Company No. 08160657). Patent Pending. All rights reserved.
+// Licensed under LICENSE.txt (BUSL-1.1 -> Open RAIL-S) and strictly conditioned
+// upon compliance with ETHICAL-STATEMENT.md. See also IP-AND-PATENTS.md.
+// THE FUTURE OF WORK is a registered trade mark in the United Kingdom (No. UK00004257743) of NETTRADES LIMITED.
+// Distributed WITHOUT ANY WARRANTY.
+//
 // =============================================================================
 
 package main
