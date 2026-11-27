@@ -376,10 +376,12 @@ Admins can switch modes instantly from the Launcher dashboard. Changes take effe
 
 NETTRADES wants AI to be used ethically and responsibly. Therefore, NETTRADES is licensed under the **Business Source License 1.1 (`BUSL-1.1`)** (with third-party components governed by their respective upstream licenses in [OPEN-SOURCE-NOTICES.txt](OPEN-SOURCE-NOTICES.txt)):
 
-- **Households, Developers & Small Businesses (Up to 5 Spokes/computers):** **100% Free** to download, modify, and run locally (1 Sub-Hub + up to 5 Spokes).
-- **Schools, Colleges, Universities & Hospitals:** **100% Free** at unlimited scale (unlimited Sub-Hubs and Spokes).
-- **Large Organisations and Enterprises (> 5 Spokes/computers) & Commercial Cloud Providers:** Require a paid **Commercial License**.
-- **Ethical Commitment:** All commercial and institutional deployments are bound by our [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md).
+- **Households, Developers & Small Companies:** **100% Free** to download, modify, and run in production (up to **1 Sub-Hub + 5 Spokes**, under **$1M ARR / £800k** and **$2M funding / £1.6M**), including building and hosting your own end-user apps or agents (no raw GPU/inference resale).
+- **Schools, Colleges, Universities, Charities & Hospitals:** **100% Free** at unlimited scale (unlimited Sub-Hubs and Spokes).
+- **Growth Companies (Up to 25 Spokes or > $1M ARR):** **$199/month** flat Commercial License ([COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
+- **Large Enterprises (> 25 Spokes) & Cloud/GPU Hosting Providers:** Custom flat-rate Enterprise EULA — contact **legal@nettrades.ai**.
+- **Your IP Stays Yours:** All model weights fine-tuned on your private data and all custom AI agents you build remain **100% your sole IP** (unless voluntarily contributed to `://github.com` under our [CLA](Contributor-License-Agreement.md)).
+- **Ethical Commitment:** All free, institutional, and commercial deployments are strictly bound by our [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md).
 - **Contributors:** Developers are welcome to submit pull requests via our Contributor License Agreement ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 For enterprise license keys (> 5 Spokes) or cloud hosting partnerships, contact **legal@nettrades.ai**.

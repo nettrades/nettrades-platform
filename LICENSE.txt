@@ -26,12 +26,19 @@ ADDITIONAL USE GRANT (FREE PRODUCTION TIERS)
 Subject to strict compliance with ETHICAL-STATEMENT.md, Production Use of the
 Licensed Work is permitted free of charge under the following scopes:
 
-1. Households, Independent Developers & Small Businesses (Up to 5 Spokes):
-   Operating no more than one (1) Sub-Hub and up to five (5) connected Spoke
-   nodes/computers across your organization and affiliates for internal
-   operations (including connecting to Odoo, Salesforce, SAP, or other internal
-   systems), provided you do not offer the Licensed Work as a hosted, cloud,
-   or managed SaaS service to third parties.
+1. Households, Independent Developers & Small Businesses (Any Company):
+   Any individual, household, or company operating no more than one (1) Sub-Hub
+   and up to five (5) connected Spoke nodes/computers across its organization
+   and affiliates AND having less than $1,000,000 USD (£800,000 GBP) in annual
+   gross revenue and less than $2,000,000 USD (£1,600,000 GBP) in cumulative
+   external equity funding may deploy the Licensed Work in production for
+   internal operations (including connecting to Odoo, Salesforce, SAP, or other
+   business systems) and may build, host and commercialize their own end-user
+   applications or vertical AI agents powered by the Licensed Work—provided
+   they do not resell, rent or offer raw NETTRADES GPU hosting, compute
+   clusters or standalone inference-as-a-service to third parties and do not
+   have an external expert market place and provided all uses strictly comply with 
+   ETHICAL-STATEMENT.md.
 
 2. Accredited Educational, Research & Healthcare Institutions (Unlimited Scale):
    Accredited schools, colleges, universities, registered charities, non-profit
@@ -44,6 +51,26 @@ Licensed Work is permitted free of charge under the following scopes:
    Independent developers using the Licensed Work locally (up to 1 Sub-Hub and
    5 Spokes) to build, test, and package third-party AI agents or open-protocol
    connectors for distribution or sale on the official NETTRADES Marketplace.
+
+4. Customer Ownership of Fine-Tuned Weights & Custom Agents:
+   All machine learning model weights fine-tuned on your private data and all
+   custom AI agents authored by you using the Licensed Work remain 100% your
+   sole intellectual property. You are under no obligation to share them unless
+   you voluntarily submit code or contributions to https://github.com/nettrades/,
+   in which case such voluntary submissions are governed by
+   Contributor-License-Agreement.md.
+
+5. 90-Day Enterprise Proof-of-Concept (PoC) Evaluation:
+   Any enterprise exceeding the free production thresholds above may deploy and
+   benchmark the Licensed Work in internal, non-production Proof-of-Concept
+   environments across unlimited Sub-Hubs and Spokes for up to ninety (90) days
+   free of charge, strictly conditioned upon compliance with ETHICAL-STATEMENT.md.
+
+6. Unlimited Users, Tokens & Enterprise Connectors:
+   All permitted production tiers (Free, Growth, and Enterprise) include
+   unlimited end-user seats, unlimited AI inference tokens, unlimited agent
+   executions, and unrestricted internal connectivity to SAP, Salesforce, Odoo,
+   and third-party enterprise systems via open APIs and MCP protocols.
 
 ==============================================================================
 NO AI TRAINING / SCRAPING
