@@ -6,7 +6,7 @@
     <title>NETTRADES Launcher</title>
     <style>
         /* =========================================================================
-           NETTRADES Launcher – Steam-Inspired Dark Theme  - FILE: installer/index.html
+           NETTRADES Launcher – Steam-Inspired Dark Theme - FILE: installer/index.html
            ========================================================================= */
 
         /* ─── Reset & Base ─── */
@@ -1284,6 +1284,261 @@
         }
         .mode-selector .mode-btn .mode-icon { margin-right: 6px; }
 
+        /* ═══════════════════════════════════════════════════════════════════════════
+		   CLUSTER TAB — Layer assignment table, topology rows, relaunch actions
+		   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.cluster-summary {
+		    display: grid;
+		    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		    gap: 12px;
+		    margin-bottom: 16px;
+		}
+		.cluster-summary .stat-card {
+		    background: rgba(255,255,255,0.04);
+		    border: 1px solid rgba(255,255,255,0.06);
+		    border-radius: 8px;
+		    padding: 14px 16px;
+		}
+		.cluster-summary .stat-card .label {
+		    font-size: 11px; text-transform: uppercase; color: #6a6a7a;
+		    letter-spacing: 0.5px;
+		}
+		.cluster-summary .stat-card .value {
+		    font-size: 22px; font-weight: 700; margin-top: 4px;
+		}
+		.cluster-summary .stat-card .sub {
+		    font-size: 12px; color: #6a6a7a; margin-top: 2px;
+		}
+
+		.layer-table {
+		    width: 100%;
+		    border-collapse: collapse;
+		    font-size: 13px;
+		}
+		.layer-table th {
+		    text-align: left;
+		    padding: 10px 12px;
+		    color: #6a6a7a;
+		    font-weight: 600;
+		    font-size: 11px;
+		    text-transform: uppercase;
+		    letter-spacing: 0.5px;
+		    border-bottom: 1px solid rgba(255,255,255,0.08);
+		}
+		.layer-table td {
+		    padding: 10px 12px;
+		    border-bottom: 1px solid rgba(255,255,255,0.04);
+		}
+		.layer-table tr:last-child td { border-bottom: none; }
+		.layer-table tr:hover td { background: rgba(255,255,255,0.02); }
+		.layer-table .mono { font-family: 'Monaco', 'Menlo', monospace; font-size: 12px; }
+		.layer-table .share-bar {
+		    display: inline-block;
+		    height: 6px;
+		    background: linear-gradient(90deg, #4a8aff, #8b5cf6);
+		    border-radius: 3px;
+		    vertical-align: middle;
+		    margin-right: 8px;
+		}
+
+		.cluster-actions {
+		    display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+		}
+
+		.node-health-pill {
+		    display: inline-block;
+		    padding: 2px 10px;
+		    border-radius: 10px;
+		    font-size: 11px;
+		    font-weight: 600;
+		}
+		.node-health-pill.healthy { background: rgba(40, 200, 64, 0.15); color: #28c840; }
+		.node-health-pill.unhealthy { background: rgba(255, 95, 87, 0.15); color: #ff5f57; }
+		.node-health-pill.stale { background: rgba(255, 189, 46, 0.15); color: #ffbd2e; }
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+		   ROUTING TAB — Active track indicator, failover event timeline
+		   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.active-track-card {
+		    background: linear-gradient(135deg, rgba(74, 138, 255, 0.12), rgba(139, 92, 246, 0.08));
+		    border: 1px solid rgba(74, 138, 255, 0.3);
+		    border-radius: 12px;
+		    padding: 20px 24px;
+		    margin-bottom: 20px;
+		}
+		.active-track-card .track-label {
+		    font-size: 11px; text-transform: uppercase; color: #8a9bb5;
+		    letter-spacing: 1px; font-weight: 600;
+		}
+		.active-track-card .track-value {
+		    font-size: 32px; font-weight: 700; margin: 4px 0 2px;
+		    color: #4a8aff;
+		}
+		.active-track-card .track-detail {
+		    font-size: 13px; color: #8a9bb5;
+		}
+		.active-track-card.track-rpc .track-value { color: #28c840; }
+		.active-track-card.track-dynamo .track-value { color: #4a8aff; }
+		.active-track-card.track-local .track-value { color: #ffbd2e; }
+		.active-track-card.track-remote .track-value { color: #ff9500; }
+
+		.event-timeline {
+		    display: flex; flex-direction: column; gap: 4px;
+		    max-height: 500px; overflow-y: auto;
+		    padding: 12px;
+		    background: rgba(0,0,0,0.2);
+		    border-radius: 10px;
+		    border: 1px solid rgba(255,255,255,0.05);
+		}
+		.event-row {
+		    display: grid;
+		    grid-template-columns: 90px 140px 1fr;
+		    gap: 12px;
+		    padding: 8px 12px;
+		    border-radius: 6px;
+		    font-size: 13px;
+		    align-items: center;
+		    transition: background 0.2s;
+		}
+		.event-row:hover { background: rgba(255,255,255,0.03); }
+		.event-row .ts { color: #6a6a7a; font-family: monospace; font-size: 11px; }
+		.event-row .evt {
+		    font-weight: 600; font-size: 11px;
+		    text-transform: uppercase; letter-spacing: 0.5px;
+		}
+		.event-row .detail { color: #8a9bb5; }
+		.event-row .evt.selected { color: #4a8aff; }
+		.event-row .evt.pinned { color: #8b5cf6; }
+		.event-row .evt.failover_tier2 { color: #28c840; }
+		.event-row .evt.failover_tier3 { color: #ffbd2e; }
+		.event-row .evt.failover_tier4 { color: #ff9500; }
+		.event-row .evt.failover_tier5 { color: #ff5f57; }
+		.event-row .evt.failover_tier6 { color: #ff5f57; font-weight: 700; }
+		.event-row .evt.preflight_ok { color: #28c840; opacity: 0.7; }
+		.event-row .evt.preflight_fail { color: #ff5f57; opacity: 0.7; }
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+		   TOKENS TAB — Registration token lifecycle table
+		   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.token-table {
+		    width: 100%; border-collapse: collapse; font-size: 13px;
+		}
+		.token-table th {
+		    text-align: left; padding: 10px 12px;
+		    color: #6a6a7a; font-weight: 600; font-size: 11px;
+		    text-transform: uppercase; letter-spacing: 0.5px;
+		    border-bottom: 1px solid rgba(255,255,255,0.08);
+		}
+		.token-table td {
+		    padding: 10px 12px;
+		    border-bottom: 1px solid rgba(255,255,255,0.04);
+		}
+		.token-table tr:last-child td { border-bottom: none; }
+
+		.token-state {
+		    display: inline-block; padding: 2px 10px;
+		    border-radius: 10px; font-size: 11px; font-weight: 600;
+		}
+		.token-state.active { background: rgba(40, 200, 64, 0.15); color: #28c840; }
+		.token-state.used { background: rgba(74, 138, 255, 0.15); color: #4a8aff; }
+		.token-state.expired { background: rgba(255, 189, 46, 0.15); color: #ffbd2e; }
+		.token-state.revoked { background: rgba(255, 95, 87, 0.15); color: #ff5f57; }
+
+		.token-plaintext-box {
+		    background: rgba(0,0,0,0.35);
+		    border: 1px solid rgba(40, 200, 64, 0.3);
+		    border-radius: 8px;
+		    padding: 12px 14px;
+		    font-family: 'Monaco', 'Menlo', monospace;
+		    font-size: 12px;
+		    color: #28c840;
+		    word-break: break-all;
+		    margin: 12px 0;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+		   DASHBOARD — Active track indicator (compact)
+		   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.track-indicator {
+		    display: inline-flex; align-items: center; gap: 8px;
+		    padding: 4px 12px;
+		    border-radius: 12px;
+		    font-size: 12px; font-weight: 600;
+		    background: rgba(74, 138, 255, 0.12);
+		    color: #4a8aff;
+		    border: 1px solid rgba(74, 138, 255, 0.2);
+		}
+		.track-indicator .dot {
+		    width: 8px; height: 8px; border-radius: 50%; background: currentColor;
+		    animation: pulse 2s infinite;
+		}
+		.track-indicator.track-rpc { background: rgba(40, 200, 64, 0.12); color: #28c840; border-color: rgba(40, 200, 64, 0.2); }
+		.track-indicator.track-dynamo { background: rgba(74, 138, 255, 0.12); color: #4a8aff; border-color: rgba(74, 138, 255, 0.2); }
+		.track-indicator.track-local { background: rgba(255, 189, 46, 0.12); color: #ffbd2e; border-color: rgba(255, 189, 46, 0.2); }
+		.track-indicator.track-remote { background: rgba(255, 149, 0, 0.12); color: #ff9500; border-color: rgba(255, 149, 0, 0.2); }
+		.track-indicator.track-none { background: rgba(106, 106, 122, 0.15); color: #6a6a7a; border-color: rgba(106, 106, 122, 0.2); }
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+		   ENHANCED NODES TAB — rich health cards
+		   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.health-nodes-grid {
+		    display: grid;
+		    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+		    gap: 14px; margin-top: 12px;
+		}
+		.health-node-card {
+		    background: rgba(255,255,255,0.04);
+		    border: 1px solid rgba(255,255,255,0.06);
+		    border-radius: 12px;
+		    padding: 16px 18px;
+		    transition: all 0.2s;
+		}
+		.health-node-card:hover { background: rgba(255,255,255,0.06); }
+		.health-node-card.healthy { border-left: 3px solid #28c840; }
+		.health-node-card.unhealthy { border-left: 3px solid #ff5f57; }
+		.health-node-card.stale { border-left: 3px solid #ffbd2e; }
+		.health-node-card .node-header {
+		    display: flex; justify-content: space-between; align-items: flex-start;
+		    margin-bottom: 10px;
+		}
+		.health-node-card .node-name { font-size: 15px; font-weight: 600; }
+		.health-node-card .node-role {
+		    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+		    color: #6a6a7a; margin-top: 2px;
+		}
+		.health-node-card .node-metrics {
+		    display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;
+		    font-size: 12px; margin-top: 8px;
+		}
+		.health-node-card .node-metrics .k { color: #6a6a7a; }
+		.health-node-card .node-metrics .v { color: #e8e8e8; font-weight: 500; }
+		.health-node-card .rpc-list {
+		    margin-top: 8px; font-family: monospace; font-size: 11px;
+		    color: #8a9bb5;
+		    background: rgba(0,0,0,0.2);
+		    padding: 6px 8px; border-radius: 4px;
+		    max-height: 80px; overflow-y: auto;
+		}
+		.health-node-card .warm-spare-badge {
+		    display: inline-block;
+		    padding: 2px 8px; border-radius: 10px;
+		    font-size: 10px; font-weight: 600;
+		    background: rgba(255, 189, 46, 0.15); color: #ffbd2e;
+		    margin-left: 6px;
+        }
+
+		/* ─── Active track colour states ─── */
+		.track-dynamo   { color: #28c840; }
+		.track-rpc      { color: #4a8aff; }
+		.track-local    { color: #ffbd2e; }
+		.track-remote   { color: #a78bfa; }
+        .track-error    { color: #ff5f57; }
+
         /* ─── Responsive ─── */
         @media (max-width: 768px) {
             .sidebar { width: 60px; }
@@ -1330,14 +1585,21 @@
                 <div class="nav-section">
                     <div class="section-title">Main</div>
                     <div class="nav-item active" data-tab="dashboard"><span class="icon">🏠</span><span>Dashboard</span></div>
+                    <div class="nav-item" data-tab="demo"><span class="icon">🎬</span><span>Demo</span></div>
                     <div class="nav-item" data-tab="chat"><span class="icon">💬</span><span>AI Chat</span></div>
                     <div class="nav-item" data-tab="models"><span class="icon">🧠</span><span>Models</span><span class="badge" id="model-count">0</span></div>
                     <div class="nav-item" data-tab="gpus"><span class="icon">🎮</span><span>GPUs</span><span class="badge" id="gpu-count">0</span></div>
                 </div>
                 <div class="nav-section">
                     <div class="section-title">Network</div>
-                    <div class="nav-item" data-tab="nodes"><span class="icon">🌐</span><span>Nodes</span><span class="badge" id="node-count">0</span></div>
-                    <div class="nav-item" data-tab="vpn"><span class="icon">🔒</span><span>VPN</span><span class="badge" id="vpn-status"></span></div>
+				    <div class="nav-item" data-tab="nodes"><span class="icon">🌐</span><span>Nodes</span><span class="badge" id="node-count">0</span></div>
+				    <div class="nav-item" data-tab="cluster"><span class="icon">🔗</span><span>Cluster</span><span class="badge" id="cluster-health-badge">—</span></div>
+				    <div class="nav-item" data-tab="tokens"><span class="icon">🔑</span><span>Tokens</span><span class="badge" id="token-count">0</span></div>
+				    <div class="nav-item" data-tab="vpn"><span class="icon">🔒</span><span>VPN</span><span class="badge" id="vpn-status"></span></div>
+                </div>
+                <div class="nav-section">
+				    <div class="section-title">Inference</div>
+				    <div class="nav-item" data-tab="routing"><span class="icon">🎯</span><span>Routing</span><span class="badge" id="active-track-badge">—</span></div>
                 </div>
                 <div class="nav-section">
                     <div class="section-title">AI Services</div>
@@ -1377,6 +1639,9 @@
                 <div id="tab-gpus" class="tab-content">Loading...</div>
                 <div id="tab-nodes" class="tab-content">Loading...</div>
                 <div id="tab-vpn" class="tab-content">Loading...</div>
+                <div id="tab-cluster" class="tab-content">Loading...</div>
+				<div id="tab-routing" class="tab-content">Loading...</div>
+                <div id="tab-tokens" class="tab-content">Loading...</div>
                 <div id="tab-ask-someone" class="tab-content">Loading...</div>
                 <div id="tab-good-answer" class="tab-content">Loading...</div>
                 <div id="tab-training" class="tab-content">Loading...</div>
@@ -1447,6 +1712,12 @@
             isInstalling: false,
             wslStatus: { installed: false, distro: false },
             mode: 'hub', // 'hub', 'spoke', 'development'
+            // NEW (2026-10): consumed by the Cluster, Routing, and Tokens views.
+            activeTrack: null,           // last known inference track, or null
+            selectedClusterId: 1,        // default cluster for the Tokens/Cluster tabs
+            hubConfig: {                 // populated on DOMContentLoaded from IPC
+                dynamo_url: '', langgraph_url: '', odoo_url: '',
+            },
         };
 
         // ─── Safe DOM Helpers ───
@@ -1480,6 +1751,44 @@
             if (el) el.classList.remove(className);
         }
 
+        // ─── Global: NETTRADES Networking Service repair handler ───
+        //
+        // This is defined at the top level because the service status panel
+        // (created inside views.dashboard) calls it via its onclick attribute.
+        // The panel itself is created inside views.dashboard() so it has
+        // access to the `container` variable; this handler does not need
+        // any scope beyond `window`, so it stays global.
+        //
+        // Part of the code for the NETTRADES Networking Service, a Go-based
+        // Windows service using the official Go extended standard library
+        // golang.org/x/sys/windows/svc for NETTRADES WSL Port Forwarding.
+        //
+        // The problem it solves:
+        // WSL2 runs in NAT mode. The WSL distro has a different IP address
+        // on a private virtual subnet that only the Windows host can route
+        // to. The Windows host's vEthernet (WSL) adapter is the only thing
+        // that can reach WSL. Other machines cannot reach it directly —
+        // that is why ping works from the LAN but TCP to WSL does not.
+        // After WSL restarts (e.g., after `wsl --shutdown`) the WSL IP
+        // changes.
+        //
+        // Windows 10 does not support mirrored networking mode.
+        // networkingMode=mirrored — the single-line fix that makes WSL2
+        // share the Windows host's IP — is only available on Windows 11
+        // 22H2 and later. It does not exist on Windows 10. On Windows 10,
+        // WSL2 is locked into NAT mode.
+        //
+        // The service runs as LocalSystem, starts at boot, and maintains
+        // netsh portproxy rules for the ports listed in the Go service's
+        // PortsToForward constant (8069, 8000, 3002).
+        window.repairNetSvc = async function() {
+            const result = await window.api.netsvcRepair();
+            showToast(
+                result.success ? '✅ Repaired.' : `❌ ${result.error}`,
+                result.success ? 'success' : 'error'
+            );
+        };
+
         // ─── DOM Ready ───
         document.addEventListener('DOMContentLoaded', async () => {
             // Get platform info
@@ -1493,12 +1802,18 @@
                 document.getElementById('app-version').textContent = `v${state.version}`;
                 updateBackendIndicator(state.backend);
                 updateDeploymentModeBadge(state.deploymentMode);
-                document.getElementById('settings-server-url').value = state.proxyUrl;
+                const _settingsUrlInput = document.getElementById('settings-server-url');
+                if (_settingsUrlInput) _settingsUrlInput.value = state.proxyUrl;                
             } catch (e) { console.error('Failed to get platform:', e); }
 
-            // Check WSL status (Windows only)
+            // Check WSL status (Windows only).
+            //
+            // NOTE: The NETTRADES Networking Service status panel is
+            // rendered inside views.dashboard() so that it has access to
+            // the dashboard's `container` element. It is NOT created here
+            // because this scope has no `container` variable.
             if (state.platform && state.platform.os === 'win32') {
-                await checkWSLStatus();
+                // Intentionally empty. The panel is created in views.dashboard.
             }
 
             // Get feature flags
@@ -1574,7 +1889,48 @@
                 document.getElementById('deploy-step-1').style.display = 'block';
             });
 
-            document.getElementById('btn-deploy-start')?.addEventListener('click', startDeployment);
+            document.getElementById('btn-deploy-start')?.addEventListener('click', () => {
+                // SPOKE MODE: delegate to the Launcher's IPC handler for
+                // install-spoke.sh. This bypasses the generic run-install
+                // path entirely, because the spoke installer is a different
+                // script with a different contract.
+                if (state.mode === 'spoke') {
+                    const hubHost = document.getElementById('spoke-hub-host')?.value?.trim();
+                    const token = document.getElementById('spoke-token')?.value?.trim();
+                    const nodeName = document.getElementById('spoke-node-name')?.value?.trim();
+                    const inferenceCapability =
+                        document.getElementById('spoke-inference-capability')?.value || 'rpc_worker';
+
+                    if (!hubHost || !token) {
+                        showToast('Hub host and token are required for spoke deployment', 'warning');
+                        return;
+                    }
+
+                    document.getElementById('deploy-step-3').style.display = 'block';
+                    document.getElementById('install-status-badge').textContent = '⏳ Installing spoke...';
+                    document.getElementById('install-status-badge').className = 'status-badge status-unknown';
+
+                    window.api.runSpokeInstall({ hubHost, token, nodeName, inferenceCapability })
+                        .then((result) => {
+                            if (result.success) {
+                                showToast('✅ Spoke installed successfully', 'success');
+                                document.getElementById('install-status-badge').textContent = '✅ Complete';
+                                document.getElementById('install-status-badge').className = 'status-badge status-running';
+                                document.getElementById('install-progress-fill').style.width = '100%';
+                                document.getElementById('install-progress-label').textContent = '✅ Spoke installation complete';
+                            } else {
+                                showToast(`❌ Spoke install failed: ${result.error}`, 'error');
+                                document.getElementById('install-status-badge').textContent = '❌ Failed';
+                                document.getElementById('install-status-badge').className = 'status-badge status-stopped';
+                            }
+                        });
+                    return;
+                }
+
+                // HUB / DEVELOPMENT / CUSTOM: existing behaviour.
+                startDeployment();
+            });
+
             document.getElementById('btn-install-cancel')?.addEventListener('click', cancelInstallation);
 
             // Tenant selection
@@ -1644,6 +2000,27 @@
                 refreshGPUs();
                 refreshContainers();
             }, 30000);
+
+            // ─── UI polling (moved from views.dashboard / views.demo) ───
+            // These used to be setInterval() calls inside the view functions,
+            // so every tab switch added another interval (leak). They now run
+            // once, guarded by state.currentView so inactive tabs do nothing.
+            setInterval(() => {
+                if (state.currentView === 'dashboard') {
+                    refreshActiveTrack();
+                    refreshDemoStatus();
+                }
+            }, 10000);
+            setInterval(() => {
+                if (state.currentView === 'dashboard') {
+                    refreshDashboardDemoSummary();
+                }
+            }, 15000);
+            setInterval(() => {
+                if (state.currentView === 'demo') {
+                    refreshDemoTab();
+                }
+            }, 10000);
 
             // Start container auto-refresh
             startContainerAutoRefresh();
@@ -1816,24 +2193,27 @@
             }
             // Refresh data for specific tabs
             const refreshMap = {
-                dashboard: refreshDashboard,
-                gpus: refreshGPUs,
-                models: refreshModels,
-                nodes: discoverNodes,
-                vpn: refreshVPN,
-                queue: refreshQueue,
-                monitor: refreshMonitor,
-                logs: refreshLogs,
-                backup: refreshBackups,
-                marketplace: refreshMarketplace,
-                deploy: detectHardware,
-                containers: refreshContainers,
-                settings: loadSettings,
-                'system-check': runSystemCheck,
-                'install-log': refreshInstallLog,
-                credentials: refreshCredentials,
-                modules: renderModules,
-                emergency: loadEmergencyUsers,
+			    dashboard: refreshDashboard,
+			    gpus: refreshGPUs,
+			    models: refreshModels,
+			    nodes: refreshNodesFromHealth,   // changed from discoverNodes
+			    cluster: refreshCluster,         // NEW
+			    routing: refreshRouting,         // NEW
+			    tokens: refreshTokens,           // NEW
+			    vpn: refreshVPN,
+			    queue: refreshQueue,
+			    monitor: refreshMonitor,
+			    logs: refreshLogs,
+			    backup: refreshBackups,
+			    marketplace: refreshMarketplace,
+			    deploy: detectHardware,
+			    containers: refreshContainers,
+			    settings: loadSettings,
+			    'system-check': runSystemCheck,
+			    'install-log': refreshInstallLog,
+			    credentials: refreshCredentials,
+			    modules: renderModules,
+			    emergency: loadEmergencyUsers,
             };
             if (refreshMap[tabName]) refreshMap[tabName]();
         }
@@ -1844,8 +2224,14 @@
         // ─── Dashboard ───
         views.dashboard = function() {
             const container = document.createElement('div');
-
-            // WSL Status Banner (Windows only)
+            const stats = [
+			    { label: 'Active Track', value: state.activeTrack || '—', icon: '🎯', colored: true },
+			    { label: 'GPUs Available', value: state.gpuNodes.filter(n => n.status === 'available').length, icon: '🎮' },
+			    { label: 'Models Installed', value: state.models.length, icon: '🧠' },
+			    { label: 'Network Nodes', value: state.nodes.length, icon: '🖥️' },
+			    { label: 'Active Jobs', value: state.jobs.filter(j => j.status === 'running').length, icon: '⚡' },
+            ];
+            // ─── WSL Status Banner (Windows only) ───
             if (state.platform && state.platform.os === 'win32') {
                 const banner = document.createElement('div');
                 banner.id = 'wsl-banner';
@@ -1864,6 +2250,77 @@
                 container.appendChild(banner);
             }
 
+            // ─── NETTRADES Networking Service Status (Windows only) ───
+            //
+            // This panel shows the state of the NETTRADES Networking Service,
+            // a Go-based Windows service that maintains the WSL2 port
+            // forwarding rules and (when enabled) manages WireGuard tunnels.
+            //
+            // The panel is created here, inside views.dashboard(), so that
+            // `container` (declared above) is in scope. The onclick handler
+            // `repairNetSvc()` is defined globally at the top of the script
+            // so it is available regardless of which tab is active.
+            //
+            // Part of the code for the NETTRADES Networking Service, a
+            // Go-based Windows service using the official Go extended
+            // standard library golang.org/x/sys/windows/svc for NETTRADES
+            // WSL Port Forwarding.
+            //
+            // The problem it solves:
+            // WSL2 runs in NAT mode. The WSL distro has a different IP
+            // address on a private virtual subnet that only the Windows
+            // host can route to. The Windows host's vEthernet (WSL) adapter
+            // is the only thing that can reach WSL. Other machines cannot
+            // reach it directly — that is why ping works from the LAN but
+            // TCP to WSL does not. After WSL restarts (e.g., after
+            // `wsl --shutdown`) the WSL IP changes.
+            //
+            // Windows 10 does not support mirrored networking mode.
+            // networkingMode=mirrored — the single-line fix that makes WSL2
+            // share the Windows host's IP — is only available on Windows 11
+            // 22H2 and later. It does not exist on Windows 10. On Windows
+            // 10, WSL2 is locked into NAT mode.
+            if (state.platform && state.platform.os === 'win32') {
+                const netsvcPanel = document.createElement('div');
+                netsvcPanel.className = 'card';
+                netsvcPanel.style.marginBottom = '20px';
+                netsvcPanel.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <h4>⚙️ NETTRADES Networking Service</h4>
+                            <p id="netsvc-status" style="font-size:13px;color:#8a9bb5;">Checking...</p>
+                        </div>
+                        <button class="btn-secondary" onclick="repairNetSvc()">Repair</button>
+                    </div>
+                    <div id="netsvc-detail" style="font-size:12px;color:#6a7f9a;"></div>
+                `;
+                container.appendChild(netsvcPanel);
+
+                // Query the service status via the named pipe and update
+                // the panel. If the pipe is unavailable (service not
+                // installed or not running), show a warning.
+                window.api.netsvcGetStatus().then((s) => {
+                    const el = document.getElementById('netsvc-status');
+                    const detail = document.getElementById('netsvc-detail');
+                    if (!el) return;
+                    if (s.status === 'running') {
+                        el.innerHTML = '✅ Service running — port forwarding active.';
+                        el.style.color = '#28c840';
+                        if (detail) detail.textContent = `WSL IP: ${s.wsl_ip || 'unknown'}`;
+                    } else {
+                        el.innerHTML = '⚠️ Service not running. Distributed inference may be affected.';
+                        el.style.color = '#ffbd2e';
+                        if (detail) detail.textContent = s.error || '';
+                    }
+                }).catch(() => {
+                    const el = document.getElementById('netsvc-status');
+                    if (el) {
+                        el.innerHTML = '⚠️ Could not reach the NETTRADES Networking Service.';
+                        el.style.color = '#ffbd2e';
+                    }
+                });
+            }
+
             // Mode Selector
             const modeSelector = document.createElement('div');
             modeSelector.className = 'mode-selector';
@@ -1880,15 +2337,13 @@
             `;
             container.appendChild(modeSelector);
 
-            // Stats
+            // Stats — uses the array declared at the top of this function.
+            // The previous version redeclared `const stats` here, which is a
+            // SyntaxError (duplicate const in the same scope) and made the entire
+            // renderer fail to parse. The array at the top already contains the
+            // Active Track card; we simply reuse it.
             const statsGrid = document.createElement('div');
             statsGrid.className = 'dashboard-grid';
-            const stats = [
-                { label: 'GPUs Available', value: state.gpuNodes.filter(n => n.status === 'available').length, icon: '🎮' },
-                { label: 'Models Installed', value: state.models.length, icon: '🧠' },
-                { label: 'Network Nodes', value: state.nodes.length, icon: '🖥️' },
-                { label: 'Active Jobs', value: state.jobs.filter(j => j.status === 'running').length, icon: '⚡' },
-            ];
             stats.forEach(s => {
                 const card = document.createElement('div');
                 card.className = 'stat-card';
@@ -1931,13 +2386,42 @@
             }
 
             // Recent activity
-            const activity = document.createElement('div');
-            activity.className = 'card';
-            activity.innerHTML = `
-                <h4 style="margin-bottom:12px;">📋 Recent Activity</h4>
-                <p style="color:#6a7f9a;font-size:13px;">${state.jobs.length > 0 ? state.jobs.slice(0, 5).map(j => `${j.type}: ${j.status}`).join('<br>') : 'No recent activity'}</p>
-            `;
-            container.appendChild(activity);
+            // ─── Active inference track + recent activity ───
+			const activity = document.createElement('div');
+			activity.className = 'card';
+			activity.innerHTML = `
+			    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+			        <h4>📋 Recent Activity</h4>
+			        <span class="track-indicator track-none" id="dashboard-track-indicator">
+			            <span class="dot"></span>
+			            <span id="dashboard-track-label">checking…</span>
+			        </span>
+			    </div>
+			    <p style="color:#6a7f9a;font-size:13px;">${state.jobs.length > 0 ? state.jobs.slice(0, 5).map(j => `${j.type}: ${j.status}`).join('<br>') : 'No recent activity'}</p>
+			`;
+			container.appendChild(activity);
+
+			// Populate the track indicator asynchronously. Called once when the
+			// dashboard renders, and refreshed every 5s by the dashboard's own
+			// polling loop (see refreshActiveTrack below).
+            refreshActiveTrack();
+
+            // ─── Demo status panel (NEW 2026-10-22) ───
+			// Shows the four things the operator wants to see at a glance during the
+			// Qatar Foundation demo:
+			//   1. Sub Hub GPUs (V100) — count and total VRAM
+			//   2. Spoke GPUs — count and total VRAM across all registered nodes
+			//   3. Active inference track
+			//   4. Last 5 failover events (if any)
+			const demoPanel = document.createElement('div');
+			demoPanel.className = 'card';
+			demoPanel.id = 'demo-status-panel';
+			demoPanel.style.marginTop = '16px';
+			demoPanel.innerHTML = '<p style="color:#6a7f9a;">Loading demo status…</p>';
+			container.appendChild(demoPanel);
+			setTimeout(refreshDemoStatus, 100);
+
+			// (Interval moved to top-level DOMContentLoaded — see "UI polling")
 
             // Bind mode selector events
             container.querySelectorAll('.mode-btn').forEach(btn => {
@@ -1945,13 +2429,188 @@
                     container.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     state.mode = btn.dataset.mode;
+
+                    // Show/hide the spoke panel based on the selected mode.
+                    const spokePanel = document.getElementById('spoke-config-panel');
+                    if (spokePanel) {
+                        spokePanel.style.display = (state.mode === 'spoke') ? 'block' : 'none';
+                    }
+
                     updateModeUI(state.mode);
                 });
             });
 
+            // In views.dashboard, after the stats grid:
+            const demoSummary = document.createElement('div');
+            demoSummary.className = 'card';
+            demoSummary.id = 'dashboard-demo-summary';
+            demoSummary.innerHTML = '<h4>🎬 Demo Claims</h4><p style="color:#6a7f9a;">Loading…</p>';
+            container.appendChild(demoSummary);
+            refreshDashboardDemoSummary();
+            // (Interval moved to top-level DOMContentLoaded.
+            //  refreshDashboardDemoSummary is now defined at module scope,
+            //  immediately below this function.)
             return container;
         };
 
+        // ═══════════════════════════════════════════════════════════════════════════
+        // refreshDashboardDemoSummary — hoisted from views.dashboard so the
+        // polling interval can live at the top level (single instance only).
+        // The innerHTML update is idempotent: if the element is not in the
+        // DOM (e.g. dashboard is not rendered), the function returns early.
+        // ═══════════════════════════════════════════════════════════════════════════
+        async function refreshDashboardDemoSummary() {
+            const el = document.getElementById('dashboard-demo-summary');
+            if (!el) return;
+            const res = await window.api.getDemoStatus();
+            if (!res) return;
+            el.innerHTML = `
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                    ${res.claims.map(c => `
+                        <div style="padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:3px solid ${c.status === 'ready' ? '#28c840' : c.status === 'down' ? '#ff5f57' : '#ffbd2e'};">
+                            <div style="font-size:11px;color:#6a7f9a;">Claim ${c.id}</div>
+                            <div style="font-size:13px;font-weight:600;">${c.name}</div>
+                            <div style="font-size:11px;color:#8a9bb5;">${c.detail}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // ─── Demo Tab ───
+        views.demo = function() {
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div class="header-actions">
+                    <h2>🎬 Demo Command Centre</h2>
+                    <div class="actions">
+                        <button class="btn-primary" id="btn-demo-precheck">🔍 Run Pre‑Demo Check</button>
+                        <button class="btn-secondary" id="btn-demo-refresh">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div id="demo-status-grid" class="dashboard-grid" style="margin-bottom:24px;">
+                    <div class="stat-card"><div class="stat-label">Loading…</div></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                    <div class="card">
+                        <h4 style="margin-bottom:12px;">🎯 Active Inference Track</h4>
+                        <div id="demo-active-track" style="font-size:28px;font-weight:700;color:#6a7f9a;">
+                            checking…
+                        </div>
+                        <div id="demo-active-track-detail" style="font-size:13px;color:#8a9bb5;margin-top:4px;"></div>
+                        <hr style="border-color:#1e2a3a;margin:16px 0;">
+                        <h4 style="margin-bottom:12px;">📡 Node Health</h4>
+                        <div id="demo-node-health"></div>
+                    </div>
+                    <div class="card">
+                        <h4 style="margin-bottom:12px;">⚡ Recent Failover Events</h4>
+                        <div id="demo-failover-events" style="font-family:monospace;font-size:12px;color:#b0b0c0;max-height:200px;overflow-y:auto;">
+                            <p style="color:#6a7f9a;">No events yet.</p>
+                        </div>
+                        <hr style="border-color:#1e2a3a;margin:16px 0;">
+                        <h4 style="margin-bottom:12px;">🚨 Trigger Failover (Demo Claim 4)</h4>
+                        <p style="font-size:13px;color:#8a9bb5;margin-bottom:12px;">
+                            Stop the AMD spoke manually, then click this button to send a pinned RPC request.
+                            The platform should either fall back to Dynamo (Tier 2) or fail loudly with HTTP 503 (Tier 6).
+                        </p>
+                        <button class="btn-danger" id="btn-demo-trigger-failover" style="width:100%;">🚨 Trigger Failover</button>
+                        <div id="demo-failover-result" style="margin-top:12px;font-size:13px;"></div>
+                    </div>
+                </div>
+                <div class="card" style="margin-top:16px;">
+                    <h4 style="margin-bottom:12px;">📋 Pre‑Demo Check Output</h4>
+                    <pre id="demo-precheck-output" style="background:#0a0e17;padding:12px;border-radius:6px;font-size:12px;color:#8a9bb5;max-height:300px;overflow-y:auto;white-space:pre-wrap;">Not run yet.</pre>
+                </div>
+            `;
+
+            setTimeout(() => {
+                document.getElementById('btn-demo-refresh')?.addEventListener('click', refreshDemoTab);
+                document.getElementById('btn-demo-precheck')?.addEventListener('click', async () => {
+                    const output = document.getElementById('demo-precheck-output');
+                    output.textContent = 'Running pre-demo check…';
+                    const res = await window.api.runPreDemoCheck();
+                    output.textContent = res.output || (res.success ? '✅ All checks passed.' : '❌ Check failed.');
+                    showToast(res.success ? '✅ Pre‑demo check passed' : '❌ Pre‑demo check failed', res.success ? 'success' : 'error');
+                });
+                document.getElementById('btn-demo-trigger-failover')?.addEventListener('click', async () => {
+                    const resultDiv = document.getElementById('demo-failover-result');
+                    resultDiv.innerHTML = '⏳ Sending pinned RPC request…';
+                    const res = await window.api.triggerFailover();
+                    if (res.status === 503) {
+                        resultDiv.innerHTML = `✅ <strong>Tier 6 fail‑loud triggered.</strong> HTTP 503 with Retry‑After: ${res.retryAfter}s`;
+                    } else if (res.success) {
+                        resultDiv.innerHTML = `✅ Request served on track: ${res.data?.inference_track || 'unknown'}`;
+                    } else {
+                        resultDiv.innerHTML = `❌ Request failed: ${res.error}`;
+                    }
+                    refreshDemoTab();
+                });
+                refreshDemoTab();
+                // (Interval moved to top-level DOMContentLoaded.)
+            }, 50);
+
+            return container;
+        };
+
+        async function refreshDemoTab() {
+            const res = await window.api.getDemoStatus();
+            if (!res) return;
+
+            // Update claims grid
+            const grid = document.getElementById('demo-status-grid');
+            if (grid) {
+                grid.innerHTML = res.claims.map(c => `
+                    <div class="stat-card" style="border-left:3px solid ${c.status === 'ready' ? '#28c840' : c.status === 'down' ? '#ff5f57' : '#ffbd2e'};">
+                        <div class="stat-label">Claim ${c.id}</div>
+                        <div class="stat-value" style="font-size:16px;">${c.name}</div>
+                        <div class="stat-sub">${c.detail}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Active track
+            const trackEl = document.getElementById('demo-active-track');
+            const detailEl = document.getElementById('demo-active-track-detail');
+            if (trackEl && detailEl) {
+                if (res.activeTrack) {
+                    const colors = { rpc: '#4a8aff', dynamo: '#28c840', local: '#ffbd2e', remote: '#a78bfa' };
+                    trackEl.textContent = res.activeTrack.toUpperCase();
+                    trackEl.style.color = colors[res.activeTrack] || '#6a7f9a';
+                    detailEl.textContent = res.lastFailover ? `Last failover: ${res.lastFailover.event}` : '';
+                } else {
+                    trackEl.textContent = 'NO ACTIVITY';
+                    trackEl.style.color = '#6a7f9a';
+                    detailEl.textContent = 'Send a chat message to populate.';
+                }
+            }
+
+            // Node health summary
+            const nh = document.getElementById('demo-node-health');
+            if (nh) {
+                nh.innerHTML = `
+                    <div style="display:flex;gap:24px;">
+                        <div><span style="color:#6a7f9a;">RPC Workers:</span> <strong style="color:${res.rpcHealthy > 0 ? '#28c840' : '#ff5f57'};">${res.rpcHealthy}</strong></div>
+                        <div><span style="color:#6a7f9a;">Dynamo Workers:</span> <strong style="color:${res.dynamoHealthy > 0 ? '#28c840' : '#ff5f57'};">${res.dynamoHealthy}</strong></div>
+                    </div>
+                `;
+            }
+
+            // Failover events
+            const ev = document.getElementById('demo-failover-events');
+            if (ev && res.lastFailover) {
+                const events = (await window.api.getRoutingEvents(10)).events || [];
+                const failovers = events.filter(e => e.event.startsWith('failover_tier')).reverse();
+                ev.innerHTML = failovers.map(e => `
+                    <div style="padding:2px 0;">
+                        <span style="color:#6a7f9a;">${e.ts?.slice(11, 19) || ''}</span>
+                        <span style="color:${e.event === 'failover_tier6' ? '#ff5f57' : '#28c840'};font-weight:600;">${e.event}</span>
+                        <span style="color:#8a9bb5;">${e.detail || ''}</span>
+                    </div>
+                `).join('');
+            } else if (ev) {
+                ev.innerHTML = '<p style="color:#6a7f9a;">No failover events.</p>';
+            }
+        }
         // ─── Chat ───
         views.chat = function() {
             const container = document.createElement('div');
@@ -1962,9 +2621,8 @@
             controls.innerHTML = `
                 <label>Model:</label>
                 <select id="chat-model">
-                    <option value="deepseek-1.5b">DeepSeek 1.5B</option>
-                    <option value="qwen-1.5b">Qwen 1.5B</option>
-                    <option value="llama-3.2">Llama 3.2</option>
+                    <!-- Dynamically populated, with Fanar as the default for the Qatar Demo -->
+                    <option value="fanar-9b">Fanar 1-9B (Sovereign Qatari Model)</option>
                     <option value="agent-default">🤖 Agent (Default)</option>
                 </select>
                 <label>Temperature:</label>
@@ -1977,13 +2635,14 @@
             const messages = document.createElement('div');
             messages.className = 'chat-messages';
             messages.id = 'chat-messages';
+            messages.style.overflowY = 'auto'; // Ensure scrollbar works
+            
             if (state.messages.length === 0) {
                 messages.innerHTML = `
                     <div class="welcome-message">
-                        <p>👋 Hello! I'm your AI assistant. How can I help you today?</p>
+                        <p>👋 Hello! I'm the NETTRADES Sovereign AI Assistant. How can I help you today?</p>
                         <ul>
-                            <li>Ask me anything about your data</li>
-                            <li>Use "Ask Someone" to get expert help</li>
+                            <li>Ask me anything about your data or your business.</li>
                             <li>Mark my answers as "Good" to help train me!</li>
                         </ul>
                     </div>
@@ -1992,7 +2651,16 @@
                 state.messages.forEach(msg => {
                     const div = document.createElement('div');
                     div.className = `message message-${msg.role}`;
-                    div.innerHTML = `<div>${msg.content}</div><div class="time">${msg.time || 'Just now'}</div>`;
+                    if (msg.isError) div.style.borderColor = '#ff5f57';
+                    const meta = msg.meta
+                        ? `<div style="font-size:10px;color:#6a7f9a;margin-top:4px;">
+                             track: <span style="color:#4a8aff;">${escapeHtml(msg.meta.track)}</span>
+                             · intent: <span style="color:#8a9bb5;">${escapeHtml(msg.meta.intent)}</span>
+                           </div>`
+                        : '';
+                    div.innerHTML = `<div>${escapeHtml(msg.content)}</div>
+                                     <div class="time" style="font-size:10px;color:#4a5f7a;margin-top:4px;">${msg.time || 'Just now'}</div>
+                                     ${meta}`;
                     messages.appendChild(div);
                 });
             }
@@ -2027,6 +2695,12 @@
                         if (label) label.textContent = state.temperature.toFixed(1);
                     });
                 }
+                
+                // Force scroll to bottom when the view renders
+                const msgContainer = document.getElementById('chat-messages');
+                if (msgContainer) {
+                    msgContainer.scrollTop = msgContainer.scrollHeight;
+                }
             }, 50);
 
             return container;
@@ -2034,159 +2708,462 @@
 
         // ─── Models ───
         views.models = function() {
-            const container = document.createElement('div');
+		    const container = document.createElement('div');
 
-            const header = document.createElement('div');
-            header.className = 'header-actions';
-            header.innerHTML = `
-                <h2>📦 Model Library</h2>
-                <div class="actions">
-                    <button class="btn-secondary" onclick="refreshModels()">🔄 Refresh</button>
-                </div>
-            `;
-            container.appendChild(header);
+		    const header = document.createElement('div');
+		    header.className = 'header-actions';
+		    header.innerHTML = `
+		        <h2>📦 Model Library</h2>
+		        <div class="actions">
+		            <button class="btn-primary" id="btn-upload-model">📤 Upload Model</button>
+		            <button class="btn-secondary" onclick="refreshModels()">🔄 Refresh</button>
+		        </div>
+		    `;
+		    container.appendChild(header);
 
-            const list = document.createElement('div');
-            list.className = 'model-list';
-            list.id = 'model-list';
-            if (state.models.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">📦</div>
-                        <h3>No models installed</h3>
-                        <p>Download a model to get started with AI inference.</p>
-                    </div>
-                `;
-            } else {
-                state.models.forEach(model => {
-                    const item = document.createElement('div');
-                    item.className = 'model-item';
-                    item.innerHTML = `
-                        <div class="model-info">
-                            <h4>${model.name}</h4>
-                            <div class="meta">
-                                <span class="tag">${model.type || 'gguf'}</span>
-                                <span>${model.size ? (model.size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : 'Unknown'}</span>
-                                <span>${model.status || 'downloaded'}</span>
-                            </div>
-                        </div>
-                        <div>
-                            ${model.status === 'downloaded'
-                                ? '<button class="btn-secondary" disabled>✅ Downloaded</button>'
-                                : model.status === 'downloading'
-                                    ? '<button class="btn-secondary" disabled>⏳ Downloading...</button>'
-                                    : `<button class="btn-primary" onclick="downloadModel('${model.name}', '${model.type || 'gguf'}')">⬇️ Download</button>`
-                            }
-                        </div>
-                    `;
-                    list.appendChild(item);
-                });
-            }
-            container.appendChild(list);
+		    const list = document.createElement('div');
+		    list.className = 'model-list';
+		    list.id = 'model-list';
+		    if (state.models.length === 0) {
+		        list.innerHTML = `
+		            <div class="empty-state">
+		                <div class="icon">📦</div>
+		                <h3>No models installed</h3>
+		                <p>Click <strong>Upload Model</strong> to import a GGUF file or a HuggingFace model directory.</p>
+		                <p style="font-size:12px;color:#6a6a7a;margin-top:8px;">
+		                    Models are stored in the <code>dynamo-data/models</code> directory shared with the inference containers.
+		                </p>
+		            </div>
+		        `;
+		    } else {
+		        state.models.forEach(model => {
+		            const item = document.createElement('div');
+		            item.className = 'model-item';
+		            item.innerHTML = `
+		                <div class="model-info">
+		                    <h4>${escapeHtml(model.name)}</h4>
+		                    <div class="meta">
+		                        <span class="tag">${model.type || 'gguf'}</span>
+		                        <span>${model.size ? (model.size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : 'Unknown'}</span>
+		                        <span>${model.status || 'downloaded'}</span>
+		                    </div>
+		                </div>
+		                <div>
+		                    ${model.status === 'downloaded'
+		                        ? '<button class="btn-secondary" disabled>✅ Downloaded</button>'
+		                        : model.status === 'downloading'
+		                            ? '<button class="btn-secondary" disabled>⏳ Downloading...</button>'
+		                            : `<button class="btn-primary" onclick="downloadModel('${escapeForInlineHandler(model.name)}', '${model.type || 'gguf'}')">⬇️ Download</button>`
+		                    }
+		                </div>
+		            `;
+		            list.appendChild(item);
+		        });
+		    }
+		    container.appendChild(list);
 
-            // Available models
-            const available = document.createElement('div');
-            available.innerHTML = `
-                <h3 style="margin:20px 0 12px;">📥 Available Models</h3>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
-                    ${[
-                        { name: 'DeepSeek-R1-Distill-Qwen-1.5B', type: 'gguf', size: '1.04 GB' },
-                        { name: 'deepseek-7b', type: 'hf', size: '14.19 GB' },
-                        { name: 'deepseek-r1-distill-qwen-7b-q4_k_m', type: 'gguf', size: '4.36 GB' },
-                    ].map(m => `
-                        <div class="card" style="padding:16px;">
-                            <h4 style="font-size:14px;">${m.name}</h4>
-                            <p style="font-size:12px;color:#6a7f9a;margin:4px 0 12px;">${m.type} • ${m.size}</p>
-                            <button class="btn-primary" style="width:100%;" onclick="downloadModel('${m.name}', '${m.type}')">Download</button>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            container.appendChild(available);
+		    // Available models (download from ModelScope mirror)
+		    const available = document.createElement('div');
+		    available.innerHTML = `
+		        <h3 style="margin:20px 0 12px;">📥 Available for download</h3>
+		        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
+		            ${[
+		                { name: 'DeepSeek-R1-Distill-Qwen-1.5B', type: 'gguf', size: '1.04 GB' },
+		                { name: 'deepseek-7b', type: 'hf', size: '14.19 GB' },
+		                { name: 'deepseek-r1-distill-qwen-7b-q4_k_m', type: 'gguf', size: '4.36 GB' },
+		            ].map(m => `
+		                <div class="card" style="padding:16px;">
+		                    <h4 style="font-size:14px;">${escapeHtml(m.name)}</h4>
+		                    <p style="font-size:12px;color:#6a7f9a;margin:4px 0 12px;">${m.type} • ${m.size}</p>
+		                    <button class="btn-primary" style="width:100%;"
+		                            onclick="downloadModel('${escapeForInlineHandler(m.name)}', '${m.type}')">Download</button>
+		                </div>
+		            `).join('')}
+		        </div>
+		    `;
+		    container.appendChild(available);
 
-            return container;
+		    // Bind Upload button AFTER appending (so the button exists in the DOM)
+		    setTimeout(() => {
+		        document.getElementById('btn-upload-model')?.addEventListener('click', async () => {
+		            const btn = document.getElementById('btn-upload-model');
+		            if (btn) { btn.disabled = true; btn.textContent = '⏳ Uploading…'; }
+		            try {
+		                const result = await window.api.uploadModel();
+		                if (result.canceled) {
+		                    showToast('Upload cancelled', 'info');
+		                } else if (result.success) {
+		                    showToast(`✅ Uploaded to ${result.path}`, 'success', 6000);
+		                    await refreshModels();
+		                } else {
+		                    showToast(`❌ Upload failed: ${result.error}`, 'error', 8000);
+		                }
+		            } catch (e) {
+		                showToast(`❌ Upload failed: ${e.message}`, 'error');
+		            } finally {
+		                if (btn) { btn.disabled = false; btn.textContent = '📤 Upload Model'; }
+		            }
+		        });
+		    }, 0);
+
+		    return container;
         };
 
-        // ─── GPUs ───
+        // ═══════════════════════════════════════════════════════════════════════════
+        // GPUs VIEW — Sub Hub (local V100) + Spokes (AMD rig + others)
+        // ═══════════════════════════════════════════════════════════════════════════
+        // Shows:
+        //   - Sub Hub GPUs: the local machine (V100 in the demo), detected via
+        //     nvidia-smi / rocminfo. Always visible even when the Docker stack is down.
+        //   - Spoke GPUs: every registered gpu.node, with its full per-GPU list
+        //     from the `gpus` JSON field. Each GPU shows vendor, model, VRAM, port,
+        //     and (for AMD) gfx target + HSA override.
+        //   - Active track: which inference track the supervisor is currently
+        //     routing to (rpc / dynamo / local / remote). This is how the operator
+        //     sees "what is being used".
+        // ═══════════════════════════════════════════════════════════════════════════
+
         views.gpus = function() {
-            const container = document.createElement('div');
-
-            const header = document.createElement('div');
-            header.className = 'header-actions';
-            header.innerHTML = `
-                <h2>🎮 GPU Nodes</h2>
-                <div class="actions">
-                    <button class="btn-primary" onclick="showRegisterGPU()">➕ Register GPU</button>
-                    <button class="btn-secondary" onclick="refreshGPUs()">🔄 Refresh</button>
-                </div>
-            `;
-            container.appendChild(header);
-
-            const grid = document.createElement('div');
-            grid.className = 'gpu-grid';
-            grid.id = 'gpu-grid';
-            if (state.gpuNodes.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state" style="grid-column:1/-1;">
-                        <div class="icon">🎮</div>
-                        <h3>No GPU nodes registered</h3>
-                        <p>Register a GPU node to start providing inference capacity.</p>
-                    </div>
-                `;
-            } else {
-                state.gpuNodes.forEach(node => {
-                    const card = document.createElement('div');
-                    card.className = 'gpu-card';
-                    card.innerHTML = `
-                        <div class="gpu-header">
-                            <h3>${node.name || 'GPU Node'}</h3>
-                            <span class="status-badge ${node.status === 'available' ? 'online' : node.status === 'busy' ? 'busy' : 'offline'}">${node.status || 'unknown'}</span>
-                        </div>
-                        <div class="gpu-details">
-                            <span>🖥️ ${node.gpu_model || 'Unknown'}</span>
-                            <span>💾 ${node.vram_gb || '?'} GB</span>
-                            <span>💰 $${node.price_per_hour || '0'}/hr</span>
-                            <span>❤️ ${node.last_heartbeat ? new Date(node.last_heartbeat).toLocaleTimeString() : 'Never'}</span>
-                        </div>
-                    `;
-                    grid.appendChild(card);
-                });
-            }
-            container.appendChild(grid);
-
-            return container;
-        };
-
-        // ─── Nodes ───
-        views.nodes = function() {
             const container = document.createElement('div');
             container.innerHTML = `
                 <div class="header-actions">
-                    <h2>🖥️ Network Nodes</h2>
+                    <h2>🎮 GPUs</h2>
                     <div class="actions">
-                        <button class="btn-secondary" onclick="discoverNodes()">🔍 Discover</button>
+                        <button class="btn-secondary" id="btn-gpus-refresh">🔄 Refresh</button>
                     </div>
                 </div>
-                ${state.nodes.length === 0 ? `
-                    <div class="empty-state">
-                        <div class="icon">🔍</div>
-                        <h3>No Nodes Discovered</h3>
-                        <p>mDNS discovery is running. Other NETTRADES nodes will appear here.</p>
+                <div id="active-track-strip" class="card" style="margin-bottom:16px;">
+                    <span style="font-size:12px;color:#6a7f9a;text-transform:uppercase;letter-spacing:0.5px;">Active inference track</span>
+                    <div id="active-track-value" style="font-size:20px;font-weight:700;margin-top:4px;color:#6a7f9a;">
+                        checking…
+                    </div>
+                </div>
+                <div id="subhub-gpus-section"></div>
+                <div id="spoke-gpus-section" style="margin-top:24px;"></div>
+            `;
+            setTimeout(() => {
+                document.getElementById('btn-gpus-refresh')?.addEventListener('click', () => refreshGPUs());
+                refreshGPUs();
+            }, 0);
+            return container;
+        };
+
+        async function refreshGPUs() {
+            const subhubEl = document.getElementById('subhub-gpus-section');
+            const spokeEl = document.getElementById('spoke-gpus-section');
+            const trackEl = document.getElementById('active-track-value');
+            if (!subhubEl || !spokeEl) return;
+
+            // ---- Active track (what is being used right now) ----
+            try {
+                const track = await window.api.getActiveTrack();
+                if (trackEl) {
+                    if (track && track.success && track.track) {
+                        const map = {
+                            rpc: { label: 'RPC Cluster (distributed)', color: '#4a8aff', icon: '🔗' },
+                            dynamo: { label: 'Dynamo / vLLM (data centre)', color: '#28c840', icon: '⚡' },
+                            local: { label: 'Local llama.cpp (CPU fallback)', color: '#ffbd2e', icon: '💻' },
+                            remote: { label: 'Remote hub', color: '#a78bfa', icon: '☁️' },
+                            remote_marketplace: { label: 'GPU marketplace', color: '#a78bfa', icon: '🌍' },
+                            remote_external: { label: 'External API', color: '#ff5f57', icon: '🔌' },
+                            cluster_recovering: { label: 'Cluster recovering (503)', color: '#ff5f57', icon: '⏳' },
+                        };
+                        const info = map[track.track] || { label: track.track, color: '#6a7f9a', icon: '→' };
+                        trackEl.innerHTML = `<span style="color:${info.color};">${info.icon} ${escapeHtml(info.label)}</span>`;
+                    } else {
+                        trackEl.innerHTML = '<span style="color:#6a7f9a;">no activity yet — send a chat message</span>';
+                    }
+                }
+            } catch (e) { /* ignore */ }
+
+            // ---- Fetch platform GPUs (local + spokes) ----
+            const result = await window.api.getPlatformGPUs();
+            const data = (result && result.success) ? result.data : { local: [], spokes: [], errors: [] };
+
+            // ---- Sub Hub section (V100) ----
+            const localGpus = data.local || [];
+            const localTotalMb = localGpus.reduce((s, g) => s + (g.memory_mb || 0), 0);
+            const localTotalGb = (localTotalMb / 1024).toFixed(0);
+
+            subhubEl.innerHTML = `
+                <div class="header-actions" style="margin-bottom:12px;">
+                    <h3 style="font-size:16px;">🖥️ Sub Hub (this machine)</h3>
+                    <span style="font-size:13px;color:#8a9bb5;">
+                        ${localGpus.length} GPU${localGpus.length === 1 ? '' : 's'} · ${localTotalGb} GB VRAM
+                    </span>
+                </div>
+                ${localGpus.length === 0 ? `
+                    <div class="card" style="padding:20px;color:#6a7f9a;">
+                        No local GPUs detected. Run <code>nvidia-smi</code> on the host to verify.
                     </div>
                 ` : `
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">
-                        ${state.nodes.map(n => `
-                            <div class="card">
-                                <h4>${n.name || 'Unknown Node'}</h4>
-                                <p style="font-size:13px;color:#8a9bb5;">${n.host}:${n.port}</p>
-                                <p style="font-size:12px;color:#6a7f9a;">${n.lastSeen ? 'Last seen: ' + new Date(n.lastSeen).toLocaleString() : 'Online'}</p>
+                    <div class="gpu-grid">
+                        ${localGpus.map(g => `
+                            <div class="gpu-card">
+                                <div class="gpu-name">GPU ${g.index} — ${escapeHtml(g.model)}</div>
+                                <div class="gpu-details">
+                                    <div><span style="color:#6a7f9a;">Vendor:</span> ${escapeHtml(g.vendor)}</div>
+                                    <div><span style="color:#6a7f9a;">VRAM:</span> ${formatVram(g.memory_mb)}</div>
+                                    ${g.compute_capability ? `<div><span style="color:#6a7f9a;">Compute Capability:</span> ${escapeHtml(g.compute_capability)}</div>` : ''}
+                                </div>
+                                <div class="gpu-status available">● Available (Sub Hub)</div>
                             </div>
                         `).join('')}
                     </div>
                 `}
+                ${data.errors && data.errors.length ? `
+                    <div style="margin-top:8px;font-size:12px;color:#ffbd2e;">
+                        ${data.errors.map(e => `⚠️ ${escapeHtml(e)}`).join('<br>')}
+                    </div>
+                ` : ''}
             `;
+
+            // ---- Spokes section (AMD rig + any other registered nodes) ----
+            const spokes = data.spokes || [];
+            if (spokes.length === 0) {
+                spokeEl.innerHTML = `
+                    <div class="header-actions" style="margin-bottom:12px;">
+                        <h3 style="font-size:16px;">🔗 Spokes</h3>
+                        <span style="font-size:13px;color:#8a9bb5;">0 nodes</span>
+                    </div>
+                    <div class="card" style="padding:20px;color:#6a7f9a;">
+                        No spokes registered yet. On the AMD rig, run:
+                        <pre style="margin-top:8px;background:#0a0a0f;padding:8px;border-radius:4px;font-size:11px;color:#4a8aff;">sudo ./scripts/install-spoke.sh \\
+            --hub-host=192.168.1.212 \\
+            --token=&lt;token-from-configure-hub-for-spokes&gt; \\
+            --node-name=amd-mining-rig \\
+            --inference-capability=rpc_worker \\
+            --no-wireguard</pre>
+                    </div>
+                `;
+                return;
+            }
+
+            const spokeCards = spokes.map(node => {
+                const healthy = node.status === 'online';
+                const statusClass = healthy ? 'available' : 'offline';
+                const statusLabel = healthy ? '● Online' : `● ${node.status || 'unknown'}`;
+                const util = Number(node.gpu_utilisation_pct || 0).toFixed(0);
+
+                return `
+                    <div class="card" style="margin-bottom:16px;padding:18px 20px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+                            <div>
+                                <div style="font-size:16px;font-weight:600;">
+                                    ${escapeHtml(node.hostname)}
+                                    ${node.model_cached ? '<span style="font-size:10px;background:rgba(255,189,46,0.2);color:#ffbd2e;padding:2px 8px;border-radius:8px;margin-left:8px;">warm spare</span>' : ''}
+                                </div>
+                                <div style="font-size:12px;color:#6a7f9a;margin-top:2px;">
+                                    ${escapeHtml(node.inference_capability)}
+                                    ${node.ip ? ` · ${escapeHtml(node.ip)}` : ''}
+                                    ${node.ram_gb ? ` · ${Math.round(node.ram_gb)} GB RAM` : ''}
+                                    ${node.cpu_cores ? ` · ${node.cpu_cores} cores` : ''}
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div class="gpu-status ${statusClass}" style="display:inline-block;">${statusLabel}</div>
+                                <div style="font-size:12px;color:#6a7f9a;margin-top:4px;">
+                                    ${node.gpus.length} GPU${node.gpus.length === 1 ? '' : 's'} ·
+                                    ${formatVram(node.gpus.reduce((s, g) => s + (g.memory_mb || 0), 0))}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
+                            ${node.gpus.map(g => `
+                                <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 12px;">
+                                    <div style="font-size:12px;font-weight:600;">
+                                        GPU ${g.index} — ${escapeHtml(g.model)}
+                                    </div>
+                                    <div style="font-size:11px;color:#6a7f9a;margin-top:2px;">
+                                        ${formatVram(g.memory_mb)} · port ${g.rpc_port}
+                                    </div>
+                                    ${g.gfx_target ? `
+                                        <div style="font-size:10px;color:#8a9bb5;margin-top:2px;">
+                                            ${escapeHtml(g.gfx_target)}
+                                            ${g.hsa_override ? ` · HSA_OVERRIDE=${escapeHtml(g.hsa_override)}` : ''}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${node.gpu_utilisation_pct !== undefined ? `
+                            <div style="margin-top:10px;font-size:12px;color:#8a9bb5;">
+                                Utilisation: <strong>${util}%</strong>
+                                ${node.last_seen ? ` · last seen ${formatRelativeTime(node.last_seen)}` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            spokeEl.innerHTML = `
+                <div class="header-actions" style="margin-bottom:12px;">
+                    <h3 style="font-size:16px;">🔗 Spokes</h3>
+                    <span style="font-size:13px;color:#8a9bb5;">
+                        ${spokes.length} node${spokes.length === 1 ? '' : 's'}
+                    </span>
+                </div>
+                ${spokeCards}
+            `;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+		// NODES VIEW — live health monitor state
+		// ═══════════════════════════════════════════════════════════════════════════
+		// Shows:
+		//   - Every node registered with the LangGraph health monitor
+		//   - Per-node VRAM, GPU count, model cache, RPC backends
+		//   - Consecutive failure count (which drives the drain threshold)
+		//   - Per-GPU utilisation from the most recent heartbeat
+		//
+		// This replaces the previous mDNS-only view. mDNS discovery is still
+		// useful (it is how a new spoke finds the hub), but it is not the
+		// authoritative state. The health monitor is.
+		// ═══════════════════════════════════════════════════════════════════════════
+
+		// ─── Nodes ───
+        views.nodes = function() {
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div class="header-actions">
+                    <h2>🌐 Nodes</h2>
+                    <div class="actions">
+                        <button class="btn-secondary" id="btn-nodes-refresh">🔄 Refresh</button>
+                        <button class="btn-outline" id="btn-nodes-mdns">🔍 mDNS scan</button>
+                    </div>
+                </div>
+                <div id="nodes-content">
+                    <div class="empty-state">
+                        <div class="icon">⏳</div>
+                        <h3>Loading node health…</h3>
+                    </div>
+                </div>
+                <h3 style="margin-top:24px;margin-bottom:8px;font-size:14px;color:#8a9bb5;">
+                    mDNS Discovered Peers
+                </h3>
+                <div id="mdns-nodes-list">
+                    ${state.nodes.length === 0 ? `
+                        <div class="empty-state" style="padding:20px;">
+                            <div class="icon">🔍</div>
+                            <p>No mDNS peers discovered. Click "mDNS scan" to search.</p>
+                        </div>
+                    ` : `
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
+                            ${state.nodes.map(n => `
+                                <div class="card" style="padding:12px 16px;">
+                                    <h4 style="font-size:14px;">${escapeHtml(n.name || 'Unknown')}</h4>
+                                    <p style="font-size:12px;color:#8a9bb5;margin-top:4px;">${escapeHtml(n.host || '')}:${n.port || ''}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+
+            setTimeout(() => {
+                document.getElementById('btn-nodes-refresh')?.addEventListener('click', () => refreshNodesFromHealth());
+                document.getElementById('btn-nodes-mdns')?.addEventListener('click', () => discoverNodes());
+                refreshNodesFromHealth();
+            }, 0);
+
             return container;
         };
+
+        async function refreshNodesFromHealth() {
+		    const content = document.getElementById('nodes-content');
+		    if (!content) return;
+
+		    const result = await window.api.getHealthNodes();
+		    if (!result || !result.success) {
+		        content.innerHTML = `
+		            <div class="empty-state">
+		                <div class="icon">⚠️</div>
+		                <h3>Health monitor unavailable</h3>
+		                <p>${escapeHtml(result?.error || 'langgraph-server unreachable')}</p>
+		            </div>
+		        `;
+		        return;
+		    }
+
+		    const nodes = result.nodes || [];
+		    safeSetText('node-count', nodes.length);
+
+		    if (nodes.length === 0) {
+		        content.innerHTML = `
+		            <div class="empty-state">
+		                <div class="icon">🔍</div>
+		                <h3>No nodes registered</h3>
+		                <p>Install a spoke and it will register with the hub within 30 seconds.</p>
+		                <p style="font-size:12px;color:#6a6a7a;margin-top:8px;">
+		                    Run <code>./scripts/configure-hub-for-spokes.sh</code> on the hub to get a token.
+		                </p>
+		            </div>
+		        `;
+		        return;
+		    }
+
+		    const cards = nodes.map(n => {
+		        // Determine staleness: the health monitor's own `is_healthy` flag
+		        // covers the pull-probe case. For push-only nodes, staleness is
+		        // derived from `last_heartbeat` and the monitor's threshold (30s
+		        // in the default configuration).
+		        let statusClass = 'healthy';
+		        let statusLabel = 'Healthy';
+		        if (!n.is_healthy) {
+		            const age = n.last_heartbeat
+		                ? (Date.now() - new Date(n.last_heartbeat).getTime()) / 1000
+		                : Infinity;
+		            if (age > 60) {
+		                statusClass = 'unhealthy';
+		                statusLabel = 'Unhealthy';
+		            } else {
+		                statusClass = 'stale';
+		                statusLabel = 'Stale';
+		            }
+		        }
+
+		        const warmSpare = n.model_cached
+		            ? '<span class="warm-spare-badge">warm spare</span>'
+		            : '';
+
+		        const rpcList = (n.rpc_backends || []).length > 0
+		            ? `<div class="rpc-list">${n.rpc_backends.map(b => escapeHtml(b)).join('<br>')}</div>`
+		            : '<div class="rpc-list" style="color:#4a4a5a;">no RPC backends</div>';
+
+		        // Per-GPU utilisation. The map is keyed by GPU index (integer).
+		        const utilMap = n.gpu_utilization || {};
+		        const utilEntries = Object.entries(utilMap);
+		        const utilHtml = utilEntries.length > 0
+		            ? utilEntries.map(([idx, util]) => `
+		                <div><span class="k">GPU ${escapeHtml(idx)}</span> <span class="v">${Number(util).toFixed(0)}%</span></div>
+		            `).join('')
+		            : '<div><span class="k">GPU util</span> <span class="v">—</span></div>';
+
+		        return `
+		            <div class="health-node-card ${statusClass}">
+		                <div class="node-header">
+		                    <div>
+		                        <div class="node-name">${escapeHtml(n.hostname || n.node_id)}${warmSpare}</div>
+		                        <div class="node-role">${escapeHtml(n.role || 'unknown')} · id=${escapeHtml(String(n.node_id))}</div>
+		                    </div>
+		                    <span class="node-health-pill ${statusClass}">${statusLabel}</span>
+		                </div>
+		                <div class="node-metrics">
+		                    <div><span class="k">VRAM</span> <span class="v">${formatVram(n.vram_total_mb)}</span></div>
+		                    <div><span class="k">GPUs</span> <span class="v">${n.gpu_count || 0}</span></div>
+		                    <div><span class="k">Last beat</span> <span class="v">${escapeHtml(formatRelativeTime(n.last_heartbeat))}</span></div>
+		                    <div><span class="k">Failures</span> <span class="v">${n.consecutive_failures || 0}</span></div>
+		                    ${utilHtml}
+		                </div>
+		                ${rpcList}
+		            </div>
+		        `;
+		    }).join('');
+
+		    content.innerHTML = `
+		        <div class="health-nodes-grid">${cards}</div>
+		    `;
+        }
 
         // ─── VPN ───
         views.vpn = function() {
@@ -2223,6 +3200,793 @@
             `;
             return container;
         };
+
+        // ─── Cluster ───
+
+
+
+
+
+        views.cluster = function() {
+		    const container = document.createElement('div');
+
+		    // Header
+		    const header = document.createElement('div');
+		    header.className = 'header-actions';
+		    header.innerHTML = `
+		        <div>
+		            <h2>🕸️ RPC Cluster Topology</h2>
+		            <p style="font-size:13px;color:#8a9bb5;margin-top:4px;">
+		                Layer assignment and pipeline parallelism across spoke GPUs.
+		            </p>
+		        </div>
+		        <div class="actions">
+		            <button class="btn-secondary" onclick="refreshCluster()">🔄 Refresh</button>
+		            <button class="btn-primary" onclick="relaunchCluster()">🚀 Relaunch Cluster</button>
+		        </div>
+		    `;
+		    container.appendChild(header);
+
+		    // Inference config banner
+		    const configBanner = document.createElement('div');
+		    configBanner.className = 'card';
+		    configBanner.id = 'cluster-inference-config';
+		    configBanner.innerHTML = `<p style="color:#6a7f9a;">Loading inference config...</p>`;
+		    container.appendChild(configBanner);
+
+		    // Cluster status banner
+		    const statusBanner = document.createElement('div');
+		    statusBanner.className = 'card';
+		    statusBanner.id = 'cluster-status';
+		    statusBanner.style.marginTop = '16px';
+		    statusBanner.innerHTML = `<p style="color:#6a7f9a;">Loading cluster state...</p>`;
+		    container.appendChild(statusBanner);
+
+		    // Layer assignment table
+		    const tableCard = document.createElement('div');
+		    tableCard.className = 'card';
+		    tableCard.style.marginTop = '16px';
+		    tableCard.id = 'layer-assignment-card';
+		    tableCard.innerHTML = `<p style="color:#6a7f9a;">Loading layer assignment...</p>`;
+		    container.appendChild(tableCard);
+
+		    // Live nodes preview
+		    const nodesCard = document.createElement('div');
+		    nodesCard.className = 'card';
+		    nodesCard.style.marginTop = '16px';
+		    nodesCard.id = 'cluster-live-nodes';
+		    nodesCard.innerHTML = `<p style="color:#6a7f9a;">Loading live nodes...</p>`;
+		    container.appendChild(nodesCard);
+
+		    // Trigger initial load
+		    setTimeout(refreshCluster, 50);
+
+		    return container;
+        };
+
+
+        // Track the last routing event timestamp we've already shown toasts for.
+		let lastRoutingEventTs = null;
+
+		async function pollRoutingForToasts() {
+		    try {
+		        const res = await window.api.getRoutingEvents(5);
+		        if (!res.success || !res.events || res.events.length === 0) return;
+		        const latest = res.events[res.events.length - 1];
+		        if (latest.ts === lastRoutingEventTs) return;
+		        lastRoutingEventTs = latest.ts;
+
+		        // Only toast on failover events, not on every selected event
+		        if (latest.event && latest.event.startsWith('failover_tier')) {
+		            const msg = {
+		                'failover_tier2': '⚡ Failing over to Dynamo (data-centre tier)',
+		                'failover_tier3': '🔗 Failing over to partial RPC cluster',
+		                'failover_tier4': '🌍 Failing over to GPU marketplace',
+		                'failover_tier5': '🔌 Failing over to external API',
+		                'failover_tier6': '⏳ Cluster recovering — retry in 30s (HTTP 503)',
+		            }[latest.event] || `Failover event: ${latest.event}`;
+		            const type = latest.event === 'failover_tier6' ? 'warning' : 'info';
+		            showToast(msg, type, 8000);
+		        }
+		    } catch (e) { /* ignore */ }
+		}
+
+		// Poll every 5 seconds
+        setInterval(pollRoutingForToasts, 15000);
+
+
+        // ═══════════════════════════════════════════════════════════════════════════
+		// refreshDemoStatus — populates the Demo Status panel on the Dashboard
+		// ═══════════════════════════════════════════════════════════════════════════
+		async function refreshDemoStatus() {
+		    const panel = document.getElementById('demo-status-panel');
+		    if (!panel) return;
+
+		    // 1. Platform GPUs
+		    let localCount = 0, localVram = 0;
+		    let spokeCount = 0, spokeVram = 0, spokeNodes = 0;
+		    let errors = [];
+		    try {
+		        const r = await window.api.getPlatformGPUs();
+		        if (r && r.success) {
+		            localCount = (r.data.local || []).length;
+		            localVram = (r.data.local || []).reduce((s, g) => s + (g.memory_mb || 0), 0);
+		            spokeNodes = (r.data.spokes || []).length;
+		            for (const node of (r.data.spokes || [])) {
+		                spokeCount += (node.gpus || []).length;
+		                spokeVram += (node.gpus || []).reduce((s, g) => s + (g.memory_mb || 0), 0);
+		            }
+		            errors = r.data.errors || [];
+		        }
+		    } catch (e) {
+		        errors.push(e.message);
+		    }
+
+		    // 2. Active track
+		    let track = null;
+		    try {
+		        const t = await window.api.getActiveTrack();
+		        if (t && t.success && t.track) track = t.track;
+		    } catch {}
+
+		    // 3. Recent routing events
+		    let events = [];
+		    try {
+		        const ev = await window.api.getRoutingEvents(50);
+		        events = (ev.events || []).filter(e =>
+		            e.event && (e.event.startsWith('failover') || e.event === 'preflight_fail')
+		        ).slice(-5).reverse();
+		    } catch {}
+
+		    const trackColor = {
+		        rpc: '#4a8aff', dynamo: '#28c840', local: '#ffbd2e',
+		        remote: '#a78bfa', cluster_recovering: '#ff5f57',
+		    }[track] || '#6a7f9a';
+
+		    panel.innerHTML = `
+		        <h4 style="margin-bottom:12px;">📊 Demo Status</h4>
+		        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:13px;">
+		            <div>
+		                <div style="font-size:11px;color:#6a7f9a;text-transform:uppercase;letter-spacing:0.5px;">Sub Hub (V100)</div>
+		                <div style="font-size:18px;font-weight:700;margin-top:2px;">
+		                    ${localCount} GPU${localCount === 1 ? '' : 's'} · ${(localVram / 1024).toFixed(0)} GB
+		                </div>
+		            </div>
+		            <div>
+		                <div style="font-size:11px;color:#6a7f9a;text-transform:uppercase;letter-spacing:0.5px;">Spokes (${spokeNodes} node${spokeNodes === 1 ? '' : 's'})</div>
+		                <div style="font-size:18px;font-weight:700;margin-top:2px;">
+		                    ${spokeCount} GPU${spokeCount === 1 ? '' : 's'} · ${(spokeVram / 1024).toFixed(0)} GB
+		                </div>
+		            </div>
+		            <div style="grid-column:1/-1;">
+		                <div style="font-size:11px;color:#6a7f9a;text-transform:uppercase;letter-spacing:0.5px;">Active Inference Track</div>
+		                <div style="font-size:18px;font-weight:700;margin-top:2px;color:${trackColor};">
+		                    ${track ? escapeHtml(track) : '— (no requests yet)'}
+		                </div>
+		            </div>
+		            <div style="grid-column:1/-1;">
+		                <div style="font-size:11px;color:#6a7f9a;text-transform:uppercase;letter-spacing:0.5px;">Recent Failover Events</div>
+		                ${events.length === 0
+		                    ? '<div style="font-size:13px;color:#6a7f9a;margin-top:4px;">No failover events (all clean).</div>'
+		                    : `<div style="margin-top:6px;font-family:monospace;font-size:11px;color:#b0b0c0;line-height:1.5;">
+		                        ${events.map(e => `
+		                            <div>
+		                                <span style="color:#6a7f9a;">${escapeHtml((e.ts || '').slice(11, 19))}</span>
+		                                <span style="color:${e.event === 'preflight_fail' ? '#ffbd2e' : '#ff5f57'};font-weight:600;">
+		                                    ${escapeHtml(e.event)}
+		                                </span>
+		                                <span style="color:#8a9bb5;">${escapeHtml(e.detail || '')}</span>
+		                            </div>
+		                        `).join('')}
+		                    </div>`
+		                }
+		            </div>
+		        </div>
+		        ${errors.length ? `
+		            <div style="margin-top:8px;font-size:11px;color:#ffbd2e;">
+		                ⚠️ ${errors.map(escapeHtml).join(' · ')}
+		            </div>
+		        ` : ''}
+		    `;
+        }
+
+        // -----------------------------------------------------------------------------
+		// refreshActiveTrack — updates the dashboard's track indicator
+		// -----------------------------------------------------------------------------
+		async function refreshActiveTrack() {
+		    const ind = document.getElementById('dashboard-track-indicator');
+		    const lbl = document.getElementById('dashboard-track-label');
+		    if (!ind || !lbl) return;
+
+		    const result = await window.api.getActiveTrack();
+		    if (!result || !result.success || !result.track) {
+		        ind.className = 'track-indicator track-none';
+		        lbl.textContent = 'no activity';
+		        return;
+		    }
+
+		    const track = result.track;
+		    ind.className = `track-indicator ${trackClass(track)}`;
+		    lbl.textContent = track.toUpperCase();
+        }
+
+        // ─── Refresh Cluster ───
+        async function refreshCluster() {
+		    // Inference config
+		    try {
+		        const cfg = await window.api.getInferenceConfig();
+		        const el = document.getElementById('cluster-inference-config');
+		        if (el && cfg.success) {
+		            const d = cfg.data;
+		            el.innerHTML = `
+		                <h4 style="margin-bottom:12px;">🎯 Inference Configuration</h4>
+		                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;font-size:13px;">
+		                    <div><span style="color:#6a7f9a;">LLM_BASE_URL:</span>
+		                         <code style="color:#4a8aff;">${escapeHtml(d.llm_base_url)}</code></div>
+		                    <div><span style="color:#6a7f9a;">MODEL_NAME:</span> ${escapeHtml(d.model_name)}</div>
+		                    <div><span style="color:#6a7f9a;">MODEL_SIZE_BYTES:</span>
+		                         ${d.model_size_bytes.toLocaleString()} B
+		                         (${(d.model_size_bytes / 1024 / 1024 / 1024).toFixed(2)} GB)</div>
+		                    <div><span style="color:#6a7f9a;">MODEL_LAYERS:</span> ${d.model_layers}</div>
+		                    <div style="grid-column:1/-1;">
+		                        <span style="color:#6a7f9a;">RPC_MASTER_MODEL:</span>
+		                        <code style="font-size:12px;">${escapeHtml(d.rpc_master_model)}</code>
+		                    </div>
+		                </div>
+		            `;
+		        }
+		    } catch (e) {
+		        console.error('getInferenceConfig failed:', e);
+		    }
+
+		    // Cluster state
+		    let clusterState = null;
+		    try {
+		        const res = await window.api.getClusterState(1);
+		        if (res.success) {
+		            clusterState = res.data;
+		        } else {
+		            const el = document.getElementById('cluster-status');
+		            if (el) el.innerHTML = `<p style="color:#ffbd2e;">⚠️ ${escapeHtml(res.error || 'Cluster state unavailable')}</p>`;
+		        }
+		    } catch (e) {
+		        console.error('getClusterState failed:', e);
+		    }
+
+		    if (clusterState) {
+		        const c = clusterState.cluster;
+		        const statusEl = document.getElementById('cluster-status');
+		        if (statusEl) {
+		            const fallbacks = [
+		                c.allow_dynamo_fallback ? 'Dynamo' : null,
+		                c.allow_rpc_partial_fallback ? 'Partial RPC' : null,
+		                c.allow_marketplace_fallback ? 'Marketplace' : null,
+		                c.allow_external_api_fallback ? 'External API' : null,
+		            ].filter(Boolean);
+		            statusEl.innerHTML = `
+		                <h4 style="margin-bottom:12px;">🏢 Cluster: ${escapeHtml(c.name)}</h4>
+		                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;font-size:13px;">
+		                    <div><span style="color:#6a7f9a;">ID:</span> ${c.id}</div>
+		                    <div><span style="color:#6a7f9a;">Trust Mode:</span>
+		                         <span style="color:#4a8aff;">${escapeHtml(c.trust_mode)}</span></div>
+		                    <div><span style="color:#6a7f9a;">Status:</span> ${escapeHtml(c.status)}</div>
+		                    <div><span style="color:#6a7f9a;">Enabled Fallbacks:</span>
+		                         ${fallbacks.length ? fallbacks.join(', ') : 'None (fail-loud only)'}</div>
+		                </div>
+		            `;
+		        }
+
+		        // Layer assignment table
+		        const la = c.layer_assignment || {};
+		        const entries = Object.entries(la);
+		        const tableEl = document.getElementById('layer-assignment-card');
+		        if (tableEl) {
+		            if (entries.length === 0) {
+		                tableEl.innerHTML = `
+		                    <h4 style="margin-bottom:12px;">🧩 Layer Assignment</h4>
+		                    <p style="color:#6a7f9a;">No layer assignment recorded. Launch the RPC cluster to populate this table.</p>
+		                `;
+		            } else {
+		                tableEl.innerHTML = `
+		                    <h4 style="margin-bottom:12px;">🧩 Layer Assignment
+		                        <span style="font-size:12px;color:#6a7f9a;font-weight:400;">
+		                            (${entries.length} worker${entries.length === 1 ? '' : 's'})
+		                        </span>
+		                    </h4>
+		                    <div style="overflow-x:auto;">
+		                        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+		                            <thead>
+		                                <tr style="border-bottom:1px solid rgba(255,255,255,0.1);text-align:left;">
+		                                    <th style="padding:8px 12px;">Key</th>
+		                                    <th style="padding:8px 12px;">Hostname</th>
+		                                    <th style="padding:8px 12px;">RPC Address</th>
+		                                    <th style="padding:8px 12px;">Layers</th>
+		                                    <th style="padding:8px 12px;">Share</th>
+		                                </tr>
+		                            </thead>
+		                            <tbody>
+		                                ${entries.map(([k, v]) => `
+		                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+		                                        <td style="padding:8px 12px;font-family:monospace;color:#6a7f9a;">${escapeHtml(k)}</td>
+		                                        <td style="padding:8px 12px;">${escapeHtml(v.hostname || '—')}</td>
+		                                        <td style="padding:8px 12px;font-family:monospace;color:#4a8aff;">
+		                                            ${escapeHtml(v.wg_ip || '')}:${v.rpc_port || ''}
+		                                        </td>
+		                                        <td style="padding:8px 12px;">${v.start_layer ?? '?'} → ${v.end_layer ?? '?'}</td>
+		                                        <td style="padding:8px 12px;">${v.share != null ? (v.share * 100).toFixed(1) + '%' : '—'}</td>
+		                                    </tr>
+		                                `).join('')}
+		                            </tbody>
+		                        </table>
+		                    </div>
+		                `;
+		            }
+		        }
+
+		        // Live nodes
+		        const nodesEl = document.getElementById('cluster-live-nodes');
+		        if (nodesEl) {
+		            const nodes = clusterState.live_nodes || [];
+		            nodesEl.innerHTML = `
+		                <h4 style="margin-bottom:12px;">📡 Live Nodes
+		                    <span style="font-size:12px;color:#6a7f9a;font-weight:400;">
+		                        (${nodes.filter(n => n.is_healthy).length} healthy / ${nodes.length} total)
+		                    </span>
+		                </h4>
+		                ${nodes.length === 0 ? '<p style="color:#6a7f9a;">No nodes registered with the health monitor.</p>' : `
+		                    <div style="display:flex;flex-direction:column;gap:6px;">
+		                        ${nodes.map(n => `
+		                            <div style="display:flex;align-items:center;gap:12px;padding:6px 12px;background:rgba(255,255,255,0.03);border-radius:6px;">
+		                                <span style="width:8px;height:8px;border-radius:50%;background:${n.is_healthy ? '#28c840' : '#6a6a7a'};"></span>
+		                                <span style="flex:1;font-weight:500;">${escapeHtml(n.hostname)}</span>
+		                                <span style="font-size:12px;color:#6a7f9a;">${n.role}</span>
+		                                <span style="font-size:12px;color:#4a8aff;">${n.vram_total_mb ? (n.vram_total_mb / 1024).toFixed(0) + ' GB' : '—'}</span>
+		                                <span style="font-size:12px;color:${n.model_cached ? '#28c840' : '#6a7f9a'};">
+		                                    ${n.model_cached ? '✓ cached' : '✗ not cached'}
+		                                </span>
+		                            </div>
+		                        `).join('')}
+		                    </div>
+		                `}
+		            `;
+		        }
+		    }
+		}
+
+		async function relaunchCluster() {
+		    if (!confirm('Relaunch the RPC cluster?\n\nThe master container will be recreated with the current layer assignment. In-flight requests will be interrupted.')) return;
+		    showToast('Relaunching RPC cluster...', 'info');
+		    try {
+		        const res = await window.api.relaunchCluster({ cluster_id: 1 });
+		        if (res.success) {
+		            showToast('Cluster relaunched successfully.', 'success');
+		            await refreshCluster();
+		        } else {
+		            showToast(`Relaunch failed: ${res.data?.error || res.error || res.status}`, 'error');
+		        }
+		    } catch (e) {
+		        showToast(`Relaunch failed: ${e.message}`, 'error');
+		    }
+		}
+		window.refreshCluster = refreshCluster;
+        window.relaunchCluster = relaunchCluster;
+
+
+
+        // ─── Routing ───
+        views.routing = function() {
+		    const container = document.createElement('div');
+
+		    const header = document.createElement('div');
+		    header.className = 'header-actions';
+		    header.innerHTML = `
+		        <div>
+		            <h2>🧭 Routing & Failover</h2>
+		            <p style="font-size:13px;color:#8a9bb5;margin-top:4px;">
+		                Track selection and failover events from the LangGraph supervisor.
+		            </p>
+		        </div>
+		        <div class="actions">
+		            <button class="btn-secondary" onclick="refreshRouting()">🔄 Refresh</button>
+		        </div>
+		    `;
+		    container.appendChild(header);
+
+		    // Active track indicator
+		    const activeCard = document.createElement('div');
+		    activeCard.className = 'card';
+		    activeCard.id = 'routing-active';
+		    activeCard.innerHTML = `<p style="color:#6a7f9a;">Loading active track...</p>`;
+		    container.appendChild(activeCard);
+
+		    // Failover policy card
+		    const policyCard = document.createElement('div');
+		    policyCard.className = 'card';
+		    policyCard.id = 'routing-policy';
+		    policyCard.style.marginTop = '16px';
+		    policyCard.innerHTML = `<p style="color:#6a7f9a;">Loading policy...</p>`;
+		    container.appendChild(policyCard);
+
+		    // Event timeline
+		    const eventsCard = document.createElement('div');
+		    eventsCard.className = 'card';
+		    eventsCard.id = 'routing-events';
+		    eventsCard.style.marginTop = '16px';
+		    eventsCard.innerHTML = `<p style="color:#6a7f9a;">Loading events...</p>`;
+		    container.appendChild(eventsCard);
+
+		    setTimeout(refreshRouting, 50);
+
+		    return container;
+		};
+
+		async function refreshRouting() {
+		    // Active track
+		    try {
+		        const active = await window.api.getActiveTrack();
+		        const el = document.getElementById('routing-active');
+		        if (el) {
+		            if (!active.success || !active.track) {
+		                el.innerHTML = `
+		                    <h4 style="margin-bottom:8px;">🎯 Active Inference Track</h4>
+		                    <p style="color:#6a7f9a;">No requests processed yet. Send a message in the Chat tab to populate this.</p>
+		                `;
+		            } else {
+		                const track = active.track;
+		                const colors = {
+		                    'dynamo': '#28c840',
+		                    'rpc': '#4a8aff',
+		                    'local': '#ffbd2e',
+		                    'remote': '#a78bfa',
+		                    'remote_marketplace': '#a78bfa',
+		                    'remote_external': '#ff5f57',
+		                    'cluster_recovering': '#ff5f57',
+		                };
+		                const icons = {
+		                    'dynamo': '⚡',
+		                    'rpc': '🔗',
+		                    'local': '💻',
+		                    'remote': '☁️',
+		                    'remote_marketplace': '🌍',
+		                    'remote_external': '🔌',
+		                    'cluster_recovering': '⏳',
+		                };
+		                el.innerHTML = `
+		                    <h4 style="margin-bottom:12px;">🎯 Active Inference Track</h4>
+		                    <div style="font-size:24px;font-weight:700;color:${colors[track] || '#fff'};">
+		                        ${icons[track] || '→'} ${track}
+		                    </div>
+		                    <div style="font-size:13px;color:#8a9bb5;margin-top:8px;">
+		                        ${escapeHtml(active.event?.detail || '')}
+		                    </div>
+		                    <div style="font-size:11px;color:#6a7f9a;margin-top:4px;">
+		                        Last event: ${escapeHtml(active.event?.ts || '')}
+		                    </div>
+		                `;
+		            }
+		        }
+		    } catch (e) {
+		        console.error('getActiveTrack failed:', e);
+		    }
+
+		    // Failover policy from cluster state
+		    try {
+		        const cluster = await window.api.getClusterState(1);
+		        const el = document.getElementById('routing-policy');
+		        if (el && cluster.success) {
+		            const c = cluster.data.cluster;
+		            const policy = [
+		                { tier: 1, name: 'Warm Spare',           enabled: true,  note: 'Automatic when a spare is available' },
+		                { tier: 2, name: 'Dynamo Fallback',      enabled: c.allow_dynamo_fallback,        note: 'Route to the data-centre tier (vLLM on V100 / Blackwell)' },
+		                { tier: 3, name: 'Partial RPC',          enabled: c.allow_rpc_partial_fallback,   note: 'Rebuild with fewer workers' },
+		                { tier: 4, name: 'GPU Marketplace',      enabled: c.allow_marketplace_fallback,   note: 'Rent same-model compute' },
+		                { tier: 5, name: 'External API',         enabled: c.allow_external_api_fallback,  note: 'OpenAI / Anthropic — leaves the network' },
+		                { tier: 6, name: 'Fail Loud (HTTP 503)', enabled: true,                            note: 'Always on. Never silently downgrades.' },
+		            ];
+		            el.innerHTML = `
+		                <h4 style="margin-bottom:12px;">🛡️ Failover Policy</h4>
+		                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+		                    <thead>
+		                        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);text-align:left;">
+		                            <th style="padding:6px 12px;">Tier</th>
+		                            <th style="padding:6px 12px;">Name</th>
+		                            <th style="padding:6px 12px;">Status</th>
+		                            <th style="padding:6px 12px;">Notes</th>
+		                        </tr>
+		                    </thead>
+		                    <tbody>
+		                        ${policy.map(p => `
+		                            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+		                                <td style="padding:6px 12px;font-weight:600;">${p.tier}</td>
+		                                <td style="padding:6px 12px;">${p.name}</td>
+		                                <td style="padding:6px 12px;">
+		                                    <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;
+		                                        background:${p.enabled ? 'rgba(40,200,64,0.15)' : 'rgba(106,106,122,0.2)'};
+		                                        color:${p.enabled ? '#28c840' : '#6a6a7a'};">
+		                                        ${p.enabled ? '✓ enabled' : '✗ disabled'}
+		                                    </span>
+		                                </td>
+		                                <td style="padding:6px 12px;color:#8a9bb5;">${p.note}</td>
+		                            </tr>
+		                        `).join('')}
+		                    </tbody>
+		                </table>
+		            `;
+		        }
+		    } catch (e) {
+		        console.error('Failed to load policy:', e);
+		    }
+
+		    // Events timeline
+		    try {
+		        const ev = await window.api.getRoutingEvents(100);
+		        const el = document.getElementById('routing-events');
+		        if (el) {
+		            const events = (ev.events || []).slice().reverse();
+		            if (events.length === 0) {
+		                el.innerHTML = `
+		                    <h4 style="margin-bottom:8px;">📜 Recent Routing Events</h4>
+		                    <p style="color:#6a7f9a;">No events recorded. Send a message in the Chat tab to see live decisions.</p>
+		                `;
+		            } else {
+		                const colorFor = (e) => ({
+		                    'selected': '#4a8aff',
+		                    'pinned': '#4a8aff',
+		                    'failover_tier2': '#28c840',
+		                    'failover_tier3': '#ffbd2e',
+		                    'failover_tier4': '#a78bfa',
+		                    'failover_tier5': '#ff5f57',
+		                    'failover_tier6': '#ff5f57',
+		                    'preflight_ok': '#28c840',
+		                    'preflight_fail': '#ffbd2e',
+		                }[e] || '#8a9bb5');
+
+		                el.innerHTML = `
+		                    <h4 style="margin-bottom:12px;">📜 Recent Routing Events
+		                        <span style="font-size:12px;color:#6a7f9a;font-weight:400;">(${events.length})</span>
+		                    </h4>
+		                    <div style="max-height:500px;overflow-y:auto;font-family:monospace;font-size:12px;">
+		                        ${events.map(e => `
+		                            <div style="display:grid;grid-template-columns:180px 180px 1fr;gap:12px;
+		                                        padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.04);">
+		                                <span style="color:#6a6a7a;">${escapeHtml(e.ts)}</span>
+		                                <span style="color:${colorFor(e.event)};font-weight:600;">${escapeHtml(e.event)}</span>
+		                                <span style="color:#b0b0c0;">${escapeHtml(e.track || '')} ${e.detail ? '— ' + escapeHtml(e.detail) : ''}</span>
+		                            </div>
+		                        `).join('')}
+		                    </div>
+		                `;
+		            }
+		        }
+		    } catch (e) {
+		        console.error('getRoutingEvents failed:', e);
+		    }
+		}
+        window.refreshRouting = refreshRouting;
+
+        // ═══════════════════════════════════════════════════════════════════════════
+		// TOKENS VIEW — registration token lifecycle
+		// ═══════════════════════════════════════════════════════════════════════════
+		// Shows:
+		//   - Every gpu.registration.token with name, cluster, state, and dates
+		//   - A "Create token" button (opens a modal)
+		//   - Per-token Revoke button
+		//
+		// The plaintext of a new token is shown once, immediately after creation,
+		// in a green highlighted box. This mirrors the behaviour of
+		// configure-hub-for-spokes.sh. The plaintext is not persisted anywhere
+		// else.
+		// ═══════════════════════════════════════════════════════════════════════════
+
+		views.tokens = function() {
+		    const container = document.createElement('div');
+		    container.innerHTML = `
+		        <div class="header-actions">
+		            <h2>🔑 Registration Tokens</h2>
+		            <div class="actions">
+		                <button class="btn-primary" id="btn-create-token">➕ Create Token</button>
+		                <button class="btn-secondary" id="btn-tokens-refresh">🔄 Refresh</button>
+		            </div>
+		        </div>
+		        <div id="tokens-content">
+		            <div class="empty-state">
+		                <div class="icon">⏳</div>
+		                <h3>Loading tokens…</h3>
+		            </div>
+		        </div>
+		    `;
+
+		    setTimeout(() => {
+		        document.getElementById('btn-tokens-refresh')?.addEventListener('click', () => refreshTokens());
+		        document.getElementById('btn-create-token')?.addEventListener('click', () => showCreateTokenModal());
+		        refreshTokens();
+		    }, 0);
+
+		    return container;
+        };
+
+		async function refreshTokens() {
+		    const content = document.getElementById('tokens-content');
+		    if (!content) return;
+
+		    const result = await window.api.listTokens();
+		    if (!result || !result.success) {
+		        content.innerHTML = `
+		            <div class="empty-state">
+		                <div class="icon">⚠️</div>
+		                <h3>Tokens unavailable</h3>
+		                <p>${escapeHtml(result?.error || 'langgraph-server unreachable')}</p>
+		            </div>
+		        `;
+		        return;
+		    }
+
+		    const tokens = result.tokens || [];
+		    const rows = tokens.map(t => {
+		        const created = t.create_date ? new Date(t.create_date.replace(' ', 'T') + 'Z') : null;
+		        const expiry = t.expiry_date ? new Date(t.expiry_date.replace(' ', 'T') + 'Z') : null;
+		        let stateLabel = 'active';
+		        if (t.is_revoked) stateLabel = 'revoked';
+		        else if (t.is_used) stateLabel = 'used';
+		        else if (expiry && expiry.getTime() < Date.now()) stateLabel = 'expired';
+		        const clusterName = Array.isArray(t.cluster_id) ? t.cluster_id[1] : (t.cluster_id || '—');
+		        return `
+		            <tr>
+		                <td>${escapeHtml(t.name || '(unnamed)')}</td>
+		                <td>${escapeHtml(clusterName)}</td>
+		                <td><span class="token-state ${stateLabel}">${stateLabel}</span></td>
+		                <td class="mono">${created ? created.toLocaleString() : '—'}</td>
+		                <td class="mono">${expiry ? expiry.toLocaleString() : 'never'}</td>
+		                <td>
+		                    ${stateLabel === 'active'
+		                        ? `<button class="btn-secondary btn-revoke-token"
+		                                   data-token-id="${escapeForInlineHandler(String(t.id))}"
+		                                   style="padding:2px 10px;font-size:11px;">Revoke</button>`
+		                        : `<span style="color:#6a6a7a;font-size:11px;">—</span>`}
+		                </td>
+		            </tr>
+		        `;
+		    }).join('');
+
+		    content.innerHTML = `
+		        <div class="card">
+		            <p style="font-size:13px;color:#8a9bb5;margin-bottom:12px;">
+		                Registration tokens authorise new spokes to join a cluster.
+		                The plaintext is shown <strong>once</strong> at creation — copy it
+		                immediately and paste it into <code>install-spoke.sh --token=…</code>.
+		                Tokens are hashed in the database and cannot be recovered.
+		            </p>
+		            ${tokens.length === 0 ? `
+		                <div class="empty-state" style="padding:30px;">
+		                    <div class="icon">🔑</div>
+		                    <h3>No tokens yet</h3>
+		                    <p>Click <strong>Create Token</strong> above to register a new spoke.</p>
+		                </div>
+		            ` : `
+		                <table class="token-table">
+		                    <thead>
+		                        <tr>
+		                            <th>Name</th>
+		                            <th>Cluster</th>
+		                            <th>State</th>
+		                            <th>Created</th>
+		                            <th>Expires</th>
+		                            <th>Actions</th>
+		                        </tr>
+		                    </thead>
+		                    <tbody>${rows}</tbody>
+		                </table>
+		            `}
+		        </div>
+		    `;
+
+		    attachDynamicListeners(content, {
+		        '.btn-revoke-token': (el) => {
+		            const id = Number(el.dataset.tokenId);
+		            if (!id) return;
+		            if (!confirm(`Revoke token ${id}? Any spoke that has not yet registered will be rejected.`)) return;
+		            revokeTokenUI(id);
+		        },
+		    });
+        }
+
+		async function revokeTokenUI(tokenId) {
+		    showToast('⏳ Revoking token…', 'info');
+		    const result = await window.api.revokeToken(tokenId);
+		    if (result.success) {
+		        showToast('✅ Token revoked', 'success');
+		        refreshTokens();
+		    } else {
+		        showToast(`❌ Revoke failed: ${result.error || 'unknown error'}`, 'error');
+		    }
+		}
+
+		function showCreateTokenModal() {
+		    showModal(`
+		        <h2 style="margin-bottom:12px;">🔑 Create Registration Token</h2>
+		        <div class="form-group" style="margin-bottom:12px;">
+		            <label style="display:block;font-size:13px;color:#8a9aab;margin-bottom:4px;">Token name</label>
+		            <input type="text" id="token-name" placeholder="e.g. AMD mining rig"
+		                   style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e8e8e8;" />
+		        </div>
+		        <div class="form-group" style="margin-bottom:12px;">
+		            <label style="display:block;font-size:13px;color:#8a9aab;margin-bottom:4px;">Cluster ID</label>
+		            <input type="number" id="token-cluster-id" value="${state.selectedClusterId || 1}"
+		                   style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e8e8e8;" />
+		        </div>
+		        <div id="token-modal-result"></div>
+		        <div style="display:flex;gap:12px;margin-top:16px;">
+		            <button class="btn-primary" id="btn-token-submit">Create</button>
+		            <button class="btn-secondary" onclick="closeModal()">Close</button>
+		        </div>
+		    `);
+
+		    document.getElementById('btn-token-submit')?.addEventListener('click', async () => {
+		        const name = document.getElementById('token-name')?.value.trim() || 'Launcher Token';
+		        const clusterId = parseInt(document.getElementById('token-cluster-id')?.value || '1');
+		        const submitBtn = document.getElementById('btn-token-submit');
+		        submitBtn.disabled = true;
+		        submitBtn.textContent = '⏳ Creating…';
+
+		        const result = await window.api.createToken({ name, cluster_id: clusterId });
+		        submitBtn.disabled = false;
+		        submitBtn.textContent = 'Create';
+
+		        const resultBox = document.getElementById('token-modal-result');
+		        if (!resultBox) return;
+
+		        if (result.success && result.plaintext) {
+		            resultBox.innerHTML = `
+		                <div style="margin-top:12px;">
+		                    <div style="font-size:12px;color:#28c840;margin-bottom:6px;">
+		                        ✅ Token created. Copy the plaintext now — it will not be shown again.
+		                    </div>
+		                    <div class="token-plaintext-box" id="token-plaintext">${escapeHtml(result.plaintext)}</div>
+		                    <button class="btn-primary btn-copy-token-modal"
+		                            data-token="${escapeForInlineHandler(result.plaintext)}"
+		                            style="margin-top:8px;">📋 Copy to clipboard</button>
+		                </div>
+		            `;
+		            // Event delegation for the copy button — no inline onclick.
+		            resultBox.querySelector('.btn-copy-token-modal')?.addEventListener('click', (e) => {
+		                navigator.clipboard.writeText(e.currentTarget.dataset.token);
+		                showToast('Token copied', 'success');
+		            });
+		            refreshTokens();
+		        } else {
+		            resultBox.innerHTML = `
+		                <div style="margin-top:12px;padding:10px;background:rgba(255,95,87,0.1);
+		                            border:1px solid rgba(255,95,87,0.3);border-radius:6px;
+		                            font-size:13px;color:#ff5f57;">
+		                    ❌ ${escapeHtml(result.error || 'unknown error')}
+		                </div>
+		            `;
+		        }
+		    });
+        }
+
+		async function revokeTokenById(id) {
+		    if (!confirm('Revoke this token? Any spoke that has not yet registered will be unable to use it.')) return;
+		    try {
+		        const res = await window.api.revokeToken(id);
+		        if (res.success) {
+		            showToast('Token revoked', 'success');
+		            await refreshTokens();
+		        } else {
+		            showToast(`Revoke failed: ${res.error}`, 'error');
+		        }
+		    } catch (e) {
+		        showToast(`Revoke failed: ${e.message}`, 'error');
+		    }
+		}
+
+		function copyTokenToClipboard(text) {
+		    navigator.clipboard.writeText(text).then(() => showToast('Token copied to clipboard', 'success'));
+		}
+
+		window.refreshTokens = refreshTokens;
+		window.revokeTokenById = revokeTokenById;
+        window.copyTokenToClipboard = copyTokenToClipboard;
 
         // ─── Settings ───
         views.settings = function() {
@@ -2262,6 +4026,22 @@
                     <label style="display:flex;align-items:center;gap:8px;color:#b0b0c0;font-size:13px;">
                         <input type="checkbox" id="settings-node-discovery" checked /> Enable mDNS discovery
                     </label>
+                </div>
+                <div class="card" style="margin-bottom:16px;">
+                    <h4 style="margin-bottom:8px;">Hub Endpoints</h4>
+                    <div class="form-group">
+                        <label>Dynamo / vLLM base URL</label>
+                        <input type="text" id="settings-dynamo-url" placeholder="http://192.168.28.10:8001/v1">
+                    </div>
+                    <div class="form-group">
+                        <label>LangGraph base URL</label>
+                        <input type="text" id="settings-langgraph-url" placeholder="http://192.168.28.10:8000">
+                    </div>
+                    <div class="form-group">
+                        <label>Odoo base URL</label>
+                        <input type="text" id="settings-odoo-url" placeholder="http://192.168.28.10:8069">
+                    </div>
+                    <button class="btn-primary" onclick="saveHubSettings()">Save Hub Config</button>
                 </div>
             `;
             return container;
@@ -2510,6 +4290,49 @@
             return container;
         };
 
+
+        window.testBackupRemote = async function () {
+            const el = document.getElementById('backup-remote-result');
+            if (el) { el.textContent = 'Testing…'; el.style.color = '#8a9aab'; }
+            const res = await window.api.backupTestRemote?.() ?? { ok: false, message: 'Not implemented' };
+            if (el) {
+                el.textContent = res.message || (res.ok ? 'Success' : 'Failed');
+                el.style.color = res.ok ? '#28c840' : '#ff5f57';
+            }
+        };
+
+        window.saveBackupConfig = async function () {
+            const cfg = {
+                repository: document.getElementById('backup-repository')?.value.trim() || '',
+                schedule: document.getElementById('backup-schedule')?.value.trim() || '0 2 * * *',
+            };
+            const res = await window.api.backupConfigSave?.(cfg) ?? { success: false };
+            showToast(res.success ? 'Saved' : 'Save failed', res.success ? 'success' : 'error');
+        };
+
+        window.runBackupRemote = async function () {
+            const el = document.getElementById('backup-remote-result');
+            if (el) { el.textContent = 'Running backup…'; el.style.color = '#8a9aab'; }
+            const res = await window.api.backupRunRemote?.() ?? { success: false };
+            if (el) {
+                el.textContent = res.success ? 'Backup started. See install log.' : (res.error || 'Failed');
+                el.style.color = res.success ? '#28c840' : '#ff5f57';
+            }
+        };
+
+        // Load config when the backup view renders
+        async function loadBackupConfig() {
+            try {
+                const cfg = await window.api.backupConfigGet?.();
+                if (cfg) {
+                    const r = document.getElementById('backup-repository');
+                    const s = document.getElementById('backup-schedule');
+                    if (r) r.value = cfg.repository || '';
+                    if (s) s.value = cfg.schedule || '0 2 * * *';
+                }
+            } catch (e) { /* ignore */ }
+        }
+
         // ─── Backup ───
         views.backup = function() {
             const container = document.createElement('div');
@@ -2520,6 +4343,34 @@
                         <h4>📤 Backup</h4>
                         <p style="font-size:13px;color:#8a9bb5;margin:8px 0;">Create a full backup of all NETTRADES data.</p>
                         <button class="btn btn-primary btn-block" onclick="createBackup()">💾 Create Backup</button>
+                    </div>
+                    <div class="card" style="grid-column:1/-1;">
+                        <h4>☁️ Off-Host Backup (restic)</h4>
+                        <p style="font-size:13px;color:#8a9aab;margin:8px 0 16px;">
+                            Optional. Local backups always run. Leave repository empty to disable uploads.
+                        </p>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div>
+                                <label style="display:block;font-size:12px;color:#8a9aab;margin-bottom:4px;">Repository URL</label>
+                                <input type="text" id="backup-repository" placeholder="s3:... / sftp:... / /mnt/..."
+                                       style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e8e8e8;font-size:13px;">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;color:#8a9aab;margin-bottom:4px;">Schedule (cron)</label>
+                                <input type="text" id="backup-schedule" placeholder="0 2 * * *"
+                                       style="width:100%;padding:8px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e8e8e8;font-size:13px;">
+                            </div>
+                        </div>
+
+                        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                            <button class="btn-primary" onclick="testBackupRemote()">Test Connection</button>
+                            <button class="btn-secondary" onclick="saveBackupConfig()">Save</button>
+                            <button class="btn-secondary" onclick="runBackupRemote()">Backup Now (Remote)</button>
+                            <button class="btn-outline" onclick="window.api.openExternal('http://localhost:3002/admin')">Open Web Admin</button>
+                        </div>
+
+                        <div id="backup-remote-result" style="margin-top:12px;font-size:13px;"></div>
                     </div>
                     <div class="card">
                         <h4>📥 Restore</h4>
@@ -2587,6 +4438,37 @@
                     <button class="mode-btn ${state.mode === 'development' ? 'active' : ''}" data-mode="development">
                         <span class="mode-icon">🛠️</span> Development
                     </button>
+                </div>
+
+                <!-- SPOKE INPUTS — shown only when mode === 'spoke' -->
+                <div id="spoke-config-panel" style="display:none;margin-bottom:16px;padding:16px;background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(255,255,255,0.06);">
+                    <h4 style="margin-bottom:12px;">🔄 Spoke Configuration</h4>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="form-group">
+                            <label for="spoke-hub-host">Hub Host (IP or hostname)</label>
+                            <input type="text" id="spoke-hub-host" placeholder="192.168.1.10" />
+                        </div>
+                        <div class="form-group">
+                            <label for="spoke-token">Registration Token</label>
+                            <input type="text" id="spoke-token" placeholder="Paste token from hub Odoo" />
+                        </div>
+                        <div class="form-group">
+                            <label for="spoke-node-name">Node Name (optional)</label>
+                            <input type="text" id="spoke-node-name" placeholder="Defaults to hostname" />
+                        </div>
+                        <div class="form-group">
+                            <label for="spoke-inference-capability">Inference Capability</label>
+                            <select id="spoke-inference-capability">
+                                <option value="rpc_worker">rpc_worker</option>
+                                <option value="rpc_master">rpc_master</option>
+                                <option value="dynamo_worker">dynamo_worker</option>
+                                <option value="local_only">local_only</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p class="helper-text" style="margin-top:8px;">
+                        Run <code>./scripts/configure-hub-for-spokes.sh</code> on the hub to generate the token.
+                    </p>
                 </div>
 
                 <div id="deploy-step-1">
@@ -3026,67 +4908,6 @@
             } catch (e) { console.error('Failed to refresh models:', e); }
         }
 
-        async function refreshGPUs() {
-            try {
-                const hardware = await window.api.detectHardware();
-                const localGpus = (hardware && hardware.gpus) || [];
-                const localNodes = localGpus.map(g => ({
-                    id: `local-${g.index || Date.now()}`,
-                    name: g.name || 'Local GPU',
-                    gpu_model: g.name || 'Unknown',
-                    // nvidia-smi reports vram in MB, and the Launcher converts it to GB:
-                    vram_gb: g.memory ? Math.round(parseInt(g.memory) / 1024) : 0,
-                    status: 'available',
-                    price_per_hour: 0,
-                    last_heartbeat: new Date().toISOString(),
-                }));
-
-                const discovered = await window.api.getDiscoveredNodes();
-                const networkNodes = discovered.map(n => ({
-                    id: `network-${n.name}`,
-                    name: n.name || 'Network Node',
-                    gpu_model: n.txt?.gpu || 'Unknown',
-                    vram_gb: parseInt(n.txt?.vram) || 0,
-                    status: 'available',
-                    price_per_hour: 0,
-                    last_heartbeat: new Date().toISOString(),
-                }));
-
-                let marketNodes = [];
-                try {
-                    const marketResult = await window.api.marketplaceListings();
-                    if (marketResult.success && marketResult.data) {
-                        marketNodes = marketResult.data.map(m => ({
-                            id: `market-${m.id}`,
-                            name: m.name || 'Market GPU',
-                            gpu_model: m.model || 'Unknown',
-                            vram_gb: m.vram || 0,
-                            status: m.available ? 'available' : 'in-use',
-                            price_per_hour: m.price || 0,
-                            last_heartbeat: new Date().toISOString(),
-                        }));
-                    }
-                } catch (e) {
-                    console.log('Marketplace not available, using local + network GPUs');
-                }
-
-                state.gpuNodes = [...localNodes, ...networkNodes, ...marketNodes];
-
-                safeSetText('gpu-count', state.gpuNodes.length);
-                safeSetText('dashboard-gpu-count', state.gpuNodes.filter(n => n.status === 'available').length);
-
-                if (state.currentView === 'gpus') {
-                    const container = document.getElementById('tab-gpus');
-                    if (container) {
-                        container.innerHTML = '';
-                        container.appendChild(views.gpus());
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to refresh GPUs:', e);
-            }
-        }
-
         async function discoverNodes() {
             try {
                 const discovered = await window.api.getDiscoveredNodes();
@@ -3271,6 +5092,38 @@
             } catch (e) { console.error('Failed to refresh credentials:', e); }
         }
 
+        // -----------------------------------------------------------------------------
+		// checkForFailoverEvent
+		// -----------------------------------------------------------------------------
+		// After a chat response, queries the last routing event. If it is a
+		// failover event and we have not yet shown it, display a toast and mark
+		// it as shown.
+		//
+		// The check is cheap — one HTTP call per chat response, and only on the
+		// Chat tab. It is not a polling loop.
+		// -----------------------------------------------------------------------------
+		let _lastFailoverSeen = null;
+
+		async function checkForFailoverEvent() {
+		    const result = await window.api.getRoutingEvents(1);
+		    if (!result || !result.success || !result.events?.length) return;
+		    const ev = result.events[result.events.length - 1];
+		    if (!ev.event || !ev.event.startsWith('failover_tier')) return;
+		    if (ev.ts === _lastFailoverSeen) return;
+		    _lastFailoverSeen = ev.ts;
+
+		    const messages = {
+		        failover_tier2: '⚠️ RPC cluster unreachable — routing to data-centre tier.',
+		        failover_tier3: '⚠️ Partial RPC rebuild — running on fewer workers.',
+		        failover_tier4: '⚠️ Falling back to GPU marketplace.',
+		        failover_tier5: '⚠️ Falling back to external API. Prompt leaves the network.',
+		        failover_tier6: '❌ Cluster recovering — no fallback permitted. Please retry.',
+		    };
+		    const msg = messages[ev.event] || '⚠️ Failover event: ' + ev.event;
+		    const type = ev.event === 'failover_tier6' ? 'error' : 'warning';
+		    showToast(msg, type, 8000);
+        }
+
         function renderModules() {
             const container = document.getElementById('module-grid');
             if (!container) return;
@@ -3298,51 +5151,99 @@
         }
 
         // ─── Actions ───
-        window.sendMessage = async function() {
-            const input = document.getElementById('chat-input');
-            if (!input || !input.value.trim() || state.isLoading) return;
-            const message = input.value.trim();
-            input.value = '';
-            state.messages.push({ role: 'user', content: message, time: new Date().toLocaleTimeString() });
-            state.isLoading = true;
-            const container = document.getElementById('tab-chat');
-            if (container) { container.innerHTML = ''; container.appendChild(views.chat()); }
-            try {
-                const result = await window.api.proxyCreateJob({
-                    type: 'inference',
-                    model: state.selectedModel,
-                    prompt: message,
-                    parameters: { temperature: state.temperature },
-                });
-                if (result.success) {
-                    const jobId = result.data.id;
-                    let attempts = 0;
-                    const checkJob = async () => {
-                        const status = await window.api.proxyGetJob(jobId);
-                        if (status.success && status.data.status === 'completed') {
-                            state.messages.push({ role: 'assistant', content: status.data.result || 'No response', time: new Date().toLocaleTimeString() });
-                            state.isLoading = false;
-                            if (container) { container.innerHTML = ''; container.appendChild(views.chat()); }
-                        } else if (attempts < 30) {
-                            attempts++;
-                            setTimeout(checkJob, 2000);
-                        } else {
-                            state.messages.push({ role: 'system', content: '⏰ Job timed out. Please try again.', time: new Date().toLocaleTimeString() });
-                            state.isLoading = false;
-                            if (container) { container.innerHTML = ''; container.appendChild(views.chat()); }
-                        }
-                    };
-                    checkJob();
-                } else {
-                    state.messages.push({ role: 'system', content: `❌ Error: ${result.error}`, time: new Date().toLocaleTimeString() });
-                    state.isLoading = false;
-                    if (container) { container.innerHTML = ''; container.appendChild(views.chat()); }
-                }
-            } catch (error) {
-                state.messages.push({ role: 'system', content: `❌ Error: ${error.message}`, time: new Date().toLocaleTimeString() });
-                state.isLoading = false;
-                if (container) { container.innerHTML = ''; container.appendChild(views.chat()); }
-            }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+		// CHAT INVOCATION — real POST to LangGraph, with thread affinity
+		// ═══════════════════════════════════════════════════════════════════════════
+		// The Launcher maintains state.threadId across messages so the supervisor's
+		// session affinity keeps the conversation on the same inference track
+		// (usually RPC). This is what makes Claim 2 a distributed session rather
+		// than one isolated request.
+		//
+		// Failover (503 ClusterRecovering) shows a countdown toast and re-enables
+		// the send button after Retry-After seconds.
+		// ═══════════════════════════════════════════════════════════════════════════
+
+		window.sendMessage = async function() {
+		    const input = document.getElementById('chat-input');
+		    if (!input || !input.value.trim() || state.isLoading) return;
+		    const message = input.value.trim();
+		    input.value = '';
+
+		    // Push the user message into state and re-render
+		    state.messages.push({
+		        role: 'user',
+		        content: message,
+		        time: new Date().toLocaleTimeString(),
+		    });
+		    state.isLoading = true;
+		    const container = document.getElementById('tab-chat');
+		    if (container) { container.innerHTML = ''; container.appendChild(views.chat()); }
+
+		    // Preserve thread_id across turns — session affinity for the RPC track
+		    if (!state.threadId) {
+		        state.threadId = (crypto.randomUUID && crypto.randomUUID()) || `t-${Date.now()}`;
+		    }
+
+		    try {
+		        const result = await window.api.chatInvoke({
+		            messages: state.messages.filter(m => m.role === 'user' || m.role === 'assistant').map(m => ({
+		                role: m.role,
+		                content: m.content,
+		            })),
+		            threadId: state.threadId,
+		        });
+
+		        if (result.success) {
+		            const track = result.active_track || 'unknown';
+		            const intent = result.intent || 'general';
+		            state.messages.push({
+		                role: 'assistant',
+		                content: result.reply || '(empty response)',
+		                time: new Date().toLocaleTimeString(),
+		                meta: { track, intent },
+		            });
+		            state.activeTrack = track;
+
+		            // Check whether a failover fired during this request
+		            checkForFailoverEvent();
+		        } else if (result.status === 503) {
+		            // ClusterRecovering — the pinned RPC cluster is temporarily
+		            // unreachable and no fallback was permitted. Show a clear
+		            // message with the retry delay.
+		            const retryAfter = result.retryAfter || 30;
+		            state.messages.push({
+		                role: 'assistant',
+		                content: `⏳ The inference cluster is temporarily recovering. Your conversation is saved. Please retry in ${retryAfter} seconds.`,
+		                time: new Date().toLocaleTimeString(),
+		                isError: true,
+		            });
+		            showToast(`Cluster recovering — retry in ${retryAfter}s`, 'warning', retryAfter * 1000);
+		        } else {
+		            state.messages.push({
+		                role: 'assistant',
+		                content: `❌ ${result.error || 'Request failed'}`,
+		                time: new Date().toLocaleTimeString(),
+		                isError: true,
+		            });
+		        }
+		    } catch (e) {
+		        state.messages.push({
+		            role: 'assistant',
+		            content: `❌ Error: ${e.message || e}`,
+		            time: new Date().toLocaleTimeString(),
+		            isError: true,
+		        });
+		    } finally {
+		        state.isLoading = false;
+		        if (container) { container.innerHTML = ''; container.appendChild(views.chat()); }
+		        
+		        // Auto-scroll to bottom after rendering
+		        const msgContainer = document.getElementById('chat-messages');
+		        if (msgContainer) {
+		            msgContainer.scrollTop = msgContainer.scrollHeight;
+		        }
+		    }
         };
 
         window.clearChat = function() {
@@ -3524,6 +5425,28 @@
         };
 
         window.showListGPU = function() { showRegisterGPU(); };
+
+        window.saveHubSettings = async function() {
+            const hub = {
+                dynamo_url: document.getElementById('settings-dynamo-url')?.value.trim() || undefined,
+                langgraph_url: document.getElementById('settings-langgraph-url')?.value.trim() || undefined,
+                odoo_url: document.getElementById('settings-odoo-url')?.value.trim() || undefined,
+            };
+            const result = await window.api.saveHubConfig(hub);
+            if (result.success) showToast('Hub configuration saved', 'success');
+            else showToast(`Failed: ${result.error}`, 'error');
+        };
+
+        // On load, populate the fields.
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const hub = await window.api.getHubConfig();
+                const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+                set('settings-dynamo-url', hub.dynamo_url);
+                set('settings-langgraph-url', hub.langgraph_url);
+                set('settings-odoo-url', hub.odoo_url);
+            } catch (e) { /* config not present yet */ }
+        });
 
         window.saveSettings = function() {
             const url = document.getElementById('settings-server-url')?.value.trim() || 'http://localhost';
@@ -4083,7 +6006,116 @@
             if (e.target === e.currentTarget) closeModal();
         });
 
+
         // ─── Utilities ───
+
+
+        // ═══════════════════════════════════════════════════════════════════════════
+		// NEW HELPERS FOR 2026-10 VIEWS
+		// ═══════════════════════════════════════════════════════════════════════════
+
+		// -----------------------------------------------------------------------------
+		// escapeForInlineHandler
+		// -----------------------------------------------------------------------------
+		// Escapes a string so it can be safely embedded inside a double-quoted
+		// HTML attribute that contains a single-quoted JavaScript string.
+		//
+		// The escaping order matters: ampersand first, then quotes, then angle
+		// brackets. Doing quotes before ampersands would double-escape entities
+		// we introduce.
+		//
+		// NOTE: This helper should be used sparingly. The preferred pattern for
+		// dynamic buttons carrying user data is event delegation (see
+		// attachDynamicListeners below), which avoids inline handlers entirely.
+		// Use this only when the value is short and known-safe (e.g. a node id
+		// generated by the health monitor).
+		// -----------------------------------------------------------------------------
+		function escapeForInlineHandler(s) {
+		    return String(s == null ? '' : s)
+		        .replace(/&/g, '&amp;')
+		        .replace(/"/g, '&quot;')
+		        .replace(/'/g, '&#39;')
+		        .replace(/</g, '&lt;')
+		        .replace(/>/g, '&gt;');
+		}
+
+		// -----------------------------------------------------------------------------
+		// formatRelativeTime
+		// -----------------------------------------------------------------------------
+		// Returns "just now", "12s ago", "3m ago", "2h ago", "3d ago" for a
+		// timestamp. Falls back to the raw string if parsing fails.
+		// -----------------------------------------------------------------------------
+		function formatRelativeTime(isoOrDate) {
+		    if (!isoOrDate) return '—';
+		    let d;
+		    try {
+		        d = (isoOrDate instanceof Date) ? isoOrDate : new Date(isoOrDate);
+		        if (isNaN(d.getTime())) return String(isoOrDate);
+		    } catch {
+		        return String(isoOrDate);
+		    }
+		    const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
+		    if (seconds < 5) return 'just now';
+		    if (seconds < 60) return `${seconds}s ago`;
+		    const minutes = Math.floor(seconds / 60);
+		    if (minutes < 60) return `${minutes}m ago`;
+		    const hours = Math.floor(minutes / 60);
+		    if (hours < 24) return `${hours}h ago`;
+		    const days = Math.floor(hours / 24);
+		    return `${days}d ago`;
+		}
+
+		// -----------------------------------------------------------------------------
+		// formatVram
+		// -----------------------------------------------------------------------------
+		// Converts megabytes to a compact string: 512 MB, 12.0 GB, 384 GB.
+		// -----------------------------------------------------------------------------
+		function formatVram(mb) {
+		    const n = Number(mb) || 0;
+		    if (n < 1024) return `${n} MB`;
+		    const gb = n / 1024;
+		    return gb >= 100 ? `${Math.round(gb)} GB` : `${gb.toFixed(1)} GB`;
+		}
+
+		// -----------------------------------------------------------------------------
+		// trackClass
+		// -----------------------------------------------------------------------------
+		// Maps a track name to a CSS class suffix used by .track-indicator and
+		// .active-track-card.
+		// -----------------------------------------------------------------------------
+		function trackClass(track) {
+		    const t = (track || '').toLowerCase();
+		    if (t === 'rpc') return 'track-rpc';
+		    if (t === 'dynamo') return 'track-dynamo';
+		    if (t === 'local') return 'track-local';
+		    if (t.startsWith('remote')) return 'track-remote';
+		    return 'track-none';
+		}
+
+		// -----------------------------------------------------------------------------
+		// attachDynamicListeners
+		// -----------------------------------------------------------------------------
+		// Attaches listeners to elements created by innerHTML inside `container`.
+		// This is the preferred way to wire up dynamic buttons, because it avoids
+		// inline onclick handlers that need HTML-escaped JavaScript strings.
+		//
+		// Usage:
+		//   attachDynamicListeners(container, {
+		//     '.btn-copy-token': (el) => { navigator.clipboard.writeText(el.dataset.token); },
+		//     '.btn-revoke':     (el) => revokeToken(Number(el.dataset.id)),
+		//   });
+		// -----------------------------------------------------------------------------
+		function attachDynamicListeners(container, bindings) {
+		    if (!container) return;
+		    for (const [selector, handler] of Object.entries(bindings)) {
+		        container.querySelectorAll(selector).forEach(el => {
+		            el.addEventListener('click', () => handler(el));
+		        });
+		    }
+        }
+
+
+
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');

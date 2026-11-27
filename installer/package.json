@@ -12,10 +12,13 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
+    "prebuild:win": "bash ../scripts/windows/prepare-nsis-service.sh",
     "build:win": "electron-builder --win --publish never",
     "build:mac": "electron-builder --mac --publish never",
     "build:linux": "electron-builder --linux --publish never",
+    "prebuild:all": "bash ../scripts/windows/prepare-nsis-service.sh",
     "build:all": "electron-builder -mwl --publish never",
+    "prerelease": "bash ../scripts/windows/prepare-nsis-service.sh",
     "release": "electron-builder -mwl --publish always",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -86,16 +89,16 @@
       "category": "public.app-category.developer-tools"
     },
     "linux": {
-	  "target": ["AppImage", "deb"],
-	  "icon": "build/icon.png",
-	  "category": "Development",
-	  "desktop": {
-	    "entry": {
-	      "Name": "NETTRADES Launcher",
-	      "Comment": "Sovereign AI Control Centre"
-	    }
-	  },
-	  "maintainer": "NETTRADES Team <support@nettrades.ai>"
+      "target": ["AppImage", "deb"],
+      "icon": "build/icon.png",
+      "category": "Development",
+      "desktop": {
+        "entry": {
+          "Name": "NETTRADES Launcher",
+          "Comment": "Sovereign AI Control Centre"
+        }
+      },
+      "maintainer": "NETTRADES Team <support@nettrades.ai>"
     },
     "deb": {
       "afterInstall": "scripts/postinstall.sh",
