@@ -35,17 +35,21 @@ Licensed Work is permitted free of charge under the following scopes:
    internal operations (including connecting to Odoo, Salesforce, SAP, or other
    business systems) and may build, host and commercialize their own end-user
    applications or vertical AI agents powered by the Licensed Work—provided
-   they do not resell, rent or offer raw NETTRADES GPU hosting, compute
-   clusters or standalone inference-as-a-service to third parties and do not
-   have an external expert market place and provided all uses strictly comply with 
-   ETHICAL-STATEMENT.md.
+   they do not resell, rent, or offer raw NETTRADES GPU hosting, compute
+   clusters, or standalone inference-as-a-service to third parties, and do not
+   operate an external or third-party GPU marketplace or human-expert
+   verification/consultation marketplace (internal use of Ask Someone among your
+   own staff or students is permitted), and provided all uses strictly comply
+   with ETHICAL-STATEMENT.md.
 
 2. Accredited Educational, Research & Healthcare Institutions (Unlimited Scale):
    Accredited schools, colleges, universities, registered charities, non-profit
    research institutions, and public or non-profit hospitals (including NHS
    bodies) operating unlimited Sub-Hubs and Spokes for educational, research,
    clinical, or internal operational purposes, without offering the Licensed
-   Work as a commercial hosted service to third parties.
+   Work as a commercial hosted service, third-party GPU marketplace, or external
+   expert marketplace.
+
 
 3. AI Agent & Connector Developers:
    Independent developers using the Licensed Work locally (up to 1 Sub-Hub and

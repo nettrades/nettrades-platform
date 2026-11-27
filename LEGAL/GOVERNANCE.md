@@ -26,7 +26,7 @@ NETTRADES is an enterprise-grade sovereign AI infrastructure platform built for 
 NETTRADES LIMITED oversees product architecture, security audits, patent management, ethical enforcement, and commercial licensing. Maintainers review and merge pull requests and enforce mandatory Contributor License Agreement (`CLA`) verification.
 
 ### 2. Contributors
-Independent developers and organizations who improve the codebase, test hardware compatibility, or submit documentation fixes. All contributors must sign `LEGAL/Contributor-License-Agreement.md` prior to merging.
+Independent developers and organizations who improve the codebase, test hardware compatibility, or submit documentation fixes. All contributors must sign [Contributor-License-Agreement.md](../Contributor-License-Agreement.md) prior to merging.
 
 ---
 

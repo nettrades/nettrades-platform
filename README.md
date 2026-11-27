@@ -380,7 +380,7 @@ NETTRADES wants AI to be used ethically and responsibly. Therefore, NETTRADES is
 - **Schools, Colleges, Universities, Charities & Hospitals:** **100% Free** at unlimited scale (unlimited Sub-Hubs and Spokes).
 - **Growth Companies (Up to 25 Spokes or > $1M ARR):** **$199/month** flat Commercial License ([COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
 - **Large Enterprises (> 25 Spokes) & Cloud/GPU Hosting Providers:** Custom flat-rate Enterprise EULA — contact **legal@nettrades.ai**.
-- **Your IP Stays Yours:** All model weights fine-tuned on your private data and all custom AI agents you build remain **100% your sole IP** (unless voluntarily contributed to `://github.com` under our [CLA](Contributor-License-Agreement.md)).
+- **Your IP Stays Yours:** All model weights fine-tuned on your private data and all custom AI agents you build remain **100% your sole IP** (unless voluntarily contributed to `https://github.com` under our [CLA](Contributor-License-Agreement.md)).
 - **Ethical Commitment:** All free, institutional, and commercial deployments are strictly bound by our [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md).
 - **Contributors:** Developers are welcome to submit pull requests via our Contributor License Agreement ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
@@ -394,7 +394,7 @@ For enterprise pricing matrices or to apply for a commercial deployment key, con
 
 ### Patent Notice
 
-**Patent Pending.** The distributed inferencing architecture, heterogeneous GPU/CPU orchestration, and deterministic failover methods implemented in the **NETTRADES Sovereign AI Platform** are protected by pending patent applications owned by **NETTRADES LIMITED** (UK Company No. 08160657). For current patent status, see [nettrades.com](https://nettrades.com) and [LEGAL/PATENTS.md](LEGAL/IP-AND-PATENTS.md).
+**Patent Pending.** The distributed inferencing architecture, heterogeneous GPU/CPU orchestration, and deterministic failover methods implemented in the **NETTRADES Sovereign AI Platform** are protected by pending patent applications owned by **NETTRADES LIMITED** (UK Company No. 08160657). For current patent status, see [nettrades.com](https://nettrades.com) and [LEGAL/IP-AND-PATENTS.md](LEGAL/IP-AND-PATENTS.md).
 
 Use of this software under the Business Source License 1.1 (`BUSL-1.1`) receives only a limited, conditional, revocable patent license strictly restricted to the permitted non-production and Additional Use Grant scopes in [LICENSE.txt](LICENSE.txt) (up to 5 Spokes for households/small businesses, or unlimited Spokes for accredited educational institutions and hospitals). Any commercial deployment exceeding 5 Spokes, cloud/SaaS hosting, or unlicensed re-implementation receives no express or implied patent license and requires a separate Commercial License from NETTRADES LIMITED.
 

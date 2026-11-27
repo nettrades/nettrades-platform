@@ -5,7 +5,7 @@ Thank you for your interest in improving the NETTRADES Platform. To maintain a s
 ## Our Contribution Workflow
 
 1. **Review our Ethical Stance:** Ensure your pull request aligns perfectly with our [Ethical Use Statement](ETHICAL-STATEMENT.md).
-2. **Accept the CLA:** When you open a Pull Request, our automated validation assistant (`@cla-assistant`) will prompt you to cryptographically authorize the [Contributor License Agreement](LEGAL/Contributor-License-Agreement.md).
+2. **Accept the CLA:** When you open a Pull Request, our automated validation assistant (`@cla-assistant`) will prompt you to cryptographically authorize the [Contributor License Agreement](Contributor-License-Agreement.md).
 3. **Disclosure of Tooling:** If you utilized generative AI workflows or agentic code generation systems to engineer your contribution, you must explicitly disclose this in your PR description following the guidelines in Section 6 of the CLA.
 
 If any part of your contribution was created with the assistance of generative AI tools:
@@ -19,7 +19,8 @@ When you open your first pull request, the **CLA Assistant bot** will automatica
 
 **What happens when you sign:**
 1. The CLA Assistant bot records your GitHub username and timestamp.
-2. You only need to sign once � future contributions are automatically approved.
+2. You only need to sign once — future contributions are automatically approved.
+
 3. The PR status check updates to green, allowing the PR to be merged.
 
 **Corporate Contributors:** If you are contributing on behalf of your employer, please ensure you have the authority to bind your employer to the CLA. For a Corporate CLA, contact legal@nettrades.ai
@@ -56,7 +57,7 @@ A maintainer will review your PR and may request changes. Once approved, your PR
 
 ## Code Review Process
 1. PR submitted -> CI checks run.
-2. CLA check runs � if not signed, bot prompts you to sign.
+2. CLA check runs — if not signed, bot prompts you to sign.
 3. Maintainer reviews -> may request changes.
 4. PR approved -> merged into `main`.
 

@@ -1,22 +1,6 @@
-Copyright (c) 2026 NETTRADES LIMITED (UK Company No. 08160657). All rights reserved.
-
-This file is part of the NETTRADES Sovereign AI Platform.
-
-This software is licensed under the NETTRADES Master Software License (LICENSE.txt)
-incorporating the Business Source License 1.1 (BUSL-1.1) and AI Pubs Open RAIL-S
-License v1.0, and is strictly conditioned upon compliance with the NETTRADES
-Ethical Use Statement (ETHICAL-STATEMENT.md). Any prohibited or unethical use
-automatically terminates all copyright and conditional patent licenses.
-
-CONTRIBUTOR NOTICE:
-All contributions to this repository are subject to the NETTRADES Contributor
-License Agreement (LEGAL/Contributor-License-Agreement.md).
-
-COMMERCIAL LICENSING:
-Commercial deployments exceeding the free Additional Use Grant scope (1 Sub-Hub
-and 5 Spokes) or hosted/SaaS offerings require a Commercial License from
-NETTRADES LIMITED (UK Company No. 08160657).
-- Web: https://nettrades.com
-- Legal & Licensing: legal@nettrades.ai
-
 SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-NETTRADES-Commercial
+Copyright (c) 2026 NETTRADES LIMITED (UK Company No. 08160657). Patent Pending. All rights reserved.
+Licensed under LICENSE.txt (BUSL-1.1 -> Open RAIL-S) and strictly conditioned
+upon compliance with ETHICAL-STATEMENT.md. See also LEGAL/IP-AND-PATENTS.md.
+THE FUTURE OF WORK is a registered trade mark in the United Kingdom (No. UK00004257743) of NETTRADES LIMITED.
+Distributed WITHOUT ANY WARRANTY.
