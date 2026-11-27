@@ -208,6 +208,136 @@ class GPUCluster(models.Model):
     )
 
     # =========================================================================
+    # NEW (2026-09-25): RPC CLUSTER STATE
+    # =========================================================================
+
+    layer_assignment = fields.Json(
+        string='Layer Assignment',
+        help="JSON mapping of node IDs to assigned layer ranges. Written "
+             "by the rpc_scheduler whenever the cluster topology changes. "
+             "Preserved even when the cluster is stopped for audit."
+    )
+
+    rpc_master_node_id = fields.Many2one(
+        'gpu.node',
+        string='RPC Master Node',
+        ondelete='set null',
+        help="The node that runs llama-server with --rpc. Normally the "
+             "sub-hub itself, but can be any node with enough RAM to hold "
+             "the master's non-offloaded layers."
+    )
+
+    # =========================================================================
+    # 3b. SEQUENCE — PRIMARY CLUSTER SELECTION
+    # =========================================================================
+    # When a company has multiple RPC clusters, the one with the lowest
+    # sequence is treated as the primary. Its failover policy is used for
+    # all RPC-routed requests that do not have a per-model override.
+    #
+    # The supervisor's _get_available_hardware() orders its search by
+    # (sequence asc, id asc) and uses the first RPC cluster it finds.
+    # =========================================================================
+
+    sequence = fields.Integer(
+        string='Priority',
+        default=10,
+        help="Lower = higher priority. When a company has multiple RPC "
+             "clusters, the one with the lowest sequence is the primary.",
+    )
+
+    # =========================================================================
+    # 3c. FAILOVER POLICY — CLUSTER DEFAULT
+    # =========================================================================
+    # These fields control what happens when the RPC cluster loses a worker
+    # or becomes unavailable. The policy is evaluated by the LangGraph
+    # supervisor when it needs to select an inference track.
+    #
+    # The hierarchy is:
+    #   1. Warm spare (same model, already cached)
+    #   2. Dynamo cluster (same model, different hardware)
+    #   3. Partial RPC cluster (same model, fewer workers)
+    #   4. GPU marketplace (same model, rented hardware)
+    #   5. External API (admin's chosen provider and model)
+    #   6. Fail loudly (HTTP 503 + Retry-After)
+    #
+    # Tier 6 is the default when no fallback is explicitly enabled.
+    # The system NEVER silently downgrades to a smaller model.
+    # =========================================================================
+
+    allow_dynamo_fallback = fields.Boolean(
+        string='Allow Dynamo Fallback',
+        default=True,
+        help="If the RPC cluster is unavailable, allow routing to a Dynamo "
+             "(data centre GPU) cluster. The SAME model is served, just on "
+             "different hardware. This is NOT a downgrade.",
+    )
+
+    allow_rpc_partial_fallback = fields.Boolean(
+        string='Allow Partial RPC Fallback',
+        default=False,
+        help="If the RPC cluster loses workers, allow rebuilding it with the "
+             "remaining healthy nodes. The model is STILL the full-size "
+             "distributed model, just with fewer workers. Response quality "
+             "is preserved because the model identity is unchanged.",
+    )
+
+    allow_marketplace_fallback = fields.Boolean(
+        string='Allow GPU Marketplace Fallback',
+        default=False,
+        help="If no local cluster is available, rent GPUs from the NETTRADES "
+             "marketplace. The SAME model is served on rented hardware. "
+             "Requires a marketplace account and credits.",
+    )
+
+    allow_external_api_fallback = fields.Boolean(
+        string='Allow External API Fallback',
+        default=False,
+        help="LAST RESORT. If no local or marketplace GPU is available, "
+             "route to an external API provider (OpenAI, Anthropic, etc.). "
+             "This sends prompts and responses outside your network. "
+             "Only enable if your data policy permits it.",
+    )
+
+    external_api_provider = fields.Selection(
+        [
+            ('openai', 'OpenAI'),
+            ('anthropic', 'Anthropic'),
+            ('custom', 'Custom (OpenAI-compatible)'),
+        ],
+        string='External API Provider',
+        default='openai',
+        help="The external API provider to use for the final fallback tier.",
+    )
+
+    external_api_model = fields.Char(
+        string='External API Model',
+        default='gpt-4o',
+        help="The model name to request from the external API provider.",
+    )
+
+    # =========================================================================
+    # 3d. PER-MODEL POLICY OVERRIDES (One2many)
+    # =========================================================================
+
+    model_policy_ids = fields.One2many(
+        'inference.model.policy',
+        'cluster_id',
+        string='Per-Model Failover Policies',
+        help="Optional per-model overrides. When a policy exists for a "
+             "specific model, it replaces the cluster default for that model.",
+    )
+
+    model_policy_count = fields.Integer(
+        string='Model Policy Count',
+        compute='_compute_model_policy_count',
+    )
+
+    @api.depends('model_policy_ids')
+    def _compute_model_policy_count(self):
+        for cluster in self:
+            cluster.model_policy_count = len(cluster.model_policy_ids)
+
+    # =========================================================================
     # 4. REGISTERED SUBNETS (for network discovery)
     # =========================================================================
 
@@ -948,3 +1078,27 @@ PrivateKey = {private_key}
                 'sticky': False,
             }
         }
+
+    # =========================================================================
+    # 17. FAILOVER POLICY RESOLUTION (used by the supervisor)
+    # =========================================================================
+
+    def get_effective_policy(self, model_name=None):
+        """
+        Return the effective failover policy for a model on this cluster.
+
+        This is a convenience wrapper around
+        inference.model.policy.resolve_policy(). Callers that already have
+        the cluster record can use this instead of doing a search.
+
+        Args:
+            model_name (str, optional): the model identifier. If None or
+                empty, the cluster default is returned.
+
+        Returns:
+            dict with the six policy fields plus a 'source' key.
+        """
+        self.ensure_one()
+        return self.env['inference.model.policy'].resolve_policy(
+            self.id, model_name or ''
+        )

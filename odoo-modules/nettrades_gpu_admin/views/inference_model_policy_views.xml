@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--  FILE: odoo-modules/nettrades_gpu_admin/views/inference_model_policy_views.xml  -->
+<odoo>
+
+    <record id="view_inference_model_policy_tree" model="ir.ui.view">
+        <field name="name">inference.model.policy.tree</field>
+        <field name="model">inference.model.policy</field>
+        <field name="arch" type="xml">
+            <list string="Per-Model Failover Policies">
+                <field name="cluster_id"/>
+                <field name="model_name"/>
+                <field name="allow_dynamo_fallback" widget="boolean_toggle"/>
+                <field name="allow_rpc_partial_fallback" widget="boolean_toggle"/>
+                <field name="allow_marketplace_fallback" widget="boolean_toggle"/>
+                <field name="allow_external_api_fallback" widget="boolean_toggle"/>
+                <field name="external_api_provider"
+                       invisible="not allow_external_api_fallback"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_inference_model_policy_form" model="ir.ui.view">
+        <field name="name">inference.model.policy.form</field>
+        <field name="model">inference.model.policy</field>
+        <field name="arch" type="xml">
+            <form string="Per-Model Failover Policy">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="model_name" placeholder="Model name..."/>
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="cluster_id" options="{'no_create': True}"/>
+                        <field name="active"/>
+                    </group>
+                    <group string="Notes">
+                        <field name="description" placeholder="Why does this model need a different policy?"/>
+                    </group>
+
+                    <div class="alert alert-info" role="alert">
+                        <p>This policy <b>replaces</b> the cluster default for
+                        the named model. Fields not set here fall back to the
+                        cluster default, not to the empty value.</p>
+                    </div>
+
+                    <group string="Tier 2 — Dynamo">
+                        <field name="allow_dynamo_fallback"/>
+                    </group>
+                    <group string="Tier 3 — Partial RPC">
+                        <field name="allow_rpc_partial_fallback"/>
+                    </group>
+                    <group string="Tier 4 — Marketplace">
+                        <field name="allow_marketplace_fallback"/>
+                    </group>
+                    <group string="Tier 5 — External API">
+                        <field name="allow_external_api_fallback"/>
+                        <field name="external_api_provider"
+                               invisible="not allow_external_api_fallback"/>
+                        <field name="external_api_model"
+                               invisible="not allow_external_api_fallback"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_inference_model_policy_search" model="ir.ui.view">
+        <field name="name">inference.model.policy.search</field>
+        <field name="model">inference.model.policy</field>
+        <field name="arch" type="xml">
+            <search string="Search Per-Model Policies">
+                <field name="cluster_id"/>
+                <field name="model_name"/>
+                <filter name="active" string="Active"
+                        domain="[('active','=',True)]"/>
+                <filter name="external_enabled" string="External API Enabled"
+                        domain="[('allow_external_api_fallback','=',True)]"/>
+                <separator/>
+                <filter name="group_by_cluster" string="Cluster"
+                        context="{'group_by':'cluster_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_inference_model_policy" model="ir.actions.act_window">
+        <field name="name">Per-Model Failover Policies</field>
+        <field name="res_model">inference.model.policy</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No per-model policies yet.
+            </p>
+            <p>
+                Per-model overrides replace the cluster default for a
+                specific model. They are optional.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_inference_model_policy"
+              name="Per-Model Policies"
+              parent="menu_gpu_root"
+              action="action_inference_model_policy"
+              sequence="25"/>
+</odoo>
