@@ -16,4 +16,10 @@ No express or implied patent license is granted under `LICENSE.txt` (`BUSL-1.1`)
 ## 3. Excluded Uses & Automatic Termination
 Zero express or implied patent license is granted for deployments exceeding 5 Spokes, commercial cloud/SaaS hosting, clean-room re-implementations, or any breach of `ETHICAL-STATEMENT.md`. Any violation or patent challenge against NETTRADES LIMITED terminates all rights automatically and immediately.
 
+## Trade Marks
+
+THE FUTURE OF WORK® is a registered trade mark in the United Kingdom (No. UK00004257743) of NETTRADES LIMITED.
+
 **Licensing Inquiries:** legal@nettrades.ai
+
+© 2026 NETTRADES LIMITED (UK Company No. 08160657). 

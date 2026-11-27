@@ -386,7 +386,7 @@ For enterprise pricing matrices or to apply for a commercial deployment key, con
 
 ### Patent Notice
 
-**Patent Pending.** The distributed inferencing architecture, heterogeneous GPU/CPU orchestration, and deterministic failover methods implemented in the **NETTRADES Sovereign AI Platform** are protected by pending patent applications owned by **NETTRADES LIMITED** (UK Company No. 08160657). For current patent status, see [nettrades.com](https://nettrades.com) and [LEGAL/PATENTS.md](LEGAL/PATENTS.md).
+**Patent Pending.** The distributed inferencing architecture, heterogeneous GPU/CPU orchestration, and deterministic failover methods implemented in the **NETTRADES Sovereign AI Platform** are protected by pending patent applications owned by **NETTRADES LIMITED** (UK Company No. 08160657). For current patent status, see [nettrades.com](https://nettrades.com) and [LEGAL/PATENTS.md](LEGAL/IP-AND-PATENTS.md).
 
 Use of this software under the Business Source License 1.1 (`BUSL-1.1`) receives only a limited, conditional, revocable patent license strictly restricted to the permitted non-production and Additional Use Grant scopes in [LICENSE.txt](LICENSE.txt) (up to 5 Spokes for households/small businesses, or unlimited Spokes for accredited educational institutions and hospitals). Any commercial deployment exceeding 5 Spokes, cloud/SaaS hosting, or unlicensed re-implementation receives no express or implied patent license and requires a separate Commercial License from NETTRADES LIMITED.
 
@@ -2420,4 +2420,4 @@ And deploys Grafana for monitoring
 
 
 ---
-
+© 2026 NETTRADES LIMITED (UK Company No. 08160657). Patent Pending. THE FUTURE OF WORK® is a registered trade mark in the United Kingdom (No. UK00004257743) of NETTRADES LIMITED.

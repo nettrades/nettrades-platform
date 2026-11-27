@@ -16,7 +16,7 @@ NETTRADES is an enterprise-grade sovereign AI infrastructure platform built for 
 - **Ethical Primacy:** Every license, deployment, and commercial agreement is strictly overridden by our [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md).
 - **Source-Available & Responsible AI:** Core components are distributed under **BUSL-1.1** (with generous free grants for individuals, SMEs up to 5 Spokes, schools, universities, and hospitals), converting after 4 years to **Open RAIL-S**.
 - **Sovereign Privacy:** Organizations retain full control over their model weights, local inference nodes, and internal databases.
-- **Defensive Patent Integrity:** NETTRADES LIMITED maintains pending patent protections (`LEGAL/PATENTS.md`) to safeguard the architecture and enforce ethical compliance.
+- **Defensive Patent Integrity:** NETTRADES LIMITED maintains pending patent protections (`LEGAL/IP-AND-PATENTS.md`) to safeguard the architecture and enforce ethical compliance.
 
 ---
 
