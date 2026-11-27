@@ -1,0 +1,63 @@
+# NETTRADES LIMITED (UK Company No. 08160657)
+# Explicit Reservation of Rights & AI Model Training Opt-Out
+# See LICENSE.txt, ETHICAL-STATEMENT.md and LEGAL/PATENTS.md
+
+# Block OpenAI / ChatGPT crawlers
+User-agent: GPTBot
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+# Block Anthropic / Claude crawlers
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+# Block Google AI training crawler (while allowing standard Google Search)
+User-agent: Google-Extended
+Disallow: /
+
+# Block Meta / Facebook AI crawlers
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: meta-externalagent
+Disallow: /
+
+# Block Common Crawl & bulk AI dataset scrapers
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+# Allow standard search indexing of public documentation & landing pages
+User-agent: *
+Allow: /

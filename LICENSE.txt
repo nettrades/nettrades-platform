@@ -46,6 +46,13 @@ Licensed Work is permitted free of charge under the following scopes:
    connectors for distribution or sale on the official NETTRADES Marketplace.
 
 ==============================================================================
+NO AI TRAINING / SCRAPING
+==============================================================================
+No right or license is granted under this Agreement to scrape, ingest or use 
+the Licensed Work to train, fine-tune or distill machine learning or artificial 
+intelligence models without express written permission from NETTRADES LIMITED.
+
+==============================================================================
 COMMERCIAL LICENSE REQUIREMENT
 ==============================================================================
 Any private enterprise or commercial entity operating more than one (1) Sub-Hub
