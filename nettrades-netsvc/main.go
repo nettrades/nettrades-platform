@@ -3,8 +3,8 @@
 // PURPOSE:
 //   Main entry point for the NETTRADES Windows service.
 //
-//   This service provides two critical capabilities for the NETTRADES
-//   platform on Windows hosts:
+//   This service provides three capabilities for the NETTRADES platform
+//   on Windows hosts:
 //
 //     1. WSL2 PORT FORWARDING (primary)
 //        Windows 10 does not support WSL2 mirrored networking mode. WSL2
@@ -22,6 +22,26 @@
 //        using the official tunnel.dll from the WireGuard embeddable DLL
 //        service. This is disabled by default and will be enabled when
 //        the platform moves to production VPN connectivity.
+//
+//     3. GRACEFUL SHUTDOWN COORDINATION (2026-10-20)
+//        When Windows initiates a shutdown, the SCM delivers
+//        SERVICE_CONTROL_PRESHUTDOWN to services that declare it. This
+//        service uses that window to tell the Python spoke agent to
+//        drain before its RPC workers are killed. The coordination is
+//        file-based: the service writes C:\ProgramData\NETTRADES\drain.requested,
+//        the agent (which runs as a separate process) polls for that
+//        file and starts its drain sequence, and when the drain is
+//        complete the agent writes drain.complete. This service polls
+//        for drain.complete and returns from the PRESHUTDOWN handler
+//        when it appears, or after the preshutdown timeout expires.
+//
+//        The preshutdown timeout is configured at install time via
+//        `sc.exe config <service> preshutdown= 60000`, which calls
+//        ChangeServiceConfig2 with SERVICE_CONFIG_PRESHUTDOWN_INFO.
+//        Without that call, Windows does not deliver PRESHUTDOWN to the
+//        service at all.
+//
+//        Design rationale: see FAILOVER-HIERARCHY.md § Graceful shutdown.
 //
 //   The service exposes a named pipe (\\.\pipe\NETTRADESNetSvc) that the
 //   NETTRADES Launcher connects to for status queries and repair commands.
@@ -53,6 +73,13 @@
 //   │  │   - repair: triggers immediate reconciliation         │  │
 //   │  │   - wireguard-*: manages the WireGuard tunnel service │  │
 //   │  └───────────────────────────────────────────────────────┘  │
+//   │                                                             │
+//   │  ┌───────────────────────────────────────────────────────┐  │
+//   │  │ PRESHUTDOWN handler (new 2026-10-20)                  │  │
+//   │  │   - Writes drain.requested                            │  │
+//   │  │   - Polls for drain.complete (up to 60s)              │  │
+//   │  │   - Returns when drain is done or on timeout          │  │
+//   │  └───────────────────────────────────────────────────────┘  │
 //   └─────────────────────────────────────────────────────────────┘
 //
 // SERVICE INSTALLATION:
@@ -60,6 +87,10 @@
 //   via the customInstall macro in installer/build/installer.nsh.
 //   The deployment scripts call scripts/phase-windows-service.sh which
 //   copies the binary and runs install-netsvc.ps1.
+//
+//   installService() also runs `sc.exe config NETTRADESNetSvc preshutdown= 60000`
+//   after CreateService, so the SCM delivers PRESHUTDOWN with a 60-second
+//   window. This is required for the drain coordination to work.
 //
 // WIREGUARD /SERVICE MODE:
 //   When Windows starts the WireGuardTunnel$NETTRADES service, it invokes
@@ -99,6 +130,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/windows/svc"
@@ -120,7 +152,7 @@ const (
 	ServiceDisplayName = "NETTRADES Networking Service"
 
 	// ServiceDescription is the description shown in services.msc.
-	ServiceDescription = "Maintains WSL2 port forwarding and WireGuard tunnels for the NETTRADES platform."
+	ServiceDescription = "Maintains WSL2 port forwarding, WireGuard tunnels, and graceful drain coordination for the NETTRADES platform."
 
 	// PipeName is the named pipe the Launcher connects to.
 	// The full path is \\.\pipe\NETTRADESNetSvc.
@@ -151,6 +183,26 @@ const (
 	// WSL IP. When this file exists and is recent, the reconciler reads
 	// it instead of spawning `wsl hostname -I` on every tick.
 	WSLIPFile = `C:\ProgramData\NETTRADES\wsl-ip.txt`
+
+	// DrainRequestedFile is written by this service on PRESHUTDOWN. The
+	// Python spoke agent polls for it (see spoke-agent.py
+	// _watch_drain_file) and starts its drain sequence when it appears.
+	DrainRequestedFile = `C:\ProgramData\NETTRADES\drain.requested`
+
+	// DrainCompleteFile is written by the Python spoke agent when its
+	// drain sequence completes. This service polls for it during the
+	// PRESHUTDOWN handler so the SCM knows the drain is done and can
+	// proceed with the shutdown.
+	DrainCompleteFile = `C:\ProgramData\NETTRADES\drain.complete`
+
+	// PreshutdownTimeoutMs is the preshutdown window requested from the
+	// SCM. Must be long enough for the Python spoke agent's
+	// shutdown_grace_seconds (default 30) plus a margin.
+	PreshutdownTimeoutMs = 60000
+
+	// DrainPollInterval is how often the PRESHUTDOWN handler polls for
+	// drain.complete.
+	DrainPollInterval = time.Second
 )
 
 // -----------------------------------------------------------------------------
@@ -177,14 +229,21 @@ type nettradesService struct {
 	elog debug.Log
 }
 
-// Execute is called by the SCM when the service starts, stops, or is
-// interrogated. It runs until the service is stopped.
+// Execute is called by the SCM when the service starts, stops, is
+// interrogated, or receives a preshutdown notification. It runs until
+// the service is stopped.
+//
+// The command set includes svc.AcceptPreshutdown. For PRESHUTDOWN to
+// actually be delivered by the SCM, the service must also be configured
+// with SERVICE_CONFIG_PRESHUTDOWN_INFO via ChangeServiceConfig2. That
+// is done at install time by installService(), which runs
+//   sc.exe config <service> preshutdown= 60000
 func (s *nettradesService) Execute(
 	args []string,
 	r <-chan svc.ChangeRequest,
 	changes chan<- svc.Status,
 ) (ssec bool, errno uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPreShutdown
 
 	// Tell the SCM we are starting.
 	changes <- svc.Status{State: svc.StartPending}
@@ -223,8 +282,17 @@ loop:
 			switch c.Cmd {
 			case svc.Interrogate:
 				changes <- c.CurrentStatus
+			case svc.PreShutdown:
+				// Preshutdown is delivered early in the shutdown sequence,
+				// before Stop/Shutdown. It gives us a chance to tell the
+				// Python spoke agent to drain while the RPC workers are
+				// still alive.
+				logger.Println("Preshutdown requested by SCM.")
+				handlePreshutdown()
+				// Do not break the loop — wait for Stop or Shutdown to
+				// arrive so the SCM sees the service respond normally.
 			case svc.Stop, svc.Shutdown:
-				logger.Println("Stop requested by SCM.")
+				logger.Println("Stop/shutdown requested by SCM.")
 				break loop
 			}
 		}
@@ -248,6 +316,79 @@ loop:
 
 	logger.Println("NETTRADES Networking Service stopped.")
 	return
+}
+
+// handlePreshutdown coordinates the drain of the Python spoke agent.
+//
+// Sequence:
+//   1. Remove any stale drain.complete from a previous shutdown.
+//   2. Write drain.requested. The Python agent's _watch_drain_file
+//      thread polls for this and starts the drain sequence when it
+//      appears.
+//   3. Poll for drain.complete up to PreshutdownTimeoutMs. When it
+//      appears, the drain is finished — the agent has sent the drain
+//      heartbeat to the hub, waited its grace period, and stopped its
+//      RPC workers.
+//   4. If the timeout expires without drain.complete appearing, log
+//      the timeout and return. The SCM will proceed with the shutdown
+//      regardless; the drain is best-effort.
+func handlePreshutdown() {
+	// Clear any stale completion marker from a previous shutdown.
+	_ = os.Remove(DrainCompleteFile)
+
+	// Write the trigger file. The Python agent watches for it.
+	if err := os.WriteFile(DrainRequestedFile, []byte("1"), 0644); err != nil {
+		logger.Printf("Preshutdown: failed to write drain trigger file: %v", err)
+		return
+	}
+	logger.Printf("Preshutdown: wrote drain trigger file %s", DrainRequestedFile)
+
+	// Poll for drain.complete.
+	deadline := time.Now().Add(PreshutdownTimeoutMs * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(DrainCompleteFile); err == nil {
+			logger.Println("Preshutdown: drain completed (drain.complete found)")
+			return
+		}
+		time.Sleep(DrainPollInterval)
+	}
+	logger.Printf(
+		"Preshutdown: timeout after %dms waiting for drain to complete; "+
+			"the spoke agent may not be running, or its shutdown_grace_seconds "+
+			"is larger than %dms",
+		PreshutdownTimeoutMs, PreshutdownTimeoutMs,
+	)
+}
+
+// -----------------------------------------------------------------------------
+// runHidden
+// -----------------------------------------------------------------------------
+// Runs an external Windows command with the CREATE_NO_WINDOW creation flag
+// so that no console window is displayed. Used by restrictToSystemAndAdmins
+// in wireguard.go to invoke icacls.
+//
+// We deliberately do not use os/exec.CommandContext here — there is no
+// caller-provided context and the commands this helper runs are short-lived
+// and non-hanging (icacls on a single file). A future enhancement could add
+// a timeout via exec.CommandContext if a hung icacls is ever observed.
+//
+// The CREATE_NO_WINDOW flag (0x08000000) is a Windows process-creation
+// constant. It is not exposed in the Go standard library's os/exec package
+// as a named constant, so we define it here. See:
+//   https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags
+// -----------------------------------------------------------------------------
+func runHidden(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
+	// Discard stdout and stderr; the caller only cares about the exit
+	// status. If a diagnostic is ever needed, wrap the returned error
+	// with the command name and arguments.
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s %v: %w", name, args, err)
+	}
+	return nil
 }
 
 // -----------------------------------------------------------------------------
@@ -476,6 +617,12 @@ func dispatchCommand(cmd PipeCommand) PipeResponse {
 		return handleGetStatus()
 	case "repair":
 		return handleRepair()
+	case "drain":
+		// NEW (2026-10-20): manual drain trigger, for the Launcher's
+		// "Drain and restart" button (future). Same code path as
+		// PRESHUTDOWN, but callable on demand.
+		handlePreshutdown()
+		return PipeResponse{Success: true}
 	case "wireguard-status":
 		return handleWireGuardStatus()
 	case "wireguard-install":
@@ -500,6 +647,12 @@ func handleGetStatus() PipeResponse {
 	ip := currentWSLIP
 	mu.RUnlock()
 
+	// Check whether a drain is in progress.
+	drainInProgress := false
+	if _, err := os.Stat(DrainRequestedFile); err == nil {
+		drainInProgress = true
+	}
+
 	return PipeResponse{
 		Success: true,
 		Data: map[string]interface{}{
@@ -507,6 +660,7 @@ func handleGetStatus() PipeResponse {
 			"wsl_ip":            ip,
 			"forwarding_active": ip != "",
 			"ports":             PortsToForward,
+			"drain_in_progress": drainInProgress,
 		},
 	}
 }
@@ -611,7 +765,20 @@ func handleWireGuardStop() PipeResponse {
 // Service management (install / uninstall / start / stop)
 // -----------------------------------------------------------------------------
 
-// installService registers the service with the SCM.
+// installService registers the service with the SCM and configures the
+// preshutdown timeout.
+//
+// Two steps that are easy to miss:
+//
+//   1. mgr.Config does NOT have a preshutdown timeout field. The timeout
+//      is configured via ChangeServiceConfig2(SERVICE_CONFIG_PRESHUTDOWN_INFO).
+//      The simplest way to do this from Go is to shell out to `sc.exe`,
+//      which is what the Windows ecosystem expects.
+//
+//   2. Even with the timeout configured, the SCM will only deliver
+//      SERVICE_CONTROL_PRESHUTDOWN if the service reports
+//      SERVICE_ACCEPT_PRESHUTDOWN in its status. That is handled in
+//      Execute() via the cmdsAccepted constant.
 func installService() error {
 	exepath, err := os.Executable()
 	if err != nil {
@@ -650,6 +817,43 @@ func installService() error {
 		{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
 		{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
 	}, 86400)
+
+	// Configure the preshutdown timeout.
+	//
+	// This is the step that actually enables PRESHUTDOWN delivery.
+	// `sc.exe config <service> preshutdown= 60000` calls
+	// ChangeServiceConfig2 with SERVICE_CONFIG_PRESHUTDOWN_INFO and a
+	// 60-second timeout. Without it, Windows never sends PRESHUTDOWN
+	// to the service, and the graceful drain does not happen on a
+	// Windows shutdown.
+	//
+	// We use sc.exe rather than syscall gymnastics because sc.exe is
+	// the standard Windows tool, is always present, and the failure
+	// mode (exit code + stderr) is clear. If this fails, we log a
+	// warning but do not abort the install: the service will still
+	// forward ports and manage WireGuard. Only the graceful drain
+	// is degraded, and that is logged.
+	psCmd := exec.Command(
+		"sc.exe", "config", ServiceName,
+		"preshutdown=", fmt.Sprintf("%d", PreshutdownTimeoutMs),
+	)
+	psCmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
+	if out, err := psCmd.CombinedOutput(); err != nil {
+		fmt.Printf(
+			"WARNING: failed to set preshutdown timeout: %v — %s\n"+
+				"The service is installed but will not receive PRESHUTDOWN "+
+				"on Windows shutdown. Run manually:\n"+
+				"  sc.exe config %s preshutdown= %d\n",
+			err, string(out), ServiceName, PreshutdownTimeoutMs,
+		)
+	} else {
+		fmt.Printf(
+			"Configured preshutdown timeout: %dms\n",
+			PreshutdownTimeoutMs,
+		)
+	}
 
 	return nil
 }

@@ -29,6 +29,19 @@
 //   C:\ProgramData\NETTRADES\wireguard\nettrades.conf with restrictive
 //   permissions. For production, use the .conf.dpapi format which
 //   encrypts the private key with DPAPI under the LocalSystem account.
+//
+// FIXES (2026-11-16):
+//   * runTunnelService: fixed the GoString call convention.
+//     The previous version passed a pointer to a struct containing
+//     (pointer, length) as a SINGLE argument to syscall.LazyProc.Call.
+//     That puts the struct's address in RCX and leaves RDX undefined,
+//     so the Go function reads a garbage string length and crashes.
+//     The correct call passes the pointer and the length as TWO
+//     separate uintptr arguments, matching the Windows x64 cdecl ABI
+//     for a 16-byte struct (RCX = ptr, RDX = len). Also added an
+//     empty-string guard and runtime.KeepAlive to pin the byte slice
+//     across the call (the Go GC does not see a uintptr argument as a
+//     live reference).
 // =============================================================================
 
 package main
@@ -37,6 +50,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -130,9 +144,9 @@ func (c *WireGuardConfig) Render() string {
 // -----------------------------------------------------------------------------
 
 type WireGuardStatus struct {
-	Installed bool   `json:"installed"`
-	Running   bool   `json:"running"`
-	State     string `json:"state"`
+	Installed  bool   `json:"installed"`
+	Running    bool   `json:"running"`
+	State      string `json:"state"`
 	ConfigPath string `json:"config_path,omitempty"`
 }
 
@@ -365,10 +379,33 @@ func (wg *WireGuardManager) Status() (*WireGuardStatus, error) {
 // `/service <configfile>`. It loads tunnel.dll from the executable's
 // directory and calls the exported WireGuardTunnelService function.
 //
-// The WireGuardTunnelService function is a Go function exported as a
-// C-shared library. It takes a GoString (pointer + length), NOT a
-// null-terminated C string. This is a common source of crashes when
-// integrating with the embeddable DLL service.
+// ABI NOTE — why this call passes TWO arguments, not one:
+//
+//   WireGuardTunnelService is a Go function exported via //export, so
+//   the C-visible signature is:
+//
+//       extern _Bool WireGuardTunnelService(GoString p0);
+//       typedef struct { const char *p; ptrdiff_t n; } GoString;
+//
+//   On amd64 Windows, `ptrdiff_t` is 64 bits, so GoString is 16 bytes.
+//   The Windows x64 cdecl calling convention passes a 16-byte struct in
+//   TWO registers: RCX = p, RDX = n.
+//
+//   syscall.LazyProc.Call maps each uintptr argument to one register,
+//   in order: RCX, RDX, R8, R9, then stack. So calling
+//
+//       proc.Call(uintptr(unsafe.Pointer(&configBytes[0])),
+//                 uintptr(len(configBytes)))
+//
+//   correctly fills RCX with the byte pointer and RDX with the length.
+//
+//   The previous version of this code built a `goString` struct on the
+//   stack and passed `uintptr(unsafe.Pointer(&gs))` — a SINGLE pointer
+//   to the struct. That put the struct's address in RCX and left RDX
+//   undefined, so the Go function interpreted an undefined register as
+//   the string length and read out of bounds. The call either crashed
+//   the process or produced a garbage config path (which then failed
+//   to open, so the tunnel never came up).
 //
 // This function blocks until the tunnel service is stopped by the SCM.
 func runTunnelService(configFile string) error {
@@ -394,71 +431,36 @@ func runTunnelService(configFile string) error {
 			TunnelDLLName, err)
 	}
 
-	// The WireGuardTunnelService function is a Go function exported as
-	// a C-shared library. It takes a GoString, not a UTF-16 pointer.
-	//
-	// We must NOT pass a UTF-16 pointer. The GoString expects a UTF-8
-	// byte array (the Go string representation).
-	//
-	// The struct layout on 64-bit Windows is:
-	//   type GoString struct {
-	//       str *byte  // pointer to the string data
-	//       len int    // length of the string
-	//   }
-	//
-	// The struct is passed by value. In Go assembly terms, this is
-	// two machine words (pointer + int).
-	//
-	// We use syscall.Syscall to call the function with the correct
-	// calling convention. The function is declared as:
-	//
-	//   BOOL (_cdecl *tunnel_proc)(_In_ LPCWSTR conf_file);
-	//
-	// Wait — the C# example shows:
-	//
-	//   [DllImport("tunnel.dll", EntryPoint = "WireGuardTunnelService",
-	//       CallingConvention = CallingConvention.Cdecl)]
-	//   private static extern bool WireGuardTunnelService(GoString configFile);
-	//
-	// and the GoString is defined as:
-	//
-	//   [StructLayout(LayoutKind.Sequential)]
-	//   public struct GoString {
-	//       public IntPtr str;
-	//       public int len;
-	//   }
-	//
-	// This means the function takes a GoString, not a UTF-16 pointer.
-	// The GoString contains a pointer to the UTF-8 encoded config file
-	// path and its length.
-
-	// Encode the config file path as UTF-8.
+	// Encode the config file path as UTF-8. The exported Go function
+	// expects a UTF-8 Go string, not a UTF-16 LPWSTR — despite what
+	// some C# interop examples on the wireguard-windows wiki show.
 	configBytes := []byte(configFile)
-
-	// Build the GoString struct on the stack. We use a byte slice
-	// so the pointer remains valid for the duration of the call.
-	// The struct layout is pointer (8 bytes) + int (8 bytes on 64-bit).
-	type goString struct {
-		str *byte
-		len int
+	if len(configBytes) == 0 {
+		return fmt.Errorf("empty config path")
 	}
 
-	gs := goString{
-		str: &configBytes[0],
-		len: len(configBytes),
-	}
+	// Two uintptr arguments = RCX (ptr) + RDX (len). See the ABI NOTE
+	// above for why the struct is split across two registers.
+	dataPtr := uintptr(unsafe.Pointer(&configBytes[0]))
+	dataLen := uintptr(len(configBytes))
 
-	// Call the function with the GoString passed by value.
-	// On 64-bit Windows, the first argument is passed in RCX.
-	// The GoString is 16 bytes, which fits in two registers (RCX and RDX).
-	ret, _, callErr := proc.Call(uintptr(unsafe.Pointer(&gs)))
-		if ret == 0 {
-			if callErr != nil && callErr != syscall.Errno(0) {
-				return fmt.Errorf("WireGuardTunnelService returned failure: %v", callErr)
-			}
-			return fmt.Errorf("WireGuardTunnelService returned failure (0)")
+	ret, _, callErr := proc.Call(dataPtr, dataLen)
+
+	// Pin the byte slice across the call. The Go GC does not see a
+	// uintptr argument as a live reference, so without KeepAlive the
+	// slice could theoretically be collected before the called function
+	// finishes reading it.
+	runtime.KeepAlive(configBytes)
+
+	if ret == 0 {
+		// BOOL false. Distinguish "the callee reported a specific error
+		// via SetLastError" from "the callee simply returned false".
+		if callErr != nil && callErr != syscall.Errno(0) {
+			return fmt.Errorf("WireGuardTunnelService returned failure: %v", callErr)
 		}
-		return nil
+		return fmt.Errorf("WireGuardTunnelService returned failure (0)")
+	}
+	return nil
 }
 
 // -----------------------------------------------------------------------------
