@@ -104,6 +104,7 @@ volumes:
   grafana_data:
   langgraph_data:
   llama_cpp_data:
+  asr_models:
 
 # --------------------------------------------------------------------------
 # Services
@@ -129,6 +130,7 @@ services:
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --entrypoints.websecure.http.tls=true
+      - --entrypoints.websecure.http.tls.certresolver=letsencrypt
       - --accesslog
    #   - --api.insecure=true        #   REMOVE IN PRODUCTION
    #   - --log.level=DEBUG          #   REMOVE IN PRODUCTION
@@ -152,7 +154,8 @@ services:
   # 2. POSTGRESQL with pgvector - RAG Embeddings & Main Database
   # =========================================================================
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg16
+    stop_grace_period: 120s
     # PostgreSQL MUST use runc - gVisor adds 10-30% I/O overhead
     runtime: ${RUNTIME_POSTGRES:-}
     environment:
@@ -160,7 +163,8 @@ services:
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/01-create-databases.sh:/docker-entrypoint-initdb.d/01-create-databases.sh:ro
     networks:
       - internal
     restart: unless-stopped
@@ -240,6 +244,25 @@ services:
       - ADMIN_PASSWORD=${DB_MANAGER_UI_PASSWORD}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Option B (2026-11-16): delivered to spokes in the registration
+      # response so they don't need a separate --heartbeat-secret flag.
+      # The spoke uses this only for /nodes/heartbeat on langgraph-server;
+      # Odoo's own /api/v1/gpu/heartbeat continues to use the registration
+      # token. Never log this value.
+      - LANGGRAPH_HEARTBEAT_SECRET=${LANGGRAPH_HEARTBEAT_SECRET:-}
+      # OpenBLAS thread caps — REQUIRED for nettrades_fairness.
+      # pandas imports NumPy, which imports OpenBLAS, which by default
+      # spawns one worker thread per CPU core. Under a low RLIMIT_NPROC
+      # (which is what container environments usually have), that fails
+      # with "pthread_create failed for thread N of 64: Resource temporarily
+      # unavailable" and blocks the module install.
+      # Even with lazy imports in fairness_metrics.py, capping the thread
+      # count is a defense-in-depth measure: any future pandas/numpy usage
+      # inside Odoo will not hit the same wall.
+      - OPENBLAS_NUM_THREADS=1
+      - OMP_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - NUMEXPR_NUM_THREADS=1
     labels:
       - traefik.enable=true
       # Route to /odoo path on the main domain
@@ -297,6 +320,7 @@ services:
     environment:
       - DISABLE_AUTH=${DISABLE_AUTH:-false}
       - DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/odoo
+      - CHECKPOINT_DATABASE_URL=postgresql://odoo:${POSTGRES_PASSWORD}@postgres:5432/checkpoints
       - LANGGRAPH_API_KEY=${LANGGRAPH_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -330,11 +354,13 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - ./dynamo-data/models:/app/deploy/docker/dynamo-data/models:ro
       - langgraph_data:/app/.langgraph
       - /var/run/docker.sock:/var/run/docker.sock
       - ./rpc.env:/app/deploy/docker/rpc.env
       - ./docker-compose.yaml:/app/deploy/docker/docker-compose.yaml:ro
       - ./.env:/app/deploy/docker/.env:ro
+      - ./hub-manifest.json:/app/hub-manifest.json:ro
     labels:
       - traefik.enable=true
       - traefik.docker.network=web
@@ -384,6 +410,16 @@ services:
     # Runtime is tenant-aware: runsc for untrusted, runc for trusted
     runtime: ${RUNTIME_UI:-}
     restart: unless-stopped
+    volumes:
+      # 1. Mount the scripts so the Web UI can run them
+      - ../../scripts:/app/scripts:ro
+      # 2. Mount the .env so it can read/write config
+      - ./.env:/app/deploy/docker/.env
+      # 3. Mount the backups directory so it can list them
+      - ~/.nettrades/backups:/app/backups
+      # 4. Mount the Docker socket so backup.sh can run `docker compose exec`
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker-compose.yaml:/app/deploy/docker/docker-compose.yaml:ro
     ports:
       - "3002:8000"
     environment:
@@ -404,11 +440,18 @@ services:
       - ODOO_OAUTH_USERINFO_URL=${ODOO_OAUTH_USERINFO_URL}
       - ODOO_OAUTH_REDIRECT_URI=${ODOO_OAUTH_REDIRECT_URI}
       - API_BASE_URL=https://${DOMAIN}
+      # REQUIRED: the UI authenticates inference requests with this key.
+      # Without it, every request to the real vLLM on :8001 returns 401.
+      - DYNAMO_API_KEY=${DYNAMO_API_KEY}
+      - ASR_SERVICE_URL=${ASR_SERVICE_URL:-http://asr:9000}
+      - ASR_MODEL=${ASR_MODEL:-sensevoice-q8}
+      - LANGGRAPH_STUDIO_URL=${LANGGRAPH_STUDIO_URL:-}
     networks:
       - internal
     depends_on:
       - odoo-proxy
       - langgraph-server
+      - asr
     # No Traefik labels - served directly on port 3002
     security_opt:
       - no-new-privileges:true
@@ -419,7 +462,29 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 8. REDIRECTOR
+  # 8. ASR - voice-to-text microservice (FunASR SenseVoice)
+  # =========================================================================
+  asr:
+    build:
+      context: ./nettrades-ui/asr_service
+    container_name: asr
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      - LLAMA_ASR_URL=http://llama-asr:8081
+    ports:
+      - "9000:9000"
+    depends_on:
+      - llama-asr
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: 3 }
+
+  # =========================================================================
+  # 9. REDIRECTOR
   # =========================================================================
   redirector:
     image: nginx:alpine
@@ -466,7 +531,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 9. ODOO PROXY - HTTP JSON-RPC Shim
+  # 10. ODOO PROXY - HTTP JSON-RPC Shim
   # =========================================================================
   odoo-proxy:
     build: ../../src/core/odoo_proxy
@@ -501,7 +566,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 10. NVIDIA DYNAMO – Primary GPU Inference Engine (replaces GPUStack)
+  # 11. NVIDIA DYNAMO – Primary GPU Inference Engine (replaces GPUStack)
   # =========================================================================
   # Dynamo is a production-grade distributed inference runtime that includes
   # vLLM. It provides:
@@ -523,6 +588,20 @@ services:
   # =========================================================================
   dynamo:
     # CPU-compatible frontend for testing (no GPU required)
+    #
+    # 2026-10-22: The service is now behind the 'dynamo' profile so it
+    # does not start by default. Reason: the demo hub runs a REAL vLLM
+    # instance on host port 8001 (deployed by deploy-v100-vllm.sh). The
+    # mock frontend also binds 8001, so starting both produces a port
+    # collision. The mock is only useful for testing the Dynamo control
+    # plane without a GPU, which is not the demo path.
+    #
+    # To start the mock explicitly:
+    #   docker compose --profile dynamo up -d dynamo
+    #
+    # If you do, stop vllm-demo first:
+    #   docker rm -f vllm-demo
+    profiles: ["dynamo"]
     image: nvcr.io/nvidia/ai-dynamo/dynamo-frontend:1.3.1
     container_name: dynamo
     # GPU requires runc - gVisor does not support GPU passthrough
@@ -568,7 +647,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 11. CPU-VLLM (Future) – Placeholder for CPU-optimised vLLM
+  # 12. CPU-VLLM (Future) – Placeholder for CPU-optimised vLLM
   # =========================================================================
   # NVIDIA Dynamo now supports CPU-only vLLM container builds via PR #7139.
   # This allows vLLM (normally CUDA-only) to run on CPU nodes with AVX512/
@@ -617,13 +696,11 @@ services:
   #       max-file: 3
 
   # =========================================================================
-  # 12. LLAMA.CPP – CPU Inference Engine (Fallback, zero dependency)
-  # =========================================================================
-  # This is the reliable CPU fallback that works immediately without any
-  # authentication. If Dynamo is unavailable, requests are routed here.
+  # 13. LLAMA.CPP – Primary local inference (GPU-accelerated via WSL)
   # =========================================================================
   llama-cpp:
-    image: ghcr.io/ggml-org/llama.cpp:server
+    # Use the CUDA build to leverage your RTX 5070 Ti
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
     container_name: llama-cpp
     restart: unless-stopped
     networks:
@@ -631,23 +708,30 @@ services:
     volumes:
       - ./dynamo-data/models:/models  # Share models with Dynamo
     environment:
-      - LLAMA_SERVER_MODEL=/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf
+      - LLAMA_SERVER_MODEL=/models/${MODEL_FILE:-Fanar-1-9B-Instruct.Q4_K_M.gguf}
       - LLAMA_SERVER_HOST=0.0.0.0
       - LLAMA_SERVER_PORT=8080
-      - LLAMA_SERVER_N_GPU_LAYERS=0   # CPU only; adjust for GPU
+      - LLAMA_SERVER_N_GPU_LAYERS=99   # Offload all layers to the GPU
     ports:
       - "8080:8080"
     command:
       - "-m"
-      - "/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf"
+      - "/models/${MODEL_FILE:-Fanar-1-9B-Instruct.Q4_K_M.gguf}"
       - "-a"
-      - "deepseek-7b"   
+      - "${MODEL_NAME:-fanar-9b}"   
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8080"
       - "-ngl"
-      - "0"
+      - "99"   # Offload all layers to the GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -663,7 +747,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 13. SELF-IMPROVING SERVICE - Continuous Learning & Fine-Tuning
+  # 14. SELF-IMPROVING SERVICE - Continuous Learning & Fine-Tuning
   # =========================================================================
   # For untrusted tenants, run under gVisor for additional isolation.
   # Set RUNTIME_SELF_IMPROVING=runsc in .env for untrusted tenants.
@@ -684,6 +768,17 @@ services:
       - THRESHOLD_QUALITY=7.0
       - FINE_TUNE_MODEL=${FINE_TUNE_MODEL:-deepseek-7b}
       - FINE_TUNE_METHOD=${FINE_TUNE_METHOD:-unsloth}
+      # OpenBLAS thread caps 
+      # pandas imports NumPy, which imports OpenBLAS, which by default
+      # spawns one worker thread per CPU core. Under a low RLIMIT_NPROC
+      # (which is what container environments usually have), that fails
+      # with "pthread_create failed for thread N of 64: Resource temporarily
+      # unavailable" and blocks the module install.
+      # Capping the thread
+      # count is a defense-in-depth measure: any future pandas/numpy usage
+      - OPENBLAS_NUM_THREADS=1
+      - OMP_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
     depends_on:
       postgres:
         condition: service_healthy
@@ -698,7 +793,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 14. PROMETHEUS - Metrics Collection
+  # 15. PROMETHEUS - Metrics Collection
   # =========================================================================
   prometheus:
     image: prom/prometheus:latest
@@ -711,6 +806,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
       - ./prometheus/web.yml:/etc/prometheus/web.yml
     command:
@@ -730,9 +826,31 @@ services:
       options:
         max-size: 10m
         max-file: 3
+    depends_on:
+      - alertmanager
 
   # =========================================================================
-  # 15. GRAFANA - Visualisation Dashboard
+  # 16. ALERTMANAGER - Prometheus Alerting
+  # =========================================================================
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: 3 }
+
+  # =========================================================================
+  # 17. GRAFANA - Visualisation Dashboard
   # =========================================================================
   grafana:
     image: grafana/grafana:latest
@@ -766,7 +884,7 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 16. NODE EXPORTER - System Metrics for Prometheus
+  # 18. NODE EXPORTER - System Metrics for Prometheus
   # =========================================================================
   node_exporter:
     image: prom/node-exporter:latest
@@ -779,20 +897,21 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - ./node-exporter-textfile:/var/lib/node_exporter/textfile_collector:ro
     command:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.textfile.directory=/var/lib/node_exporter/textfile_collector
       - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
     security_opt:
       - no-new-privileges:true
     logging:
       driver: json-file
-      options:
-        max-size: 10m
-        max-file: 3
+      options: { max-size: 10m, max-file: 3 }
 
   # =========================================================================
-  # 17. LLAMA.CPP RPC MASTER (behind --profile rpc)
+  # 19. LLAMA.CPP RPC MASTER (behind --profile rpc)
   # =========================================================================
   # The coordinator. Reads RPC_BACKENDS and RPC_SPLIT from rpc.env,
   # which is written by src/core/rpc_scheduler.py whenever the topology
@@ -801,24 +920,28 @@ services:
   # Only start with: docker compose --profile rpc up -d
   # =========================================================================
   llama-rpc-master:
-    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    image: nettrades-rpc-master:latest
     container_name: llama-rpc-master
     profiles: ["rpc"]
-    restart: unless-stopped
+    # A coordinator that cannot reach its workers should fail once and
+    # be visible. It should not restart 32 times in the background and
+    # fill every worker's 1-deep accept queue on the way down. Restart
+    # policy was the direct cause of the 2026-10-28 crash loop.
+    restart: "no"
     networks:
       - internal
     ports:
       - "8082:8082"
       - "50052:50052"
     volumes:
-      - ./dynamo-data/models:/models:ro
-      - ./rpc.env:/etc/nettrades/rpc.env:ro
+      - ${HOST_MODELS_DIR:-./dynamo-data/models}:/models:ro
+      - ${HOST_RPC_ENV_FILE:-./rpc.env}:/etc/nettrades/rpc.env:ro
     environment:
       - RPC_BACKENDS=${RPC_BACKENDS:-}
       - RPC_SPLIT=${RPC_SPLIT:-}
       - RPC_MASTER_MODEL=${RPC_MASTER_MODEL:-/models/deepseek-r1-distill-qwen-7b-q4_k_m.gguf}
       - RPC_N_GPU_LAYERS=${RPC_N_GPU_LAYERS:-0}
-      - RPC_WORKER_PORT=50052
+      - RPC_WORKER_PORT=50052      
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -826,13 +949,13 @@ services:
         . /etc/nettrades/rpc.env 2>/dev/null || true
         if [ -z "$$RPC_BACKENDS" ]; then
           echo "RPC_BACKENDS empty — running master single-node"
-          exec /app/llama-server \
+          exec /app/build/bin/llama-server \
             -m "$$RPC_MASTER_MODEL" \
             --host 0.0.0.0 --port 8082 \
             -ngl "$$RPC_N_GPU_LAYERS"
         fi
         echo "RPC cluster: backends=$$RPC_BACKENDS split=$$RPC_SPLIT"
-        exec /app/llama-server \
+        exec /app/build/bin/llama-server \
           -m "$$RPC_MASTER_MODEL" \
           --rpc "$$RPC_BACKENDS" \
           --tensor-split "$$RPC_SPLIT" \
@@ -861,7 +984,60 @@ services:
         max-file: 3
 
   # =========================================================================
-  # 18. LLAMA.CPP RPC WORKER (local CUDA worker, behind --profile rpc)
+  # 13b. LLAMA.CPP ASR – Audar-ASR-V1-Flash (Arabic + English + 30 languages)
+  # =========================================================================
+  # Second llama.cpp server, dedicated to speech-to-text. Uses the same
+  # image and the same dynamo-data/models volume as llama-cpp, but loads
+  # the Audar decoder plus its mandatory audio projector on port 8081.
+  # The asr proxy container calls this as http://llama-asr:8081.
+  llama-asr:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: llama-asr
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      # Read-only: ASR does not write to the models volume.
+      - ./dynamo-data/models:/models:ro
+    ports:
+      - "8081:8081"
+    command:
+      - "-m"
+      - "/models/audar-asr/Audar-ASR-V1-Flash-Q8_0.gguf"
+      - "--mmproj"
+      - "/models/audar-asr/mmproj-Audar-ASR-V1-Flash.gguf"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8081"
+      - "--ctx-size"
+      - "4096"       # 4K tokens per slot is ample for 30-60s audio
+      - "--parallel"
+      - "2"          # two parallel slots is plenty for a chat UI
+      - "--no-warmup"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  # =========================================================================
+  # 21. LLAMA.CPP RPC WORKER (local CUDA worker, behind --profile rpc)
   # =========================================================================
   # A same-host worker so you can develop and test the master/worker
   # pair before deploying any spoke. Remote spokes run rpc-server.exe
@@ -895,7 +1071,7 @@ services:
         max-file: 3
 
   # =============================================================================
-  # 19. WIREGUARD - Internal VPN for Microservices
+  # 22. WIREGUARD - Internal VPN for Microservices
   # =============================================================================
   # This WireGuard instance provides secure communication between platform
   # microservices. It uses a different port (51820) than the Admin VPN (51821)

@@ -21,7 +21,19 @@ RUN mkdir -p /usr/local/lib/docker/cli-plugins \
         -o /usr/local/lib/docker/cli-plugins/docker-compose \
     && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# Only copy necessary source files, not the entire project root. Only src/core/ and its dependencies should be copied
+# Source code is copied wholesale. Two known failure modes on WSL2 and
+# Windows-hosted Docker, both observed during the 2026-11-16 session:
+#
+#   1. COPY layer cache reuse. A source edit under src/core/ sometimes
+#      does not invalidate the COPY layer, so the running container keeps
+#      the previous file version. Force a rebuild:
+#          docker compose build --no-cache langgraph-server
+#
+#   2. If the change is in the image but the code still does not fire at
+#      runtime, check that the import statement is at module scope — the
+#      `import json` bug on 2026-11-16 was the manifest override silently
+#      failing on every inventory refresh with a NameError caught in the
+#      outer try/except.
 COPY src/core/ /app/src/core/
 
 # Copy requirements from src/core (explicit)

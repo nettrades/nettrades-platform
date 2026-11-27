@@ -41,7 +41,7 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .login-container p {
+        .login-container > p {
             color: #8b949e;
             margin-bottom: 32px;
             font-size: 0.95rem;
@@ -87,6 +87,83 @@
             align-items: center;
             gap: 6px;
         }
+
+        /* ---------------------------------------------------------------------
+           NEW (2026-11): username/password form + OAuth divider
+           These rules are additive. No existing rule above has been modified.
+           --------------------------------------------------------------------- */
+
+        .form-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: #8b949e;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #f0f6fc;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input[type="text"]:focus,
+        .form-group input[type="password"]:focus {
+            border-color: #58a6ff;
+        }
+        .form-group input::placeholder {
+            color: #484f58;
+        }
+
+        /* Form submit button must inherit the .btn-login styling */
+        button.btn-login {
+            width: 100%;
+            padding: 14px;
+            font-family: inherit;
+        }
+
+        .error-message {
+            background: rgba(255, 95, 87, 0.1);
+            border: 1px solid rgba(255, 95, 87, 0.3);
+            color: #ff8f8a;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: #484f58;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #30363d;
+        }
+        .divider span {
+            padding: 0 12px;
+        }
     </style>
 </head>
 <body>
@@ -94,8 +171,43 @@
         <div class="logo">🧠</div>
         <h1>NETTRADES AI</h1>
         <p>Sign in with your Odoo account to continue</p>
+
+        {% if error %}
+        <div class="error-message">⚠️ {{ error }}</div>
+        {% endif %}
+
+        <!-- Primary path: username/password form. Works against Odoo's
+             /web/session/authenticate endpoint. No OAuth configuration
+             required. -->
+        <form method="post" action="/admin/login" autocomplete="on">
+            <input type="hidden" name="next" value="{{ next or '/admin' }}">
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username"
+                       placeholder="admin" autocomplete="username"
+                       autofocus required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password"
+                       placeholder="••••••••" autocomplete="current-password"
+                       required>
+            </div>
+
+            <button type="submit" class="btn-login">🔓 Log in</button>
+        </form>
+
+        {% if oauth_enabled %}
+        <!-- Alternative path: OAuth. Only rendered when ODOO_OAUTH_CLIENT_ID
+             is a real value. Requires an OAuth 2.0 client registered in Odoo. -->
+        <div class="divider"><span>Or</span></div>
         <a href="/api/auth/login" class="btn-login">🔑 Sign in with Odoo</a>
+        {% endif %}
+
         <a href="/" class="back-link">← Back to chat</a>
+
         <div class="features">
             <span>🔒 Sovereign</span>
             <span>⚡ Real-time</span>

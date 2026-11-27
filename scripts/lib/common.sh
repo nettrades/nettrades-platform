@@ -185,6 +185,60 @@ check_talosctl() {
     return 0
 }
 
+
+# -----------------------------------------------------------------------------
+# Docker command wrapper — handles sudo when the current shell does not
+# yet have the docker group active.
+# -----------------------------------------------------------------------------
+# The standard `usermod -aG docker $USER` does not affect the current
+# shell. A user who just installed Docker and runs nettrades-setup.sh
+# in the same session will hit:
+#     permission denied while trying to connect to the docker API at
+#     unix:///var/run/docker.sock
+# on every docker command.
+#
+# This wrapper detects that situation once and uses `sudo docker` for
+# the rest of the session. Phase scripts that source common.sh should
+# call `docker_compose` and `docker_cmd` instead of the raw binary.
+# -----------------------------------------------------------------------------
+init_docker_cmd() {
+    if [[ -n "${DOCKER_CMD:-}" ]]; then
+        return 0
+    fi
+    if docker info &>/dev/null; then
+        export DOCKER_CMD="docker"
+    elif sudo -n docker info &>/dev/null 2>&1; then
+        export DOCKER_CMD="sudo docker"
+        log_warning "Docker requires sudo in this shell (you may not have picked up the docker group yet)."
+        log_warning "To avoid this next time: run 'newgrp docker' or log out and back in."
+    else
+        # Neither form worked. Let the caller see the real error.
+        export DOCKER_CMD="docker"
+    fi
+}
+
+docker_cmd() {
+    if [[ "${DOCKER_CMD:-docker}" == "sudo docker" ]]; then
+        sudo docker "$@"
+    else
+        docker "$@"
+    fi
+}
+
+docker_compose() {
+    if [[ "${DOCKER_CMD:-docker}" == "sudo docker" ]]; then
+        sudo docker compose "$@"
+    else
+        docker compose "$@"
+    fi
+}
+export -f docker_cmd
+export -f docker_compose
+
+# Eagerly initialize the wrapper when common.sh is sourced. Phase scripts
+# inherit DOCKER_CMD and the two functions automatically.
+init_docker_cmd
+
 # -----------------------------------------------------------------------------
 # WireGuard Helper
 # -----------------------------------------------------------------------------
@@ -221,22 +275,38 @@ safe_sed_replace() {
     local file="$1"
     local pattern="$2"
     local replacement="$3"
-    # Use Python to safely replace the line
+    # Use Python to safely replace the line.
+    #
+    # Two safety properties, both of which were missing in an earlier
+    # version and caused a real .env corruption:
+    #
+    # 1. If the last line of the file has no trailing newline, the
+    #    earlier version appended the new key on the same line. The fix
+    #    is to normalise the file so every line ends with \n before
+    #    processing, and to ensure the last written line also ends with
+    #    \n.
+    #
+    # 2. Do not create a duplicate key. If the key is already present,
+    #    replace it in place (the earlier version did this correctly).
     python3 -c "
 import sys
 file, pattern, repl = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(file, 'r') as f:
-    lines = f.readlines()
+    text = f.read()
+
+# Normalise: guarantee a trailing newline so appends go on their own line.
+if text and not text.endswith('\n'):
+    text += '\n'
+
+lines = text.splitlines(keepends=True)
 found = False
 with open(file, 'w') as f:
     for line in lines:
         if line.startswith(pattern + '='):
-            # Use repr to safely quote the replacement (handles all special chars)
             f.write(f'{pattern}={repr(repl)}\n')
             found = True
         else:
             f.write(line)
-    # Append the key if it was not present in the file
     if not found:
         f.write(f'{pattern}={repr(repl)}\n')
 " "$file" "$pattern" "$replacement"
@@ -652,4 +722,26 @@ validate_domain() {
         return 0
     fi
     return 1
+}
+
+# -----------------------------------------------------------------------------
+# ROCm gfx target → HSA_OVERRIDE_GFX_VERSION mapping
+# Used by install-spoke.sh and by phase-env.sh when the host is an AMD box.
+# -----------------------------------------------------------------------------
+hsa_override_for_gfx() {
+    local gfx="$1"
+    case "$gfx" in
+        gfx1010|gfx1011|gfx1012|gfx1030|gfx1031|gfx1032|gfx1034) echo "10.3.0" ;;
+        gfx1100|gfx1101|gfx1102|gfx1103) echo "11.0.0" ;;
+        *) echo "" ;;
+    esac
+}
+
+# -----------------------------------------------------------------------------
+# Session secret generator (used by the nettrades-ui session middleware)
+# -----------------------------------------------------------------------------
+# 32 random bytes, base64-encoded (44 characters with padding).
+# Suitable for Starlette's SessionMiddleware secret_key.
+generate_session_secret() {
+    openssl rand -base64 32 | tr -d '\n'
 }

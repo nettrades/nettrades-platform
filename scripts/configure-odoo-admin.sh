@@ -463,7 +463,7 @@ try:
     print(
         f"[configure-odoo-admin] API key generated for "
         f"'{svc.login}' (uid={svc.id}, "
-        f"expires in 365 days, params={sorted(call_kwargs.keys())})",
+        f"expires in 89 days, params={sorted(call_kwargs.keys())})",
         file=sys.stderr,
     )
 except Exception as e:

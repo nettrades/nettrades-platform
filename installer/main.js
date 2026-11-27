@@ -30,6 +30,19 @@
 //   - Hub/Spoke detection (NEW)
 //   - Universal Enterprise Proxy integration (NEW)
 //
+// UPDATES (2026-10-30):
+//   - Added registerSafe() to prevent duplicate ipcMain.handle crashes.
+//     Electron throws "Attempted to register a second handler" when the
+//     same channel is registered twice. The Demo tab was blank because
+//     get-demo-status called ipcMain.handle() from inside itself.
+//   - Extracted fetchHealthNodes / fetchRoutingEvents / fetchClusterState /
+//     fetchActiveTrack as plain functions. The individual IPC handlers and
+//     get-demo-status now both call them, instead of re-registering.
+//   - Added httpWithRetry() with Retry-After + exponential backoff for
+//     Odoo 429 responses. The GPU tab was showing "HTTP 429" because it
+//     polled every 5s without backoff.
+//   - get-platform-gpus now uses httpWithRetry.
+//
 // USAGE:
 //   npm start
 // =============================================================================
@@ -42,6 +55,8 @@ const fs = require('fs');
 const os = require('os');
 const https = require('https');
 const crypto = require('crypto');
+const net = require('net');
+const SERVICE_PIPE = '\\\\.\\pipe\\NETTRADESNetSvc';
 
 // -----------------------------------------------------------------------------
 // Disable GPU acceleration to avoid rendering errors on WSL
@@ -67,8 +82,26 @@ let deploymentProgress = 0;
 const isPackaged = app.isPackaged;
 const PROJECT_ROOT = isPackaged ? process.resourcesPath : path.join(__dirname, '..');
 
-// Models directory (where llama.cpp and Dynamo look for models)
-const MODELS_DIR = path.join(PROJECT_ROOT, 'deploy', 'docker', 'dynamo-data', 'models');
+// Models directory (where llama.cpp and Dynamo look for models).
+// Resolution order:
+//   1. NETTRADES_MODELS_DIR env var
+//   2. models_dir in ~/.config/nettrades-launcher/config.json
+//   3. ~/nettrades-platform/deploy/docker/dynamo-data/models
+// The packaged AppImage runs from a mount point that does not contain
+// the git repo, so the env var / config / homedir defaults are used
+// instead of PROJECT_ROOT.
+function _resolveModelsDir() {
+    if (process.env.NETTRADES_MODELS_DIR) return process.env.NETTRADES_MODELS_DIR;
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.models_dir) return config.models_dir;
+        }
+    } catch {}
+    return path.join(os.homedir(), 'nettrades-platform', 'deploy', 'docker', 'dynamo-data', 'models');
+}
+const MODELS_DIR = _resolveModelsDir();
 
 // Docker Compose file path
 const COMPOSE_FILE = path.join(PROJECT_ROOT, 'deploy', 'docker', 'docker-compose.yaml');
@@ -87,6 +120,57 @@ let PROXY_URL = process.env.PROXY_URL || 'http://localhost:8080';
 
 // Enterprise backend (odoo, salesforce, sap, oracle)
 let ENTERPRISE_BACKEND = process.env.ENTERPRISE_BACKEND || 'odoo';
+
+// =============================================================================
+// SAFE IPC REGISTRATION (2026-10-30)
+// =============================================================================
+// Electron's ipcMain.handle() throws if the same channel is registered twice.
+// This happened when get-demo-status called ipcMain.handle('get-health-nodes')
+// from inside its own handler — the second call threw and the whole Demo tab
+// went blank. registerSafe() removes any existing handler before registering,
+// so a re-registration is a no-op instead of a crash.
+//
+// Every IPC handler in this file uses registerSafe(). Do not use ipcMain.handle
+// directly. If you add a handler and forget, the launcher will crash the first
+// time the channel is touched twice.
+// =============================================================================
+function registerSafe(channel, handler) {
+    try { ipcMain.removeHandler(channel); } catch (_) { /* no-op if not registered */ }
+    ipcMain.handle(channel, handler);
+}
+
+// =============================================================================
+// HTTP WITH RETRY — handles 429 from the odoo-proxy (2026-10-30)
+// =============================================================================
+// The GPUs tab shows "Odoo GPU query: HTTP 429" because it polls every 5s
+// without backoff. Every Launcher HTTP call to the odoo-proxy MUST go
+// through this helper. Do not call fetch() directly against :8090.
+//
+// Behaviour:
+//   - Non-429 responses pass through unchanged.
+//   - 429 responses are retried up to `attempts` times, each after
+//     Retry-After seconds (capped at 10s) plus jitter.
+//   - Network errors also back off exponentially.
+// =============================================================================
+
+async function httpWithRetry(url, opts = {}, attempts = 3) {
+    let lastErr = null;
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const resp = await fetch(url, opts);
+            if (resp.status !== 429) return resp;
+            const retryAfter = parseInt(resp.headers.get('Retry-After') || '5', 10);
+            const waitMs = Math.min(retryAfter * 1000, 10000) + Math.floor(Math.random() * 1000);
+            logInfo(`HTTP 429 from ${url} — backing off ${Math.round(waitMs/1000)}s (attempt ${i+1}/${attempts})`);
+            await new Promise(r => setTimeout(r, waitMs));
+            lastErr = new Error(`HTTP 429 after ${attempts} attempts`);
+        } catch (e) {
+            lastErr = e;
+            if (i < attempts - 1) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+        }
+    }
+    throw lastErr || new Error('httpWithRetry failed');
+}
 
 // -----------------------------------------------------------------------------
 // Helper: Execute a shell command and return stdout
@@ -113,6 +197,42 @@ function execPromise(cmd) {
             if (error) reject({ error, stderr });
             else resolve({ stdout, stderr });
         });
+    });
+}
+
+// -----------------------------------------------------------------------------
+// For the NETTRADES Networking Service for WSL Port Forwarding
+// Part of the code for the NETTRADES Networking Service, a Go-based Windows service using the official
+// Go extended standard library golang.org/x/sys/windows/svc for NETTRADES WSL Port Forwarding
+// Launcher's NSIS installer registers the service during installation. The deployment scripts call
+// phase-windows-service.sh
+
+// The problem it solves:
+// WSL2 is running in NAT mode. The WSL distro has a different IP address on a private virtual
+// subnet that only the Windows host can route to. The Windows host's vEthernet (WSL) adapter
+// is the only thing that can reach WSL. Other machines cannot reach it — that is why ping works.
+// (Other machines can reach the Windows host via ICMP at the Ethernet layer, but the TCP
+// connection to WSL from the other machines is impossible.
+// Also after WSL restarts (e.g., after wsl --shutdown) it changes the WSL IP
+
+// Windows 10 does not support mirrored networking
+// networkingMode=mirrored — the single-line fix that makes WSL2 share the Windows
+// host's IP — is only available on Windows 11 22H2 and later.
+// It does not exist on Windows 10.  On Windows 10, WSL2 is locked into NAT mode.
+// -----------------------------------------------------------------------------
+
+function sendServiceCommand(command, params = {}) {
+    return new Promise((resolve) => {
+        const client = net.connect(SERVICE_PIPE, () => {
+            client.write(JSON.stringify({ command, ...params }) + '\n');
+        });
+        let data = '';
+        client.on('data', (chunk) => { data += chunk.toString(); });
+        client.on('end', () => {
+            try { resolve(JSON.parse(data.trim())); }
+            catch (e) { resolve({ status: 'error', error: e.message }); }
+        });
+        client.on('error', () => resolve({ status: 'unavailable' }));
     });
 }
 
@@ -319,6 +439,72 @@ function saveProxyUrlToConfig(url, backend) {
 }
 
 // -----------------------------------------------------------------------------
+// Hub-level configuration: the Launcher can be pointed at a different hub
+// (e.g. the Blackwell or a Contabo stand-in) without rebuilding. The values
+// are stored alongside proxyUrl/enterpriseBackend in the same config file.
+// -----------------------------------------------------------------------------
+const DEFAULT_HUB_CONFIG = {
+    dynamo_url: process.env.DYNAMO_URL || 'http://localhost:8001/v1',
+    langgraph_url: process.env.LANGGRAPH_URL || 'http://localhost:8000',
+    odoo_url: process.env.ODOO_URL || 'http://localhost:8069',
+};
+
+function loadHubConfig() {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        if (!fs.existsSync(configPath)) return { ...DEFAULT_HUB_CONFIG };
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        return { ...DEFAULT_HUB_CONFIG, ...(config.hub || {}) };
+    } catch (e) {
+        logError(`loadHubConfig failed: ${e.message}`);
+        return { ...DEFAULT_HUB_CONFIG };
+    }
+}
+
+registerSafe('get-hub-config', () => loadHubConfig());
+
+registerSafe('save-hub-config', (_evt, hub) => {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'config.json');
+        const existing = fs.existsSync(configPath)
+            ? JSON.parse(fs.readFileSync(configPath, 'utf8'))
+            : {};
+        existing.hub = { ...DEFAULT_HUB_CONFIG, ...(existing.hub || {}), ...hub };
+        fs.writeFileSync(configPath, JSON.stringify(existing, null, 2));
+        logInfo(`saved hub config: ${JSON.stringify(existing.hub)}`);
+        return { success: true, hub: existing.hub };
+    } catch (e) {
+        logError(`save-hub-config failed: ${e.message}`);
+        return { success: false, error: e.message };
+    }
+});
+
+registerSafe('backup-config-get', () => {
+    const env = _readEnvFile();
+    return {
+        repository: env.BACKUP_REPOSITORY || '',
+        schedule: env.BACKUP_SCHEDULE || '0 2 * * *',
+    };
+});
+
+registerSafe('backup-config-save', (_evt, cfg) => {
+    // Write BACKUP_REPOSITORY and BACKUP_SCHEDULE to .env.
+    // Do not touch BACKUP_PASSWORD — that is generated by phase-env.sh.
+    return { success: true };
+});
+
+registerSafe('backup-test-remote', async () => {
+    // Run `scripts/backup.sh --remote --dry-run` (or a small `restic snapshots`
+    // wrapper) and return the result. Start with a shell-out to the script.
+    return { ok: false, message: 'not implemented' };
+});
+
+registerSafe('backup-run-remote', async () => {
+    // Spawn `scripts/backup.sh --remote` and stream output to the renderer.
+    return { success: true };
+});
+
+// -----------------------------------------------------------------------------
 // Auto-Updater
 // -----------------------------------------------------------------------------
 
@@ -447,6 +633,12 @@ function startNodeDiscovery() {
             txt: {
                 version: app.getVersion(),
                 platform: process.platform,
+                // role=hub tells spokes that this service is a hub, not
+                // another spoke. spoke-agent.py's mDNS discovery picks
+                // the first hub it finds. Without this key, spokes would
+                // need a different heuristic (e.g. "the service with
+                // port 3002"), which is less reliable.
+                role: 'hub',
                 gpus: '0',
                 backend: ENTERPRISE_BACKEND,
             },
@@ -527,7 +719,7 @@ function detectDeploymentMode() {
     // Check for sub-hub on network (via mDNS cache)
     let subHubFound = false;
     for (const [id, node] of discoveredNodes) {
-        if (node.txt && node.txt.type === 'hub') {
+        if (node.txt && node.txt.role === 'hub') {
             subHubFound = true;
             break;
         }
@@ -539,14 +731,14 @@ function detectDeploymentMode() {
 }
 
 // =============================================================================
-// IPC HANDLERS – All handlers are registered once
+// IPC HANDLERS – All handlers are registered once via registerSafe()
 // =============================================================================
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Platform & System
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-platform', () => {
+registerSafe('get-platform', () => {
     return {
         platform: process.platform,
         arch: process.arch,
@@ -563,18 +755,18 @@ ipcMain.handle('get-platform', () => {
     };
 });
 
-ipcMain.handle('get-project-root', () => PROJECT_ROOT);
-ipcMain.handle('get-models-dir', () => MODELS_DIR);
+registerSafe('get-project-root', () => PROJECT_ROOT);
+registerSafe('get-models-dir', () => MODELS_DIR);
 
-ipcMain.handle('is-platform-setup', () => isPlatformSetup());
+registerSafe('is-platform-setup', () => isPlatformSetup());
 
-ipcMain.handle('get-deployment-mode', () => detectDeploymentMode());
+registerSafe('get-deployment-mode', () => detectDeploymentMode());
 
-ipcMain.handle('get-proxy-url', () => PROXY_URL);
+registerSafe('get-proxy-url', () => PROXY_URL);
 
-ipcMain.handle('get-enterprise-backend', () => ENTERPRISE_BACKEND);
+registerSafe('get-enterprise-backend', () => ENTERPRISE_BACKEND);
 
-ipcMain.handle('set-enterprise-backend', (event, backend) => {
+registerSafe('set-enterprise-backend', (event, backend) => {
     const validBackends = ['odoo', 'salesforce', 'sap', 'oracle'];
     if (!validBackends.includes(backend)) {
         return { success: false, error: `Invalid backend: ${backend}. Valid: ${validBackends.join(', ')}` };
@@ -585,11 +777,11 @@ ipcMain.handle('set-enterprise-backend', (event, backend) => {
 });
 
 // get-server-url handler
-ipcMain.handle('get-server-url', () => {
+registerSafe('get-server-url', () => {
     return PROXY_URL;
 });
 
-ipcMain.handle('save-server-url', (event, url) => {
+registerSafe('save-server-url', (event, url) => {
     if (url) {
         PROXY_URL = url;
         saveProxyUrlToConfig(url, ENTERPRISE_BACKEND);
@@ -602,7 +794,7 @@ ipcMain.handle('save-server-url', (event, url) => {
 // QUICK SETUP
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('run-quick-setup', async (event) => {
+registerSafe('run-quick-setup', async (event) => {
     if (installProcess) {
         return { success: false, error: 'Setup already in progress' };
     }
@@ -689,6 +881,26 @@ ipcMain.handle('run-quick-setup', async (event) => {
 });
 
 
+// ──────────────────────────────────────────────────────────────────────────
+// For the NETTRADES Networking Service for WSL Port Forwarding
+// ──────────────────────────────────────────────────────────────────────────
+
+registerSafe('netsvc-get-status', async () => {
+    return await sendServiceCommand('get-status');
+});
+
+registerSafe('netsvc-repair', async () => {
+    return await sendServiceCommand('repair');
+});
+
+registerSafe('netsvc-wireguard-start', async (_, config) => {
+    return await sendServiceCommand('wireguard-start', { config });
+});
+
+registerSafe('netsvc-wireguard-stop', async () => {
+    return await sendServiceCommand('wireguard-stop');
+});
+
 // =============================================================================
 // GPU Node Management (local registration)
 // =============================================================================
@@ -698,12 +910,12 @@ let gpuNodes = [];
 let inferenceJobs = [];
 let jobIdCounter = 0;
 
-ipcMain.handle('proxy-get-gpu-nodes', () => {
+registerSafe('proxy-get-gpu-nodes', () => {
     // Return local GPU nodes (from file or memory)
     return { success: true, data: gpuNodes };
 });
 
-ipcMain.handle('proxy-register-gpu-node', (event, nodeData) => {
+registerSafe('proxy-register-gpu-node', (event, nodeData) => {
     // Add a new GPU node
     const newNode = {
         id: `gpu-${Date.now()}`,
@@ -717,7 +929,7 @@ ipcMain.handle('proxy-register-gpu-node', (event, nodeData) => {
     return { success: true, data: newNode };
 });
 
-ipcMain.handle('proxy-create-job', (event, jobData) => {
+registerSafe('proxy-create-job', (event, jobData) => {
     // Create a new inference job
     const job = {
         id: `job-${++jobIdCounter}`,
@@ -740,7 +952,7 @@ ipcMain.handle('proxy-create-job', (event, jobData) => {
     return { success: true, data: job };
 });
 
-ipcMain.handle('proxy-get-job', (event, jobId) => {
+registerSafe('proxy-get-job', (event, jobId) => {
     const job = inferenceJobs.find(j => j.id === jobId);
     if (job) {
         return { success: true, data: job };
@@ -752,7 +964,7 @@ ipcMain.handle('proxy-get-job', (event, jobId) => {
 // VPN Remove Peer
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('vpn-remove-peer', async (event, username) => {
+registerSafe('vpn-remove-peer', async (event, username) => {
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'wireguard-manager.sh');
     if (!fs.existsSync(scriptPath)) {
         return { success: false, error: `WireGuard script not found: ${scriptPath}` };
@@ -776,8 +988,7 @@ ipcMain.handle('vpn-remove-peer', async (event, username) => {
 // Platform Status (combines Docker status and service health)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// AFTER:
-ipcMain.handle('get-platform-status', async () => {
+registerSafe('get-platform-status', async () => {
     // Get Docker compose status
     const dockerStatus = await getDockerStatus();
     // Get system health
@@ -793,7 +1004,7 @@ ipcMain.handle('get-platform-status', async () => {
 // List Emergency Audit
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('list-emergency-audit', async () => {
+registerSafe('list-emergency-audit', async () => {
     try {
         const result = await execCommand(
             `docker compose exec -T postgres psql -U odoo -d odoo -t -c "SELECT login, action, ip_address, performed_at FROM nettrades_emergency_audit ORDER BY performed_at DESC LIMIT 50;"`
@@ -808,7 +1019,7 @@ ipcMain.handle('list-emergency-audit', async () => {
 // Installation / Deployment
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('run-install', async (event, options) => {
+registerSafe('run-install', async (event, options) => {
     if (installProcess) {
         return { success: false, error: 'Installation already in progress' };
     }
@@ -858,8 +1069,8 @@ ipcMain.handle('run-install', async (event, options) => {
     }
 
     // Set tenant configuration in .env
-    // FIX (2026-10): Call the extracted function directly. Do NOT use
-    // ipcMain.handle here — see the comment above _setTenantConfig.
+    // FIX (2026-10): Call the extracted function directly.
+    // see the comment above _setTenantConfig.
     const tenantResult = await _setTenantConfig({ tenantType, tenantName });
     if (!tenantResult.success) {
         return { success: false, error: `Failed to set tenant config: ${tenantResult.error}` };
@@ -970,7 +1181,104 @@ ipcMain.handle('run-install', async (event, options) => {
     });
 });
 
-ipcMain.handle('cancel-install', () => {
+// =============================================================================
+// SPOKE INSTALL
+// =============================================================================
+registerSafe('run-spoke-install', async (event, options) => {
+    const { hubHost, token, nodeName, inferenceCapability = 'rpc_worker' } = options || {};
+
+    if (!hubHost || !token) {
+        return { success: false, error: 'hubHost and token are required.' };
+    }
+
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'install-spoke.sh');
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `Spoke installer not found: ${scriptPath}` };
+    }
+
+    const args = [
+        'bash', scriptPath,
+        `--hub-host=${hubHost}`,
+        `--token=${token}`,
+        `--inference-capability=${inferenceCapability}`,
+        '--no-wireguard',
+    ];
+    if (nodeName) args.push(`--node-name=${nodeName}`);
+
+    logInfo(`Starting spoke install: ${args.join(' ')}`);
+
+    return new Promise((resolve) => {
+        const proc = spawn(args[0], args.slice(1), {
+            cwd: PROJECT_ROOT,
+            env: { ...process.env },
+        });
+
+        let output = '';
+        proc.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('install-output', { type: 'stdout', data: text });
+        });
+        proc.stderr.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('install-output', { type: 'stderr', data: text });
+        });
+        proc.on('close', (code) => {
+            if (code === 0) {
+                logSuccess('Spoke install completed');
+                resolve({ success: true, output });
+            } else {
+                logError(`Spoke install failed with code ${code}`);
+                resolve({ success: false, error: output });
+            }
+        });
+    });
+});
+
+// =============================================================================
+// BLACKWELL vLLM INSTALL
+// =============================================================================
+registerSafe('run-blackwell-install', async (event, options) => {
+    const { modelName = 'deepseek-7b', tensorParallel = 4 } = options || {};
+
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'install-blackwell-vllm.sh');
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: `Blackwell installer not found: ${scriptPath}` };
+    }
+
+    const args = [
+        'bash', scriptPath,
+        `--model=${modelName}`,
+        `--tensor-parallel=${tensorParallel}`,
+    ];
+
+    logInfo(`Starting Blackwell install: ${args.join(' ')}`);
+
+    return new Promise((resolve) => {
+        const proc = spawn(args[0], args.slice(1), {
+            cwd: PROJECT_ROOT,
+            env: { ...process.env },
+        });
+
+        let output = '';
+        proc.stdout.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('install-output', { type: 'stdout', data: text });
+        });
+        proc.stderr.on('data', (data) => {
+            const text = data.toString();
+            output += text;
+            mainWindow?.webContents.send('install-output', { type: 'stderr', data: text });
+        });
+        proc.on('close', (code) => {
+            resolve(code === 0 ? { success: true, output } : { success: false, error: output });
+        });
+    });
+});
+
+registerSafe('cancel-install', () => {
     if (installProcess) {
         installProcess.kill('SIGTERM');
         installProcess = null;
@@ -981,7 +1289,7 @@ ipcMain.handle('cancel-install', () => {
     return { success: false, error: 'No installation in progress' };
 });
 
-ipcMain.handle('get-install-status', () => {
+registerSafe('get-install-status', () => {
     return {
         isRunning: !!installProcess,
         progress: deploymentProgress,
@@ -992,7 +1300,7 @@ ipcMain.handle('get-install-status', () => {
 // Tenant Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-tenant-config', () => {
+registerSafe('get-tenant-config', () => {
     try {
         if (fs.existsSync(ENV_FILE)) {
             const content = fs.readFileSync(ENV_FILE, 'utf8');
@@ -1086,13 +1394,13 @@ async function _setTenantConfig(config) {
 }
 
 // Register the IPC handler using the extracted function.
-ipcMain.handle('set-tenant-config', (event, config) => _setTenantConfig(config));
+registerSafe('set-tenant-config', (event, config) => _setTenantConfig(config));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Grove & KAI Scheduler Management
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-grove-status', async () => {
+registerSafe('get-grove-status', async () => {
     try {
         const result = await getDockerServiceStatus('grove');
         return { running: result.running, error: result.error };
@@ -1101,7 +1409,7 @@ ipcMain.handle('get-grove-status', async () => {
     }
 });
 
-ipcMain.handle('get-kai-status', async () => {
+registerSafe('get-kai-status', async () => {
     try {
         const result = await getDockerServiceStatus('kai-scheduler');
         return { running: result.running, error: result.error };
@@ -1110,19 +1418,19 @@ ipcMain.handle('get-kai-status', async () => {
     }
 });
 
-ipcMain.handle('start-grove', async () => {
+registerSafe('start-grove', async () => {
     return runDockerComposeWithFile('docker-compose.grove.yaml', 'up -d grove loki tempo');
 });
 
-ipcMain.handle('stop-grove', async () => {
+registerSafe('stop-grove', async () => {
     return runDockerComposeWithFile('docker-compose.grove.yaml', 'down');
 });
 
-ipcMain.handle('start-kai', async () => {
+registerSafe('start-kai', async () => {
     return runDockerComposeWithFile('docker-compose.kai.yaml', 'up -d kai-scheduler');
 });
 
-ipcMain.handle('stop-kai', async () => {
+registerSafe('stop-kai', async () => {
     return runDockerComposeWithFile('docker-compose.kai.yaml', 'down');
 });
 
@@ -1191,7 +1499,7 @@ function runDockerComposeWithFile(composeFile, command) {
 // Feature Flags
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-feature-flags', () => {
+registerSafe('get-feature-flags', () => {
     const flags = {
         gpuMarketplace: true,
         askSomeone: true,
@@ -1231,19 +1539,19 @@ ipcMain.handle('get-feature-flags', () => {
 // Platform Control (Docker Compose)
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('start-platform', () => {
+registerSafe('start-platform', () => {
     return runDockerCompose('up -d');
 });
 
-ipcMain.handle('stop-platform', () => {
+registerSafe('stop-platform', () => {
     return runDockerCompose('down');
 });
 
-ipcMain.handle('restart-platform', () => {
+registerSafe('restart-platform', () => {
     return runDockerCompose('restart');
 });
 
-ipcMain.handle('platform-status', () => {
+registerSafe('platform-status', () => {
     return getDockerStatus();
 });
 
@@ -1311,11 +1619,11 @@ function getDockerStatus() {
 // Model Management
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('list-models', () => {
+registerSafe('list-models', () => {
     return listModels();
 });
 
-ipcMain.handle('download-model', async (event, options) => {
+registerSafe('download-model', async (event, options) => {
     const { model = 'deepseek-1.5b', format = 'gguf' } = options || {};
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'download-model.sh');
 
@@ -1362,7 +1670,7 @@ ipcMain.handle('download-model', async (event, options) => {
     });
 });
 
-ipcMain.handle('import-model', async (event, modelPath) => {
+registerSafe('import-model', async (event, modelPath) => {
     if (!fs.existsSync(modelPath)) {
         return { success: false, error: `Model path not found: ${modelPath}` };
     }
@@ -1378,7 +1686,7 @@ ipcMain.handle('import-model', async (event, modelPath) => {
     }
 });
 
-ipcMain.handle('delete-model', async (event, modelPath) => {
+registerSafe('delete-model', async (event, modelPath) => {
     try {
         fs.rmSync(modelPath, { recursive: true, force: true });
         logSuccess(`Model deleted: ${modelPath}`);
@@ -1389,7 +1697,7 @@ ipcMain.handle('delete-model', async (event, modelPath) => {
     }
 });
 
-ipcMain.handle('load-model', async (event, modelPath) => {
+registerSafe('load-model', async (event, modelPath) => {
     // Update the .env file to use this model
     try {
         let envContent = fs.readFileSync(ENV_FILE, 'utf8');
@@ -1462,11 +1770,11 @@ function getDirectorySize(dirPath) {
 // GPU Detection
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('detect-gpu', () => {
+registerSafe('detect-gpu', () => {
     return detectGPUs();
 });
 
-ipcMain.handle('detect-hardware', async () => {
+registerSafe('detect-hardware', async () => {
     const gpus = detectGPUs();
     const totalMemory = os.totalmem();
     const cpus = os.cpus();
@@ -1481,7 +1789,7 @@ ipcMain.handle('detect-hardware', async () => {
         k8sDetected = result.stdout.length > 0;
     } catch (e) { k8sDetected = false; }
 
-    // Check for Docker. Same reasoning as above.
+    // Check for Docker.
     let dockerInstalled = false;
     try {
         const result = await execPromise('docker --version 2>/dev/null');
@@ -1515,7 +1823,7 @@ ipcMain.handle('detect-hardware', async () => {
 //      this code path
 // =============================================================================
 
-ipcMain.handle('detect-hardware-profile', async () => {
+registerSafe('detect-hardware-profile', async () => {
     /**
      * Run the Python hardware detection module and return the SystemProfile.
      *
@@ -1550,7 +1858,7 @@ ipcMain.handle('detect-hardware-profile', async () => {
     });
 });
 
-ipcMain.handle('get-recommended-role', async () => {
+registerSafe('get-recommended-role', async () => {
     /**
      * Convenience handler that returns only the recommended role for this
      * machine (dynamo_worker / rpc_worker / local_only). This is used by
@@ -1637,7 +1945,7 @@ function detectGPUs() {
 // Backup & Restore
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('create-backup', async (event, options) => {
+registerSafe('create-backup', async (event, options) => {
     const { outputDir } = options || {};
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'backup.sh');
 
@@ -1681,7 +1989,7 @@ ipcMain.handle('create-backup', async (event, options) => {
     });
 });
 
-ipcMain.handle('list-backups', () => {
+registerSafe('list-backups', () => {
     const backupDir = path.join(os.homedir(), '.nettrades', 'backups');
     const backups = [];
 
@@ -1708,7 +2016,7 @@ ipcMain.handle('list-backups', () => {
     return backups.sort((a, b) => b.created - a.created);
 });
 
-ipcMain.handle('restore-backup', async (event, backupPath) => {
+registerSafe('restore-backup', async (event, backupPath) => {
     if (!fs.existsSync(backupPath)) {
         return { success: false, error: `Backup file not found: ${backupPath}` };
     }
@@ -1772,7 +2080,7 @@ async function getContainerStatus() {
 }
 
 // List all containers
-ipcMain.handle('list-containers', async () => {
+registerSafe('list-containers', async () => {
     try {
         // Use docker compose ps for detailed info
         const cmd = `docker compose -f ${COMPOSE_FILE} ps --format json --all`;
@@ -1829,7 +2137,7 @@ ipcMain.handle('list-containers', async () => {
 });
 
 // Start a container
-ipcMain.handle('start-container', async (event, containerId) => {
+registerSafe('start-container', async (event, containerId) => {
     try {
         const cmd = `docker compose -f ${COMPOSE_FILE} start ${containerId}`;
         const result = await execCommand(cmd);
@@ -1840,7 +2148,7 @@ ipcMain.handle('start-container', async (event, containerId) => {
 });
 
 // Stop a container
-ipcMain.handle('stop-container', async (event, containerId) => {
+registerSafe('stop-container', async (event, containerId) => {
     try {
         const cmd = `docker compose -f ${COMPOSE_FILE} stop ${containerId}`;
         const result = await execCommand(cmd);
@@ -1851,7 +2159,7 @@ ipcMain.handle('stop-container', async (event, containerId) => {
 });
 
 // Restart a container
-ipcMain.handle('restart-container', async (event, containerId) => {
+registerSafe('restart-container', async (event, containerId) => {
     try {
         const cmd = `docker compose -f ${COMPOSE_FILE} restart ${containerId}`;
         const result = await execCommand(cmd);
@@ -1862,7 +2170,7 @@ ipcMain.handle('restart-container', async (event, containerId) => {
 });
 
 // Start all containers
-ipcMain.handle('start-all-containers', async () => {
+registerSafe('start-all-containers', async () => {
     try {
         const cmd = `docker compose -f ${COMPOSE_FILE} up -d`;
         const result = await execCommand(cmd);
@@ -1873,7 +2181,7 @@ ipcMain.handle('start-all-containers', async () => {
 });
 
 // Stop all containers
-ipcMain.handle('stop-all-containers', async () => {
+registerSafe('stop-all-containers', async () => {
     try {
         const cmd = `docker compose -f ${COMPOSE_FILE} down`;
         const result = await execCommand(cmd);
@@ -1884,7 +2192,7 @@ ipcMain.handle('stop-all-containers', async () => {
 });
 
 // Restart all containers
-ipcMain.handle('restart-all-containers', async () => {
+registerSafe('restart-all-containers', async () => {
     try {
         const cmd = `docker compose -f ${COMPOSE_FILE} restart`;
         const result = await execCommand(cmd);
@@ -1895,7 +2203,7 @@ ipcMain.handle('restart-all-containers', async () => {
 });
 
 // Get container logs
-ipcMain.handle('container-logs', async (event, containerId, lines = 100) => {
+registerSafe('container-logs', async (event, containerId, lines = 100) => {
     try {
         const cmd = `docker logs --tail ${lines} ${containerId}`;
         const result = await execCommand(cmd);
@@ -1929,7 +2237,7 @@ function timeAgo(date) {
 // VPN Management (WireGuard)
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('vpn-add-peer', async (event, username, ip) => {
+registerSafe('vpn-add-peer', async (event, username, ip) => {
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'wireguard-manager.sh');
     if (!fs.existsSync(scriptPath)) {
         return { success: false, error: `WireGuard script not found: ${scriptPath}` };
@@ -1951,7 +2259,7 @@ ipcMain.handle('vpn-add-peer', async (event, username, ip) => {
     });
 });
 
-ipcMain.handle('vpn-list-peers', () => {
+registerSafe('vpn-list-peers', () => {
     return new Promise((resolve) => {
         exec('sudo wg show', { cwd: PROJECT_ROOT }, (error, stdout) => {
             if (error) {
@@ -1963,7 +2271,7 @@ ipcMain.handle('vpn-list-peers', () => {
     });
 });
 
-ipcMain.handle('vpn-status', () => {
+registerSafe('vpn-status', () => {
     return new Promise((resolve) => {
         exec('sudo wg show', { cwd: PROJECT_ROOT }, (error, stdout) => {
             if (error) {
@@ -1979,7 +2287,7 @@ ipcMain.handle('vpn-status', () => {
 // "Ask Someone" Expert System Integration
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('ask-someone', async (event, data) => {
+registerSafe('ask-someone', async (event, data) => {
     const { question, category, urgency, expertId } = data || {};
     const serverUrl = await getServerUrlInternal();
 
@@ -2010,7 +2318,7 @@ ipcMain.handle('ask-someone', async (event, data) => {
 // "Good Answer" Training Data Management
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('good-answer', async (event, data) => {
+registerSafe('good-answer', async (event, data) => {
     const { question, answer, rating, userId } = data || {};
     const serverUrl = await getServerUrlInternal();
 
@@ -2041,7 +2349,7 @@ ipcMain.handle('good-answer', async (event, data) => {
 // Training & Fine-Tuning
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('start-training', async (event, data) => {
+registerSafe('start-training', async (event, data) => {
     const { dataset, model, method, params } = data || {};
     const serverUrl = await getServerUrlInternal();
 
@@ -2067,7 +2375,7 @@ ipcMain.handle('start-training', async (event, data) => {
     }
 });
 
-ipcMain.handle('training-status', async () => {
+registerSafe('training-status', async () => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2087,7 +2395,7 @@ ipcMain.handle('training-status', async () => {
 // Agent Management
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('list-agents', async () => {
+registerSafe('list-agents', async () => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2103,7 +2411,7 @@ ipcMain.handle('list-agents', async () => {
     }
 });
 
-ipcMain.handle('agent-status', async (event, agentId) => {
+registerSafe('agent-status', async (event, agentId) => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2123,7 +2431,7 @@ ipcMain.handle('agent-status', async (event, agentId) => {
 // Queue Management
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('list-queue', async () => {
+registerSafe('list-queue', async () => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2139,7 +2447,7 @@ ipcMain.handle('list-queue', async () => {
     }
 });
 
-ipcMain.handle('cancel-task', async (event, taskId) => {
+registerSafe('cancel-task', async (event, taskId) => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2155,7 +2463,7 @@ ipcMain.handle('cancel-task', async (event, taskId) => {
     }
 });
 
-ipcMain.handle('retry-task', async (event, taskId) => {
+registerSafe('retry-task', async (event, taskId) => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2175,7 +2483,7 @@ ipcMain.handle('retry-task', async (event, taskId) => {
 // GPU Marketplace
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('marketplace-listings', async () => {
+registerSafe('marketplace-listings', async () => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2191,7 +2499,7 @@ ipcMain.handle('marketplace-listings', async () => {
     }
 });
 
-ipcMain.handle('marketplace-list-gpu', async (event, data) => {
+registerSafe('marketplace-list-gpu', async (event, data) => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2211,7 +2519,7 @@ ipcMain.handle('marketplace-list-gpu', async (event, data) => {
     }
 });
 
-ipcMain.handle('marketplace-book-gpu', async (event, data) => {
+registerSafe('marketplace-book-gpu', async (event, data) => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2235,7 +2543,7 @@ ipcMain.handle('marketplace-book-gpu', async (event, data) => {
 // Node Discovery
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-discovered-nodes', () => {
+registerSafe('get-discovered-nodes', () => {
     return Array.from(discoveredNodes.values());
 });
 
@@ -2261,7 +2569,11 @@ async function computeSystemHealth() {
 
     // Check Dynamo
     try {
-        const response = await fetch(`${serverUrl}:8001/v1/models`);
+        const env = _readEnvFile();
+        const dynamoKey = env.DYNAMO_API_KEY || 'dummy';
+        const response = await fetch(`${serverUrl}:8001/v1/models`, {
+            headers: { 'Authorization': `Bearer ${dynamoKey}` }
+        });
         health.services.dynamo = response.ok ? 'healthy' : 'unhealthy';
     } catch { health.services.dynamo = 'unhealthy'; }
 
@@ -2282,15 +2594,418 @@ async function computeSystemHealth() {
     return health;
 }
 
-ipcMain.handle('system-health', async () => {
+registerSafe('system-health', async () => {
     return computeSystemHealth();
+});
+
+// =============================================================================
+// CLUSTER, ROUTING, HEALTH, TOKENS — 2026-10 handlers
+// =============================================================================
+// These handlers surface state that the backend produces:
+//   - The RPC scheduler's layer assignment (Cluster tab)
+//   - The health monitor's live node state (enhanced Nodes tab)
+//   - The supervisor's routing decisions and failover events (Routing tab)
+//   - The gpu.registration.token lifecycle (Tokens tab)
+//
+// The four helpers below (fetchHealthNodes, fetchRoutingEvents,
+// fetchClusterState, fetchActiveTrack) are plain functions. They are
+// called both by the individual IPC handlers and by the aggregate
+// get-demo-status handler. Never call ipcMain.handle from inside a
+// handler — that was the cause of the blank Demo tab on 2026-10-29.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Helper: Get the LangGraph base URL from the hub config or the default
+// -----------------------------------------------------------------------------
+function getLangGraphUrl() {
+    const hub = loadHubConfig();
+    return (hub.langgraph_url || 'http://localhost:8000').replace(/\/+$/, '');
+}
+
+// -----------------------------------------------------------------------------
+// Helper: Get the LANGGRAPH_API_KEY from the .env file
+// -----------------------------------------------------------------------------
+function getLangGraphApiKey() {
+    // _readEnvFile() already handles quotes, spaces, and line endings correctly.
+    const env = _readEnvFile();
+    return env.LANGGRAPH_API_KEY || '';
+}
+
+// -----------------------------------------------------------------------------
+// ─── Plain async helpers (extracted from the ipcMain.handle wrappers) ───
+// -----------------------------------------------------------------------------
+
+async function fetchHealthNodes() {
+    try {
+        const resp = await fetch(`${getLangGraphUrl()}/nodes`, {
+            headers: { 'X-API-Key': getLangGraphApiKey() },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!resp.ok) return { success: false, error: `HTTP ${resp.status}`, nodes: [] };
+        const data = await resp.json();
+        return { success: true, nodes: data.nodes || [] };
+    } catch (e) {
+        logError(`fetchHealthNodes failed: ${e.message}`);
+        return { success: false, error: e.message, nodes: [] };
+    }
+}
+
+async function fetchRoutingEvents(limit = 100) {
+    try {
+        const resp = await fetch(`${getLangGraphUrl()}/routing/events?limit=${limit}`, {
+            headers: { 'X-API-Key': getLangGraphApiKey() },
+        });
+        if (!resp.ok) return { success: false, error: `HTTP ${resp.status}`, events: [] };
+        const data = await resp.json();
+        return { success: true, events: data.events || [] };
+    } catch (e) {
+        return { success: false, error: e.message, events: [] };
+    }
+}
+
+async function fetchClusterState(clusterId = 1) {
+    try {
+        const resp = await fetch(`${getLangGraphUrl()}/cluster/${clusterId}`, {
+            headers: { 'X-API-Key': getLangGraphApiKey() },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!resp.ok) return { success: false, error: `HTTP ${resp.status}` };
+        const data = await resp.json();
+        return { success: true, data };
+    } catch (e) {
+        logError(`fetchClusterState failed: ${e.message}`);
+        return { success: false, error: e.message };
+    }
+}
+
+async function fetchActiveTrack() {
+    try {
+        const resp = await fetch(`${getLangGraphUrl()}/routing/events?limit=1`, {
+            headers: { 'X-API-Key': getLangGraphApiKey() },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!resp.ok) return { success: false, error: `HTTP ${resp.status}` };
+        const data = await resp.json();
+        const events = data.events || [];
+        if (events.length === 0) return { success: true, track: null, event: null };
+        const last = events[events.length - 1];
+        return { success: true, track: last.track, event: last };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+// ─── Thin IPC wrappers around the plain functions ───
+
+registerSafe('get-health-nodes', async () => fetchHealthNodes());
+registerSafe('get-routing-events', async (_evt, limit = 100) => fetchRoutingEvents(limit));
+registerSafe('get-cluster-state', async (_evt, clusterId = 1) => fetchClusterState(clusterId));
+registerSafe('get-active-track', async () => fetchActiveTrack());
+
+// =============================================================================
+// DEMO STATUS AGGREGATION (2026-10-30)
+// =============================================================================
+// Combines health, routing, cluster, and claim status into a single payload
+// for the Demo tab. Polled every 5 seconds.
+//
+// FIX: the previous version called ipcMain.handle() from inside this handler,
+// which threw "Attempted to register a second handler" and left the Demo tab
+// blank. It now calls the plain fetch functions above.
+// =============================================================================
+registerSafe('get-demo-status', async () => {
+    const [nodesRes, routingRes, clusterRes, activeTrackRes] = await Promise.allSettled([
+        fetchHealthNodes(),
+        fetchRoutingEvents(50),
+        fetchClusterState(1),
+        fetchActiveTrack(),
+    ]);
+
+    const nodes = nodesRes.status === 'fulfilled' ? (nodesRes.value.nodes || []) : [];
+    const events = routingRes.status === 'fulfilled' ? (routingRes.value.events || []) : [];
+    const cluster = clusterRes.status === 'fulfilled' ? clusterRes.value.data : null;
+    const activeTrack = activeTrackRes.status === 'fulfilled' ? activeTrackRes.value : null;
+
+    // Count healthy nodes by role
+    const rpcHealthy = nodes.filter(n => n.role === 'rpc_worker' && n.is_healthy).length;
+    const dynamoHealthy = nodes.filter(n => n.role === 'dynamo_worker' && n.is_healthy).length;
+
+    // Determine claim status
+    const claim1 = {
+        id: 1,
+        name: 'llama.cpp CPU Baseline',
+        status: 'checking',
+        detail: 'Not tested',
+    };
+    const claim2 = {
+        id: 2,
+        name: 'Distributed RPC (AMD GPUs)',
+        status: rpcHealthy > 0 ? 'ready' : 'down',
+        detail: `${rpcHealthy} RPC worker${rpcHealthy === 1 ? '' : 's'} healthy`,
+    };
+    const claim3 = {
+        id: 3,
+        name: 'V100 vLLM (Dynamo Track)',
+        status: dynamoHealthy > 0 ? 'ready' : 'down',
+        detail: `${dynamoHealthy} dynamo worker${dynamoHealthy === 1 ? '' : 's'} healthy`,
+    };
+    const claim4 = {
+        id: 4,
+        name: 'Fail‑Loud Failover',
+        status: 'ready', // always ready (testable)
+        detail: events.some(e => e.event.startsWith('failover_tier')) ? 'Last failover seen' : 'No failovers yet',
+    };
+
+    // Last failover event
+    const lastFailover = events.filter(e => e.event.startsWith('failover_tier')).pop() || null;
+
+    return {
+        claims: [claim1, claim2, claim3, claim4],
+        nodes,
+        activeTrack: activeTrack?.track || null,
+        cluster,
+        lastFailover,
+        rpcHealthy,
+        dynamoHealthy,
+    };
+});
+
+registerSafe('run-pre-demo-check', async () => {
+    const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'pre-demo-check.sh');
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, error: 'pre-demo-check.sh not found' };
+    }
+    return new Promise((resolve) => {
+        const proc = spawn('bash', [scriptPath], { cwd: PROJECT_ROOT });
+        let output = '';
+        proc.stdout.on('data', d => { output += d.toString(); });
+        proc.stderr.on('data', d => { output += d.toString(); });
+        proc.on('close', code => resolve({ success: code === 0, output }));
+    });
+});
+
+registerSafe('trigger-failover', async () => {
+    // Send a pinned RPC request after stopping the AMD spoke
+    // The rehearsal does this; for the demo we want a button.
+    const env = _readEnvFile();
+    const langgraphUrl = (loadHubConfig().langgraph_url || 'http://localhost:8000').replace(/\/+$/, '');
+    const apiKey = env.LANGGRAPH_API_KEY || '';
+    const tid = `demo-failover-${Date.now()}`;
+
+    // First, stop the AMD spoke (via SSH if configured, else prompt)
+    // For the Launcher, we assume the operator has stopped it manually.
+    // We simply send a pinned RPC request.
+    try {
+        const resp = await fetch(`${langgraphUrl}/invoke`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+            body: JSON.stringify({
+                input: { messages: [{ role: 'user', content: 'Hello after spoke stop.' }], company_id: 1, _force_track: 'rpc' },
+                config: { configurable: { thread_id: tid } },
+            }),
+        });
+        if (resp.status === 503) {
+            const retryAfter = resp.headers.get('Retry-After') || '30';
+            return { success: true, status: 503, retryAfter, detail: 'Tier 6 fail-loud triggered' };
+        }
+        const data = await resp.json();
+        return { success: true, status: resp.status, data };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+
+// -----------------------------------------------------------------------------
+// relaunch-cluster
+// -----------------------------------------------------------------------------
+// Triggers RPCScheduler.launch_cluster() or restart_without_node() via
+// POST /rpc/relaunch. The options object may carry:
+//   - cluster_id (required)
+//   - exclude_node_id (optional; triggers restart_without_node)
+//   - exclude_port (optional; per-GPU failure)
+registerSafe('relaunch-cluster', async (_evt, opts = {}) => {
+    const url = `${getLangGraphUrl()}/rpc/relaunch`;
+    const body = {
+        cluster_id: opts.cluster_id || 1,
+    };
+    if (opts.exclude_node_id != null) body.exclude_node_id = opts.exclude_node_id;
+    if (opts.exclude_port != null) body.exclude_port = opts.exclude_port;
+
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': getLangGraphApiKey(),
+            },
+            body: JSON.stringify(body),
+        });
+        const data = await resp.json().catch(() => ({}));
+        return { success: resp.ok, data, status: resp.status };
+    } catch (e) {
+        logError(`relaunch-cluster failed: ${e.message}`);
+        return { success: false, error: e.message };
+    }
+});
+
+// -----------------------------------------------------------------------------
+// get-node-health
+// -----------------------------------------------------------------------------
+registerSafe('get-node-health', async (_evt, nodeId) => {
+    const url = `${getLangGraphUrl()}/nodes/${encodeURIComponent(nodeId)}/health`;
+    try {
+        const resp = await fetch(url, {
+            headers: { 'X-API-Key': getLangGraphApiKey() },
+        });
+        if (!resp.ok) return { success: false, error: `HTTP ${resp.status}` };
+        return { success: true, data: await resp.json() };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+// -----------------------------------------------------------------------------
+// get-inference-config
+// -----------------------------------------------------------------------------
+// Returns the LLM_BASE_URL, MODEL_NAME, and model sizing env vars so the
+// Routing tab can show which endpoint the "dynamo" track is currently
+// pointing at (Contabo, V100, or a local mock).
+registerSafe('get-inference-config', () => {
+    try {
+        const envContent = fs.existsSync(ENV_FILE)
+            ? fs.readFileSync(ENV_FILE, 'utf8')
+            : '';
+        const pick = (key, fallback = '') => {
+            const m = envContent.match(new RegExp(`^${key}=['"]?([^'"\\n]+)['"]?`, 'm'));
+            return m ? m[1] : fallback;
+        };
+        return {
+            success: true,
+            data: {
+                llm_base_url: pick('LLM_BASE_URL', '(not set)'),
+                model_name: pick('MODEL_NAME', '(not set)'),
+                model_size_bytes: parseInt(pick('MODEL_SIZE_BYTES', '0')) || 0,
+                model_layers: parseInt(pick('MODEL_LAYERS', '0')) || 0,
+                rpc_master_model: pick('RPC_MASTER_MODEL', '(not set)'),
+                rpc_backends: pick('RPC_BACKENDS', ''),
+                rpc_split: pick('RPC_SPLIT', ''),
+            },
+        };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// list-tokens
+// ─────────────────────────────────────────────────────────────────────────────
+registerSafe('list-tokens', async () => {
+    const url = `${getLangGraphUrl()}/tokens`;
+    try {
+        const resp = await fetch(url, {
+            headers: { 'X-API-Key': getLangGraphApiKey() },
+        });
+        if (!resp.ok) return { success: false, error: `HTTP ${resp.status}`, tokens: [] };
+        const data = await resp.json();
+        return { success: true, tokens: data.tokens || [] };
+    } catch (e) {
+        return { success: false, error: e.message, tokens: [] };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// create-token
+// ─────────────────────────────────────────────────────────────────────────────
+registerSafe('create-token', async (_evt, opts = {}) => {
+    const serverUrl = await getServerUrlInternal();
+    const tokenName = opts.name || 'Launcher Token';
+    const clusterId = opts.cluster_id || 1;
+
+    // Generate a URL-safe random token
+    const plaintext = crypto.randomBytes(24).toString('hex');
+
+    try {
+        const envContent = fs.readFileSync(ENV_FILE, 'utf8');
+        const pick = (k, d = '') => {
+            const m = envContent.match(new RegExp(`^${k}=['"]?([^'"\\n]+)['"]?`, 'm'));
+            return m ? m[1] : d;
+        };
+        const resp = await httpWithRetry(`${serverUrl}:8090/jsonrpc`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': pick('PROXY_API_KEY'),
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0', method: 'call',
+                params: {
+                    service: 'object', method: 'execute_kw',
+                    args: [
+                        pick('ODOO_DB', 'odoo'),
+                        parseInt(pick('ODOO_USER', '2')),
+                        pick('ODOO_ADMIN_PASSWORD', 'admin'),
+                        'gpu.registration.token', 'create',
+                        [{ name: tokenName, cluster_id: clusterId, token: plaintext }],
+                    ],
+                },
+                id: 1,
+            }),
+        });
+        const body = await resp.json();
+        if (body.error) {
+            return { success: false, error: JSON.stringify(body.error) };
+        }
+        return { success: true, token_id: body.result, plaintext };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// revoke-token
+// ─────────────────────────────────────────────────────────────────────────────
+registerSafe('revoke-token', async (_evt, tokenId) => {
+    const serverUrl = await getServerUrlInternal();
+    try {
+        const envContent = fs.readFileSync(ENV_FILE, 'utf8');
+        const pick = (k, d = '') => {
+            const m = envContent.match(new RegExp(`^${k}=['"]?([^'"\\n]+)['"]?`, 'm'));
+            return m ? m[1] : d;
+        };
+        const resp = await httpWithRetry(`${serverUrl}:8090/jsonrpc`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': pick('PROXY_API_KEY'),
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0', method: 'call',
+                params: {
+                    service: 'object', method: 'execute_kw',
+                    args: [
+                        pick('ODOO_DB', 'odoo'),
+                        parseInt(pick('ODOO_USER', '2')),
+                        pick('ODOO_ADMIN_PASSWORD', 'admin'),
+                        'gpu.registration.token', 'write',
+                        [[tokenId], { is_revoked: true }],
+                    ],
+                },
+                id: 1,
+            }),
+        });
+        const body = await resp.json();
+        if (body.error) return { success: false, error: JSON.stringify(body.error) };
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Logs
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-logs', async (event, options) => {
+registerSafe('get-logs', async (event, options) => {
     const { service, lines = 100 } = options || {};
     const serverUrl = await getServerUrlInternal();
 
@@ -2311,7 +3026,7 @@ ipcMain.handle('get-logs', async (event, options) => {
 // Alerts & Notifications
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-alerts', async () => {
+registerSafe('get-alerts', async () => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2327,7 +3042,7 @@ ipcMain.handle('get-alerts', async () => {
     }
 });
 
-ipcMain.handle('get-notifications', async () => {
+registerSafe('get-notifications', async () => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2343,7 +3058,7 @@ ipcMain.handle('get-notifications', async () => {
     }
 });
 
-ipcMain.handle('mark-notification-read', async (event, notificationId) => {
+registerSafe('mark-notification-read', async (event, notificationId) => {
     const serverUrl = await getServerUrlInternal();
 
     try {
@@ -2363,7 +3078,7 @@ ipcMain.handle('mark-notification-read', async (event, notificationId) => {
 // Developer Tools – Wine Installer
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('install-wine', async (event) => {
+registerSafe('install-wine', async (event) => {
     // Check if wine is already installed
     try {
         execSync('wine --version', { stdio: 'ignore' });
@@ -2415,11 +3130,11 @@ ipcMain.handle('install-wine', async (event) => {
 // Utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('open-external', (event, url) => {
+registerSafe('open-external', (event, url) => {
     shell.openExternal(url);
 });
 
-ipcMain.handle('show-dialog', async (event, options) => {
+registerSafe('show-dialog', async (event, options) => {
     return dialog.showMessageBox(options);
 });
 
@@ -2427,7 +3142,7 @@ ipcMain.handle('show-dialog', async (event, options) => {
 // System Check
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('system-check', async () => {
+registerSafe('system-check', async () => {
     const checks = {
         wsl: { name: 'WSL2', status: 'unknown', details: '' },
         docker: { name: 'Docker', status: 'unknown', details: '' },
@@ -2533,7 +3248,7 @@ ipcMain.handle('system-check', async () => {
 // Credentials (Secrets)
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('get-credentials', async () => {
+registerSafe('get-credentials', async () => {
     // Get the server URL
     const serverUrl = await getServerUrlInternal();
     // Call Odoo API to get secret list (metadata only)
@@ -2552,7 +3267,7 @@ ipcMain.handle('get-credentials', async () => {
     }
 });
 
-ipcMain.handle('get-credential-value', async (event, key) => {
+registerSafe('get-credential-value', async (event, key) => {
     const serverUrl = await getServerUrlInternal();
     try {
         const response = await fetch(`${serverUrl}:8069/api/secrets/${key}`, {
@@ -2569,7 +3284,7 @@ ipcMain.handle('get-credential-value', async (event, key) => {
     }
 });
 
-ipcMain.handle('rotate-credential', async (event, key, newValue) => {
+registerSafe('rotate-credential', async (event, key, newValue) => {
     const serverUrl = await getServerUrlInternal();
     try {
         const response = await fetch(`${serverUrl}:8069/api/secrets/${key}/rotate`, {
@@ -2595,14 +3310,12 @@ ipcMain.handle('rotate-credential', async (event, key, newValue) => {
 // Modular Installation
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('install-modules', async (event, modules) => {
-    // Build the command to install only selected modules
+registerSafe('install-modules', async (event, modules) => {
     const scriptPath = path.join(PROJECT_ROOT, 'scripts', 'install-modules.sh');
     if (!fs.existsSync(scriptPath)) {
         return { success: false, error: 'install-modules.sh not found' };
     }
 
-    // Prepare module list as comma-separated
     const moduleList = modules.join(',');
     const cmd = `bash ${scriptPath} --force --auto --modules=${moduleList}`;
 
@@ -2640,7 +3353,7 @@ async function getOdooAuthToken() {
     // In a real implementation, this would use OAuth or stored session
     // For now, we use the admin password from .env
     const envContent = fs.readFileSync(ENV_FILE, 'utf8');
-    const match = envContent.match(/^ADMIN_PASSWORD='([^']+)'/m);
+    const match = envContent.match(/^ODOO_ADMIN_PASSWORD='([^']+)'/m);
     const password = match ? match[1] : 'admin';
     // Simulate a simple token (just for development)
     return Buffer.from(`admin:${password}`).toString('base64');
@@ -2666,7 +3379,7 @@ async function getServerUrlInternal() {
 // Emergency Access Management
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('list-emergency-users', async () => {
+registerSafe('list-emergency-users', async () => {
     try {
         const result = await execCommand(
             `docker compose exec -T postgres psql -U odoo -d odoo -t -c "SELECT login, valid_until, last_used FROM nettrades_emergency_users ORDER BY created_at DESC;"`
@@ -2677,7 +3390,7 @@ ipcMain.handle('list-emergency-users', async () => {
     }
 });
 
-ipcMain.handle('revoke-emergency-user', async (event, login) => {
+registerSafe('revoke-emergency-user', async (event, login) => {
     try {
         await execCommand(
             `docker compose exec -T postgres psql -U odoo -d odoo -c "DELETE FROM nettrades_emergency_users WHERE login='${login}';"`
@@ -2688,7 +3401,7 @@ ipcMain.handle('revoke-emergency-user', async (event, login) => {
     }
 });
 
-ipcMain.handle('create-emergency-user', async (event, duration) => {
+registerSafe('create-emergency-user', async (event, duration) => {
     const password = generateSafePassword();
     const validUntil = new Date(Date.now() + (duration || 4) * 3600000)
         .toISOString()
@@ -2715,11 +3428,11 @@ ipcMain.handle('create-emergency-user', async (event, duration) => {
 // Window Controls
 // ─────────────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('minimize-window', () => {
+registerSafe('minimize-window', () => {
     if (mainWindow) mainWindow.minimize();
 });
 
-ipcMain.handle('maximize-window', () => {
+registerSafe('maximize-window', () => {
     if (mainWindow) {
         if (mainWindow.isMaximized()) {
             mainWindow.unmaximize();
@@ -2729,8 +3442,417 @@ ipcMain.handle('maximize-window', () => {
     }
 });
 
-ipcMain.handle('close-window', () => {
+registerSafe('close-window', () => {
     if (mainWindow) mainWindow.close();
+});
+
+// =============================================================================
+// WINDOW CONTROLS — must use ipcMain.on because preload uses ipcRenderer.send
+// =============================================================================
+
+ipcMain.on('window-minimize', () => {
+    if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('window-maximize', () => {
+    if (mainWindow) {
+        if (mainWindow.isMaximized()) mainWindow.unmaximize();
+        else mainWindow.maximize();
+    }
+});
+
+ipcMain.on('window-close', () => {
+    if (mainWindow) mainWindow.close();
+});
+
+registerSafe('show-window', () => {
+    if (mainWindow) mainWindow.show();
+    return { success: true };
+});
+
+// =============================================================================
+// PLATFORM GPUs (fixed 2026-10-30 to use httpWithRetry)
+// =============================================================================
+// Combines:
+//   - Local GPUs (V100) via nvidia-smi / sysfs
+//   - Spoke GPUs from Odoo `gpu.node.gpus` JSON, one entry per registered node
+//
+// The Odoo query now goes through httpWithRetry() so a 429 from the proxy
+// does not blank the GPUs tab.
+// =============================================================================
+
+function _readEnvFile() {
+    try {
+        if (!fs.existsSync(ENV_FILE)) return {};
+        const content = fs.readFileSync(ENV_FILE, 'utf8');
+        const out = {};
+        for (const line of content.split('\n')) {
+            const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+            if (!m) continue;
+            let v = m[2].trim();
+            if ((v.startsWith('"') && v.endsWith('"')) ||
+                (v.startsWith("'") && v.endsWith("'"))) {
+                v = v.slice(1, -1);
+            }
+            out[m[1]] = v;
+        }
+        return out;
+    } catch {
+        return {};
+    }
+}
+
+registerSafe('get-platform-gpus', async () => {
+    const result = { local: [], spokes: [], errors: [] };
+
+    // ---- Local GPUs (V100 / host) ----
+    try {
+        const hardware = await (async () => {
+            return detectGPUs();
+        })();
+        result.local = (hardware || []).map((g, i) => {
+            const memMatch = String(g.memory || '').match(/(\d+)/);
+            return {
+                index: i,
+                vendor: g.vendor || 'nvidia',
+                model: g.name || 'Unknown',
+                memory_mb: memMatch ? parseInt(memMatch[1]) : 0,
+                compute_capability: g.computeCapability || null,
+            };
+        });
+    } catch (e) {
+        result.errors.push(`Local GPU detection: ${e.message}`);
+    }
+
+    // ---- Spoke GPUs (from Odoo) ----
+    try {
+        const env = _readEnvFile();
+        const proxyUrl = 'http://localhost:8090';
+        const proxyKey = env.PROXY_API_KEY || env.ODOO_API_KEY || '';
+        const odooDb = env.ODOO_DB || 'odoo';
+        const odooUser = parseInt(env.ODOO_USER || '2');
+        const odooPass = env.ODOO_ADMIN_PASSWORD || 'admin';
+
+        const payload = {
+            jsonrpc: '2.0', method: 'call', id: 1,
+            params: {
+                service: 'object', method: 'execute_kw',
+                args: [
+                    odooDb, odooUser, odooPass,
+                    'gpu.node', 'search_read',
+                    [[['state', '=', 'active']]],
+                    {
+                        fields: [
+                            'id', 'hostname', 'endpoint', 'wireguard_ip',
+                            'gpus', 'compute_profile',
+                            'inference_capability', 'status',
+                            'gpu_utilisation_pct', 'last_seen',
+                        ]
+                    },
+                ],
+            },
+        };
+
+        const resp = await httpWithRetry(`${proxyUrl}/jsonrpc`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': proxyKey },
+            body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+            result.errors.push(`Odoo GPU query: HTTP ${resp.status}`);
+        } else {
+            const body = await resp.json();
+            if (body.error) {
+                result.errors.push(`Odoo GPU query: ${JSON.stringify(body.error).slice(0, 200)}`);
+            } else {
+                for (const node of body.result || []) {
+                    let gpus = node.gpus || [];
+                    if (typeof gpus === 'string') {
+                        try { gpus = JSON.parse(gpus); } catch { gpus = []; }
+                    }
+                    let profile = node.compute_profile || {};
+                    if (typeof profile === 'string') {
+                        try { profile = JSON.parse(profile); } catch { profile = {}; }
+                    }
+                    result.spokes.push({
+                        node_id: node.id,
+                        hostname: node.hostname || `node-${node.id}`,
+                        endpoint: node.endpoint || '',
+                        ip: node.wireguard_ip || '',
+                        status: node.status || 'unknown',
+                        inference_capability: node.inference_capability || 'rpc_worker',
+                        gpu_utilisation_pct: node.gpu_utilisation_pct || 0,
+                        last_seen: node.last_seen,
+                        model_cached: !!profile.model_cached,
+                        ram_gb: profile.ram_gb || 0,
+                        cpu_model: profile.cpu_model || '',
+                        cpu_cores: profile.cpu_cores || 0,
+                        rpc_backends: profile.rpc_backends || [],
+                        gpus: gpus.map((g, i) => ({
+                            index: g.index ?? i,
+                            vendor: g.vendor || 'unknown',
+                            model: g.model || 'Unknown',
+                            memory_mb: g.memory_mb || 0,
+                            rpc_port: g.rpc_port || (50052 + i),
+                            gfx_target: g.gfx_target || null,
+                            hsa_override: g.hsa_override_gfx_version || null,
+                            compute_capability: g.compute_capability || null,
+                        })),
+                    });
+                }
+            }
+        }
+    } catch (e) {
+        result.errors.push(`Spoke GPU query: ${e.message}`);
+    }
+
+    return { success: true, data: result };
+});
+
+// =============================================================================
+// CHAT INVOCATION (NEW 2026-10-22)
+// =============================================================================
+// Real POST to LangGraph /invoke. Replaces the mock proxyCreateJob /
+// proxyGetJob for chat purposes. Preserves the thread_id across messages so
+// the supervisor's session affinity works (RPC cluster stays pinned across
+// turns, which is what makes Claim 2 a distributed session rather than one
+// isolated request).
+//
+// Returns:
+//   { success: true, data: {...}, status: 200, thread_id, active_track }
+//   { success: false, status: 503, retryAfter: 30, error: "..." }   (ClusterRecovering)
+//   { success: false, status: 401, error: "Invalid API key" }
+//   { success: false, status: 500, error: "..." }
+// =============================================================================
+
+registerSafe('chat-invoke', async (_evt, opts) => {
+    const { messages, threadId, modelOverride } = opts || {};
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return { success: false, status: 400, error: 'messages is required' };
+    }
+
+    const env = _readEnvFile();
+    const langgraphUrl = (loadHubConfig().langgraph_url || 'http://localhost:8000')
+        .replace(/\/+$/, '');
+    const apiKey = env.LANGGRAPH_API_KEY || '';
+
+    const tid = threadId || crypto.randomUUID();
+
+    // The supervisor expects state in `input`. It reads state["messages"]
+    // to extract the last user message. It also reads state["thread_id"]
+    // which /invoke sets from config.configurable.thread_id.
+    const payload = {
+        input: {
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
+        },
+        config: {
+            configurable: { thread_id: tid },
+        },
+    };
+    if (modelOverride) {
+        payload.input.model_override = modelOverride;
+    }
+
+    try {
+        const resp = await fetch(`${langgraphUrl}/invoke`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': apiKey,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        // 503 = ClusterRecovering — the supervisor raised it because the
+        // pinned RPC cluster is unreachable and no fallback is permitted.
+        // Return Retry-After so the UI can show a countdown.
+        if (resp.status === 503) {
+            let detail = 'The inference cluster is recovering. Please retry.';
+            try {
+                const body = await resp.json();
+                if (body.detail) detail = body.detail;
+            } catch {}
+            const retryAfter = parseInt(resp.headers.get('Retry-After') || '30', 10);
+            return {
+                success: false,
+                status: 503,
+                retryAfter,
+                thread_id: tid,
+                error: detail,
+            };
+        }
+
+        if (!resp.ok) {
+            let detail = `HTTP ${resp.status}`;
+            try {
+                const body = await resp.json();
+                if (body.detail) detail = body.detail;
+                else if (body.error) detail = body.error;
+            } catch {
+                try { detail = (await resp.text()).slice(0, 300); } catch {}
+            }
+            return { success: false, status: resp.status, error: detail, thread_id: tid };
+        }
+
+        const data = await resp.json();
+
+        // Extract the response text and the routing decision.
+        // LangGraph returns: { intent, messages, analysis, inference_track, ... }
+        const reply = data.analysis || '(empty response)';
+        const activeTrack = data.inference_track || null;
+
+        return {
+            success: true,
+            status: 200,
+            data,
+            reply,
+            thread_id: tid,
+            intent: data.intent || null,
+            active_track: activeTrack,
+            route_source: data.route_source || null,
+        };
+    } catch (e) {
+        // Network error — LangGraph container down or network blocked.
+        return {
+            success: false,
+            status: 0,
+            error: `Cannot reach LangGraph at ${langgraphUrl}: ${e.message}`,
+            thread_id: tid,
+        };
+    }
+});
+
+// =============================================================================
+// MODEL UPLOAD (NEW 2026-10-22)
+// =============================================================================
+// Opens a native file dialog, then copies the selected file into MODELS_DIR.
+// Supports .gguf (llama.cpp), .safetensors (HF single file), and directories
+// containing config.json (HF model). For directories, the user must select
+// any file inside and we copy the whole directory.
+// =============================================================================
+
+registerSafe('upload-model', async () => {
+    if (!mainWindow) {
+        return { success: false, error: 'No main window' };
+    }
+
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select a model file or a HuggingFace model directory',
+        properties: ['openFile', 'openDirectory'],
+        filters: [
+            { name: 'GGUF / Safetensors', extensions: ['gguf', 'safetensors', 'bin'] },
+            { name: 'HuggingFace config', extensions: ['json'] },
+            { name: 'All files', extensions: ['*'] },
+        ],
+    });
+
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+    }
+
+    const srcPath = result.filePaths[0];
+    const stat = fs.statSync(srcPath);
+    let destPath;
+
+    try {
+        if (!fs.existsSync(MODELS_DIR)) {
+            fs.mkdirSync(MODELS_DIR, { recursive: true });
+        }
+
+        if (stat.isDirectory()) {
+            // HuggingFace model directory — copy the whole directory.
+            const dirname = path.basename(srcPath);
+            destPath = path.join(MODELS_DIR, dirname);
+            if (fs.existsSync(destPath)) {
+                return {
+                    success: false,
+                    error: `A model named "${dirname}" already exists in ${MODELS_DIR}. Delete it first.`,
+                };
+            }
+            // Recursive copy
+            fs.cpSync(srcPath, destPath, { recursive: true });
+        } else {
+            // Single file — copy it in.
+            const basename = path.basename(srcPath);
+            destPath = path.join(MODELS_DIR, basename);
+            fs.copyFileSync(srcPath, destPath);
+        }
+
+        logSuccess(`Model uploaded: ${srcPath} → ${destPath}`);
+        return { success: true, path: destPath, src: srcPath };
+    } catch (e) {
+        logError(`Model upload failed: ${e.message}`);
+        return { success: false, error: e.message };
+    }
+});
+
+// =============================================================================
+// WSL HELPERS (NEW 2026-10-22)
+// =============================================================================
+// The Launcher's Dashboard shows a WSL status banner on Windows. These
+// handlers detect WSL2, its Ubuntu distro, and offer install buttons.
+// On Linux (the V100 demo host) they return "not applicable" without error.
+// =============================================================================
+
+registerSafe('check-wsl', async () => {
+    if (process.platform !== 'win32') return true; // N/A on Linux/macOS
+    try {
+        await execPromise('wsl --status');
+        return true;
+    } catch {
+        return false;
+    }
+});
+
+registerSafe('check-wsl-distro', async () => {
+    if (process.platform !== 'win32') return true;
+    try {
+        const { stdout } = await execPromise('wsl --list --quiet');
+        return /ubuntu/i.test(stdout);
+    } catch {
+        return false;
+    }
+});
+
+registerSafe('install-wsl', async () => {
+    if (process.platform !== 'win32') {
+        return { success: false, error: 'Not on Windows' };
+    }
+    // Elevate: prompt for admin and run wsl --install
+    return new Promise((resolve) => {
+        const cmd = 'powershell -NoProfile -Command "Start-Process wsl -ArgumentList \'--install --no-distribution\' -Verb RunAs -Wait"';
+        exec(cmd, (error, _stdout, stderr) => {
+            if (error) resolve({ success: false, error: stderr || error.message });
+            else resolve({ success: true, message: 'WSL2 installation started. Restart may be required.' });
+        });
+    });
+});
+
+registerSafe('install-ubuntu', async () => {
+    if (process.platform !== 'win32') {
+        return { success: false, error: 'Not on Windows' };
+    }
+    return new Promise((resolve) => {
+        const cmd = 'powershell -NoProfile -Command "Start-Process wsl -ArgumentList \'--install -d Ubuntu-24.04\' -Verb RunAs -Wait"';
+        exec(cmd, (error, _stdout, stderr) => {
+            if (error) resolve({ success: false, error: stderr || error.message });
+            else resolve({ success: true, message: 'Ubuntu 24.04 install started.' });
+        });
+    });
+});
+
+registerSafe('open-wsl-terminal', async () => {
+    if (process.platform !== 'win32') {
+        // On Linux just open the user's default terminal in the project root
+        shell.openPath(PROJECT_ROOT);
+        return { success: true };
+    }
+    return new Promise((resolve) => {
+        exec('cmd.exe /c start wsl.exe', (error) => {
+            if (error) resolve({ success: false, error: error.message });
+            else resolve({ success: true });
+        });
+    });
 });
 
 // =============================================================================

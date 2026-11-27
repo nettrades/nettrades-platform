@@ -7,6 +7,11 @@
 # Base model - MUST BE FIRST
 from . import gpu_cluster
 
+# Per-model failover policy —  Inserted inference_model_policy after gpu_cluster and before gpu_cluster_subnet. 
+# The import order matters because inference_model_policy references gpu.cluster in a Many2one
+
+from . import inference_model_policy
+
 # Models that reference gpu.cluster
 from . import gpu_cluster_subnet
 from . import gpu_credit

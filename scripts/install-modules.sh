@@ -11,13 +11,15 @@
 #
 # USAGE:
 #   ./install-modules.sh [--force] [--upgrade] [--auto] [--verbose] [--help]
+#                        [--modules=module1,module2,...]
 #
 # OPTIONS:
-#   --force     Reinstall modules even if already installed
-#   --upgrade   Upgrade existing modules to the latest version
-#   --auto      Non-interactive; never prompt, always continue on failure
-#   --verbose   Show every command before executing it (set -x)
-#   --help      Show this help message
+#   --force        Reinstall modules even if already installed
+#   --upgrade      Upgrade existing modules to the latest version
+#   --auto         Non-interactive; never prompt, always continue on failure
+#   --verbose, -v  Show every command before executing it (set -x)
+#   --modules=a,b  Override the module list (comma-separated)
+#   --help, -h     Show this help message
 #
 # UPDATES (2026-09):
 #   - ROBUSTNESS: Every docker/curl command is wrapped in a timeout.
@@ -29,6 +31,22 @@
 #     whenever a module fails or times out.
 #   - FIXED: Uses `set -uo pipefail` (dropped -e) so we can handle errors
 #     explicitly and print diagnostic info before exiting.
+#
+# UPDATES (2026-11-16):
+#   - AUTO-RECOVERY (STEP 6): if the Odoo base schema is missing (e.g. after
+#     `docker volume rm postgres_data`), install `base` automatically rather
+#     than exiting with a "run this command manually" message. This makes
+#     `install-modules.sh --auto` self-healing on a fresh or wiped database.
+#   - SKIP-ALREADY-INSTALLED: in --auto mode (without --force or --upgrade),
+#     modules already in state='installed' are skipped. A healthy re-run now
+#     takes ~5 s instead of ~90 s, and the summary reports both counts.
+#   - SQL CONSTRAINTS WARNING: Odoo 19 emits
+#         "Model attribute '_sql_constraints' is no longer supported"
+#     on every module that still uses the old API. This script now surfaces
+#     that as a one-line WARN per module (once), so the operator sees the
+#     real data-integrity consequence rather than a wall of grey text.
+#   - HELP TEXT: widened the `sed` range so `--help` shows the full block,
+#     including the new options.
 # =============================================================================
 
 set -uo pipefail
@@ -68,7 +86,7 @@ for arg in "$@"; do
         --verbose|-v) VERBOSE=true ;;
         --modules=*) MODULES_LIST="${arg#--modules=}" ;;
         --help|-h)
-            sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -270,6 +288,11 @@ fi
 
 # =============================================================================
 # STEP 6: Verify Odoo DB is initialised (ir_module_module table exists)
+# -----------------------------------------------------------------------------
+# AUTO-RECOVERY (2026-11-16): if the schema is missing — which happens after
+# `docker volume rm postgres_data` or on a fresh DB — install `base` directly
+# rather than exiting with a "run this command" message. This keeps
+# `install-modules.sh --auto` a one-command fix for the whole stack.
 # =============================================================================
 CURRENT_STEP_DESC="Check Odoo DB initialised"
 step "Verify Odoo database is initialised"
@@ -280,9 +303,31 @@ DB_CHECK=$(timeout 20 docker compose exec -T postgres \
 if [ "$DB_CHECK" = "ir_module_module" ]; then
     log_success "Odoo database is initialised"
 else
-    log_error "Odoo database is NOT initialised (got: '$DB_CHECK')"
-    log_info "Run: docker compose run --rm odoo odoo -d odoo -i base --stop-after-init"
-    exit 1
+    log_warning "Odoo database is NOT initialised (got: '$DB_CHECK')"
+    log_info "Auto-installing base modules (safe, idempotent, ~90 s)..."
+
+    PG_PASS_TMP=$(grep '^POSTGRES_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d "\"'")
+    if ! run_cmd "install base modules" 300 docker compose run --rm \
+        -e PGHOST=postgres -e PGUSER=odoo -e PGPASSWORD="$PG_PASS_TMP" \
+        -e PGDATABASE=odoo \
+        odoo odoo -d odoo \
+        --db_host=postgres --db_port=5432 \
+        --db_user=odoo --db_password="$PG_PASS_TMP" \
+        -i base --stop-after-init --log-level=warn; then
+        log_error "Auto-recovery failed. Inspect the log above."
+        log_info "Full log: $LOG_FILE"
+        exit 1
+    fi
+
+    # Re-verify
+    DB_CHECK=$(timeout 20 docker compose exec -T postgres \
+        psql -U odoo -d odoo -tAc "SELECT to_regclass('public.ir_module_module');" \
+        </dev/null 2>/dev/null | tr -d '[:space:]' || echo "")
+    if [ "$DB_CHECK" != "ir_module_module" ]; then
+        log_error "Base install completed but ir_module_module still missing"
+        exit 1
+    fi
+    log_success "Base modules installed — continuing with module install"
 fi
 
 # =============================================================================
@@ -354,26 +399,22 @@ step "Build list of modules to install"
 # Order matters! Odoo installs modules in the order given, and a module's
 # dependencies must be installed BEFORE it. The order below is:
 #
-#   1. nettrades_core            — no NETTRADES dependencies (base + mail only)
-#   2. nettrades_gpu_admin       — depends on nettrades_core
-#   3. nettrades_bridge          — depends on nettrades_core
-#   4. nettrades_llm_config      — depends on nettrades_core
-#   5. nettrades_queue           — depends on nettrades_core
-#   6. nettrades_notifications   — depends on nettrades_core
-#   7. nettrades_fairness        — depends on nettrades_core
-#   8. nettrades_data_collection — depends on nettrades_core
-#   9. nettrades_self_improving_config — depends on nettrades_core
-#  10. nettrades_ask_someone     — depends on nettrades_core (and queue)
-#  11. nettrades_good_answer     — depends on nettrades_core (and ask_someone)
-#  12. nettrades_loop            — depends on nettrades_core (and queue)
-#
-# The following modules are still being split out of nettrades_core and
-# are NOT yet installable. Uncomment them once the split is complete:
-#   - nettrades_recruitment (was part of nettrades_core)
-#   - nettrades_project     (was part of nettrades_core)
-#   - nettrades_crm         (was part of nettrades_core)
-#   - nettrades_marketplace (was part of nettrades_core)
-# =========================================================================
+#   1. llm_openai                — Apexive service modules (populates the
+#                                  "Service" dropdown on llm.provider)
+#   2. nettrades_core            — no NETTRADES dependencies (base + mail only)
+#   3. nettrades_gpu_admin       — depends on nettrades_core
+#   4. nettrades_bridge          — depends on nettrades_core
+#   5. nettrades_llm_config      — depends on nettrades_core
+#   6. nettrades_queue           — depends on nettrades_core
+#   7. nettrades_notifications   — depends on nettrades_core
+#   8. nettrades_fairness        — depends on nettrades_core
+#   9. nettrades_data_collection — depends on nettrades_core
+#  10. nettrades_self_improving  — depends on nettrades_core
+#  11. nettrades_ask_someone     — depends on nettrades_core (and queue)
+#  12. nettrades_good_answer     — depends on nettrades_core (and ask_someone)
+#  13. nettrades_wireguard       — depends on nettrades_core
+#  14. nettrades_onboarding      — depends on nettrades_core (and website)
+# =============================================================================
 
 MODULES=(
     # Apexive llm service modules. These add the values that appear in
@@ -388,8 +429,8 @@ MODULES=(
     "nettrades_queue"
     "nettrades_notifications"
     "nettrades_llm_config"
-    "nettrades_bridge"
     "nettrades_gpu_admin"
+    "nettrades_bridge"
     "nettrades_ask_someone"
     "nettrades_good_answer"
     "nettrades_fairness"
@@ -410,7 +451,38 @@ for m in "${MODULES[@]}"; do
 done
 
 # =============================================================================
-# STEP 11: Install each module
+# STEP 11: Query current module state (for skip-already-installed)
+# =============================================================================
+CURRENT_STEP_DESC="Query installed modules"
+step "Query installed module states"
+
+INSTALLED_MODULES_RAW=$(timeout 15 docker compose exec -T postgres \
+    psql -U odoo -d odoo -tAc \
+    "SELECT name FROM ir_module_module WHERE name IN ('$(IFS="','"; echo "${MODULES[*]}")') AND state='installed';" \
+    </dev/null 2>/dev/null | tr -d '\r' || echo "")
+
+# Build an associative array of already-installed module names.
+declare -A INSTALLED=()
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    INSTALLED["$line"]=1
+done <<< "$INSTALLED_MODULES_RAW"
+
+INSTALLED_COUNT=0
+PENDING_COUNT=0
+for m in "${MODULES[@]}"; do
+    if [[ -n "${INSTALLED[$m]:-}" ]]; then
+        INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
+    else
+        PENDING_COUNT=$((PENDING_COUNT + 1))
+    fi
+done
+
+log_info "Already installed: ${INSTALLED_COUNT}/${#MODULES[@]}"
+log_info "To be processed:   ${PENDING_COUNT}/${#MODULES[@]}"
+
+# =============================================================================
+# STEP 12: Install each module
 # =============================================================================
 CURRENT_STEP_DESC="Install modules"
 step "Install modules (one at a time, 120s timeout each)"
@@ -468,6 +540,15 @@ install_module() {
             return 1
         fi
 
+        # Detect the Odoo 19 _sql_constraints deprecation warning. These
+        # constraints are NOT being enforced. Surface it once per module
+        # so the operator knows data-integrity constraints are missing.
+        if grep -q "Model attribute '_sql_constraints' is no longer supported" "$out_file"; then
+            log_warning "└─ ⚠ ${module}: legacy '_sql_constraints' NOT applied by Odoo 19"
+            log_warning "│  These constraints are silently ignored. Migrate to"
+            log_warning "│  'models.Constraint(...)' class attributes. See DECISIONS.md."
+        fi
+
         local elapsed
         elapsed=$(elapsed_since "$start_ts")
         log_success "└─ ✓ ${module} ${action}ed successfully (${elapsed}s)"
@@ -495,6 +576,8 @@ install_module() {
 }
 
 FAILED_MODULES=()
+SKIPPED_MODULES=()
+INSTALLED_LIST=()
 TOTAL_MODULES=${#MODULES[@]}
 CURRENT=0
 
@@ -508,7 +591,21 @@ for module in "${MODULES[@]}"; do
     echo ""
     echo -e "${YELLOW}━━━ Module ${CURRENT}/${TOTAL_MODULES}: ${BOLD}${module}${NC} ${YELLOW}━━━${NC}"
 
-    if ! install_module "$module"; then
+    # Skip-already-installed optimisation: only when --auto and neither
+    # --force nor --upgrade. This makes a re-run of a healthy system
+    # complete in seconds instead of re-loading the registry 14 times.
+    if [[ "$AUTO" == "true" ]] \
+       && [[ "$FORCE" != "true" ]] \
+       && [[ "$UPGRADE" != "true" ]] \
+       && [[ -n "${INSTALLED[$module]:-}" ]]; then
+        log_info "└─ ⊝ ${module} already installed — skipping (--auto without --force/--upgrade)"
+        SKIPPED_MODULES+=("$module")
+        continue
+    fi
+
+    if install_module "$module"; then
+        INSTALLED_LIST+=("$module")
+    else
         FAILED_MODULES+=("$module")
 
         if [ "$AUTO" != true ]; then
@@ -529,14 +626,9 @@ done
 # =============================================================================
 # SUMMARY
 # =============================================================================
-# CHANGE (2026-09): This block now exits with code 1 when any module failed.
-# The previous version always exited 0, which meant the Launcher, CI, and any
-# shell script using `if ./install-modules.sh; then ...` treated a broken
-# install as a success. That made the missing nettrades.vote model look like
-# a silent "everything is fine" result when it was actually a hard failure.
-#
-# The exit code is now the source of truth:
-#   0 -> every module installed successfully
+# This block exits with code 1 when any module failed. The exit code is
+# the source of truth:
+#   0 -> every module installed successfully (or was already installed)
 #   1 -> one or more modules failed (the caller should stop and investigate)
 # =============================================================================
 TOTAL_ELAPSED=$(elapsed_since "$SCRIPT_START_TS")
@@ -546,6 +638,8 @@ echo -e "${MAGENTA}${BOLD}══════════════════
 echo -e "${MAGENTA}${BOLD}  INSTALLATION SUMMARY${NC}"
 echo -e "${MAGENTA}${BOLD}══════════════════════════════════════════════════════════════════${NC}"
 echo -e "  Total modules:    ${#MODULES[@]}"
+echo -e "  Newly installed:  ${#INSTALLED_LIST[@]}"
+echo -e "  Skipped (already):${#SKIPPED_MODULES[@]}"
 echo -e "  Failed modules:   ${#FAILED_MODULES[@]}"
 echo -e "  Total time:       ${TOTAL_ELAPSED}s"
 echo -e "  Full log:         ${CYAN}${LOG_FILE}${NC}"
@@ -559,6 +653,8 @@ if [ ${#FAILED_MODULES[@]} -eq 0 ]; then
     echo "  2. Run an audit:        Settings → Technical → Fairness → Dashboard"
     echo "  3. GPU tokens:          GPU → Registration Tokens"
     echo "  4. Bridge routing:      Settings → Technical → Bridge → Global Configuration"
+    echo ""
+    log_info "To wire the hub for spokes, run: ./scripts/recover-hub.sh"
     exit 0
 else
     log_error "The following modules failed or timed out:"

@@ -7,7 +7,6 @@
 //
 // KEY FEATURES:
 //   - Secure IPC communication between renderer and main process
-//   - Exposes only necessary APIs for the launcher UI
 //   - Model management APIs
 //   - Platform control APIs
 //   - Odoo authentication integration
@@ -17,8 +16,17 @@
 //   - Queue and task management APIs
 //   - Marketplace APIs
 //   - Backup and restore APIs
-//   - Universal Enterprise Proxy integration (NEW)
-//   - Hub/Spoke detection (NEW)
+//   - Universal Enterprise Proxy integration
+//   - Hub/Spoke detection
+//   - Cluster topology + relaunch (NEW 2026-10)
+//   - Live node health via LangGraph /nodes (NEW 2026-10)
+//   - Routing events + active track (NEW 2026-10)
+//   - Registration token CRUD (NEW 2026-10)
+//   - Inference config read (NEW 2026-10)
+//   - Platform GPUs (Sub Hub + Spokes) (NEW 2026-10-22)
+//   - Chat invocation via LangGraph /invoke (NEW 2026-10-22)
+//   - Model upload from local disk (NEW 2026-10-22)
+//   - WSL install helpers (NEW 2026-10-22)
 // =============================================================================
 
 const { contextBridge, ipcRenderer, shell } = require('electron');
@@ -39,15 +47,16 @@ contextBridge.exposeInMainWorld('api', {
     getServerUrl: () => ipcRenderer.invoke('get-server-url'),
     saveServerUrl: (url) => ipcRenderer.invoke('save-server-url', url),
     listEmergencyAudit: () => ipcRenderer.invoke('list-emergency-audit'),
+    showWindow: () => ipcRenderer.invoke('show-window'),
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Platform Setup Status (NEW – for Quick Setup)
+    // Platform Setup Status (For Quick Setup)
     // ──────────────────────────────────────────────────────────────────────────
 
     isPlatformSetup: () => ipcRenderer.invoke('is-platform-setup'),
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Quick Setup – One-click development environment (NEW)
+    // Quick Setup – One-click development environment
     // ──────────────────────────────────────────────────────────────────────────
 
     runQuickSetup: () => ipcRenderer.invoke('run-quick-setup'),
@@ -59,24 +68,23 @@ contextBridge.exposeInMainWorld('api', {
     getFeatureFlags: () => ipcRenderer.invoke('get-feature-flags'),
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Deployment Mode Detection (NEW)
+    // Deployment Mode Detection
     // ──────────────────────────────────────────────────────────────────────────
 
     getDeploymentMode: () => ipcRenderer.invoke('get-deployment-mode'),
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Enterprise Backend (NEW)
+    // Enterprise Backend
     // ──────────────────────────────────────────────────────────────────────────
 
     getEnterpriseBackend: () => ipcRenderer.invoke('get-enterprise-backend'),
     setEnterpriseBackend: (backend) => ipcRenderer.invoke('set-enterprise-backend', backend),
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Hub configuration (added 2026-10)
+    // Hub configuration
     // ──────────────────────────────────────────────────────────────────────────
     getHubConfig: () => ipcRenderer.invoke('get-hub-config'),
     saveHubConfig: (hub) => ipcRenderer.invoke('save-hub-config', hub),
-
 
     // ──────────────────────────────────────────────────────────────────────────
     // Emergency Access Management
@@ -101,7 +109,6 @@ contextBridge.exposeInMainWorld('api', {
 
     // ──────────────────────────────────────────────────────────────────────────
     // Installation / Deployment
-    // FIXED: Added withCuvs, backend, proxyUrl to runInstall options
     // ──────────────────────────────────────────────────────────────────────────
 
     runInstall: (options) => ipcRenderer.invoke('run-install', {
@@ -114,14 +121,14 @@ contextBridge.exposeInMainWorld('api', {
         withGrove: options?.withGrove,
         withKai: options?.withKai,
         withRouter: options?.withRouter,
-        withCuvs: options?.withCuvs,   // <-- ADDED
+        withCuvs: options?.withCuvs,
         domain: options?.domain,
         phases: options?.phases,
         resetData: options?.resetData,
         tenantType: options?.tenantType,
         tenantName: options?.tenantName,
-        backend: options?.backend,     // <-- NEW: enterprise backend selection
-        proxyUrl: options?.proxyUrl,   // <-- NEW: proxy URL override
+        backend: options?.backend,
+        proxyUrl: options?.proxyUrl,
     }),
     cancelInstall: () => ipcRenderer.invoke('cancel-install'),
     getInstallStatus: () => ipcRenderer.invoke('get-install-status'),
@@ -133,8 +140,7 @@ contextBridge.exposeInMainWorld('api', {
     },
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Run Spoke Install
-    // Run Blackwell Install
+    // Run Spoke Install / Run Blackwell Install
     // ──────────────────────────────────────────────────────────────────────────
 
     runSpokeInstall: (options) => ipcRenderer.invoke('run-spoke-install', options),
@@ -167,6 +173,7 @@ contextBridge.exposeInMainWorld('api', {
     importModel: (path) => ipcRenderer.invoke('import-model', path),
     deleteModel: (path) => ipcRenderer.invoke('delete-model', path),
     loadModel: (path) => ipcRenderer.invoke('load-model', path),
+    uploadModel: () => ipcRenderer.invoke('upload-model'),
     onDownloadProgress: (callback) => {
         ipcRenderer.on('download-progress', (event, data) => callback(data));
     },
@@ -178,14 +185,21 @@ contextBridge.exposeInMainWorld('api', {
     detectGpu: () => ipcRenderer.invoke('detect-gpu'),
     detectHardware: () => ipcRenderer.invoke('detect-hardware'),
     detectHardwareProfile: () => ipcRenderer.invoke('detect-hardware-profile'),
+    getPlatformGPUs: () => ipcRenderer.invoke('get-platform-gpus'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Chat invocation (NEW 2026-10-22)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    chatInvoke: (options) => ipcRenderer.invoke('chat-invoke', options),
 
     // ──────────────────────────────────────────────────────────────────────────
     // GPU management (local registration and job handling)
     // ──────────────────────────────────────────────────────────────────────────
 
-	proxyGetGpuNodes: () => ipcRenderer.invoke('proxy-get-gpu-nodes'),
-	proxyRegisterGpuNode: (data) => ipcRenderer.invoke('proxy-register-gpu-node', data),
-	proxyCreateJob: (jobData) => ipcRenderer.invoke('proxy-create-job', jobData),
+    proxyGetGpuNodes: () => ipcRenderer.invoke('proxy-get-gpu-nodes'),
+    proxyRegisterGpuNode: (data) => ipcRenderer.invoke('proxy-register-gpu-node', data),
+    proxyCreateJob: (jobData) => ipcRenderer.invoke('proxy-create-job', jobData),
     proxyGetJob: (jobId) => ipcRenderer.invoke('proxy-get-job', jobId),
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -231,7 +245,7 @@ contextBridge.exposeInMainWorld('api', {
     marketplaceBookGPU: (data) => ipcRenderer.invoke('marketplace-book-gpu', data),
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Node Discovery
+    // Node Discovery (mDNS)
     // ──────────────────────────────────────────────────────────────────────────
 
     getDiscoveredNodes: () => ipcRenderer.invoke('get-discovered-nodes'),
@@ -287,6 +301,11 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('backup-output', (event, data) => callback(data));
     },
 
+    backupConfigGet:   ()    => ipcRenderer.invoke('backup-config-get'),
+    backupConfigSave:  (cfg) => ipcRenderer.invoke('backup-config-save', cfg),
+    backupTestRemote:  ()    => ipcRenderer.invoke('backup-test-remote'),
+    backupRunRemote:   ()    => ipcRenderer.invoke('backup-run-remote'),
+
     // ──────────────────────────────────────────────────────────────────────────
     // Tenant Configuration
     // ──────────────────────────────────────────────────────────────────────────
@@ -321,7 +340,7 @@ contextBridge.exposeInMainWorld('api', {
     openExternal: (url) => shell.openExternal(url),
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Window Controls
+    // Window Controls (channel names match ipcMain.on in main.js)
     // ──────────────────────────────────────────────────────────────────────────
 
     minimize: () => ipcRenderer.send('window-minimize'),
@@ -348,9 +367,8 @@ contextBridge.exposeInMainWorld('api', {
 
     installModules: (modules) => ipcRenderer.invoke('install-modules', modules),
 
-
     // ──────────────────────────────────────────────────────────────────────────
-    // For the NETTRADES Networking Service for WSL Port Forwarding
+    // NETTRADES Networking Service (WSL port forwarding)
     // ──────────────────────────────────────────────────────────────────────────
 
     netsvcGetStatus: () => ipcRenderer.invoke('netsvc-get-status'),
@@ -359,10 +377,70 @@ contextBridge.exposeInMainWorld('api', {
     netsvcWireGuardStop: () => ipcRenderer.invoke('netsvc-wireguard-stop'),
 
     // ──────────────────────────────────────────────────────────────────────────
+    // WSL Installation Helpers (NEW 2026-10-22)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    checkWSL: () => ipcRenderer.invoke('check-wsl'),
+    checkWSLDistro: () => ipcRenderer.invoke('check-wsl-distro'),
+    installWSL: () => ipcRenderer.invoke('install-wsl'),
+    installUbuntu: () => ipcRenderer.invoke('install-ubuntu'),
+    openWSLTerminal: () => ipcRenderer.invoke('open-wsl-terminal'),
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Update Status
     // ──────────────────────────────────────────────────────────────────────────
 
     onUpdateStatus: (callback) => {
         ipcRenderer.on('update-status', (event, data) => callback(data));
     },
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Cluster topology & relaunch (NEW 2026-10)
+    // ──────────────────────────────────────────────────────────────────────────
+    // Surfaces the RPC scheduler's state to the Cluster tab. The Launcher
+    // does not run the scheduler directly; it calls the LangGraph service,
+    // which owns the scheduler and the docker socket.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    getClusterState: (clusterId) => ipcRenderer.invoke('get-cluster-state', clusterId),
+    relaunchCluster: (opts) => ipcRenderer.invoke('relaunch-cluster', opts),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Live node health (NEW 2026-10)
+    // ──────────────────────────────────────────────────────────────────────────
+    // Reads /nodes and /nodes/{id}/health from the LangGraph service. This
+    // is the authoritative live state — mDNS discovery is complementary,
+    // not a substitute.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    getHealthNodes: () => ipcRenderer.invoke('get-health-nodes'),
+    getNodeHealth: (nodeId) => ipcRenderer.invoke('get-node-health', nodeId),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Routing & failover (NEW 2026-10)
+    // ──────────────────────────────────────────────────────────────────────────
+    // The supervisor publishes recent routing decisions to /routing/events.
+    // The Launcher polls this to show a live failover timeline and the
+    // currently active inference track.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    getRoutingEvents: (limit) => ipcRenderer.invoke('get-routing-events', limit),
+    getActiveTrack: () => ipcRenderer.invoke('get-active-track'),
+    getInferenceConfig: () => ipcRenderer.invoke('get-inference-config'),
+    // Demo (2026-10-30): the Demo tab's renderer calls these three IPC
+    // methods. Without them, refreshDemoTab() throws TypeError and the
+    // tab stays blank even though the main-process handler works.
+    getDemoStatus: () => ipcRenderer.invoke('get-demo-status'),
+    runPreDemoCheck: () => ipcRenderer.invoke('run-pre-demo-check'),
+    triggerFailover: () => ipcRenderer.invoke('trigger-failover'),
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Registration tokens (NEW 2026-10)
+    // ──────────────────────────────────────────────────────────────────────────
+    // Proxies gpu.registration.token CRUD to Odoo via the LangGraph service.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    listTokens: () => ipcRenderer.invoke('list-tokens'),
+    createToken: (opts) => ipcRenderer.invoke('create-token', opts),
+    revokeToken: (tokenId) => ipcRenderer.invoke('revoke-token', tokenId),
 });

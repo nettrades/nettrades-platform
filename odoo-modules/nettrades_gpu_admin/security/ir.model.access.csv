@@ -13,3 +13,5 @@ access_multimodal_config_admin,multimodal.config.admin,model_multimodal_config,g
 access_multimodal_config_operator,multimodal.config.operator,model_multimodal_config,group_gpu_operator,1,0,0,0
 access_gpu_registration_token_admin,gpu.registration.token.admin,model_gpu_registration_token,group_gpu_administrator,1,1,1,1
 access_gpu_registration_token_operator,gpu.registration.token.operator,model_gpu_registration_token,group_gpu_operator,1,0,0,0
+access_inference_model_policy_admin,inference.model.policy.admin,model_inference_model_policy,group_gpu_administrator,1,1,1,1
+access_inference_model_policy_operator,inference.model.policy.operator,model_inference_model_policy,group_gpu_operator,1,0,0,0

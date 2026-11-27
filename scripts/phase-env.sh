@@ -360,6 +360,11 @@ GRAFANA_PASSWORD=$(generate_safe_password)
 PROMETHEUS_PASSWORD=$(generate_safe_password)
 DYNAMO_API_KEY=$(generate_safe_api_key)   # NEW – replaces GPUStack
 
+# NEW (2026-11): SESSION_SECRET signs the nettrades-ui admin session cookie.
+# Auto-generated so no operator ever runs `openssl rand -base64 32` manually.
+# Rotating this value invalidates all admin sessions; users simply re-login.
+SESSION_SECRET=$(generate_session_secret)
+
 # Generate LangGraph API key (strong, alphanumeric)
 LANGGRAPH_API_KEY=$(generate_safe_api_key)
 
@@ -379,6 +384,7 @@ safe_sed_replace "$ENV_FILE" "GRAFANA_PASSWORD" "$GRAFANA_PASSWORD"
 safe_sed_replace "$ENV_FILE" "PROMETHEUS_PASSWORD" "$PROMETHEUS_PASSWORD"
 safe_sed_replace "$ENV_FILE" "DYNAMO_API_KEY" "$DYNAMO_API_KEY"
 safe_sed_replace "$ENV_FILE" "LANGGRAPH_API_KEY" "$LANGGRAPH_API_KEY"
+safe_sed_replace "$ENV_FILE" "SESSION_SECRET" "$SESSION_SECRET"
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"  # Ensure sync
 # Ensure ODOO_API_KEY and PROXY_API_KEY are identical
 safe_sed_replace "$ENV_FILE" "ODOO_API_KEY" "$PROXY_API_KEY"
@@ -522,9 +528,9 @@ log_success ".env generated with secure secrets"
 # After generating secrets, sync to Odoo DB
 # -----------------------------------------------------------------------------
 sync_secrets_to_odoo() {
-    if curl -s --connect-timeout 2 http://odoo:8069 >/dev/null 2>&1; then  
+    if curl -s --connect-timeout 2 http://localhost:8069 >/dev/null 2>&1; then  
         local secrets=$(cat "$ENV_FILE" | grep -v '^#' | grep '=' | sed 's/^ *//;s/ *$//')
-        local odoo_url="http://odoo:8069"
+        local odoo_url="http://localhost:8069"
 
         # Use Odoo's XML-RPC to sync secrets
         echo "$secrets" | while IFS= read -r line; do
@@ -551,7 +557,8 @@ if [[ "$WITH_CUVS" == true ]]; then
     # Check for NVIDIA GPU
     if command -v nvidia-smi &>/dev/null; then
         log_step "NVIDIA GPU detected. Installing RAPIDS cuVS..."
-        local cuvs_req="$PROJECT_ROOT/requirements/requirements-cuvs.txt"
+        cuvs_req="$PROJECT_ROOT/requirements/requirements-cuvs.txt"
+        # local cuvs_req="$PROJECT_ROOT/requirements/requirements-cuvs.txt"
         if [[ -f "$cuvs_req" ]]; then
             if [[ "$USE_UV" != false ]] && command -v uv &>/dev/null; then
                 if ! uv pip install --verbose --index-url https://pypi.org/simple/ -r "$cuvs_req"; then

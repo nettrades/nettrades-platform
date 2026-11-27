@@ -19,10 +19,10 @@ When you open your first pull request, the **CLA Assistant bot** will automatica
 
 **What happens when you sign:**
 1. The CLA Assistant bot records your GitHub username and timestamp.
-2. You only need to sign once — future contributions are automatically approved.
+2. You only need to sign once ï¿½ future contributions are automatically approved.
 3. The PR status check updates to green, allowing the PR to be merged.
 
-**Corporate Contributors:** If you are contributing on behalf of your employer, please ensure you have the authority to bind your employer to the CLA. For a Corporate CLA, contact legal@nettrades.org
+**Corporate Contributors:** If you are contributing on behalf of your employer, please ensure you have the authority to bind your employer to the CLA. For a Corporate CLA, contact legal@nettrades.ai
 
 ## How to Contribute
 
@@ -56,7 +56,7 @@ A maintainer will review your PR and may request changes. Once approved, your PR
 
 ## Code Review Process
 1. PR submitted -> CI checks run.
-2. CLA check runs — if not signed, bot prompts you to sign.
+2. CLA check runs ï¿½ if not signed, bot prompts you to sign.
 3. Maintainer reviews -> may request changes.
 4. PR approved -> merged into `main`.
 
@@ -65,7 +65,7 @@ A maintainer will review your PR and may request changes. Once approved, your PR
 ## Need Help?
 - Open an issue on GitHub.
 - Join our community Discord.
-- Email us at dev@nettrades.org
+- Email us at dev@nettrades.ai
 
 ---
 

@@ -49,6 +49,17 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+# Ensure the preshutdown timeout is set even on reinstall. The Go
+# service's installService() sets this on a fresh install via
+# ChangeServiceConfig2, but returns early when the service already
+# exists — which means a re-install over an older service loses
+# PRESHUTDOWN delivery. Re-applying sc.exe config here is idempotent
+# and ensures the graceful drain works across upgrades.
+sc.exe config $ServiceName preshutdown= 60000 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Failed to configure preshutdown timeout. Graceful drain on Windows shutdown will not work, but service will start normally."
+}
+
 # Start the service.
 Start-Service -Name $ServiceName
 Write-Host "NETTRADESNetSvc installed and started."

@@ -1,10 +1,10 @@
+#!/bin/bash
 # =============================================================================
 # phase-windows-service.sh
 # PURPOSE: Register the NETTRADES Networking Service on Windows hosts.
 # Called automatically at the end of the Hub deployment when running on WSL.
 # =============================================================================
 
-#!/bin/bash
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,8 +21,10 @@ echo "[windows-service] Registering NETTRADES Networking Service..."
 # Copy the service binary and supporting scripts to a Windows-accessible path.
 WIN_SERVICE_DIR="/mnt/c/ProgramData/NETTRADES/service"
 mkdir -p "$WIN_SERVICE_DIR"
-cp "$PROJECT_ROOT/service/nettrades-netsvc.exe" "$WIN_SERVICE_DIR/"
-cp "$PROJECT_ROOT/service/install-netsvc.ps1" "$WIN_SERVICE_DIR/"
+cp "$PROJECT_ROOT/installer/service/nettrades-netsvc.exe" "$WIN_SERVICE_DIR/"
+cp "$PROJECT_ROOT/installer/service/install-netsvc.ps1" "$WIN_SERVICE_DIR/"
+
+powershell.exe -ExecutionPolicy Bypass -File "$WIN_SERVICE_DIR/install-netsvc.ps1"
 
 # Copy the WireGuard DLLs. The architecture must match the Windows host.
 # On WSL2, the architecture is determined by the Windows host, not WSL.

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<!--  FILE: deploy/docker/nettrades-ui/templates/admin.html  -->
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NETTRADES Admin Console</title>
+    <style>
+        :root, html[data-theme="dark"] {
+            --bg: #0d1117; --panel: #161b22; --border: #30363d;
+            --text: #f0f6fc; --muted: #8b949e;
+            --blue: #58a6ff; --primary: #1f6feb;
+            --warning: #d29922; --success: #3fb950; --danger: #da3633;
+        }
+        html[data-theme="light"] {
+            --bg: #f6f8fa; --panel: #ffffff; --border: #d0d7de;
+            --text: #1f2328; --muted: #57606a;
+            --blue: #1f6feb; --primary: #0969da;
+            --warning: #9a6700; --success: #1a7f37; --danger: #cf222e;
+        }
+        * { box-sizing: border-box; }
+        body { display: flex; height: 100vh; background: var(--bg); margin: 0;
+               color: var(--text); font-family: -apple-system, sans-serif; }
+
+        /* Sidebar */
+        .sidebar { width: 240px; background: var(--panel);
+                   border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+        .logo { padding: 20px; font-size: 18px; font-weight: bold;
+                display: flex; gap: 10px; align-items: center; }
+        .badge { font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 4px; color: #fff; }
+        .nav-item { padding: 10px 20px; color: var(--muted); cursor: pointer;
+                    display: flex; gap: 10px; font-size: 13px; border-left: 3px solid transparent; }
+        .nav-item:hover { background: rgba(127,127,127,0.08); color: var(--text); }
+        .nav-item.active { background: rgba(88,166,255,0.1); color: var(--blue); border-left-color: var(--blue); }
+
+        /* Main */
+        .main { flex: 1; padding: 32px; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .card { background: var(--panel); border: 1px solid var(--border);
+                border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .card h3 { margin-top: 0; font-size: 16px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+        input, select { width: 100%; background: var(--bg); border: 1px solid var(--border);
+                        color: var(--text); padding: 10px; border-radius: 6px; }
+        .btn { padding: 10px 16px; border-radius: 6px; border: none; font-weight: 600;
+               cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;
+               text-decoration: none; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--blue); }
+        .btn-secondary { background: var(--border); color: var(--text); }
+        .btn-warning { background: var(--warning); color: #fff; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-block { width: 100%; justify-content: center; }
+        .log-terminal { background: #010409; border: 1px solid var(--border); border-radius: 8px;
+                        padding: 16px; font-family: monospace; font-size: 12px; height: 200px;
+                        overflow-y: auto; white-space: pre-wrap; margin-top: 16px; display: none;
+                        color: #c9d1d9; }
+        .backup-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+        .backup-item { display: flex; justify-content: space-between; align-items: center;
+                       background: rgba(127,127,127,0.05); padding: 12px 16px;
+                       border-radius: 8px; border: 1px solid var(--border); }
+        .backup-name { font-weight: 600; color: var(--blue); }
+        .backup-meta { font-size: 12px; color: var(--muted); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .container-row { display: flex; justify-content: space-between; align-items: center;
+                         padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);
+                         margin-bottom: 8px; background: rgba(127,127,127,0.04); font-size: 13px; }
+        .pill { padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .pill.running { background: rgba(63,185,80,0.15); color: var(--success); }
+        .pill.exited { background: rgba(218,54,51,0.15); color: var(--danger); }
+        .pill.other { background: rgba(139,148,158,0.15); color: var(--muted); }
+        iframe.studio { width: 100%; height: 70vh; border: 1px solid var(--border);
+                        border-radius: 8px; background: #fff; }
+        
+        /* Data Tables */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table th { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); color: var(--muted); }
+        .data-table td { padding: 10px; border-bottom: 1px solid var(--border); }
+        .data-table tr:last-child td { border-bottom: none; }
+        .mono { font-family: monospace; }
+        
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; flex-direction: row; overflow-x: auto; }
+            .nav-item { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; }
+            .nav-item.active { border-bottom-color: var(--blue); }
+            .main { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo"><span>🧠</span> NETTRADES <span class="badge">ADMIN</span></div>
+        <div class="nav-item active" data-tab="backup" onclick="switchTab('backup')">💾 Backup & Restore</div>
+        <div class="nav-item" data-tab="containers" onclick="switchTab('containers')">🐳 Containers</div>
+        <div class="nav-item" data-tab="nodes" onclick="switchTab('nodes')">🌐 Nodes</div>
+        <div class="nav-item" data-tab="cluster" onclick="switchTab('cluster')">🕸️ Cluster</div>
+        <div class="nav-item" data-tab="routing" onclick="switchTab('routing')">🧭 Routing</div>
+        <div class="nav-item" data-tab="studio" onclick="switchTab('studio')">🛠️ LangGraph Studio</div>
+        <div class="nav-item" data-tab="voice" onclick="switchTab('voice')">🎤 Voice & Speech</div>
+        <div class="nav-item" data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</div>
+    </aside>
+
+    <main class="main">
+        <div class="header">
+            <h2 id="page-title">💾 Backup & Restore</h2>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <button class="btn btn-secondary" id="theme-toggle" title="Toggle theme">🌙</button>
+                <a href="/" style="color: var(--blue); font-size: 13px; text-decoration: none;">← Back to chat</a>
+                <span style="color: var(--muted); font-size: 13px;">
+                    Logged in as <strong style="color: var(--text);">{{ user.username }}</strong>
+                </span>
+                <a href="/admin/logout" class="btn btn-secondary">Log out</a>
+            </div>
+        </div>
+
+        <!-- ── Backup ── -->
+        <div class="tab-content active" id="tab-backup">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="card">
+                    <h3>📤 Backup</h3>
+                    <p style="font-size: 13px; color: var(--muted);">Create a full backup of all NETTRADES data.</p>
+                    <button class="btn btn-primary btn-block" onclick="runBackup()">💾 Create Backup</button>
+                </div>
+                <div class="card">
+                    <h3>📥 Restore</h3>
+                    <p style="font-size: 13px; color: var(--muted);">Restore from a previous backup.</p>
+                    <div class="form-group">
+                        <label>Select Backup</label>
+                        <select id="restore-select"><option value="">Loading…</option></select>
+                    </div>
+                    <button class="btn btn-warning btn-block" onclick="runRestore()">↩️ Restore Selected</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>☁️ Off-Host Backup (restic)</h3>
+                <p style="font-size: 13px; color: var(--muted);">Optional. Local backups always run.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label>Repository URL</label>
+                        <input type="text" id="repo-url" placeholder="s3:… / sftp:… / /mnt/…">
+                    </div>
+                    <div class="form-group">
+                        <label>Schedule (cron)</label>
+                        <input type="text" id="repo-schedule" placeholder="0 2 * * *">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="testConnection()">Test Connection</button>
+                    <button class="btn btn-secondary" onclick="saveConfig()">Save</button>
+                    <button class="btn btn-secondary" onclick="runBackup(true)">Backup Now (Remote)</button>
+                </div>
+            </div>
+
+            <h3 style="font-size: 16px; margin-top: 32px;">Available Backups</h3>
+            <div class="backup-list" id="backup-list"></div>
+            <div id="log-terminal" class="log-terminal"></div>
+        </div>
+
+        <!-- ── Containers ── -->
+        <div class="tab-content" id="tab-containers">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">🐳 Containers</h3>
+                    <button class="btn btn-secondary" onclick="loadContainers()">🔄 Refresh</button>
+                </div>
+                <div id="containers-list"><p style="color: var(--muted);">Loading…</p></div>
+            </div>
+        </div>
+
+        <!-- ── Nodes ── -->
+        <div class="tab-content" id="tab-nodes">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">🌐 Live Nodes</h3>
+                    <button class="btn btn-secondary" onclick="loadNodes()">🔄 Refresh</button>
+                </div>
+                <div id="nodes-list"><p style="color: var(--muted);">Loading…</p></div>
+            </div>
+        </div>
+
+        <!-- ── Cluster ── -->
+        <div class="tab-content" id="tab-cluster">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">🕸️ RPC Cluster Topology</h3>
+                    <button class="btn btn-secondary" onclick="loadCluster()">🔄 Refresh</button>
+                </div>
+                <div id="cluster-list"><p style="color: var(--muted);">Loading…</p></div>
+            </div>
+        </div>
+
+        <!-- ── Routing ── -->
+        <div class="tab-content" id="tab-routing">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">🧭 Routing & Failover</h3>
+                    <button class="btn btn-secondary" onclick="loadRouting()">🔄 Refresh</button>
+                </div>
+                <div id="routing-list"><p style="color: var(--muted);">Loading…</p></div>
+            </div>
+        </div>
+
+        <!-- ── LangGraph Studio ── -->
+        <div class="tab-content" id="tab-studio">
+            <div class="card">
+                <h3>🛠️ LangGraph Studio</h3>
+                {% if langgraph_studio_url %}
+                <p style="font-size: 13px; color: var(--muted);">
+                    Studio is embedded below. If the iframe is blank, open it directly:
+                    <a href="{{ langgraph_studio_url }}" target="_blank" rel="noopener" style="color: var(--blue);">{{ langgraph_studio_url }}</a>
+                </p>
+                <iframe class="studio" src="{{ langgraph_studio_url }}" title="LangGraph Studio"></iframe>
+                {% else %}
+                <p style="font-size: 13px; color: var(--muted);">
+                    LangGraph Studio is not configured. The official Studio is a desktop / dev-only tool and
+                    <strong>cannot be embedded</strong>.
+                </p>
+                <p style="font-size: 13px; color: var(--muted);">
+                    To visualise the graph in this console, set <code>LANGGRAPH_STUDIO_URL</code> in
+                    <code>.env</code> to a Studio instance reachable from the browser, e.g.
+                    <code>http://localhost:2024</code> when running <code>langgraph dev</code> on the host.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ── Voice ── -->
+        <div class="tab-content" id="tab-voice">
+            <div class="card">
+                <h3>🎤 Voice & Speech</h3>
+                <p style="font-size: 13px; color: var(--muted);">
+                    The chat microphone uses the ASR microservice. Default model:
+                    <strong>Audar-ASR-V1-Flash</strong> (Arabic + English + 30 languages).
+                </p>
+                <div class="form-group">
+                    <label>ASR Service URL</label>
+                    <input type="text" id="asr-url" value="{{ asr_service_url }}">
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="asr-model">
+                        <option value="audar-asr">Audar-ASR-V1-Flash (Arabic + English)</option>
+                        <option value="sensevoice-q8">SenseVoice q8 (Chinese/English)</option>
+                        <option value="qwen3-asr-0.6b">Qwen3-ASR-0.6B (52 languages)</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="testVoice()">Test Connection</button>
+                    <button class="btn btn-secondary" onclick="saveVoice()">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Settings ── -->
+        <div class="tab-content" id="tab-settings">
+            <div class="card">
+                <h3>⚙️ Settings</h3>
+                <p style="font-size: 13px; color: var(--muted);">
+                    Theme preference is stored in <code>localStorage</code> and shared with the chat UI.
+                </p>
+                <p style="font-size: 13px; color: var(--muted);">
+                    Session cookie: <code>nettrades_admin_session</code>, HttpOnly, SameSite=Strict, 8-hour TTL.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Theme
+        function applyTheme(t) {
+            document.documentElement.setAttribute('data-theme', t);
+            localStorage.setItem('nettrades-theme', t);
+            document.getElementById('theme-toggle').textContent = t === 'dark' ? '🌙' : '☀️';
+        }
+        (function () {
+            const saved = localStorage.getItem('nettrades-theme');
+            const light = window.matchMedia('(prefers-color-scheme: light)').matches;
+            applyTheme(saved || (light ? 'light' : 'dark'));
+        })();
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const cur = document.documentElement.getAttribute('data-theme');
+            applyTheme(cur === 'dark' ? 'light' : 'dark');
+        });
+
+        // Tabs
+        const titles = {
+            backup: '💾 Backup & Restore',
+            containers: '🐳 Containers',
+            nodes: '🌐 Nodes',
+            cluster: '🕸️ Cluster',
+            routing: '🧭 Routing',
+            studio: '🛠️ LangGraph Studio',
+            voice: '🎤 Voice & Speech',
+            settings: '⚙️ Settings',
+        };
+        function switchTab(id) {
+            document.querySelectorAll('.nav-item').forEach(n =>
+                n.classList.toggle('active', n.dataset.tab === id));
+            document.querySelectorAll('.tab-content').forEach(t =>
+                t.classList.toggle('active', t.id === 'tab-' + id));
+            document.getElementById('page-title').textContent = titles[id] || id;
+            
+            if (id === 'containers') loadContainers();
+            if (id === 'nodes') loadNodes();
+            if (id === 'cluster') loadCluster();
+            if (id === 'routing') loadRouting();
+        }
+
+        // Backup
+        const logTerminal = document.getElementById('log-terminal');
+        function appendLog(m) {
+            logTerminal.style.display = 'block';
+            logTerminal.textContent += m + '\n';
+            logTerminal.scrollTop = logTerminal.scrollHeight;
+        }
+        async function loadBackups() {
+            const res = await fetch('/admin/api/backups');
+            const data = await res.json();
+            const list = document.getElementById('backup-list');
+            const select = document.getElementById('restore-select');
+            list.innerHTML = ''; select.innerHTML = '';
+            if (!data.length) {
+                list.innerHTML = '<p style="color:var(--muted);">No backups found.</p>';
+                select.innerHTML = '<option value="">No backups</option>';
+                return;
+            }
+            data.forEach(b => {
+                const size = (b.size / 1024 / 1024).toFixed(2);
+                const date = new Date(b.created * 1000).toLocaleString();
+                list.innerHTML += `
+                    <div class="backup-item">
+                        <div><div class="backup-name">${b.name}</div>
+                             <div class="backup-meta">${size} MB • ${date}</div></div>
+                        <button class="btn btn-secondary" onclick="restoreSpecific('${b.path}')">Restore</button>
+                    </div>`;
+                select.innerHTML += `<option value="${b.path}">${b.name}</option>`;
+            });
+        }
+        async function loadConfig() {
+            const res = await fetch('/admin/api/backup/config');
+            const d = await res.json();
+            document.getElementById('repo-url').value = d.repository || '';
+            document.getElementById('repo-schedule').value = d.schedule || '0 2 * * *';
+        }
+        async function saveConfig() {
+            await fetch('/admin/api/backup/config', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    repository: document.getElementById('repo-url').value,
+                    schedule: document.getElementById('repo-schedule').value,
+                }),
+            });
+            appendLog('[SUCCESS] Configuration saved.');
+        }
+        async function testConnection() {
+            appendLog('[INFO] Testing repository connection…');
+            const r = await fetch('/admin/api/backup/test', {method: 'POST'});
+            const d = await r.json();
+            appendLog(`[${d.ok ? 'SUCCESS' : 'ERROR'}] ${d.message}`);
+        }
+        function streamLogs(url, body = null) {
+            logTerminal.textContent = '';
+            logTerminal.style.display = 'block';
+            const opts = { method: 'POST' };
+            if (body) { opts.headers = {'Content-Type': 'application/json'}; opts.body = JSON.stringify(body); }
+            fetch(url, opts).then(r => {
+                const reader = r.body.getReader();
+                const dec = new TextDecoder();
+                (function read() {
+                    reader.read().then(({done, value}) => {
+                        if (done) { loadBackups(); return; }
+                        dec.decode(value).split('\n\n').forEach(l => {
+                            if (l.startsWith('data: ')) appendLog(l.slice(6));
+                        });
+                        read();
+                    });
+                })();
+            });
+        }
+        function runBackup(remote = false) {
+            streamLogs(remote ? '/admin/api/backup/run?remote=true' : '/admin/api/backup/run');
+        }
+        function runRestore() {
+            const p = document.getElementById('restore-select').value;
+            if (p && confirm('WARNING: This will overwrite all existing data.')) {
+                streamLogs('/admin/api/restore', { backup_path: p });
+            }
+        }
+        function restoreSpecific(p) {
+            if (confirm('WARNING: This will overwrite all existing data.')) {
+                streamLogs('/admin/api/restore', { backup_path: p });
+            }
+        }
+
+        // Containers
+        async function loadContainers() {
+            const box = document.getElementById('containers-list');
+            box.innerHTML = '<p style="color:var(--muted);">Loading…</p>';
+            const r = await fetch('/admin/api/containers');
+            const d = await r.json();
+            if (d.error) {
+                box.innerHTML = `<p style="color:var(--danger);">${d.error}</p>`;
+                return;
+            }
+            if (!d.containers.length) {
+                box.innerHTML = '<p style="color:var(--muted);">No containers found.</p>';
+                return;
+            }
+            box.innerHTML = d.containers.map(c => `
+                <div class="container-row" style="display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px;">
+                    <div>
+                        <strong>${c.name}</strong>
+                        <span style="color:var(--muted); font-size:12px;"> · ${c.service}</span>
+                        <div style="color:var(--muted); font-size:12px;">${c.status}</div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <span class="pill ${c.state === 'running' ? 'running' : 'exited'}">${c.state}${c.health ? ' · ' + c.health : ''}</span>
+                        ${c.state === 'running' 
+                            ? `<button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="doContainerAction('stop', '${c.service}')">⏹ Stop</button>`
+                            : `<button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="doContainerAction('start', '${c.service}')">▶️ Start</button>`
+                        }
+                        <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="doContainerAction('restart', '${c.service}')">🔄 Restart</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function doContainerAction(action, service) {
+            if (!confirm(`Are you sure you want to ${action} ${service}?`)) return;
+            const box = document.getElementById('containers-list');
+            box.innerHTML = `<p style="color:var(--muted);">Performing ${action} on ${service}...</p>`;
+            await fetch(`/admin/api/containers/${action}/${service}`, { method: 'POST' });
+            setTimeout(loadContainers, 1500);
+        }
+
+        // Nodes
+        async function loadNodes() {
+            const box = document.getElementById('nodes-list');
+            box.innerHTML = '<p style="color:var(--muted);">Loading…</p>';
+            const r = await fetch('/admin/api/nodes');
+            const d = await r.json();
+            if (!d.nodes || !d.nodes.length) {
+                box.innerHTML = '<p style="color:var(--muted);">No nodes registered.</p>';
+                return;
+            }
+            box.innerHTML = `
+                <table class="data-table">
+                    <tr><th>Node</th><th>Role</th><th>Status</th><th>VRAM</th><th>GPUs</th><th>Last Heartbeat</th></tr>
+                    ${d.nodes.map(n => `
+                        <tr>
+                            <td><strong>${n.hostname}</strong></td>
+                            <td>${n.role}</td>
+                            <td><span class="pill ${n.is_healthy ? 'running' : 'exited'}">${n.is_healthy ? 'Healthy' : 'Unhealthy'}</span></td>
+                            <td>${n.vram_total_mb ? (n.vram_total_mb/1024).toFixed(0) + ' GB' : '—'}</td>
+                            <td>${n.gpu_count || 0}</td>
+                            <td class="mono">${n.last_heartbeat ? new Date(n.last_heartbeat).toLocaleTimeString() : '—'}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        }
+
+        // Cluster
+        async function loadCluster() {
+            const box = document.getElementById('cluster-list');
+            box.innerHTML = '<p style="color:var(--muted);">Loading…</p>';
+            const r = await fetch('/admin/api/cluster');
+            const d = await r.json();
+            if (d.error) {
+                box.innerHTML = `<p style="color:var(--danger);">${d.error}</p>`;
+                return;
+            }
+            const c = d.cluster || {};
+            const assignment = c.layer_assignment || {};
+            const entries = Object.entries(assignment);
+            
+            let html = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="margin:0;">🕸️ ${c.name || 'Demo Cluster'}</h3>
+                    <button class="btn btn-primary" onclick="relaunchCluster()">🚀 Relaunch Cluster</button>
+                </div>
+            `;
+            
+            if (entries.length > 0) {
+                html += `
+                    <h4>Layer Assignment</h4>
+                    <table class="data-table" style="margin-top:12px;">
+                        <tr><th>Hostname</th><th>RPC Address</th><th>Layers</th><th>Share</th></tr>
+                        ${entries.map(([k, v]) => `
+                            <tr>
+                                <td>${v.hostname || '—'}</td>
+                                <td class="mono">${v.wg_ip}:${v.rpc_port}</td>
+                                <td>${v.start_layer} → ${v.end_layer}</td>
+                                <td>${(v.share * 100).toFixed(1)}%</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                `;
+            } else {
+                html += '<p style="color:var(--muted); margin-top:16px;">No layer assignment recorded. Click "Relaunch Cluster" to populate.</p>';
+            }
+            
+            box.innerHTML = html;
+        }
+
+        async function relaunchCluster() {
+            if (!confirm("Are you sure you want to relaunch the RPC cluster? In-flight requests will be interrupted.")) return;
+            const box = document.getElementById('cluster-list');
+            box.innerHTML = '<p style="color:var(--muted);">Relaunching cluster...</p>';
+            const r = await fetch('/admin/api/cluster/relaunch', { method: 'POST' });
+            const d = await r.json();
+            if (d.success) {
+                box.innerHTML = '<p style="color:var(--success);">✅ Cluster relaunched successfully. Refreshing...</p>';
+                setTimeout(loadCluster, 2000);
+            } else {
+                box.innerHTML = `<p style="color:var(--danger);">❌ Relaunch failed: ${d.error}</p>`;
+            }
+        }
+
+        // Routing
+        async function loadRouting() {
+            const box = document.getElementById('routing-list');
+            box.innerHTML = '<p style="color:var(--muted);">Loading…</p>';
+            
+            const [routingRes, clusterRes] = await Promise.all([
+                fetch('/admin/api/routing'),
+                fetch('/admin/api/cluster')
+            ]);
+            const rd = await routingRes.json();
+            const cd = await clusterRes.json();
+            
+            const events = (rd.events || []).slice().reverse();
+            const lastEvent = events[0];
+            const activeTrack = lastEvent ? lastEvent.track : 'None';
+            const trackColor = activeTrack === 'dynamo' ? 'var(--success)' : activeTrack === 'rpc' ? 'var(--blue)' : 'var(--muted)';
+            
+            const c = cd.cluster || {};
+            
+            let html = `
+                <!-- Active Track Card -->
+                <div class="card" style="background:rgba(74,138,255,0.05); border-color:rgba(74,138,255,0.3); margin-bottom:24px;">
+                    <h3 style="margin-top:0; font-size:14px; color:var(--muted); text-transform:uppercase;">Active Inference Track</h3>
+                    <div style="font-size:32px; font-weight:bold; color:${trackColor}; text-transform:uppercase; margin:8px 0;">
+                        ${activeTrack}
+                    </div>
+                    <div style="font-size:12px; color:var(--muted);">
+                        ${lastEvent ? lastEvent.detail : 'No requests processed yet.'}
+                    </div>
+                </div>
+
+                <!-- Failover Policy Card -->
+                <div class="card" style="margin-bottom:24px;">
+                    <h3>Failover Policy</h3>
+                    <table class="data-table" style="font-size:13px; margin-top:12px;">
+                        <tr><th>Tier</th><th>Name</th><th>Status</th><th>Notes</th></tr>
+                        <tr><td>1</td><td>Warm Spare</td><td><span class="pill running">✅ Enabled</span></td><td>Automatic when a spare is available</td></tr>
+                        <tr><td>2</td><td>Dynamo Fallback</td><td><span class="pill ${c.allow_dynamo_fallback ? 'running' : 'exited'}">${c.allow_dynamo_fallback ? '✅ Enabled' : '❌ Disabled'}</span></td><td>Route to the data-centre tier (vLLM on V100 / Blackwell)</td></tr>
+                        <tr><td>3</td><td>Partial RPC</td><td><span class="pill ${c.allow_rpc_partial_fallback ? 'running' : 'exited'}">${c.allow_rpc_partial_fallback ? '✅ Enabled' : '❌ Disabled'}</span></td><td>Rebuild with fewer workers</td></tr>
+                        <tr><td>4</td><td>GPU Marketplace</td><td><span class="pill ${c.allow_marketplace_fallback ? 'running' : 'exited'}">${c.allow_marketplace_fallback ? '✅ Enabled' : '❌ Disabled'}</span></td><td>Rent same-model compute</td></tr>
+                        <tr><td>5</td><td>External API</td><td><span class="pill ${c.allow_external_api_fallback ? 'running' : 'exited'}">${c.allow_external_api_fallback ? '✅ Enabled' : '❌ Disabled'}</span></td><td>OpenAI / Anthropic — leaves the network</td></tr>
+                        <tr><td>6</td><td>Fail Loud (HTTP 503)</td><td><span class="pill running">✅ Enabled</span></td><td>Always on. Never silently downgrades.</td></tr>
+                    </table>
+                </div>
+
+                <!-- Events Table -->
+                <h3>Recent Routing Events</h3>
+                <table class="data-table" style="margin-top:12px;">
+                    <tr><th>Time</th><th>Event</th><th>Track</th><th>Detail</th></tr>
+                    ${events.length ? events.map(e => `
+                        <tr>
+                            <td class="mono">${new Date(e.ts).toLocaleTimeString()}</td>
+                            <td><strong style="color:${e.event.includes('fail') ? 'var(--danger)' : 'var(--success)'}">${e.event}</strong></td>
+                            <td>${e.track || '—'}</td>
+                            <td style="color:var(--muted)">${e.detail || ''}</td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="4" style="color:var(--muted); text-align:center;">No events recorded.</td></tr>'}
+                </table>
+            `;
+            box.innerHTML = html;
+        }
+
+        // Voice
+        async function testVoice() {
+            appendLog('[INFO] Testing ASR service…');
+            const r = await fetch('/admin/api/voice/test', {method: 'POST'});
+            const d = await r.json();
+            appendLog(`[${d.ok ? 'SUCCESS' : 'ERROR'}] ${d.message}`);
+        }
+        async function saveVoice() {
+            const url = document.getElementById('asr-url').value;
+            const model = document.getElementById('asr-model').value;
+            const r = await fetch('/admin/api/voice/config', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ service_url: url, model: model }),
+            });
+            const d = await r.json();
+            appendLog(d.success ? '[SUCCESS] Voice config saved.' : '[ERROR] Save failed.');
+        }
+
+        // Init
+        loadConfig();
+        loadBackups();
+    </script>
+</body>
+</html>

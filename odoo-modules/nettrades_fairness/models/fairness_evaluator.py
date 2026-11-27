@@ -5,21 +5,35 @@
 # FILE: odoo-modules/nettrades_fairness/models/fairness_evaluator.py
 #
 # PURPOSE:
-#   This file implements the LLM-as-Judge evaluator that assesses AI responses
-#   for rationality and bias. It uses a configurable LLM (GPT-4o Mini,
-#   Claude, or custom) to score responses on two dimensions:
-#     1. Rationality Score (0-10): Logical coherence and reasoning quality
-#     2. Bias Score (0-10): Degree of bias against protected attributes
+#   LLM-as-Judge evaluator that assesses AI responses for rationality and
+#   bias. See the header comment block below for the model responsibilities.
 #
-#   The evaluator is integrated with the existing "Good Answer" voting system
-#   and the fine-tuning pipeline to ensure continuous improvement.
+# SOVEREIGNTY GUARD (2026-10-22):
+#   By default, evaluation is DISABLED. The reason is simple: the default
+#   judge path calls OpenAI and Anthropic over HTTPS. Sending every user
+#   question and every AI response to a third-party API defeats the entire
+#   sovereign-AI guarantee, for many organisation it is simply not acceptable.
 #
-# KEY FEATURES:
-#   - Configurable evaluation model (GPT-4o Mini, Claude, custom)
-#   - Field-specific thresholds and protected attributes
-#   - Automated flagging for human review
-#   - Integration with training data filtering
-#   - Audit logging for compliance
+#   The evaluator now enforces a fail-closed gate at the top of
+#   `evaluate_response()`. The gate reads FAIRNESS_EVALUATION_DISABLED
+#   from the environment. Default behaviour is disabled.
+#
+#   Three deployment profiles:
+#     1. Sovereign (default): FAIRNESS_EVALUATION_DISABLED=true
+#        → evaluator returns None; audit tables stay empty; no off-network
+#        traffic; the module is installed and ready for a local judge.
+#     2. Local judge: set the evaluation_model to 'local' and configure
+#        an llm.provider record pointing at llama.cpp or vLLM. The
+#        evaluator routes through _call_local_model and never leaves the
+#        network. Set FAIRNESS_EVALUATION_DISABLED=false.
+#     3. External API: set FAIRNESS_EVALUATION_DISABLED=false and pick
+#        'gpt-4o-mini' or 'claude-3.5-sonnet'. Only do this if the data
+#        governance policy explicitly permits off-network processing.
+#
+#   The old behaviour (external API by default, no gate) is what made the
+#   platform look like a sovereign-AI product while silently shipping
+#   customer prompts to OpenAI. That is the exact opposite of what the
+#   product is sold as.
 #
 # UPDATES (2026-09-21):
 #   - _store_evaluation() now writes a composite fairness_score back to
@@ -49,6 +63,8 @@ class FairnessEvaluator(models.TransientModel):
     Fairness Evaluator Service - LLM-as-Judge for rationality and bias.
 
     This service evaluates AI responses using a configurable LLM judge.
+    See the file header for the sovereignty guard that governs when this
+    is allowed to fire.
     """
     _name = 'nettrades.fairness.evaluator'
     _description = 'Fairness Evaluator Service'
@@ -76,8 +92,21 @@ class FairnessEvaluator(models.TransientModel):
 
         Returns:
             dict: Evaluation results with rationality_score, bias_score, rationale.
+
+        Returns None immediately if FAIRNESS_EVALUATION_DISABLED is true,
+        which is the default. See the file header.
         """
-        # 1. Check if evaluation is enabled
+        # -----------------------------------------------------------------
+        # SOVEREIGNTY GUARD — fail closed by default
+        # -----------------------------------------------------------------
+        if os.getenv('FAIRNESS_EVALUATION_DISABLED', 'true').lower() == 'true':
+            _logger.info(
+                "Fairness evaluation skipped: FAIRNESS_EVALUATION_DISABLED=true. "
+                "response_id=%s", response_id,
+            )
+            return None
+
+        # 1. Check if evaluation is enabled in the UI config
         config = self.env['nettrades.fairness.config'].get_config()
         if not config.rationality_evaluation_enabled and not config.bias_detection_enabled:
             _logger.info("Fairness evaluation disabled by configuration")
@@ -179,7 +208,6 @@ class FairnessEvaluator(models.TransientModel):
         A higher bias_score means MORE biased (worse).
         Output ONLY the JSON object, with no additional text.
         """
-
         return prompt
 
     # =========================================================================
@@ -188,34 +216,87 @@ class FairnessEvaluator(models.TransientModel):
 
     def _call_evaluation_model(self, prompt, config):
         """
-        Call the configured evaluation model (GPT-4o Mini, Claude, or custom).
+        Route the evaluation prompt to the configured judge.
 
-        Returns:
-            str: The raw response from the model.
+        Options:
+          - 'local'        → local llm.provider (llama.cpp / vLLM) — SOVEREIGN
+          - 'gpt-*'        → OpenAI (off-network — requires opt-in)
+          - 'claude-*'     → Anthropic (off-network — requires opt-in)
+          - 'custom'       → operator-provided URL
         """
         model = config.evaluation_model
 
-        if model == 'custom':
+        if model == 'local':
+            return self._call_local_model(prompt, config)
+        elif model == 'custom':
             return self._call_custom_model(prompt, config)
-        elif model.startswith('gpt'):
+        elif model and model.startswith('gpt'):
             return self._call_openai_model(prompt, model, config)
-        elif model.startswith('claude'):
+        elif model and model.startswith('claude'):
             return self._call_anthropic_model(prompt, model, config)
         else:
-            # Fallback to GPT-4o Mini
-            _logger.warning("Unknown evaluation model: %s, falling back to GPT-4o Mini", model)
-            return self._call_openai_model(prompt, 'gpt-4o-mini', config)
+            # Default to local. If no local provider is configured, raise a
+            # clear error rather than silently calling OpenAI.
+            return self._call_local_model(prompt, config)
+
+    def _call_local_model(self, prompt, config):
+        """
+        Call the local inference backend through the configured llm.provider.
+
+        This is the sovereign path: the prompt never leaves the network.
+        The provider is configured once by the operator and reused for
+        every evaluation. The provider is the same one that LLM requests
+        from the supervisor use, so a customer who has a working local
+        model has a working fairness judge.
+        """
+        provider = self.env['llm.provider'].sudo().search([], limit=1)
+        if not provider:
+            raise UserError(_(
+                "No local LLM provider configured. "
+                "Set up an llm.provider record (Settings → Technical → LLM → Providers) "
+                "or set FAIRNESS_EVALUATION_DISABLED=true to skip fairness evaluation."
+            ))
+
+        # Apexive llm.provider has an `api_base` and `default_model` in
+        # modern releases; guard against older releases that lack them.
+        base_url = getattr(provider, 'api_base', None) or os.getenv(
+            'LLM_BASE_URL', 'http://llama-cpp:8080/v1',
+        )
+        model_name = getattr(provider, 'default_model', None) or os.getenv(
+            'MODEL_NAME', 'llama-cpp-model',
+        )
+        api_key = getattr(provider, 'api_key', None) or 'dummy'
+
+        url = base_url.rstrip('/') + '/chat/completions'
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        }
+        data = {
+            'model': model_name,
+            'messages': [
+                {'role': 'system', 'content': 'You are a fair and impartial judge.'},
+                {'role': 'user', 'content': prompt},
+            ],
+            'temperature': 0.1,
+            'response_format': {'type': 'json_object'},
+        }
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=120)
+            response.raise_for_status()
+            result = response.json()
+            return result['choices'][0]['message']['content']
+        except requests.exceptions.RequestException as e:
+            raise UserError(_(
+                "Local judge call failed: %s. "
+                "Check LLM_BASE_URL=%s and that the inference backend is running."
+            ) % (str(e), base_url))
 
     def _call_openai_model(self, prompt, model, config):
-        """
-        Call OpenAI API (GPT-4o Mini, GPT-4o).
-
-        Returns:
-            str: The model's response.
-        """
+        """OpenAI — requires explicit opt-in via FAIRNESS_EVALUATION_DISABLED=false."""
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            raise UserError(_("OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."))
+            raise UserError(_("OpenAI API key not configured."))
 
         url = 'https://api.openai.com/v1/chat/completions'
         headers = {
@@ -226,31 +307,24 @@ class FairnessEvaluator(models.TransientModel):
             'model': model,
             'messages': [
                 {'role': 'system', 'content': 'You are a fair and impartial judge.'},
-                {'role': 'user', 'content': prompt}
+                {'role': 'user', 'content': prompt},
             ],
             'temperature': 0.1,
             'response_format': {'type': 'json_object'},
         }
-
         try:
             response = requests.post(url, headers=headers, json=data, timeout=30)
             response.raise_for_status()
-            result = response.json()
-            return result['choices'][0]['message']['content']
+            return response.json()['choices'][0]['message']['content']
         except requests.exceptions.RequestException as e:
             _logger.error("OpenAI API call failed: %s", e)
             raise UserError(_("Failed to call evaluation model: %s") % str(e))
 
     def _call_anthropic_model(self, prompt, model, config):
-        """
-        Call Anthropic API (Claude).
-
-        Returns:
-            str: The model's response.
-        """
+        """Anthropic — requires explicit opt-in via FAIRNESS_EVALUATION_DISABLED=false."""
         api_key = os.getenv('ANTHROPIC_API_KEY')
         if not api_key:
-            raise UserError(_("Anthropic API key not configured. Please set ANTHROPIC_API_KEY environment variable."))
+            raise UserError(_("Anthropic API key not configured."))
 
         url = 'https://api.anthropic.com/v1/messages'
         headers = {
@@ -262,55 +336,36 @@ class FairnessEvaluator(models.TransientModel):
             'model': model,
             'max_tokens': 500,
             'temperature': 0.1,
-            'messages': [
-                {'role': 'user', 'content': prompt}
-            ],
+            'messages': [{'role': 'user', 'content': prompt}],
         }
-
         try:
             response = requests.post(url, headers=headers, json=data, timeout=30)
             response.raise_for_status()
-            result = response.json()
-            return result['content'][0]['text']
+            return response.json()['content'][0]['text']
         except requests.exceptions.RequestException as e:
             _logger.error("Anthropic API call failed: %s", e)
             raise UserError(_("Failed to call evaluation model: %s") % str(e))
 
     def _call_custom_model(self, prompt, config):
-        """
-        Call a custom LLM endpoint.
-
-        Returns:
-            str: The model's response.
-        """
+        """Custom endpoint — fully operator-controlled."""
         url = config.custom_evaluation_url
         api_key = config.custom_evaluation_api_key
-
         if not url:
             raise UserError(_("Custom evaluation URL not configured."))
 
-        headers = {
-            'Content-Type': 'application/json',
-        }
+        headers = {'Content-Type': 'application/json'}
         if api_key:
             headers['Authorization'] = f'Bearer {api_key}'
 
-        data = {
-            'prompt': prompt,
-            'temperature': 0.1,
-            'max_tokens': 500,
-        }
-
+        data = {'prompt': prompt, 'temperature': 0.1, 'max_tokens': 500}
         try:
             response = requests.post(url, headers=headers, json=data, timeout=30)
             response.raise_for_status()
             result = response.json()
-            # Assume the response is either a string or has a 'response' field
             if isinstance(result, str):
                 return result
             return result.get('response', result.get('text', str(result)))
         except requests.exceptions.RequestException as e:
-            _logger.error("Custom evaluation API call failed: %s", e)
             raise UserError(_("Failed to call custom evaluation model: %s") % str(e))
 
     # =========================================================================
@@ -318,25 +373,13 @@ class FairnessEvaluator(models.TransientModel):
     # =========================================================================
 
     def _parse_evaluation_result(self, result):
-        """
-        Parse the LLM's evaluation result into a structured format.
-
-        Args:
-            result (str): The raw response from the LLM.
-
-        Returns:
-            dict: Parsed evaluation with rationality_score, bias_score, rationale.
-        """
+        """Parse the LLM's evaluation result into a structured format."""
         try:
-            # Try to parse as JSON
             data = json.loads(result)
-
-            # Ensure all required keys are present
             rationality_score = data.get('rationality_score')
             bias_score = data.get('bias_score')
             rationale = data.get('rationale', '')
 
-            # Validate scores
             if rationality_score is not None:
                 rationality_score = float(rationality_score)
                 if not (0 <= rationality_score <= 10):
@@ -351,22 +394,16 @@ class FairnessEvaluator(models.TransientModel):
                 'bias_score': bias_score,
                 'rationale': rationale,
             }
-
         except json.JSONDecodeError:
-            # If not JSON, try to extract scores with regex
             import re
             rationality_match = re.search(r'rationality[_ ]score:?\s*(\d+\.?\d*)', result, re.IGNORECASE)
             bias_match = re.search(r'bias[_ ]score:?\s*(\d+\.?\d*)', result, re.IGNORECASE)
             rationale_match = re.search(r'rationale:?\s*(.+?)(?:\n|$)', result, re.IGNORECASE)
 
-            rationality_score = float(rationality_match.group(1)) if rationality_match else None
-            bias_score = float(bias_match.group(1)) if bias_match else None
-            rationale = rationale_match.group(1) if rationale_match else "Could not parse rationale."
-
             return {
-                'rationality_score': rationality_score,
-                'bias_score': bias_score,
-                'rationale': rationale,
+                'rationality_score': float(rationality_match.group(1)) if rationality_match else None,
+                'bias_score': float(bias_match.group(1)) if bias_match else None,
+                'rationale': rationale_match.group(1) if rationale_match else "Could not parse rationale.",
             }
 
     # =========================================================================
@@ -398,7 +435,7 @@ class FairnessEvaluator(models.TransientModel):
             audit = self.env['nettrades.fairness.audit'].create({
                 'response_id': response_id,
                 'field_id': field_id,
-                'question_text': question[:1000],  # Truncate for storage
+                'question_text': question[:1000],
                 'response_text': answer[:1000],
                 'rationality_score': rationality_score,
                 'bias_score': bias_score,
@@ -445,11 +482,10 @@ class FairnessEvaluator(models.TransientModel):
         return audit
 
     def _check_and_flag(self, evaluation, field_id, response_id, config, effective_config):
-        """
-        Check if the evaluation exceeds thresholds and flag for review.
+        """Create a flag record for human review when thresholds are exceeded.
 
         This method creates a flag record that appears in the admin dashboard
-        for human review.
+        for human review.        
         """
         rationality_score = evaluation.get('rationality_score')
         bias_score = evaluation.get('bias_score')

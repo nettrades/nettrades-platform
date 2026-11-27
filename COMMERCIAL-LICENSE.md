@@ -1,36 +1,56 @@
 # NETTRADES Commercial License Notice
 
-**Version:** 2.0  
-**Framework:** NETTRADES Foundation (Qatar Financial Centre Governing Regime)
+**Version:** 3.0  
+**Licensor:** NETTRADES LIMITED (UK Company No. 08160657)
 
-| License Category | Type / Identifier | Status | Copyleft Obligation |
+| License Category | Type / Identifier | Status | Ethical Override |
 | :--- | :--- | :--- | :--- |
-| **Default Repository License** | GNU AGPL-3.0 | Active | **Mandatory Source Disclosure** |
-| **Commercial Alternative** | Proprietary EULA | Available | **Exempt (Closed-Source Allowed)** |
+| **Default Repository License** | `BUSL-1.1` → `Open RAIL-S` (4 Years) | Active | **Mandatory (`ETHICAL-STATEMENT.md`)** |
+| **Commercial Alternative** | Proprietary Enterprise EULA | Available | **Mandatory (`ETHICAL-STATEMENT.md`)** |
 
 ---
 
-This repository default tier is open-source software distributed under the terms of the **GNU Affero General Public License v3.0 (AGPL-3.0)**. 
+The NETTRADES Sovereign AI Platform is licensed under **BUSL-1.1** (transitioning after 4 years to **Open RAIL-S**), with free production rights for individuals, small businesses (up to 1 Sub-Hub and 5 Spokes), accredited educational institutions, and hospitals (see [LICENSE.txt](LICENSE.txt)).
 
-### Enterprise Commercial Licensing
+### When a Commercial License Is Required
 
-For corporate entities, sovereign institutions, and commercial developers who require:
-1. Complete exemption from the copyleft disclosure requirements of the AGPL-3.0.
-2. The legal right to embed the platform's multi-agent routing infrastructure into proprietary closed-source applications.
-3. Access to advanced enterprise-tier SLAs, custom features, and priority support.
+A paid Commercial License from **NETTRADES LIMITED** is required for:
+1. **Enterprise Scale:** Operating more than **1 Sub-Hub** or more than **5 Spokes/computers** in commercial production.
+2. **Hosted / Cloud / Managed Services:** Offering NETTRADES to third parties as a hosted SaaS, API, or managed cluster.
+3. **Enterprise Support & Indemnification:** Accessing priority SLAs, custom engineering, IP indemnification, and KYC-verified enterprise license keys.
 
-A paid Commercial License is required. Commercial licensing models are issued and managed by our authorized regional distribution network, including inside the United Kingdom.
+*Note: All commercial agreements remain strictly subordinate to our [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md). Any prohibited ethical breach triggers immediate termination.*
 
-### Reviewing Terms & Compliance Onboarding
+### Contact & Onboarding
+- **Website:** [https://nettrades.com](https://nettrades.com)
+- **Commercial Licensing & Procurement:** legal@nettrades.ai
 
-To read our standard enterprise contract terms, execute Know Your Customer (KYC) identity checks, or obtain a commercial license verification string, please visit our official licensing portal:
+# NETTRADES Commercial License Notice
 
-* **Official Portal:** [NETTRADES Commercial Licensing](https://nettrades.org)
-* **Procurement Inquiries:** legal@nettrades.org
+**Version:** 3.0  
+**Licensor:** NETTRADES LIMITED (UK Company No. 08160657)
 
-### Governing Law and Geographically Split Jurisdiction
+| License Category | Type / Identifier | Status | Ethical Override |
+| :--- | :--- | :--- | :--- |
+| **Default Repository License** | `BUSL-1.1` → `Open RAIL-S` (4 Years) | Active | **Mandatory (`ETHICAL-STATEMENT.md`)** |
+| **Commercial Alternative** | Proprietary Enterprise EULA | Available | **Mandatory (`ETHICAL-STATEMENT.md`)** |
 
-Commercial deployments, software utilization verifications, and cross-border licensing tracking under this infrastructure framework are governed by a split-jurisdiction architecture determined by the Customer's primary region of legal domicile:
+---
 
-1. **North American and European Deployments:** If the Customer or licensee is legally incorporated, domiciled, or resident within **North America** or **Europe**, all commercial terms and structural interactions shall be governed by and construed in accordance with the **laws of England and Wales**, subject to the exclusive jurisdiction of the **courts of England and Wales**.
-2. **Rest of the World Deployments:** If the Customer or licensee is legally incorporated, domiciled, or resident within **any other part of the world** (including but not limited to the Middle East, Asia, Africa, and South/Central America), all commercial terms and interactions shall be governed by and construed in accordance with the **laws and regulations of the Qatar Financial Centre (QFC)** under its native **English common law framework**, subject to the exclusive jurisdiction of the **Qatar Financial Centre Civil and Commercial Court**.
+The NETTRADES Sovereign AI Platform is licensed under **BUSL-1.1** (transitioning after 4 years to **Open RAIL-S**), with free production rights for individuals, small businesses (up to 1 Sub-Hub and 5 Spokes), accredited educational institutions, and hospitals (see [LICENSE.txt](LICENSE.txt)).
+
+### When a Commercial License Is Required
+
+A paid Commercial License from **NETTRADES LIMITED** is required for:
+1. **Enterprise Scale:** Operating more than **1 Sub-Hub** or more than **5 Spokes/computers** in commercial production.
+2. **Hosted / Cloud / Managed Services:** Offering NETTRADES to third parties as a hosted SaaS, API, or managed cluster.
+3. **Enterprise Support & Indemnification:** Accessing priority SLAs, custom engineering, IP indemnification, and KYC-verified enterprise license keys.
+
+*Note: All commercial agreements remain strictly subordinate to our [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md). Any prohibited ethical breach triggers immediate termination.*
+
+### Contact & Onboarding
+- **Website:** [https://nettrades.com](https://nettrades.com)
+- **Commercial Licensing & Procurement:** legal@nettrades.ai
+
+### Governing Law and Jurisdiction
+All commercial agreements and disputes arising out of or in connection with the NETTRADES Platform shall be governed by and construed in accordance with the **laws of England and Wales**, and the **courts of England and Wales** shall have exclusive jurisdiction.

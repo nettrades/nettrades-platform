@@ -54,11 +54,11 @@ PURPOSE:
 
 ---
 
-[![Commercial License](https://img.shields.io/badge/Commercial-License.svg)](COMMERCIAL-LICENSE.md)
-[![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE.txt)
-[![License](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
-[![Contributor License Agreement](https://img.shields.io/badge/Contributor-License-Agreement.svg)](Contributor-License-Agreement.md)
-[![Ethical Statement](https://img.shields.io/badge/Ethical-Statement.svg)](ETHICAL-STATEMENT.md)
+[![License: BUSL-1.1](https://shields.io)](LICENSE.txt)
+[![Commercial License](https://shields.io)](COMMERCIAL-LICENSE.md)
+[![Contributor License Agreement](https://shields.io)](LEGAL/Contributor-License-Agreement.md)
+[![Ethical Statement](https://shields.io)](ETHICAL-STATEMENT.md)
+
 
 ## NETTRADES connecting companies, job seekers, freelancers, researchers and partners
 
@@ -320,7 +320,7 @@ Work on the dev-deployment1 branch not on the main branch
 |---------|----------------------|
 | **Data Sovereignty** | Your data never leaves your network. |
 | **Complete Control** | You own the infrastructure, the data, and the AI models. |
-| **No Vendor Lock-in** | Fully open-source. You can take the platform and run it independently. |
+| **No Vendor Lock-in** | Source-Available (BUSL-1.1). You can inspect the code and run it independently. |
 | **Cost Predictability** | Flat licensing fee. No per-token charges. No cloud egress fees. |
 | **Enterprise Security** | WireGuard VPN, RBAC, audit logging, SSH hardening, fail2ban. |
 | **14-Year Track Record** | Founded 2012. Enterprise clients include AXA, Standard Bank, NHS, Capita etc. |
@@ -355,68 +355,54 @@ Admins can switch modes instantly from the Launcher dashboard. Changes take effe
 | **🧠️ Model fine tuning** - coming soon | Fine-tune models on your data using Unsloth or Axolotl. |
 | **🖥️ [GPU Marketplace - coming soon](docs/developer/distributed-gpu-network-trusted-vs-untrusted.md)** | Distributed GPU sharing. Based on company policy and set in the configuration screens|
 
+
 ## Enterprise Support
 
-|Service | What You Get |
-|---------|----------------------|
+| Service | What You Get |
+| :--- | :--- |
 | **SLA** | Standard or premium SLA options available |
 | **Incident Response** | Critical issue response within hours |
-| **Commercial License** | No AGPL-3.0 copyleft obligations — keep your modifications proprietary |
-| **Custom Features** |	Feature development roadmap prioritisation |
-| **Security Audits** |	Regular security review and updates |
+| **Commercial License** | Scale beyond 5 Spokes, host commercial services, and keep modifications proprietary |
+| **Custom Features** | Feature development roadmap prioritisation |
+| **Security Audits** | Regular security review and updates |
 
+## ⚖ Licensing
 
-## ⚖️ Dual-Licensing Framework
+NETTRADES wants AI to be used ethically and responsibly. Therefore, NETTRADES is licensed under the **Business Source License 1.1 (`BUSL-1.1`)** (with third-party components governed by their respective upstream licenses in [OPEN-SOURCE-NOTICES.txt](OPEN-SOURCE-NOTICES.txt)):
 
-The NETTRADES Sovereign AI Platform is a dual-licensed AI infrastructure ecosystem designed to balance public collaboration with enterprise security constraints:
+- **Households, Developers & Small Businesses (Up to 5 Spokes/computers):** **100% Free** to download, modify, and run locally (1 Sub-Hub + up to 5 Spokes).
+- **Schools, Colleges, Universities & Hospitals:** **100% Free** at unlimited scale (unlimited Sub-Hubs and Spokes).
+- **Large Organisations and Enterprises (> 5 Spokes/computers) & Commercial Cloud Providers:** Require a paid **Commercial License**.
+- **Ethical Commitment:** All commercial and institutional deployments are bound by our [ETHICAL-STATEMENT.md](ETHICAL-STATEMENT.md).
+- **Contributors:** Developers are welcome to submit pull requests via our Contributor License Agreement ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
-### 1. Open-Source Edition (AGPL-3.0)
-* **Default Status:** Free to download, modify, and host.
-* **Copyleft Conditions:** Subject to the full terms of the GNU Affero General Public License v3.0. If you modify this source code and make its features accessible to users over a network, you are contractually obligated to release your complete modified codebase to the public under the same license.
-* **Defensive Patent Check:** Subject to the multi-layered enforcement rules defined in our [Ethical Use Statement](ETHICAL-STATEMENT.md).
+For enterprise license keys (> 5 Spokes) or cloud hosting partnerships, contact **legal@nettrades.ai**.
 
-📄 [View the full AGPL-3.0 license](LICENSE.txt)
+### Commercial Edition (Paid)
+* **Proprietary Autonomy:** Maintain your modifications, custom agent configurations, and proprietary enterprise database schemas as private assets across unlimited Sub-Hubs and Spokes.
+* **Contractual Enforcement:** Binds corporate users to our ethical restrictions via enforceable contract law, identity checks (KYC), and platform audit verifications.
 
-
-### 2. Commercial Edition (Paid)
-* **Proprietary Autonomy:** Completely exempts your organization from the source-code disclosure rules of the AGPL-3.0. You can maintain your modifications, custom agent configurations, and proprietary enterprise database schemas as private assets.
-* **Contractual Enforcement:** Legally binds corporate users to our ethical restrictions via enforceable contract law, identity checks (KYC), and platform audit verifications.
-
-For enterprise pricing matrices or to apply for a commercial deployment key, route your inquiry to **legal@nettrades.org**.
-
-
-### Which License Do I Need?
-
-| Your Use Case | Recommended License |
-|---------------|---------------------|
-| You are building an open-source project and will share your modifications | AGPL-3.0 |
-| You are using the software internally without modification | AGPL-3.0 |
-| You are modifying the software and making it available over a network, but **cannot** release your modifications | **Commercial License** |
-| You are building a proprietary product that integrates the software | **Commercial License** |
-
-### How to Purchase a Commercial License
-
-Contact us at **legal@nettrades.ai** for pricing and terms.
-
----
+For enterprise pricing matrices or to apply for a commercial deployment key, contact **legal@nettrades.ai**.
 
 ### Patent Notice
 
-The distributed inferencing architecture and heterogeneous hardware orchestration methods implemented in this platform are the subject to a pending patent application. Use of this software under the GNU AGPL-3.0 is subject to the patent provisions of Section 11 of that licence (requiring full source-code disclosure for any network-accessible or modified deployment). Any proprietary, closed-source or commercial deployment outside the terms of the AGPL-3.0 does not receive an express or implied patent licence and requires a separate Commercial Licence from NETTRADES.
+**Patent Pending.** The distributed inferencing architecture, heterogeneous GPU/CPU orchestration, and deterministic failover methods implemented in the **NETTRADES Sovereign AI Platform** are protected by pending patent applications owned by **NETTRADES LIMITED** (UK Company No. 08160657). For current patent status, see [nettrades.com](https://nettrades.com) and [LEGAL/PATENTS.md](LEGAL/IP-AND-PATENTS.md).
+
+Use of this software under the Business Source License 1.1 (`BUSL-1.1`) receives only a limited, conditional, revocable patent license strictly restricted to the permitted non-production and Additional Use Grant scopes in [LICENSE.txt](LICENSE.txt) (up to 5 Spokes for households/small businesses, or unlimited Spokes for accredited educational institutions and hospitals). Any commercial deployment exceeding 5 Spokes, cloud/SaaS hosting, or unlicensed re-implementation receives no express or implied patent license and requires a separate Commercial License from NETTRADES LIMITED.
 
 ## Ethical Commitment
 
-NETTRADES is committed to technology that serves humanity. The license includes restrictions on military, surveillance, human and animal rights violations and environmental harm.
+NETTRADES is committed to technology that serves humanity. Our commercial and institutional agreements prohibit military, surveillance, human and animal rights violations, and environmental harm.
 
 [Click here to view the ethical statement](ETHICAL-STATEMENT.md)
 
 ## Contributing
 
-We welcome contributions! All contributors must sign our [Contributor License Agreement](Contributor-License-Agreement.md) before their pull request can be merged.
+We welcome contributions! All contributors must sign our Contributor License Agreement before their pull request can be merged.
 
 When you open your first pull request, the CLA Assistant bot will automatically guide you through the signing process.
 
-Please agree to the [Contributor License Agreement (CLA)](CONTRIBUTING.md) before contributing.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before contributing.
 
 ## Quick Start For Developers and Contributors
 
@@ -2434,4 +2420,4 @@ And deploys Grafana for monitoring
 
 
 ---
-
+© 2026 NETTRADES LIMITED (UK Company No. 08160657). Patent Pending. THE FUTURE OF WORK® is a registered trade mark in the United Kingdom (No. UK00004257743) of NETTRADES LIMITED.

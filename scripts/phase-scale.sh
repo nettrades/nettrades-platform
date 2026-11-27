@@ -15,6 +15,18 @@
 #   - Updated K8S deployment file references to dynamo.
 #   - Adjusted scaling commands.
 #
+# UPDATES (2026-10-19):
+#   - COMPOSE_ARGS is now resolved ONCE per Docker function via
+#     resolve_compose_args. Before this fix, only the Odoo and
+#     LangGraph call sites in scale_docker_up used the guarded form.
+#     The Dynamo and self-improving call sites, every call site in
+#     scale_docker_down, show_docker_status, and the two call sites in
+#     deploy_odoo_modules_docker still invoked
+#       docker_compose -f FILE -f OVERRIDE ...
+#     unconditionally, which fails when docker-compose.override.yml
+#     does not exist. docker_compose treats a missing -f file as a
+#     hard error and exits before doing anything.
+#
 # USAGE:
 #   ./scripts/phase-scale.sh [command] [options]
 #
@@ -127,15 +139,35 @@ check_files() {
 }
 
 # -----------------------------------------------------------------------------
+# resolve_compose_args — build the docker_compose argument list once.
+#
+# When docker-compose.override.yml exists, use both files. When it does
+# not exist, use only the base file. `docker_compose -f missing.yml`
+# exits with "file not found" and does nothing, so an unconditional -f
+# on a file that may be absent is a hard failure.
+#
+# Call this once per Docker function (or in main() before dispatching)
+# so that every subsequent `docker_compose "${COMPOSE_ARGS[@]}" ...`
+# uses the correct set of files.
+# -----------------------------------------------------------------------------
+resolve_compose_args() {
+    if [[ -f "$DOCKER_COMPOSE_OVERRIDE" ]]; then
+        COMPOSE_ARGS=(-f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE")
+    else
+        COMPOSE_ARGS=(-f "$DOCKER_COMPOSE_FILE")
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # 3. Kubernetes Scaling Functions
 # -----------------------------------------------------------------------------
 
 scale_kubernetes_up() {
     log_info "Scaling up services in Kubernetes (namespace: $K8S_NAMESPACE)..."
-    
+
     check_kubectl
     check_files
-    
+
     # Scale Odoo
     log_info "Scaling Odoo to $ODOO_WORKERS replicas..."
     if ! kubectl scale deployment/odoo --replicas="$ODOO_WORKERS" -n "$K8S_NAMESPACE"; then
@@ -143,7 +175,7 @@ scale_kubernetes_up() {
         exit 1
     fi
     log_success "Odoo scaled to $ODOO_WORKERS replicas"
-    
+
     # Scale LangGraph
     log_info "Scaling LangGraph to $LANGGRAPH_WORKERS replicas..."
     if ! kubectl scale deployment/langgraph --replicas="$LANGGRAPH_WORKERS" -n "$K8S_NAMESPACE"; then
@@ -151,7 +183,7 @@ scale_kubernetes_up() {
         exit 1
     fi
     log_success "LangGraph scaled to $LANGGRAPH_WORKERS replicas"
-    
+
     # Scale GPU workers (NVIDIA Dynamo)
     if [ "$GPU_WORKERS" -gt 0 ]; then
         log_info "Scaling NVIDIA Dynamo to $GPU_WORKERS replicas..."
@@ -161,7 +193,7 @@ scale_kubernetes_up() {
         fi
         log_success "Dynamo scaled to $GPU_WORKERS replicas"
     fi
-    
+
     # Scale self-improving services
     if [ "$SELF_IMPROVING_WORKERS" -gt 0 ]; then
         log_info "Scaling self-improving services to $SELF_IMPROVING_WORKERS replicas..."
@@ -171,28 +203,28 @@ scale_kubernetes_up() {
             log_success "Self-improving services scaled to $SELF_IMPROVING_WORKERS replicas"
         fi
     fi
-    
+
     log_success "Kubernetes scaling completed successfully!"
     show_kubernetes_status
 }
 
 scale_kubernetes_down() {
     log_info "Scaling down services in Kubernetes (namespace: $K8S_NAMESPACE)..."
-    
+
     check_kubectl
-    
+
     # Scale Odoo to 1
     log_info "Scaling Odoo to 1 replica..."
     kubectl scale deployment/odoo --replicas=1 -n "$K8S_NAMESPACE" || log_warning "Failed to scale Odoo"
-    
+
     # Scale LangGraph to 1
     log_info "Scaling LangGraph to 1 replica..."
     kubectl scale deployment/langgraph --replicas=1 -n "$K8S_NAMESPACE" || log_warning "Failed to scale LangGraph"
-    
+
     # Scale GPU to 0
     log_info "Scaling Dynamo to 0 replicas..."
     kubectl scale deployment/dynamo --replicas=0 -n "$K8S_NAMESPACE" || log_warning "Failed to scale Dynamo"
-    
+
     log_success "Kubernetes scaling down completed!"
 }
 
@@ -207,74 +239,77 @@ show_kubernetes_status() {
 
 scale_docker_up() {
     log_info "Scaling up services with Docker Compose..."
-    
+
     check_docker
     check_files
-    
+    resolve_compose_args
+
     # Scale Odoo
     log_info "Scaling Odoo workers to $ODOO_WORKERS..."
-    if ! docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale odoo="$ODOO_WORKERS" --no-recreate; then
+    if ! docker_compose "${COMPOSE_ARGS[@]}" up -d --scale odoo="$ODOO_WORKERS" --no-recreate; then
         log_error "Failed to scale Odoo workers"
         exit 1
     fi
     log_success "Odoo workers scaled to $ODOO_WORKERS"
-    
+
     # Scale LangGraph
     log_info "Scaling LangGraph workers to $LANGGRAPH_WORKERS..."
-    if ! docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale langgraph="$LANGGRAPH_WORKERS" --no-recreate; then
+    if ! docker_compose "${COMPOSE_ARGS[@]}" up -d --scale langgraph="$LANGGRAPH_WORKERS" --no-recreate; then
         log_error "Failed to scale LangGraph workers"
         exit 1
     fi
     log_success "LangGraph workers scaled to $LANGGRAPH_WORKERS"
-    
+
     # Scale GPU workers (NVIDIA Dynamo)
     if [ "$GPU_WORKERS" -gt 0 ]; then
         log_info "Scaling Dynamo workers to $GPU_WORKERS..."
-        if ! docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale dynamo="$GPU_WORKERS" --no-recreate; then
+        if ! docker_compose "${COMPOSE_ARGS[@]}" up -d --scale dynamo="$GPU_WORKERS" --no-recreate; then
             log_error "Failed to scale Dynamo workers"
             exit 1
         fi
         log_success "Dynamo workers scaled to $GPU_WORKERS"
     fi
-    
+
     # Scale self-improving services
     if [ "$SELF_IMPROVING_WORKERS" -gt 0 ]; then
         log_info "Scaling self-improving workers to $SELF_IMPROVING_WORKERS..."
-        if ! docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale self-improving="$SELF_IMPROVING_WORKERS" --no-recreate; then
+        if ! docker_compose "${COMPOSE_ARGS[@]}" up -d --scale self-improving="$SELF_IMPROVING_WORKERS" --no-recreate; then
             log_warning "Failed to scale self-improving workers (service may not exist)"
         else
             log_success "Self-improving workers scaled to $SELF_IMPROVING_WORKERS"
         fi
     fi
-    
+
     log_success "All services scaled up successfully!"
     show_docker_status
 }
 
 scale_docker_down() {
     log_info "Scaling down services with Docker Compose..."
-    
+
     check_docker
     check_files
-    
+    resolve_compose_args
+
     # Scale Odoo to 1
     log_info "Scaling Odoo workers to 1..."
-    docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale odoo=1 --no-recreate || log_warning "Failed to scale Odoo"
-    
+    docker_compose "${COMPOSE_ARGS[@]}" up -d --scale odoo=1 --no-recreate || log_warning "Failed to scale Odoo"
+
     # Scale LangGraph to 1
     log_info "Scaling LangGraph workers to 1..."
-    docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale langgraph=1 --no-recreate || log_warning "Failed to scale LangGraph"
-    
+    docker_compose "${COMPOSE_ARGS[@]}" up -d --scale langgraph=1 --no-recreate || log_warning "Failed to scale LangGraph"
+
     # Scale GPU to 0
     log_info "Scaling Dynamo workers to 0..."
-    docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d --scale dynamo=0 --no-recreate || log_warning "Failed to scale GPU"
-    
+    docker_compose "${COMPOSE_ARGS[@]}" up -d --scale dynamo=0 --no-recreate || log_warning "Failed to scale GPU"
+
     log_success "Scaling down completed!"
 }
 
 show_docker_status() {
     log_info "Docker Compose service status:"
-    docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" ps
+    resolve_compose_args
+    docker_compose "${COMPOSE_ARGS[@]}" ps
 }
 
 # -----------------------------------------------------------------------------
@@ -283,7 +318,7 @@ show_docker_status() {
 
 deploy_odoo_modules() {
     log_info "Deploying Odoo modules..."
-    
+
     if [ "$USE_KUBERNETES" = true ]; then
         deploy_odoo_modules_kubernetes
     else
@@ -293,23 +328,25 @@ deploy_odoo_modules() {
 
 deploy_odoo_modules_docker() {
     check_docker
-    
-    ODOO_CONTAINER=$(docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" ps -q odoo 2>/dev/null)
-    
+    check_files
+    resolve_compose_args
+
+    ODOO_CONTAINER=$(docker_compose "${COMPOSE_ARGS[@]}" ps -q odoo 2>/dev/null)
+
     if [ -z "$ODOO_CONTAINER" ]; then
         log_warning "Odoo container not running. Starting it..."
-        docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" up -d odoo
+        docker_compose "${COMPOSE_ARGS[@]}" up -d odoo
         sleep 10
-        ODOO_CONTAINER=$(docker compose -f "$DOCKER_COMPOSE_FILE" -f "$DOCKER_COMPOSE_OVERRIDE" ps -q odoo)
+        ODOO_CONTAINER=$(docker_compose "${COMPOSE_ARGS[@]}" ps -q odoo)
     fi
-    
+
     if [ -z "$ODOO_CONTAINER" ]; then
         log_error "Failed to start Odoo container"
         exit 1
     fi
-    
+
     MODULES="nettrades_core,nettrades_bridge,nettrades_data_collection,nettrades_trigger,nettrades_loop,nettrades_self_improving_config"
-    
+
     log_info "Installing modules: $MODULES"
     if ! docker exec "$ODOO_CONTAINER" python /usr/lib/python3/dist-packages/odoo/odoo-bin \
         -c /etc/odoo/odoo.conf \
@@ -318,22 +355,22 @@ deploy_odoo_modules_docker() {
         log_error "Failed to install modules"
         exit 1
     fi
-    
+
     log_success "Modules installed successfully!"
 }
 
 deploy_odoo_modules_kubernetes() {
     check_kubectl
-    
+
     ODOO_POD=$(kubectl get pods -n "$K8S_NAMESPACE" -l app=odoo -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-    
+
     if [ -z "$ODOO_POD" ]; then
         log_error "No Odoo pod found in namespace $K8S_NAMESPACE"
         exit 1
     fi
-    
+
     MODULES="nettrades_core,nettrades_bridge,nettrades_data_collection,nettrades_trigger,nettrades_loop,nettrades_self_improving_config"
-    
+
     log_info "Installing modules in pod $ODOO_POD: $MODULES"
     if ! kubectl exec "$ODOO_POD" -n "$K8S_NAMESPACE" -- \
         python /usr/lib/python3/dist-packages/odoo/odoo-bin \
@@ -343,7 +380,7 @@ deploy_odoo_modules_kubernetes() {
         log_error "Failed to install modules"
         exit 1
     fi
-    
+
     log_success "Modules installed successfully!"
 }
 

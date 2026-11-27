@@ -238,6 +238,9 @@ class DiscoveryService(models.Model):
             # Build TXT record with capabilities
             txt_data = [
                 f'version={self._get_version()}',
+                # role=hub tells spokes that this service is a hub. See
+                # the Launcher's equivalent TXT record in main.js.
+                f'role=hub',
                 f'gpus={self._get_gpu_count()}',
                 f'models={self._get_model_count()}',
                 f'capabilities={json.dumps(state["advertised_capabilities"])}',
@@ -251,7 +254,14 @@ class DiscoveryService(models.Model):
                 '_nettrades._tcp',
                 '',
                 '',
-                dbus.UInt16(5353),
+                # The port here is the port the SERVICE is reachable on,
+                # not the mDNS port. mDNS itself always uses 5353; DNS-SD
+                # uses 5353 for the query but the A/SRV records advertise
+                # the real service port. The spoke discovers the hub by
+                # IP; the service port in the mDNS record is informational.
+                # 8069 is Odoo's port, which is what the spoke installs
+                # against.
+                dbus.UInt16(8069),
                 txt_data
             )
 
@@ -312,8 +322,8 @@ class DiscoveryService(models.Model):
 
     def _get_gpu_count(self):
         """Get the number of available GPUs"""
-        return self.env['nettrades.gpu.node'].sudo().search_count([('status', '=', 'available')])
+        return self.env['gpu.node'].sudo().search_count([('status', '=', 'available')])
 
     def _get_model_count(self):
         """Get the number of available models"""
-        return self.env['nettrades.llm.model'].sudo().search_count([])
+        return self.env['llm.model'].sudo().search_count([])

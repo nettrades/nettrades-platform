@@ -1,0 +1,63 @@
+# FILE: scripts/lockfiles/hardware-matrix.yaml
+# =============================================================================
+# PURPOSE:
+#   Pinned driver/toolkit versions per hardware profile. The installer
+#   reads this file, matches the detected hardware to a profile, and
+#   installs exactly the pinned versions. If no profile matches, the
+#   installer fails with a clear message listing the supported matrix.
+#
+# WHY THIS FILE EXISTS:
+#   The for ROCM_VER in latest 6.3 6.2 loop in install-spoke.sh was the
+#   single largest source of non-determinism in the codebase. It silently
+#   upgraded to ROCm 7 on machines where 6.3 was required. Deleting it
+#   and replacing it with a matrix lookup removes the entire class of
+#   "it worked yesterday" failures documented in BUG-CATALOG.md §13–29.
+# =============================================================================
+profiles:
+  nvidia-volta:
+    pci_vendor: "0x10de"
+    compute_capability: "7.0"
+    cuda_toolkit: "12.4"
+    driver_branch: "550"
+    build_backends: ["cuda"]
+    cuda_arch: "70"
+
+  nvidia-ampere:
+    pci_vendor: "0x10de"
+    compute_capability: "8.0-8.9"
+    cuda_toolkit: "12.4"
+    driver_branch: "550"
+    build_backends: ["cuda"]
+    cuda_arch: "80;86;89"
+
+  nvidia-ada:
+    pci_vendor: "0x10de"
+    compute_capability: "8.9"
+    cuda_toolkit: "12.4"
+    driver_branch: "550"
+    build_backends: ["cuda"]
+    cuda_arch: "89"
+
+  amd-rdna2:
+    pci_vendor: "0x1002"
+    gfx_targets: ["gfx1030", "gfx1031", "gfx1032"]
+    rocm_version: "6.3.0"
+    rocm_pin: "6.3.*"
+    hsa_override: "10.3.0"
+    build_backends: ["hip"]
+
+  amd-rdna3:
+    pci_vendor: "0x1002"
+    gfx_targets: ["gfx1100", "gfx1101", "gfx1102"]
+    rocm_version: "6.3.0"
+    rocm_pin: "6.3.*"
+    hsa_override: "11.0.0"
+    build_backends: ["hip"]
+
+  intel-arc:
+    pci_vendor: "0x8086"
+    oneapi_version: "2024.2"
+    build_backends: ["sycl"]
+
+  cpu-only:
+    build_backends: []

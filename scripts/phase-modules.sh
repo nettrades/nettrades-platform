@@ -15,17 +15,20 @@
 
 set -euo pipefail
 
-set -a
-source "$PROJECT_ROOT/deploy/docker/.env"
-set +a
-
 # -----------------------------------------------------------------------------
 # Source shared libraries
 # -----------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+export PROJECT_ROOT
+
 source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logging.sh"
 source "$SCRIPT_DIR/lib/common.sh"
+
+set -a
+source "$PROJECT_ROOT/deploy/docker/.env"
+set +a
 
 # -----------------------------------------------------------------------------
 # Ensure VENV_DIR is available and activate the virtual environment
@@ -94,24 +97,48 @@ ODOO_ADMIN_SCRIPT="$SCRIPT_DIR/configure-odoo-admin.sh"
 if [[ -f "$ODOO_ADMIN_SCRIPT" ]] && [[ -n "${ODOO_ADMIN_PASSWORD:-}" ]]; then
     cd "$PROJECT_ROOT/deploy/docker"
 
-    # Capture the script's full output so we can both forward its log
-    # lines and parse its structured stdout. On this second pass the
-    # service user already exists, so the script reuses the password
-    # from .env and only regenerates the API key.
-    CONFIGURE_OUTPUT=$(
-        docker compose exec -T \
-            -e ODOO_ADMIN_PASSWORD="$ODOO_ADMIN_PASSWORD" \
-            -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-            -e NETTRADES_SERVICE_PASSWORD="$NETTRADES_SERVICE_PASSWORD" \
-            -e DYNAMO_API_KEY="${DYNAMO_API_KEY:-dummy}" \
-            -e LLM_BASE_URL="${LLM_BASE_URL:-http://llama-cpp:8080/v1}" \
-            odoo bash -c "$(cat "$ODOO_ADMIN_SCRIPT")" 2>&1
-    )
-    printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^\[configure-odoo-admin\]' || true
+    # Stream output live AND capture it for parsing. On a fresh Odoo
+    # database, the shell command takes 60-90 seconds to boot before
+    # the script prints anything. Buffering the whole call inside
+    # $(...) makes the phase look hung; teeing to a temp file keeps
+    # the operator informed and lets us grep the structured markers
+    # afterwards. This mirrors the pattern already used in
+    # phase-deploy.sh.
+    #
+    # We deliberately relax `set -e` around this call. The previous
+    # $(...) form did not propagate a nonzero exit code, and
+    # configure-odoo-admin.sh is designed to be safe to re-run:
+    # failing the whole module phase because of a transient Odoo
+    # hiccup would leave the operator in a broken state where the
+    # modules installed but the service user was not verified. Log
+    # the warning and continue — the phase-completion marker is
+    # written at the end, so a real failure will surface on the next
+    # re-run anyway.
+    CONFIGURE_LOG=$(mktemp)
+    set +e
+    docker compose exec -T \
+        -e ODOO_ADMIN_PASSWORD="$ODOO_ADMIN_PASSWORD" \
+        -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+        -e NETTRADES_SERVICE_PASSWORD="$NETTRADES_SERVICE_PASSWORD" \
+        -e DYNAMO_API_KEY="${DYNAMO_API_KEY:-dummy}" \
+        -e LLM_BASE_URL="${LLM_BASE_URL:-http://llama-cpp:8080/v1}" \
+        odoo bash -c "$(cat "$ODOO_ADMIN_SCRIPT")" 2>&1 | tee "$CONFIGURE_LOG"
+    CONFIGURE_EXIT=$?
+    set -e
 
-    SERVICE_UID=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_UID=' | tail -1 | cut -d= -f2- | tr -d '\r')
-    SERVICE_PASSWORD=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_PASSWORD=' | tail -1 | cut -d= -f2- | tr -d '\r')
-    SERVICE_API_KEY=$(printf '%s\n' "$CONFIGURE_OUTPUT" | grep '^NETTRADES_SERVICE_API_KEY=' | tail -1 | cut -d= -f2- | tr -d '\r')
+    if [[ $CONFIGURE_EXIT -ne 0 ]]; then
+        log_warning "configure-odoo-admin.sh exited $CONFIGURE_EXIT"
+        log_warning "  Review $CONFIGURE_LOG — the phase will continue, but the"
+        log_warning "  service user may not be verified. Re-run this phase with"
+        log_warning "  --force if the marker is missing."
+    fi
+
+    grep '^\[configure-odoo-admin\]' "$CONFIGURE_LOG" || true
+
+    SERVICE_UID=$(grep '^NETTRADES_SERVICE_UID=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+    SERVICE_PASSWORD=$(grep '^NETTRADES_SERVICE_PASSWORD=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+    SERVICE_API_KEY=$(grep '^NETTRADES_SERVICE_API_KEY=' "$CONFIGURE_LOG" | tail -1 | cut -d= -f2- | tr -d '\r')
+    rm -f "$CONFIGURE_LOG"
 
     ENV_FILE="$PROJECT_ROOT/deploy/docker/.env"
     if [[ -n "$SERVICE_UID" ]] && [[ -f "$ENV_FILE" ]]; then
@@ -129,11 +156,17 @@ if [[ -f "$ODOO_ADMIN_SCRIPT" ]] && [[ -n "${ODOO_ADMIN_PASSWORD:-}" ]]; then
         log_success "Service user API key recorded in .env"
     fi
 
-    # Recreate langgraph-server to apply the new API key.
+    # Recreate langgraph-server AND odoo-proxy to apply the new API key.
+    #
+    # odoo-proxy reads ODOO_SERVICE_API_KEY (mapped from
+    # NETTRADES_SERVICE_API_KEY in docker-compose.yaml) at container start.
+    # Without recreating it, every call the proxy makes to Odoo on behalf
+    # of langgraph-server returns 401, and the whole control plane goes dark
+    # even though langgraph-server itself was recreated.
     if [[ -n "$SERVICE_UID" ]] && [[ -n "$SERVICE_PASSWORD" ]]; then
-        log_step "Recreating langgraph-server to apply service credentials..."
-        docker compose up -d --force-recreate langgraph-server \
-            || log_warning "Failed to recreate langgraph-server"
+        log_step "Recreating langgraph-server and odoo-proxy to apply service credentials..."
+        docker compose up -d --force-recreate langgraph-server odoo-proxy \
+            || log_warning "Failed to recreate langgraph-server and odoo-proxy"
     fi
 
     cd "$PROJECT_ROOT"

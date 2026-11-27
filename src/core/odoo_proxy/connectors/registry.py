@@ -7,14 +7,14 @@
 #          Connectors are registered by name and can be retrieved dynamically.
 #
 # USAGE:
-#   from proxy_framework.registry import ProxyRegistry
+#   from proxy_framework.registry import ConnectorRegistry
 #   from proxy_framework.connectors.odoo import OdooConnector
 #
 #   # Register a connector
-#   ProxyRegistry.register('odoo', OdooConnector)
+#   ConnectorRegistry.register('odoo', OdooConnector)
 #
 #   # Get a connector instance
-#   connector = ProxyRegistry.get_connector('odoo', config)
+#   connector = ConnectorRegistry.get_connector('odoo', config)
 # =============================================================================
 
 from typing import Dict, Type, Optional, List, Any
@@ -24,7 +24,7 @@ from .base import AbstractEnterpriseConnector
 logger = logging.getLogger(__name__)
 
 
-class ProxyRegistry:
+class ConnectorRegistry:
     """
     Registry for enterprise connectors.
     
