@@ -27,7 +27,25 @@
 #
 # UPDATES (2026-09-29):
 #   - LLM is now constructed per-invocation inside select_gpu().
+#
+# UPDATES (2026-11-16):
+#   - Fixed TypeError in create_booking when start_time/end_time arrive
+#     as ISO-8601 strings from the /invoke JSON body. The subtraction
+#     `end_time - start_time` raises TypeError when either side is a
+#     string. Both sides are now normalised to `datetime` before use.
+#   - Fixed TypeError in list_gpus, select_gpu, create_booking, and
+#     process_payment when `price_per_hour` or `total_cost` is None or
+#     a string. All numeric formatting now goes through `_as_float()`.
+#   - Added `_as_float()` and `_as_datetime()` helpers at module scope,
+#     used by every function that formats or computes with these values.
 # =============================================================================
+#
+# SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-NETTRADES-Commercial
+# Copyright (c) 2026 NETTRADES LIMITED (UK Company No. 08160657). Patent Pending. All rights reserved.
+# Licensed under LICENSE.txt (BUSL-1.1 -> Open RAIL-S) and strictly conditioned
+# upon compliance with ETHICAL-STATEMENT.md. See also LEGAL/IP-AND-PATENTS.md.
+# THE FUTURE OF WORK is a registered trade mark in the United Kingdom (No. UK00004257743) of NETTRADES LIMITED.
+# Distributed WITHOUT ANY WARRANTY.
 
 import json
 import logging
@@ -47,6 +65,41 @@ from tools.odoo_tools import (
 )
 
 _logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# HELPER — defensive numeric / datetime coercion
+# =============================================================================
+# The /invoke HTTP body is JSON, so all scalar values arrive as strings,
+# numbers, or booleans. Some values (like price_per_hour from Odoo's
+# search_read) may also be None. The booking logic does arithmetic and
+# string formatting with `:.2f`, both of which raise TypeError on None
+# or str. These two helpers normalise the inputs at the boundary so the
+# rest of the agent can trust the types.
+# =============================================================================
+
+def _as_float(value, default: float = 0.0) -> float:
+    """Best-effort conversion of `value` to float. Returns `default` on failure."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_datetime(value):
+    """Best-effort conversion of `value` to datetime. Returns None on failure."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value)
+        except (TypeError, ValueError):
+            return None
+    return None
 
 
 class GPUMarketplaceState(dict):
@@ -108,7 +161,7 @@ def create_gpu_marketplace_agent() -> StateGraph:
                     response += (
                         f"- **{node.get('name')}**: {node.get('gpu_model')} "
                         f"({node.get('vram_gb')}GB VRAM) - "
-                        f"${node.get('price_per_hour', 0):.2f}/hour\n"
+                        f"${_as_float(node.get('price_per_hour')):.2f}/hour\n"
                     )
                 if len(nodes) > 5:
                     response += f"\n... and {len(nodes) - 5} more nodes available."
@@ -168,7 +221,7 @@ def create_gpu_marketplace_agent() -> StateGraph:
                     state["analysis"] = (
                         f"Selected GPU: {selected_node.get('name')} "
                         f"({selected_node.get('gpu_model')}) - "
-                        f"${selected_node.get('price_per_hour', 0):.2f}/hour"
+                        f"${_as_float(selected_node.get('price_per_hour')):.2f}/hour"
                     )
                     _logger.info(f"Selected GPU node: {selected_node.get('id')}")
                 else:
@@ -189,18 +242,43 @@ def create_gpu_marketplace_agent() -> StateGraph:
     async def create_booking(state: GPUMarketplaceState) -> GPUMarketplaceState:
         """
         Create a GPU booking in Odoo.
+
+        Two types of input are accepted for start_time and end_time:
+          - ISO-8601 strings (from an /invoke JSON body)
+          - `datetime` objects (from a state dict built in Python)
+
+        Both are normalised to `datetime` before any arithmetic. The
+        gpu_marketplace_create_booking helper also does the subtraction
+        internally, so passing un-coerced strings would crash there
+        first with a TypeError.
         """
         selected_node = state.get("selected_node")
-        start_time = state.get("start_time")
-        end_time = state.get("end_time")
+        start_raw = state.get("start_time")
+        end_raw = state.get("end_time")
         user_id = state.get("user_id", 1)
 
         if not selected_node:
             _logger.warning("No GPU node selected for booking")
             return state
 
-        if not start_time or not end_time:
+        if not start_raw or not end_raw:
             _logger.warning("Missing start or end time for booking")
+            return state
+
+        # Normalise to datetime. If either side fails to parse, the
+        # booking is rejected before any Odoo write happens, so we do
+        # not leave a half-created reservation behind.
+        start_time = _as_datetime(start_raw)
+        end_time = _as_datetime(end_raw)
+        if start_time is None or end_time is None:
+            _logger.warning(
+                "Booking times are not valid ISO-8601 or datetime: start=%r end=%r",
+                start_raw, end_raw,
+            )
+            state["analysis"] = (
+                "Booking failed: start_time and end_time must be valid "
+                "ISO-8601 strings or datetime objects."
+            )
             return state
 
         _logger.info(f"Creating booking for GPU node: {selected_node.get('id')}")
@@ -226,9 +304,10 @@ def create_gpu_marketplace_agent() -> StateGraph:
 
             _logger.info(f"Booking created with ID: {booking_id}")
 
-            # Calculate total cost for display
+            # Calculate total cost for display. duration_hours is safe
+            # because both sides are now datetime objects.
             duration_hours = (end_time - start_time).total_seconds() / 3600
-            total_cost = duration_hours * selected_node.get("price_per_hour", 0)
+            total_cost = duration_hours * _as_float(selected_node.get("price_per_hour"))
             state["total_cost"] = total_cost
 
             state["analysis"] = (
@@ -252,9 +331,13 @@ def create_gpu_marketplace_agent() -> StateGraph:
     async def process_payment(state: GPUMarketplaceState) -> GPUMarketplaceState:
         """
         Process payment for the booking.
+
+        `state["total_cost"]` was written by create_booking as a float,
+        but a caller that bypasses the state flow could provide any
+        type. `_as_float` normalises it before formatting with `:.2f`.
         """
         booking_id = state.get("booking_id")
-        total_cost = state.get("total_cost", 0)
+        total_cost = _as_float(state.get("total_cost"))
 
         if not booking_id:
             _logger.warning("No booking ID available for payment")
