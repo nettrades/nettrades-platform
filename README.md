@@ -91,7 +91,7 @@ NETTRADES Sovereign AI Platform uses a Hub (NETTRADES.AI), Sub-Hub (one per clie
 
 The NETTRADES Sovereign AI Platform Sub Hub could be installed on a Ubuntu 24.04 machine. 
 
-Or you could partitian the drive for dual boot and have Ubuntu 24.04 on one of the partitians, so that the NVIDIA Dynamo workers have direct access to the hardware. 
+Or you could partition the drive for dual boot and have Ubuntu 24.04 on one of the partitians, so that the NVIDIA Dynamo workers have direct access to the hardware. 
 
 A production hub should run on Ubuntu bare metal or on a partitian, because:
 
@@ -884,7 +884,7 @@ flowchart TD
 
 * No PostgreSQL, no Odoo, no Redis, no LangGraph.
 
-The Nettrades Sovereign AI Platform has transaction control, error handling and state control with LanGraph, therefore when working with Odoo it relies on Odoo's ORM and database for transaction control. Since the agents' tools (odoo_tools.py) perform CRUD operations directly on Odoo, all transactional integrity is managed by Odoo's database. This provides ACID guarantees. To prevent privilege escalation, the agent inherit the permissions of the human who triggered it. The Nettrades Sovereign AI Platform has its own nettrades_ tables too decouple from Odoo and make future upgrades easier and integration with other enterprise systems easier, while maintaining transaction control and error handling.  
+The Nettrades Sovereign AI Platform has transaction control, error handling and state control with LangGraph, therefore when working with Odoo it relies on Odoo's ORM and database for transaction control. Since the agents' tools (odoo_tools.py) perform CRUD operations directly on Odoo, all transactional integrity is managed by Odoo's database. This provides ACID guarantees. To prevent privilege escalation, the agent inherit the permissions of the human who triggered it. The Nettrades Sovereign AI Platform has its own nettrades_ tables too decouple from Odoo and make future upgrades easier and integration with other enterprise systems easier, while maintaining transaction control and error handling.  
 
 
 #### WireGuard
@@ -1052,7 +1052,7 @@ For more detailed help, see the [Full Documentation](docs/index.md).
 | `Ingress` | Reverse proxy | Traefik | Latest | MIT | Dynamic routing |
 | `Database Operator` | PostgreSQL operator | CloudNativePG | Latest | Apache-2.0 | PostgreSQL management |
 | `VPN` | Secure networking | WireGuard | Latest | GPL-2.0 | Secure tunnels |
-| `Sandboxing` | Container isolation | gVisor | Latest | pache-2.0 | Secure containers (CPU services) |
+| `Sandboxing` | Container isolation | gVisor | Latest | Apache-2.0 | Secure containers (CPU services) |
 | `Metrics` | Monitoring | Prometheus | Latest | Apache-2.0 | Metrics collection |
 | `Dashboards` | Visualisation | Grafana | Latest | AGPL-3.0 | Monitoring dashboards |
 | `Git / CI` | Source control / CI | Forgejo | Latest | MIT | Self-hosted Git |
